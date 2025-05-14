@@ -83,230 +83,125 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800">
-      <div className="max-w-md mx-auto py-12 px-4 sm:px-6 lg:px-8">
-        <div className="text-center">
-          <h1 className="text-4xl font-bold text-white sm:text-5xl">
-            註冊
-          </h1>
-          <p className="mt-3 text-xl text-gray-300">
-            加入我們，開始您的遊戲時光
-          </p>
-        </div>
-
-        <div className="mt-12">
-          <div className="bg-white/10 backdrop-blur-lg shadow-xl rounded-2xl border border-white/20">
-            <div className="px-4 py-5 sm:p-6">
-              <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-                <div>
-                  <label
-                    htmlFor="email"
-                    className="block text-sm font-medium text-gray-300"
-                  >
-                    電子郵件
-                  </label>
-                  <div className="mt-1">
-                    <input
-                      type="email"
-                      {...register('email')}
-                      className="block w-full rounded-lg border-0 bg-white/5 px-4 py-3 text-white shadow-sm ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-inset focus:ring-indigo-500 sm:text-sm sm:leading-6"
-                    />
-                    {errors.email && (
-                      <p className="mt-2 text-sm text-red-400">
-                        {errors.email.message}
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                <div>
-                  <label
-                    htmlFor="password"
-                    className="block text-sm font-medium text-gray-300"
-                  >
-                    密碼
-                  </label>
-                  <div className="mt-1">
-                    <input
-                      type="password"
-                      {...register('password')}
-                      className="block w-full rounded-lg border-0 bg-white/5 px-4 py-3 text-white shadow-sm ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-inset focus:ring-indigo-500 sm:text-sm sm:leading-6"
-                    />
-                    {errors.password && (
-                      <p className="mt-2 text-sm text-red-400">
-                        {errors.password.message}
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                <div>
-                  <label
-                    htmlFor="confirmPassword"
-                    className="block text-sm font-medium text-gray-300"
-                  >
-                    確認密碼
-                  </label>
-                  <div className="mt-1">
-                    <input
-                      type="password"
-                      {...register('confirmPassword')}
-                      className="block w-full rounded-lg border-0 bg-white/5 px-4 py-3 text-white shadow-sm ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-inset focus:ring-indigo-500 sm:text-sm sm:leading-6"
-                    />
-                    {errors.confirmPassword && (
-                      <p className="mt-2 text-sm text-red-400">
-                        {errors.confirmPassword.message}
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                <div>
-                  <label
-                    htmlFor="name"
-                    className="block text-sm font-medium text-gray-300"
-                  >
-                    姓名
-                  </label>
-                  <div className="mt-1">
-                    <input
-                      type="text"
-                      {...register('name')}
-                      className="block w-full rounded-lg border-0 bg-white/5 px-4 py-3 text-white shadow-sm ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-inset focus:ring-indigo-500 sm:text-sm sm:leading-6"
-                    />
-                    {errors.name && (
-                      <p className="mt-2 text-sm text-red-400">
-                        {errors.name.message}
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                <div>
-                  <label
-                    htmlFor="birthday"
-                    className="block text-sm font-medium text-gray-300"
-                  >
-                    生日
-                  </label>
-                  <div className="mt-1">
-                    <input
-                      type="date"
-                      {...register('birthday')}
-                      className="block w-full rounded-lg border-0 bg-white/5 px-4 py-3 text-white shadow-sm ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-inset focus:ring-indigo-500 sm:text-sm sm:leading-6"
-                    />
-                    {errors.birthday && (
-                      <p className="mt-2 text-sm text-red-400">
-                        {errors.birthday.message}
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                <div>
-                  <label
-                    htmlFor="phone"
-                    className="block text-sm font-medium text-gray-300"
-                  >
-                    電話
-                  </label>
-                  <div className="mt-1">
-                    <input
-                      type="tel"
-                      {...register('phone')}
-                      className="block w-full rounded-lg border-0 bg-white/5 px-4 py-3 text-white shadow-sm ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-inset focus:ring-indigo-500 sm:text-sm sm:leading-6"
-                    />
-                    {errors.phone && (
-                      <p className="mt-2 text-sm text-red-400">
-                        {errors.phone.message}
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                <div>
-                  <label
-                    htmlFor="role"
-                    className="block text-sm font-medium text-gray-300"
-                  >
-                    註冊身份
-                  </label>
-                  <div className="mt-1">
-                    <select
-                      {...register('role')}
-                      className="block w-full rounded-lg border-0 bg-white/5 px-4 py-3 text-white shadow-sm ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-inset focus:ring-indigo-500 sm:text-sm sm:leading-6"
-                    >
-                      <option value="CUSTOMER">客人</option>
-                      <option value="PARTNER">遊戲夥伴</option>
-                    </select>
-                    {errors.role && (
-                      <p className="mt-2 text-sm text-red-400">
-                        {errors.role.message}
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                {role === 'PARTNER' && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">專長遊戲（可複選）</label>
-                    <div className="flex flex-wrap gap-2 mb-2">
-                      {GAME_OPTIONS.map((game) => (
-                        <label key={game} className="flex items-center text-gray-200">
-                          <input
-                            type="checkbox"
-                            value={game}
-                            checked={selectedGames.includes(game)}
-                            onChange={e => {
-                              if (e.target.checked) {
-                                setSelectedGames([...selectedGames, game])
-                              } else {
-                                setSelectedGames(selectedGames.filter(g => g !== game))
-                              }
-                            }}
-                            className="mr-2 accent-indigo-500"
-                          />
-                          {game}
-                        </label>
-                      ))}
-                    </div>
-                    {selectedGames.includes('其他') && (
-                      <input
-                        type="text"
-                        placeholder="請輸入其他遊戲名稱"
-                        value={customGame}
-                        onChange={e => setCustomGame(e.target.value)}
-                        className="block w-full rounded-lg border-0 bg-white/5 px-4 py-3 text-white shadow-sm ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-inset focus:ring-indigo-500 sm:text-sm sm:leading-6 mt-2"
-                      />
-                    )}
-                  </div>
-                )}
-
-                <div>
-                  <button
-                    type="submit"
-                    disabled={isLoading}
-                    className="w-full inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-lg text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {isLoading ? '註冊中...' : '註冊'}
-                  </button>
-                </div>
-
-                <div className="text-center">
-                  <p className="text-sm text-gray-300">
-                    已經有帳號？{' '}
-                    <Link
-                      href="/auth/login"
-                      className="font-medium text-indigo-400 hover:text-indigo-300"
-                    >
-                      立即登入
-                    </Link>
-                  </p>
-                </div>
-              </form>
-            </div>
+    <div className="max-w-md mx-auto mt-16 bg-white/10 rounded-xl p-8 shadow-lg backdrop-blur">
+      <h2 className="text-2xl font-bold mb-6 text-center">註冊</h2>
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <input
+          className="w-full px-4 py-2 rounded bg-gray-900 text-white border border-gray-700"
+          placeholder="Email"
+          {...register('email')}
+        />
+        {errors.email && (
+          <p className="text-red-400 text-sm">{errors.email.message}</p>
+        )}
+        <input
+          className="w-full px-4 py-2 rounded bg-gray-900 text-white border border-gray-700"
+          placeholder="密碼"
+          type="password"
+          {...register('password')}
+        />
+        {errors.password && (
+          <p className="text-red-400 text-sm">{errors.password.message}</p>
+        )}
+        <input
+          className="w-full px-4 py-2 rounded bg-gray-900 text-white border border-gray-700"
+          placeholder="姓名"
+          {...register('name')}
+        />
+        {errors.name && (
+          <p className="text-red-400 text-sm">{errors.name.message}</p>
+        )}
+        <input
+          className="w-full px-4 py-2 rounded bg-gray-900 text-white border border-gray-700"
+          placeholder="電話"
+          {...register('phone')}
+        />
+        {errors.phone && (
+          <p className="text-red-400 text-sm">{errors.phone.message}</p>
+        )}
+        <input
+          className="w-full px-4 py-2 rounded bg-gray-900 text-white border border-gray-700"
+          placeholder="生日"
+          type="date"
+          {...register('birthday')}
+        />
+        {errors.birthday && (
+          <p className="text-red-400 text-sm">{errors.birthday.message}</p>
+        )}
+        <div>
+          <label
+            htmlFor="role"
+            className="block text-sm font-medium text-gray-300"
+          >
+            註冊身份
+          </label>
+          <div className="mt-1">
+            <select
+              {...register('role')}
+              className="block w-full rounded-lg border-0 bg-white/5 px-4 py-3 text-white shadow-sm ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-inset focus:ring-indigo-500 sm:text-sm sm:leading-6"
+            >
+              <option value="CUSTOMER">客人</option>
+              <option value="PARTNER">遊戲夥伴</option>
+            </select>
+            {errors.role && (
+              <p className="mt-2 text-sm text-red-400">
+                {errors.role.message}
+              </p>
+            )}
           </div>
         </div>
+        {role === 'PARTNER' && (
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">專長遊戲（可複選）</label>
+            <div className="flex flex-wrap gap-2 mb-2">
+              {GAME_OPTIONS.map((game) => (
+                <label key={game} className="flex items-center text-gray-200">
+                  <input
+                    type="checkbox"
+                    value={game}
+                    checked={selectedGames.includes(game)}
+                    onChange={e => {
+                      if (e.target.checked) {
+                        setSelectedGames([...selectedGames, game])
+                      } else {
+                        setSelectedGames(selectedGames.filter(g => g !== game))
+                      }
+                    }}
+                    className="mr-2 accent-indigo-500"
+                  />
+                  {game}
+                </label>
+              ))}
+            </div>
+            {selectedGames.includes('其他') && (
+              <input
+                type="text"
+                placeholder="請輸入其他遊戲名稱"
+                value={customGame}
+                onChange={e => setCustomGame(e.target.value)}
+                className="block w-full rounded-lg border-0 bg-white/5 px-4 py-3 text-white shadow-sm ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-inset focus:ring-indigo-500 sm:text-sm sm:leading-6 mt-2"
+              />
+            )}
+          </div>
+        )}
+        <button
+          type="submit"
+          disabled={isLoading}
+          className="w-full py-2 rounded bg-gradient-to-r from-indigo-500 to-purple-500 text-white font-bold"
+        >
+          {isLoading ? '註冊中...' : '註冊'}
+        </button>
+      </form>
+      <div className="text-center mt-4">
+        <p className="text-sm text-gray-300">
+          已經有帳號？{' '}
+          <Link
+            href="/auth/login"
+            className="font-medium text-indigo-400 hover:text-indigo-300"
+          >
+            立即登入
+          </Link>
+        </p>
       </div>
     </div>
   )

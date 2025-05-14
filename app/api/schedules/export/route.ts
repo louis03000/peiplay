@@ -15,7 +15,7 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url)
     const startDate = searchParams.get('startDate')
     const endDate = searchParams.get('endDate')
-    const format = searchParams.get('format') || 'csv'
+    const fileFormat = searchParams.get('format') || 'csv'
 
     // 獲取當前用戶的 partner 信息
     const partner = await prisma.partner.findUnique({
@@ -62,7 +62,7 @@ export async function GET(request: Request) {
       },
     })
 
-    if (format === 'csv') {
+    if (fileFormat === 'csv') {
       const headers = [
         '日期',
         '開始時間',
@@ -73,7 +73,16 @@ export async function GET(request: Request) {
         '預約狀態',
       ]
 
-      const rows = schedules.map((schedule) => {
+      const rows = (schedules as Array<{
+        date: Date | string
+        startTime: string
+        endTime: string
+        isAvailable: boolean
+        bookings: Array<{
+          status?: string
+          customer?: { name?: string; phone?: string }
+        }>
+      }>).map((schedule) => {
         const booking = schedule.bookings[0]
         return [
           format(new Date(schedule.date), 'yyyy年MM月dd日', { locale: zhTW }),
