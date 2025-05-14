@@ -18,7 +18,6 @@ export default function LoginPage() {
   const {
     register,
     handleSubmit,
-    formState: { errors },
   } = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
   })

@@ -26,7 +26,6 @@ export async function POST(request: Request) {
     // 計算結束時間
     const [hours, minutes] = startTime.split(':').map(Number)
     const endTime = new Date(new Date(date).setHours(hours + duration, minutes))
-    const endTimeString = endTime.toTimeString().slice(0, 5)
 
     // 創建預約
     const booking = await prisma.booking.create({
