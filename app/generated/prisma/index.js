@@ -217,7 +217,7 @@ const config = {
     "db": {
       "url": {
         "fromEnvVar": "DATABASE_URL",
-        "value": "postgresql://postgres:qaz715331@localhost:5432/peiplay?schema=public"
+        "value": "postgresql://neondb_owner:npg_fwA76EmgFDta@ep-odd-snow-a1vzpgph-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require"
       }
     }
   },
