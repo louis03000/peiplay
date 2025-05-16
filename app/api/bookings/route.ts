@@ -30,32 +30,31 @@ export async function POST(request: Request) {
     const [hours, minutes] = startTime.split(':').map(Number)
     const endTime = new Date(new Date(date).setHours(hours + duration, minutes))
 
-    let customerConnectOrCreate
+    let customerConnectOrCreate;
     if (session?.user?.id) {
-      // 已登入用戶，直接 connect
-      const customer = await prisma.customer.findUnique({
+      // 已登入用戶
+      let customer = await prisma.customer.findUnique({
         where: { userId: session.user.id },
-      })
+      });
       if (!customer) {
-        // 若沒有 customer 資料，則建立
-        customerConnectOrCreate = {
-          create: {
+        // 先建立 customer
+        customer = await prisma.customer.create({
+          data: {
             name,
             birthday: new Date(birthday),
             phone,
             user: { connect: { id: session.user.id } },
           },
-        }
-      } else {
-        customerConnectOrCreate = { connect: { id: customer.id } }
+        });
       }
+      customerConnectOrCreate = { connect: { id: customer.id } };
     } else {
-      // 新用戶，建立 User + Customer
+      // 新用戶
       if (!email || !password) {
         return NextResponse.json(
           { error: '新用戶預約請提供 email 與 password' },
           { status: 400 }
-        )
+        );
       }
       customerConnectOrCreate = {
         create: {
@@ -65,7 +64,7 @@ export async function POST(request: Request) {
           user: {
             create: {
               email,
-              password, // 請注意：這裡建議 hash 密碼，或前端先 hash
+              password,
               name,
               birthday: new Date(birthday),
               phone,
@@ -73,7 +72,7 @@ export async function POST(request: Request) {
             },
           },
         },
-      }
+      };
     }
 
     // 創建預約
