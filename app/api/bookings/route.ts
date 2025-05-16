@@ -30,7 +30,7 @@ export async function POST(request: Request) {
     const [hours, minutes] = startTime.split(':').map(Number)
     const endTime = new Date(new Date(date).setHours(hours + duration, minutes))
 
-    let customerConnectOrCreate;
+    let booking;
     if (session?.user?.id) {
       // 已登入用戶
       let customer = await prisma.customer.findUnique({
@@ -47,7 +47,13 @@ export async function POST(request: Request) {
           },
         });
       }
-      customerConnectOrCreate = { connect: { id: customer.id } };
+      booking = await prisma.booking.create({
+        data: {
+          scheduleId: schedule.id,
+          customerId: customer.id,
+          status: 'PENDING',
+        },
+      });
     } else {
       // 新用戶
       if (!email || !password) {
@@ -56,33 +62,30 @@ export async function POST(request: Request) {
           { status: 400 }
         );
       }
-      customerConnectOrCreate = {
-        create: {
-          name,
-          birthday: new Date(birthday),
-          phone,
-          user: {
+      booking = await prisma.booking.create({
+        data: {
+          scheduleId: schedule.id,
+          customer: {
             create: {
-              email,
-              password,
               name,
               birthday: new Date(birthday),
               phone,
-              role: 'CUSTOMER' as any,
+              user: {
+                create: {
+                  email,
+                  password,
+                  name,
+                  birthday: new Date(birthday),
+                  phone,
+                  role: 'CUSTOMER' as any,
+                },
+              },
             },
           },
+          status: 'PENDING',
         },
-      };
+      });
     }
-
-    // 創建預約
-    const booking = await prisma.booking.create({
-      data: {
-        scheduleId: schedule.id,
-        customer: customerConnectOrCreate,
-        status: 'PENDING',
-      },
-    })
 
     // 更新時段狀態
     await prisma.schedule.update({
