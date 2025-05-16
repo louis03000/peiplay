@@ -5,7 +5,7 @@ export async function GET() {
   try {
     const partners = await prisma.partner.findMany({
       where: {
-        isActive: true,
+        isAvailableNow: true,
       },
       select: {
         id: true,
