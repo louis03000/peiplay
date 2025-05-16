@@ -22,7 +22,8 @@ type PartnerFormData = z.infer<typeof partnerSchema>
 
 export default function JoinPage() {
   const router = useRouter()
-  const { data: session } = useSession();
+  const sessionData = useSession();
+  const session = sessionData?.data;
   const {
     register,
     handleSubmit,
