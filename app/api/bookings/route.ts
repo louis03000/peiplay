@@ -81,7 +81,7 @@ export async function POST(request: Request) {
                 },
               },
             },
-          },
+          } as any,
           status: 'PENDING',
         },
       });
