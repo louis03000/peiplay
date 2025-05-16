@@ -81,7 +81,7 @@ export async function POST(request: Request) {
       data: {
         scheduleId: schedule.id,
         customer: customerConnectOrCreate,
-        status: 'pending',
+        status: 'PENDING',
       },
     })
 
