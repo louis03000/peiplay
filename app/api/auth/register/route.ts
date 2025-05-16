@@ -40,7 +40,9 @@ export async function POST(request: Request) {
         data: {
           userId: user.id,
           name,
+          birthday: new Date(birthday),
           phone,
+          coverImage: '',
           games: requestedGames || [],
           hourlyRate: 0, // 預設值，之後可以更新
         },
