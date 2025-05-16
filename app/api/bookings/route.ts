@@ -69,7 +69,7 @@ export async function POST(request: Request) {
               name,
               birthday: new Date(birthday),
               phone,
-              role: 'CUSTOMER',
+              role: 'CUSTOMER' as any,
             },
           },
         },
