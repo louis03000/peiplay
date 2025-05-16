@@ -44,7 +44,7 @@ export async function POST(request: Request) {
     const data = await request.json()
     
     // 驗證必填欄位
-    const requiredFields = ['name', 'birthday', 'phone', 'hourlyRate', 'games', 'coverImage']
+    const requiredFields = ['userId', 'name', 'birthday', 'phone', 'hourlyRate', 'games', 'coverImage']
     for (const field of requiredFields) {
       if (!data[field]) {
         return NextResponse.json(
@@ -57,6 +57,7 @@ export async function POST(request: Request) {
     // 建立新夥伴
     const partner = await prisma.partner.create({
       data: {
+        user: { connect: { id: data.userId } },
         name: data.name,
         birthday: new Date(data.birthday),
         phone: data.phone,
