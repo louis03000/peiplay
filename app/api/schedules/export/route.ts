@@ -86,8 +86,8 @@ export async function GET(request: Request) {
         const booking = schedule.bookings[0]
         return [
           format(new Date(schedule.date), 'yyyy年MM月dd日', { locale: zhTW }),
-          schedule.startTime,
-          schedule.endTime,
+          new Date(schedule.startTime).toISOString(),
+          new Date(schedule.endTime).toISOString(),
           schedule.isAvailable ? '可預約' : '已預約',
           booking?.customer?.name || '',
           booking?.customer?.phone || '',
