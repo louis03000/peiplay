@@ -62,26 +62,31 @@ export async function POST(request: Request) {
           { status: 400 }
         );
       }
+      // 1. 建立 User
+      const newUser = await prisma.user.create({
+        data: {
+          email,
+          password,
+          name,
+          birthday: new Date(birthday),
+          phone,
+          role: 'CUSTOMER' as any,
+        },
+      });
+      // 2. 建立 Customer
+      const newCustomer = await prisma.customer.create({
+        data: {
+          name,
+          birthday: new Date(birthday),
+          phone,
+          user: { connect: { id: newUser.id } },
+        },
+      });
+      // 3. 建立 Booking
       booking = await prisma.booking.create({
         data: {
           scheduleId: schedule.id,
-          customer: {
-            create: {
-              name,
-              birthday: new Date(birthday),
-              phone,
-              user: {
-                create: {
-                  email,
-                  password,
-                  name,
-                  birthday: new Date(birthday),
-                  phone,
-                  role: 'CUSTOMER' as any,
-                },
-              },
-            },
-          } as any,
+          customerId: newCustomer.id,
           status: 'PENDING',
         },
       });
