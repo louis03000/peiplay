@@ -70,14 +70,7 @@ export async function GET() {
         },
       },
       include: {
-        bookings: {
-          where: {
-            status: 'confirmed',
-          },
-          include: {
-            customer: true,
-          },
-        },
+        bookings: true,
       },
     }) as ScheduleWithBooking[]
 
