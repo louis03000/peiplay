@@ -73,16 +73,7 @@ export async function GET(request: Request) {
         '預約狀態',
       ]
 
-      const rows = (schedules as Array<{
-        date: Date | string
-        startTime: string
-        endTime: string
-        isAvailable: boolean
-        bookings: Array<{
-          status?: string
-          customer?: { name?: string; phone?: string }
-        }>
-      }>).map((schedule) => {
+      const rows = schedules.map((schedule) => {
         const booking = schedule.bookings[0]
         return [
           format(new Date(schedule.date), 'yyyy年MM月dd日', { locale: zhTW }),
