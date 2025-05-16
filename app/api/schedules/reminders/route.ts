@@ -102,8 +102,8 @@ export async function GET() {
           customerName: booking.customer.name,
           customerPhone: booking.customer.phone,
           date: schedule.date instanceof Date ? schedule.date.toISOString() : schedule.date,
-          startTime: schedule.startTime,
-          endTime: schedule.endTime,
+          startTime: schedule.startTime instanceof Date ? schedule.startTime.toISOString() : schedule.startTime,
+          endTime: schedule.endTime instanceof Date ? schedule.endTime.toISOString() : schedule.endTime,
           hoursUntilStart,
         }
       })
