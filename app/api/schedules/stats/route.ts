@@ -7,8 +7,8 @@ import { startOfWeek, endOfWeek, subWeeks } from 'date-fns'
 interface ScheduleWithBookings {
   id: string
   date: Date
-  startTime: string
-  endTime: string
+  startTime: Date
+  endTime: Date
   bookings: Array<{
     id: string
     status: string
@@ -64,7 +64,7 @@ export async function GET(request: Request) {
 
     // 計算熱門時段
     const timeSlots = schedules.reduce<Record<string, number>>((acc, schedule) => {
-      const timeSlot = `${schedule.startTime}-${schedule.endTime}`
+      const timeSlot = `${schedule.startTime instanceof Date ? schedule.startTime.toISOString() : schedule.startTime}-${schedule.endTime instanceof Date ? schedule.endTime.toISOString() : schedule.endTime}`
       acc[timeSlot] = (acc[timeSlot] || 0) + 1
       return acc
     }, {})
