@@ -19,6 +19,7 @@ model User {
   password      String
   name          String?
   birthday      DateTime?
+  phone         String?
   role          UserRole  @default(CUSTOMER)
   customer      Customer?
   partner       Partner?
