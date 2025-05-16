@@ -5,6 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useSession } from 'next-auth/react'
 
 const partnerSchema = z.object({
   name: z.string().min(2, '姓名至少需要2個字'),
@@ -19,6 +20,7 @@ type PartnerFormData = z.infer<typeof partnerSchema>
 
 export default function JoinPage() {
   const router = useRouter()
+  const { data: session } = useSession();
   const {
     register,
     handleSubmit,
@@ -37,7 +39,11 @@ export default function JoinPage() {
     try {
       setSubmitting(true)
       setError('')
-
+      if (!session?.user?.id) {
+        setError('請先登入才能註冊夥伴')
+        setSubmitting(false)
+        return
+      }
       const response = await fetch('/api/partners', {
         method: 'POST',
         headers: {
@@ -45,17 +51,20 @@ export default function JoinPage() {
         },
         body: JSON.stringify({
           ...data,
+          userId: session.user.id,
           coverImage: coverImageUrl,
         }),
       })
-
-      const result = await response.json()
-
-      if (!response.ok) {
-        throw new Error(result.error || '註冊失敗')
+      const text = await response.text();
+      let result;
+      try {
+        result = JSON.parse(text);
+      } catch {
+        result = text;
       }
-
-      // 註冊成功，導向首頁
+      if (!response.ok) {
+        throw new Error(result?.error || result || '註冊失敗')
+      }
       router.push('/')
     } catch (err) {
       setError(err instanceof Error ? err.message : '註冊失敗')
