@@ -59,6 +59,7 @@ model Customer {
   bookings    Booking[]
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
+  lineId      String?     @unique
 }
 
 model Schedule {

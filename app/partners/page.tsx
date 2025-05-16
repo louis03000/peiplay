@@ -1,97 +1,110 @@
-import Link from 'next/link'
-import Image from 'next/image'
-import { PrismaClient } from '@prisma/client'
-import { useState } from 'react'
+'use client'
+import { useEffect, useState } from 'react'
+import { useSession } from 'next-auth/react'
+import PartnerHero from '../../components/PartnerHero'
+import PartnerFilter from '../../components/PartnerFilter'
+import PartnerCard from '../../components/PartnerCard'
 
-const prisma = new PrismaClient()
-
-async function getPartners() {
-  return await prisma.partner.findMany({
-    orderBy: { createdAt: 'desc' },
-  })
+async function fetchPartners(startDate?: string, endDate?: string) {
+  const params = new URLSearchParams()
+  if (startDate) params.append('startDate', startDate)
+  if (endDate) params.append('endDate', endDate)
+  const res = await fetch(`/api/partners?${params.toString()}`)
+  if (!res.ok) throw new Error('獲取夥伴失敗')
+  const data = await res.json()
+  return data
 }
 
-export default async function PartnersPage() {
-  const partners = await getPartners()
+async function fetchCustomerProfile() {
+  const res = await fetch('/api/customer/me')
+  if (!res.ok) return null
+  return await res.json()
+}
 
-  // 前端搜尋狀態
-  // 注意：Next.js 14 app router 頁面預設為 server component，若要互動搜尋可拆分 client component
+async function quickBook(partner: any, schedule: any, customer: any) {
+  const res = await fetch('/api/bookings', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      partnerId: partner.id,
+      date: schedule.date,
+      startTime: schedule.startTime,
+      duration: 1,
+      name: customer?.name || '即時用戶',
+      birthday: customer?.birthday || '2000-01-01',
+      phone: customer?.phone || '0912345678',
+      email: customer?.email || `quick${Date.now()}@test.com`,
+      password: customer ? undefined : 'quickbook123',
+      userId: customer?.userId,
+    }),
+  })
+  const data = await res.json()
+  if (!res.ok) throw new Error(data.error || '預約失敗')
+  return data
+}
+
+export default function PartnersPage() {
+  const [partners, setPartners] = useState<any[]>([])
+  const [loading, setLoading] = useState(false)
+  const [message, setMessage] = useState<string | null>(null)
+  const [customer, setCustomer] = useState<any>(null)
+  const { data: session } = useSession()
+
+  const handleFilter = async (start: string, end: string) => {
+    setLoading(true)
+    try {
+      const data = await fetchPartners(start, end)
+      setPartners(data)
+    } catch (e) {
+      setPartners([])
+    }
+    setLoading(false)
+  }
+
+  const handleQuickBook = async (partner: any, schedule: any) => {
+    setMessage(null)
+    try {
+      await quickBook(partner, schedule, customer)
+      setMessage('預約成功！')
+      handleFilter('', '')
+    } catch (e: any) {
+      setMessage(e.message || '預約失敗')
+    }
+  }
+
+  useEffect(() => {
+    handleFilter('', '')
+  }, [])
+
+  useEffect(() => {
+    if (session?.user) {
+      fetchCustomerProfile().then(setCustomer)
+    } else {
+      setCustomer(null)
+    }
+  }, [session?.user])
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      <div className="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
-        <div className="text-center">
-          <h1 className="text-3xl font-bold text-gray-900 sm:text-4xl">
-            遊戲夥伴列表
-          </h1>
-          <p className="mt-3 max-w-2xl mx-auto text-xl text-gray-500 sm:mt-4">
-            選擇您喜歡的遊戲夥伴，開始預約吧！
-          </p>
-        </div>
-
-        <div className="mt-8 mb-8 flex justify-center">
-          <form className="w-full max-w-lg flex gap-2">
-            {/* 搜尋欄位之後可用 client component 實作 */}
-            <input
-              type="text"
-              name="q"
-              placeholder="搜尋姓名或遊戲..."
-              className="flex-1 px-4 py-2 border rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-              disabled
-            />
-            <button
-              type="submit"
-              className="px-4 py-2 bg-indigo-600 text-white rounded-md"
-              disabled
-            >
-              搜尋
-            </button>
-          </form>
-        </div>
-
-        <div className="mt-12 grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
-          {partners.map((partner: any) => (
-            <div key={partner.id} className="bg-white overflow-hidden shadow rounded-lg">
-              <div className="relative h-48">
-                <Image
-                  src={partner.coverImage || '/images/placeholder.svg'}
-                  alt={partner.name}
-                  fill
-                  className="object-cover"
-                />
-              </div>
-              <div className="px-4 py-5 sm:p-6">
-                <h3 className="text-lg font-medium text-gray-900">{partner.name}</h3>
-                <div className="mt-2">
-                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                    可預約
-                  </span>
-                </div>
-                <div className="mt-4">
-                  <h4 className="text-sm font-medium text-gray-900">擅長遊戲</h4>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {partner.games.map((game: string) => (
-                      <span key={game} className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                        {game}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-                <div className="mt-4">
-                  <p className="text-sm text-gray-500">每小時 {partner.hourlyRate} 元</p>
-                </div>
-                <div className="mt-4">
-                  <Link
-                    href={`/booking?partnerId=${partner.id}`}
-                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                  >
-                    立即預約
-                  </Link>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-100 dark:from-slate-900 dark:to-slate-800">
+      <PartnerHero onCTAClick={() => {
+        document.getElementById('partner-filter')?.scrollIntoView({ behavior: 'smooth' })
+      }} />
+      <div id="partner-filter">
+        <PartnerFilter onFilter={handleFilter} />
+      </div>
+      <div className="max-w-7xl mx-auto px-4 pb-16">
+        {message && (
+          <div className={`text-center py-3 mb-4 rounded-lg ${message.includes('成功') ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{message}</div>
+        )}
+        {loading ? (
+          <div className="text-center text-lg text-gray-500 py-12">載入中...</div>
+        ) : (
+          <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
+            {partners.map(partner => (
+              <PartnerCard key={partner.id} partner={partner} onQuickBook={handleQuickBook} />
+            ))}
+          </div>
+        )}
       </div>
     </div>
   )

@@ -1,8 +1,21 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const { searchParams } = new URL(request.url)
+    const startDate = searchParams.get('startDate')
+    const endDate = searchParams.get('endDate')
+
+    const scheduleDateFilter = startDate && endDate
+      ? {
+          gte: new Date(startDate),
+          lte: new Date(endDate),
+        }
+      : {
+          gte: new Date(),
+        }
+
     const partners = await prisma.partner.findMany({
       where: {
         isAvailableNow: true,
@@ -14,9 +27,7 @@ export async function GET() {
         hourlyRate: true,
         schedules: {
           where: {
-            date: {
-              gte: new Date(),
-            },
+            date: scheduleDateFilter,
             isAvailable: true,
           },
           select: {
