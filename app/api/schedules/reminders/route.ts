@@ -70,7 +70,11 @@ export async function GET() {
         },
       },
       include: {
-        bookings: true,
+        bookings: {
+          include: {
+            customer: true,
+          },
+        },
       },
     })
 
