@@ -72,7 +72,7 @@ export async function GET() {
       include: {
         bookings: true,
       },
-    }) as ScheduleWithBooking[]
+    })
 
     // 過濾出需要提醒的時段
     const reminders = schedules
