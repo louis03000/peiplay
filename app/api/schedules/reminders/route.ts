@@ -65,7 +65,7 @@ export async function GET() {
         },
         bookings: {
           some: {
-            status: 'confirmed',
+            status: 'CONFIRMED',
           },
         },
       },
