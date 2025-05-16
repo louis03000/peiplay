@@ -17,6 +17,7 @@ model User {
   id            String    @id @default(cuid())
   email         String    @unique
   password      String
+  name          String?
   role          UserRole  @default(CUSTOMER)
   customer      Customer?
   partner       Partner?
@@ -41,6 +42,7 @@ model Partner {
   games       String[]
   hourlyRate  Float
   schedules   Schedule[]
+  isAvailableNow Boolean  @default(false)
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
 }
