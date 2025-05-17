@@ -139,7 +139,7 @@ export default function JoinPage() {
                     <input
                       type="text"
                       {...register('name')}
-                      className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                      className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md text-black"
                     />
                     {errors.name && (
                       <p className="mt-2 text-sm text-red-600">
@@ -160,7 +160,7 @@ export default function JoinPage() {
                     <input
                       type="date"
                       {...register('birthday')}
-                      className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                      className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md text-black"
                     />
                     {errors.birthday && (
                       <p className="mt-2 text-sm text-red-600">
@@ -181,7 +181,7 @@ export default function JoinPage() {
                     <input
                       type="tel"
                       {...register('phone')}
-                      className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                      className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md text-black"
                     />
                     {errors.phone && (
                       <p className="mt-2 text-sm text-red-600">
@@ -202,7 +202,7 @@ export default function JoinPage() {
                     <input
                       type="number"
                       {...register('hourlyRate', { valueAsNumber: true })}
-                      className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                      className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md text-black"
                     />
                     {errors.hourlyRate && (
                       <p className="mt-2 text-sm text-red-600">
@@ -221,9 +221,9 @@ export default function JoinPage() {
                   </label>
                   <div className="mt-1">
                     <select
-                      multiple
                       {...register('games')}
-                      className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                      className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md text-black"
+                      multiple
                     >
                       <option value="lol">英雄聯盟</option>
                       <option value="valorant">特戰英豪</option>
@@ -251,7 +251,7 @@ export default function JoinPage() {
                       type="file"
                       accept="image/*"
                       onChange={handleFileChange}
-                      className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                      className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md text-black"
                     />
                     {uploading && <span className="text-sm text-gray-500">上傳中...</span>}
                     <div className="w-32 h-32 relative">

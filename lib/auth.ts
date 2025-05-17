@@ -19,7 +19,7 @@ const LineProvider = (options = {}) => ({
     return {
       id: profile.userId || profile.sub,
       name: profile.displayName,
-      email: profile.email || '',
+      email: profile.email || `${profile.userId}@line.user`,
       image: profile.pictureUrl,
       role: 'CUSTOMER',
     }
@@ -49,16 +49,49 @@ export const authOptions: NextAuthOptions = {
   },
   pages: {
     signIn: '/auth/login',
-    newUser: '/partners',
+    newUser: '/profile',
     error: '/auth/login',
   },
   session: {
     strategy: 'jwt',
+    maxAge: 30 * 24 * 60 * 60, // 30 days
   },
   events: {
     async signIn({ user, account, profile }) {
-      if (account?.provider === 'line' && !user.email) {
-        throw new Error('/profile')
+      if (account?.provider === 'line') {
+        // 檢查用戶是否已存在
+        const existingUser = await prisma.user.findUnique({
+          where: { email: user.email! },
+        })
+
+        if (!existingUser) {
+          // 建立新用戶
+          const newUser = await prisma.user.create({
+            data: {
+              email: user.email!,
+              name: user.name || '',
+              role: 'CUSTOMER',
+              password: '',
+            },
+          })
+
+          // 建立客戶資料
+          await prisma.customer.create({
+            data: {
+              userId: newUser.id,
+              name: user.name || '',
+              phone: '',
+              birthday: new Date('2000-01-01'),
+              lineId: profile?.sub || null,
+            },
+          })
+        } else {
+          // 更新現有用戶的 LINE ID
+          await prisma.customer.updateMany({
+            where: { userId: existingUser.id },
+            data: { lineId: profile?.sub || null },
+          })
+        }
       }
     },
   },

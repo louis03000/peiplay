@@ -53,19 +53,19 @@ export default function ProfilePage() {
         <h2 className="text-2xl font-bold mb-6 text-center">個人資料設定</h2>
         <div className="mb-4">
           <label className="block mb-1 font-medium">姓名</label>
-          <input name="name" value={profile.name} onChange={handleChange} className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-purple-400 focus:border-purple-400" required />
+          <input name="name" value={profile.name} onChange={handleChange} className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-purple-400 focus:border-purple-400 text-black" required />
         </div>
         <div className="mb-4">
           <label className="block mb-1 font-medium">電話</label>
-          <input name="phone" value={profile.phone} onChange={handleChange} className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-purple-400 focus:border-purple-400" required />
+          <input name="phone" value={profile.phone} onChange={handleChange} className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-purple-400 focus:border-purple-400 text-black" required />
         </div>
         <div className="mb-4">
           <label className="block mb-1 font-medium">生日</label>
-          <input type="date" name="birthday" value={profile.birthday} onChange={handleChange} className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-purple-400 focus:border-purple-400" required />
+          <input type="date" name="birthday" value={profile.birthday} onChange={handleChange} className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-purple-400 focus:border-purple-400 text-black" required />
         </div>
         <div className="mb-6">
           <label className="block mb-1 font-medium">Email</label>
-          <input type="email" name="email" value={profile.email} onChange={handleChange} className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-purple-400 focus:border-purple-400" required />
+          <input type="email" name="email" value={profile.email} onChange={handleChange} className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-purple-400 focus:border-purple-400 text-black" required />
         </div>
         {message && <div className={`mb-4 text-center ${message.includes('成功') ? 'text-green-600' : 'text-red-600'}`}>{message}</div>}
         <button type="submit" className="w-full py-3 rounded-full bg-gradient-to-r from-purple-500 to-indigo-500 text-white font-semibold text-lg shadow-lg" disabled={saving}>

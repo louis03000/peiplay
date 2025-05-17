@@ -12,11 +12,11 @@ export default function Navbar() {
 
   return (
     <nav className="backdrop-blur bg-gradient-to-r from-purple-600/20 to-indigo-600/20 border-b border-white/10 px-6 py-4">
-      <div className="max-w-7xl mx-auto flex items-center justify-between">
+      <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-y-2 gap-x-6">
         <div className="text-2xl font-bold bg-gradient-to-r from-purple-400 to-indigo-400 bg-clip-text text-transparent">
           <Link href="/">PeiPlay</Link>
         </div>
-        <div className="space-x-6">
+        <div className="flex flex-col md:flex-row gap-y-2 gap-x-6 w-full md:w-auto items-center justify-center md:justify-end">
           <Link 
             href="/booking" 
             className={`hover:text-purple-400 transition-colors ${
