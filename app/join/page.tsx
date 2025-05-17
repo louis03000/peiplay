@@ -75,6 +75,9 @@ export default function JoinPage() {
       })
       const text = await response.text();
       let result;
+      if (!text) {
+        throw new Error('API 無回應，請稍後再試')
+      }
       try {
         result = JSON.parse(text);
       } catch {
