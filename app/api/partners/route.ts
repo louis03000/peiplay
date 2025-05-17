@@ -64,6 +64,13 @@ export async function POST(request: Request) {
         )
       }
     }
+    // 驗證生日不能是未來日期
+    if (new Date(data.birthday) > new Date()) {
+      return NextResponse.json(
+        { error: '生日不能是未來日期' },
+        { status: 400 }
+      )
+    }
 
     // 建立新夥伴
     const partner = await prisma.partner.create({
@@ -82,7 +89,7 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error('Error creating partner:', error)
     return NextResponse.json(
-      { error: 'Failed to create partner' },
+      { error: error instanceof Error ? error.message : 'Failed to create partner' },
       { status: 500 }
     )
   }
