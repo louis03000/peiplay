@@ -20,6 +20,14 @@ const partnerSchema = z.object({
 
 type PartnerFormData = z.infer<typeof partnerSchema>
 
+const GAME_OPTIONS = [
+  { value: 'lol', label: '英雄聯盟' },
+  { value: 'valorant', label: '特戰英豪' },
+  { value: 'apex', label: 'Apex 英雄' },
+  { value: 'csgo', label: 'CS:GO' },
+  { value: 'pubg', label: 'PUBG' },
+]
+
 export default function JoinPage() {
   const router = useRouter()
   const sessionData = useSession();
@@ -37,6 +45,8 @@ export default function JoinPage() {
   const [uploading, setUploading] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string>('')
+  const [selectedGames, setSelectedGames] = useState<string[]>([])
+  const [customGame, setCustomGame] = useState('')
 
   const onSubmit = async (data: PartnerFormData) => {
     try {
@@ -47,6 +57,10 @@ export default function JoinPage() {
         setSubmitting(false)
         return
       }
+      let games = selectedGames.filter(g => g !== 'other')
+      if (selectedGames.includes('other') && customGame.trim()) {
+        games = [...games, customGame.trim()]
+      }
       const response = await fetch('/api/partners', {
         method: 'POST',
         headers: {
@@ -56,6 +70,7 @@ export default function JoinPage() {
           ...data,
           userId: session.user.id,
           coverImage: coverImageUrl,
+          games,
         }),
       })
       const text = await response.text();
@@ -213,30 +228,56 @@ export default function JoinPage() {
                 </div>
 
                 <div>
-                  <label
-                    htmlFor="games"
-                    className="block text-sm font-medium text-gray-700"
-                  >
-                    擅長遊戲
-                  </label>
-                  <div className="mt-1">
-                    <select
-                      {...register('games')}
-                      className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md text-black"
-                      multiple
-                    >
-                      <option value="lol">英雄聯盟</option>
-                      <option value="valorant">特戰英豪</option>
-                      <option value="apex">Apex 英雄</option>
-                      <option value="csgo">CS:GO</option>
-                      <option value="pubg">PUBG</option>
-                    </select>
-                    {errors.games && (
-                      <p className="mt-2 text-sm text-red-600">
-                        {errors.games.message}
-                      </p>
-                    )}
+                  <label className="block text-sm font-medium text-gray-700">擅長遊戲</label>
+                  <div className="flex flex-wrap gap-2 mt-1">
+                    {GAME_OPTIONS.map(opt => (
+                      <label key={opt.value} className="flex items-center text-gray-800">
+                        <input
+                          type="checkbox"
+                          value={opt.value}
+                          checked={selectedGames.includes(opt.value)}
+                          onChange={e => {
+                            if (e.target.checked) {
+                              setSelectedGames([...selectedGames, opt.value])
+                            } else {
+                              setSelectedGames(selectedGames.filter(g => g !== opt.value))
+                            }
+                          }}
+                          className="mr-2 accent-indigo-500"
+                        />
+                        {opt.label}
+                      </label>
+                    ))}
+                    <label className="flex items-center text-gray-800">
+                      <input
+                        type="checkbox"
+                        value="other"
+                        checked={selectedGames.includes('other')}
+                        onChange={e => {
+                          if (e.target.checked) {
+                            setSelectedGames([...selectedGames, 'other'])
+                          } else {
+                            setSelectedGames(selectedGames.filter(g => g !== 'other'))
+                            setCustomGame('')
+                          }
+                        }}
+                        className="mr-2 accent-indigo-500"
+                      />
+                      其他
+                    </label>
                   </div>
+                  {selectedGames.includes('other') && (
+                    <input
+                      type="text"
+                      placeholder="請輸入其他遊戲名稱"
+                      value={customGame}
+                      onChange={e => setCustomGame(e.target.value)}
+                      className="block w-full rounded-lg border-0 bg-white/5 px-4 py-3 text-black shadow-sm ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-inset focus:ring-indigo-500 sm:text-sm sm:leading-6 mt-2"
+                    />
+                  )}
+                  {errors.games && (
+                    <p className="mt-2 text-sm text-red-600">{errors.games.message}</p>
+                  )}
                 </div>
 
                 <div>
@@ -255,11 +296,19 @@ export default function JoinPage() {
                     />
                     {uploading && <span className="text-sm text-gray-500">上傳中...</span>}
                     <div className="w-32 h-32 relative">
-                      <img
-                        src={coverImageUrl || '/images/placeholder.svg'}
-                        alt="預覽封面"
-                        className="object-cover w-full h-full rounded"
-                      />
+                      {coverImageUrl ? (
+                        <img
+                          src={coverImageUrl}
+                          alt="預覽封面"
+                          className="object-cover w-full h-full rounded"
+                        />
+                      ) : (
+                        <img
+                          src={'/images/placeholder.svg'}
+                          alt="預覽封面"
+                          className="object-cover w-full h-full rounded"
+                        />
+                      )}
                     </div>
                     {errors.coverImage && (
                       <p className="mt-2 text-sm text-red-600">
@@ -272,7 +321,7 @@ export default function JoinPage() {
                 <div className="flex justify-end">
                   <button
                     type="submit"
-                    disabled={submitting}
+                    disabled={submitting || !coverImageUrl || selectedGames.length === 0}
                     className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {submitting ? '提交中...' : '提交申請'}
