@@ -5,7 +5,6 @@ const LineProvider = (options = {}) => ({
   id: 'line',
   name: 'LINE',
   type: 'oauth' as const,
-  version: '2.0',
   wellKnown: 'https://access.line.me/.well-known/openid-configuration',
   authorization: {
     url: 'https://access.line.me/oauth2/v2.1/authorize',
@@ -17,65 +16,54 @@ const LineProvider = (options = {}) => ({
   clientSecret: process.env.LINE_CLIENT_SECRET,
   profile(profile: any) {
     return {
-      id: profile.userId || profile.sub,
+      id: profile.userId || profile.sub, // LINE userId/sub
       name: profile.displayName,
       email: profile.email || `${profile.userId}@line.user`,
       image: profile.pictureUrl,
       role: 'CUSTOMER',
+      lineId: profile.userId || profile.sub,
     }
   },
   ...options,
 })
 
 export const authOptions: NextAuthOptions = {
-  providers: [
-    LineProvider(),
-  ],
+  providers: [LineProvider()],
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id
+        token.email = user.email
+        token.name = user.name
+        token.image = user.image
         token.role = user.role
+        token.lineId = user.lineId
       }
       return token
     },
     async session({ session, token }) {
       if (token) {
         session.user.id = token.id as string
+        session.user.email = token.email as string
+        session.user.name = token.name as string
+        session.user.image = token.image as string
         session.user.role = token.role as string
+        session.user.lineId = token.lineId as string
       }
       return session
     },
-  },
-  pages: {
-    signIn: '/auth/login',
-    newUser: '/profile',
-    error: '/auth/login',
-  },
-  session: {
-    strategy: 'jwt',
-    maxAge: 30 * 24 * 60 * 60, // 30 days
-  },
-  events: {
     async signIn({ user, account, profile }) {
       if (account?.provider === 'line') {
-        // 檢查用戶是否已存在
-        const existingUser = await prisma.user.findUnique({
-          where: { email: user.email! },
-        })
-
-        if (!existingUser) {
-          // 建立新用戶
+        const existUser = await prisma.user.findUnique({ where: { email: user.email! } })
+        if (!existUser) {
           const newUser = await prisma.user.create({
             data: {
               email: user.email!,
-              name: user.name || '',
+              name: user.name,
               role: 'CUSTOMER',
               password: '',
             },
           })
-
-          // 建立客戶資料
           await prisma.customer.create({
             data: {
               userId: newUser.id,
@@ -86,13 +74,22 @@ export const authOptions: NextAuthOptions = {
             },
           })
         } else {
-          // 更新現有用戶的 LINE ID
           await prisma.customer.updateMany({
-            where: { userId: existingUser.id },
+            where: { userId: existUser.id, lineId: null },
             data: { lineId: profile?.sub || null },
           })
         }
       }
+      return true
     },
+  },
+  pages: {
+    signIn: '/auth/login',
+    newUser: '/profile',
+    error: '/auth/login',
+  },
+  session: {
+    strategy: 'jwt',
+    maxAge: 30 * 24 * 60 * 60, // 30 days
   },
 } 
