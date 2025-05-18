@@ -1,12 +1,13 @@
 'use client'
+export const dynamic = 'force-dynamic'
 
-import { signIn } from 'next-auth/react'
-import { useSession } from 'next-auth/react'
+import { signIn, useSession } from 'next-auth/react'
 import LineLoginButton from '@/components/LineLoginButton'
 
 export default function LoginPage() {
   const { data: session, status } = useSession();
   console.log('session', session, 'status', status);
+
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-purple-50 to-indigo-100 dark:from-slate-900 dark:to-slate-800">
       <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-lg p-8 w-full max-w-md flex flex-col items-center">
