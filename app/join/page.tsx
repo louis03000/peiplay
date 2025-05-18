@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 
@@ -47,6 +47,10 @@ export default function JoinPage() {
   const [error, setError] = useState<string>('')
   const [selectedGames, setSelectedGames] = useState<string[]>([])
   const [customGame, setCustomGame] = useState('')
+
+  useEffect(() => {
+    setValue('games', selectedGames, { shouldValidate: true });
+  }, [selectedGames, setValue]);
 
   const onSubmit = async (data: PartnerFormData) => {
     try {
