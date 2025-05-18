@@ -51,8 +51,9 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  let data = null;
   try {
-    const data = await request.json()
+    data = await request.json()
     
     // 驗證必填欄位
     const requiredFields = ['userId', 'name', 'birthday', 'phone', 'hourlyRate', 'games', 'coverImage']
@@ -87,7 +88,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json(partner)
   } catch (error) {
-    console.error('Error creating partner:', error)
+    console.error('Error creating partner:', error, error instanceof Error ? error.stack : '', JSON.stringify(data))
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Failed to create partner' },
       { status: 500 }
