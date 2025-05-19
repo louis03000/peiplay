@@ -2,6 +2,11 @@ import { signIn, useSession } from 'next-auth/react'
 import LineLoginButton from '../../components/LineLoginButton'
 
 export default function LoginPage() {
+  // 只在瀏覽器端渲染 useSession，SSR/SSG 直接回傳 null
+  if (typeof window === 'undefined') {
+    return null;
+  }
+
   const { data: session, status } = useSession();
   console.log('session', session, 'status', status);
 
