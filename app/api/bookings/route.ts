@@ -31,9 +31,10 @@ export async function POST(request: Request) {
     const endTime = new Date(new Date(date).setHours(hours + duration, minutes))
 
     let booking;
+    let customer;
     if (session?.user?.id) {
       // 已登入用戶
-      let customer = await prisma.customer.findUnique({
+      customer = await prisma.customer.findUnique({
         where: { userId: session.user.id },
       });
       if (!customer) {
@@ -74,7 +75,7 @@ export async function POST(request: Request) {
         },
       });
       // 2. 建立 Customer
-      const newCustomer = await prisma.customer.create({
+      customer = await prisma.customer.create({
         data: {
           name,
           birthday: new Date(birthday),
@@ -86,11 +87,20 @@ export async function POST(request: Request) {
       booking = await prisma.booking.create({
         data: {
           scheduleId: schedule.id,
-          customerId: newCustomer.id,
+          customerId: customer.id,
           status: 'PENDING',
         },
       });
     }
+
+    // 新增消費紀錄（Order），金額預設 300 元
+    await prisma.order.create({
+      data: {
+        customerId: customer.id,
+        bookingId: booking.id,
+        amount: 300,
+      },
+    });
 
     // 更新時段狀態
     await prisma.schedule.update({

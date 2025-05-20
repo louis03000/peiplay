@@ -57,6 +57,7 @@ model Customer {
   birthday    DateTime
   phone       String
   bookings    Booking[]
+  orders      Order[]
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
   lineId      String?     @unique
@@ -85,6 +86,7 @@ model Booking {
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
   reminderSent Boolean   @default(false)
+  orders      Order[]
 }
 
 enum BookingStatus {
@@ -92,4 +94,15 @@ enum BookingStatus {
   CONFIRMED
   CANCELLED
   COMPLETED
+}
+
+model Order {
+  id          String   @id @default(cuid())
+  customerId  String
+  bookingId   String
+  amount      Int
+  createdAt   DateTime @default(now())
+
+  customer    Customer @relation(fields: [customerId], references: [id])
+  booking     Booking  @relation(fields: [bookingId], references: [id])
 }

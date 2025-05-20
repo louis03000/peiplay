@@ -76,30 +76,30 @@ export default function BookingWizard() {
               <div className={`mt-2 text-xs ${i === step ? 'text-indigo-300 font-bold' : 'text-gray-400'}`}>{s}</div>
             </div>
           ))}
-        </div>
-      </div>
+                      </div>
+                    </div>
 
       {/* 步驟內容 */}
       <div className="min-h-[200px] flex flex-col items-center justify-center px-10 py-12 transition-all duration-300 animate-fadein">
         {step === 0 && (
           <div className="w-full">
             <div className="flex items-center gap-4 mb-6">
-              <input
+                        <input
                 className="flex-1 px-4 py-2 rounded-full bg-gray-900/80 text-white border border-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-400 placeholder-gray-400"
                 placeholder="搜尋夥伴姓名或專長..."
                 value={search}
                 onChange={e => setSearch(e.target.value)}
               />
               <label className="flex items-center gap-2 text-sm text-indigo-300 cursor-pointer select-none">
-                <input
+                        <input
                   type="checkbox"
                   checked={onlyAvailable}
                   onChange={e => setOnlyAvailable(e.target.checked)}
                   className="accent-indigo-500 w-4 h-4"
-                />
+                        />
                 只看現在有空
               </label>
-            </div>
+                      </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {filteredPartners.length === 0 && <div className="col-span-2 text-gray-400 text-center">查無夥伴</div>}
               {filteredPartners.map(p => (
@@ -118,18 +118,18 @@ export default function BookingWizard() {
                     <div className="text-sm text-gray-300">{p.desc}</div>
                   </div>
                   {p.isAvailableNow && (
-                    <button
+                      <button
                       className="ml-2 px-3 py-1 rounded-full bg-green-500/90 text-white text-xs font-bold shadow hover:bg-green-600 transition"
                       onClick={e => { e.stopPropagation(); handleInstantBook(p) }}
-                    >
+                      >
                       馬上預約
-                    </button>
+                      </button>
                   )}
                   {selectedPartner?.id === p.id && <div className="text-indigo-400 font-bold">✔</div>}
-                </div>
+                    </div>
               ))}
-            </div>
-          </div>
+                      </div>
+                    </div>
         )}
         {step === 1 && <div className="text-lg text-white/90">（2）選擇日期（月曆元件）</div>}
         {step === 2 && <div className="text-lg text-white/90">（3）選擇時段（時段表）</div>}
@@ -143,7 +143,7 @@ export default function BookingWizard() {
               <div className="text-white/90 text-center">
                 你已成功預約 <span className="font-bold text-indigo-300">{selectedPartner.name}</span> 進行即時陪玩！<br />
                 <span className="text-sm text-gray-300">時間：現在（即時）</span>
-              </div>
+                      </div>
             ) : (
               <div className="text-white/90">（6）預約成功！</div>
             )}
@@ -153,26 +153,26 @@ export default function BookingWizard() {
             >
               回到預約首頁
             </button>
-          </div>
+                    </div>
         )}
-      </div>
+                    </div>
 
       {/* 上一步/下一步按鈕 */}
       <div className="flex justify-between px-10 pb-10">
-        <button
+                      <button
           className="px-6 py-2 rounded-full bg-gray-800/80 text-white font-medium shadow hover:bg-gray-700/90 transition disabled:opacity-40"
           onClick={() => setStep((s) => Math.max(0, s - 1))}
           disabled={step === 0}
-        >
-          上一步
-        </button>
-        <button
+                      >
+                        上一步
+                      </button>
+                      <button
           className="px-6 py-2 rounded-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 text-white font-bold shadow-lg hover:from-indigo-600 hover:to-pink-600 active:scale-95 transition disabled:opacity-40"
           onClick={() => setStep((s) => Math.min(steps.length - 1, s + 1))}
           disabled={step === steps.length - 1 || (step === 0 && !selectedPartner)}
-        >
+                      >
           下一步
-        </button>
+                      </button>
       </div>
       <style jsx global>{`
         @keyframes fadein { from { opacity: 0; transform: translateY(20px);} to { opacity: 1; transform: none; } }
