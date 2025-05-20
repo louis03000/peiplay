@@ -29,7 +29,7 @@ export async function GET(request: Request) {
           where: {
             date: scheduleDateFilter,
             isAvailable: true,
-          },
+            },
           select: {
             id: true,
             date: true,

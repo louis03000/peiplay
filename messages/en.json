@@ -1,0 +1,51 @@
+{
+  "nav": {
+    "home": "Home",
+    "book": "Booking",
+    "profile": "Profile",
+    "join": "Join Us"
+  },
+  "auth": {
+    "login": "Login",
+    "register": "Register",
+    "logout": "Logout",
+    "email": "Email",
+    "password": "Password",
+    "name": "Name",
+    "phone": "Phone",
+    "birthday": "Birthday"
+  },
+  "booking": {
+    "success": "Booking Success!",
+    "cancel": "Cancel Booking",
+    "confirm": "Confirm Booking",
+    "status": {
+      "pending": "Pending",
+      "confirmed": "Confirmed",
+      "cancelled": "Cancelled",
+      "completed": "Completed"
+    }
+  },
+  "review": {
+    "submit": "Submit Review",
+    "thank": "Thank you for your review!",
+    "rating": "Rating",
+    "comment": "Comment"
+  },
+  "2fa": {
+    "setup": "Setup 2FA",
+    "verify": "Verify",
+    "enabled": "2FA Enabled",
+    "disabled": "2FA Disabled",
+    "scan": "Scan this QR Code",
+    "enter": "Enter verification code"
+  },
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "loading": "Loading...",
+    "error": "Error",
+    "success": "Success"
+  }
+} 

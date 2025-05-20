@@ -1,0 +1,51 @@
+{
+  "nav": {
+    "home": "首頁",
+    "book": "預約",
+    "profile": "會員中心",
+    "join": "加入我們"
+  },
+  "auth": {
+    "login": "登入",
+    "register": "註冊",
+    "logout": "登出",
+    "email": "電子郵件",
+    "password": "密碼",
+    "name": "姓名",
+    "phone": "電話",
+    "birthday": "生日"
+  },
+  "booking": {
+    "success": "預約成功！",
+    "cancel": "取消預約",
+    "confirm": "確認預約",
+    "status": {
+      "pending": "待確認",
+      "confirmed": "已確認",
+      "cancelled": "已取消",
+      "completed": "已完成"
+    }
+  },
+  "review": {
+    "submit": "送出評價",
+    "thank": "感謝您的評價！",
+    "rating": "評分",
+    "comment": "留言"
+  },
+  "2fa": {
+    "setup": "設定兩步驟驗證",
+    "verify": "驗證",
+    "enabled": "已啟用兩步驟驗證",
+    "disabled": "未啟用兩步驟驗證",
+    "scan": "請掃描此 QR Code",
+    "enter": "請輸入驗證碼"
+  },
+  "common": {
+    "save": "儲存",
+    "cancel": "取消",
+    "confirm": "確認",
+    "loading": "載入中...",
+    "error": "發生錯誤",
+    "success": "成功"
+  }
+} 
