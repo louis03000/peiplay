@@ -4,21 +4,6 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { addHours } from 'date-fns'
 
-interface ScheduleWithBooking {
-  id: string
-  date: string
-  startTime: string
-  endTime: string
-  bookings: Array<{
-    id: string
-    status: string
-    customer: {
-      name: string
-      phone: string
-    }
-  }>
-}
-
 interface Reminder {
   scheduleId: string
   bookingId: string

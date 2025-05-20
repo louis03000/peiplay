@@ -6,6 +6,29 @@ import PartnerHero from '../../components/PartnerHero'
 import PartnerFilter from '../../components/PartnerFilter'
 import PartnerCard from '../../components/PartnerCard'
 
+interface Partner {
+  id: string;
+  name: string;
+  games: string[];
+  hourlyRate: number;
+  schedules: any[];
+}
+
+interface Schedule {
+  id: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+}
+
+interface Customer {
+  name?: string;
+  birthday?: string;
+  phone?: string;
+  email?: string;
+  userId?: string;
+}
+
 async function fetchPartners(startDate?: string, endDate?: string) {
   const params = new URLSearchParams()
   if (startDate) params.append('startDate', startDate)
@@ -22,7 +45,7 @@ async function fetchCustomerProfile() {
   return await res.json()
 }
 
-async function quickBook(partner: any, schedule: any, customer: any) {
+async function quickBook(partner: Partner, schedule: Schedule, customer: Customer) {
   const res = await fetch('/api/bookings', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -45,10 +68,10 @@ async function quickBook(partner: any, schedule: any, customer: any) {
 }
 
 export default function PartnersPage() {
-  const [partners, setPartners] = useState<any[]>([])
+  const [partners, setPartners] = useState<Partner[]>([])
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
-  const [customer, setCustomer] = useState<any>(null)
+  const [customer, setCustomer] = useState<Customer | null>(null)
   const sessionData = useSession();
   const session = sessionData?.data;
 
@@ -63,14 +86,14 @@ export default function PartnersPage() {
     setLoading(false)
   }
 
-  const handleQuickBook = async (partner: any, schedule: any) => {
+  const handleQuickBook = async (partner: Partner, schedule: Schedule) => {
     setMessage(null)
     try {
-      await quickBook(partner, schedule, customer)
+      await quickBook(partner, schedule, customer as Customer)
       setMessage('預約成功！')
       handleFilter('', '')
-    } catch (e: any) {
-      setMessage(e.message || '預約失敗')
+    } catch (e: unknown) {
+      setMessage((e as Error).message || '預約失敗')
     }
   }
 

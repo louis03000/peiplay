@@ -26,10 +26,6 @@ export async function POST(request: Request) {
       )
     }
 
-    // 計算結束時間
-    const [hours, minutes] = startTime.split(':').map(Number)
-    const endTime = new Date(new Date(date).setHours(hours + duration, minutes))
-
     let booking;
     let customer;
     if (session?.user?.id) {
@@ -71,7 +67,7 @@ export async function POST(request: Request) {
           name,
           birthday: new Date(birthday),
           phone,
-          role: 'CUSTOMER' as any,
+          role: 'CUSTOMER' as 'CUSTOMER',
         },
       });
       // 2. 建立 Customer

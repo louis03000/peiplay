@@ -17,7 +17,7 @@ export async function POST(request: Request) {
       where: { id: session.user.id }
     })
 
-    const userWithSecret = user as any
+    const userWithSecret = user as unknown as { twoFactorSecret?: string }
 
     if (!userWithSecret?.twoFactorSecret) {
       return NextResponse.json(
