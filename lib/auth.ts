@@ -1,6 +1,6 @@
 import { NextAuthOptions } from 'next-auth'
 import { prisma } from './prisma'
-import { User, UserRole } from '@prisma/client'
+import { UserRole } from '@prisma/client'
 
 declare module 'next-auth' {
   interface User {

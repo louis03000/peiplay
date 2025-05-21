@@ -7,7 +7,7 @@ export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions)
     const data = await request.json()
-    const { name, birthday, phone, partnerId, date, startTime, duration, email, password } = data
+    const { name, birthday, phone, partnerId, date, startTime, email, password } = data
 
     // 檢查時段是否可用
     const schedule = await prisma.schedule.findFirst({

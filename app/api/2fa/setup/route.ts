@@ -15,7 +15,7 @@ export async function GET() {
 
     const user = await prisma.user.findUnique({
       where: { email: session.user.email }
-    }) as any
+    }) as { id: string; email: string; isTwoFactorEnabled: boolean; twoFactorSecret: string | null } | null
 
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
