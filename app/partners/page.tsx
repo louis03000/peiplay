@@ -11,7 +11,8 @@ interface Partner {
   name: string;
   games: string[];
   hourlyRate: number;
-  schedules: unknown[];
+  coverImage?: string;
+  schedules: { date: string; startTime: string; endTime: string }[];
 }
 
 interface Schedule {
@@ -36,7 +37,14 @@ async function fetchPartners(startDate?: string, endDate?: string) {
   const res = await fetch(`/api/partners?${params.toString()}`)
   if (!res.ok) throw new Error('獲取夥伴失敗')
   const data = await res.json()
-  return data
+  return data.map((p: any) => ({
+    ...p,
+    schedules: (p.schedules || []).map((s: any) => ({
+      date: s.date,
+      startTime: s.startTime,
+      endTime: s.endTime
+    }))
+  }))
 }
 
 async function fetchCustomerProfile() {
@@ -45,7 +53,7 @@ async function fetchCustomerProfile() {
   return await res.json()
 }
 
-async function quickBook(partner: Partner, schedule: Schedule, customer: Customer) {
+async function quickBook(partner: Partner, schedule: { date: string; startTime: string; endTime: string }, customer: Customer) {
   const res = await fetch('/api/bookings', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -86,7 +94,7 @@ export default function PartnersPage() {
     setLoading(false)
   }
 
-  const handleQuickBook = async (partner: Partner, schedule: Schedule) => {
+  const handleQuickBook = async (partner: Partner, schedule: { date: string; startTime: string; endTime: string }) => {
     setMessage(null)
     try {
       await quickBook(partner, schedule, customer as Customer)
