@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server'
+import { NextResponse, NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
@@ -114,43 +114,78 @@ export async function POST(request: Request) {
   }
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
-    
-    if (!session?.user?.email) {
+    if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const customer = await prisma.customer.findFirst({
-      where: {
-        user: {
-          email: session.user.email
-        }
-      }
-    })
+    // 取得查詢參數
+    const { searchParams } = new URL(request.url)
+    const partnerId = searchParams.get('partnerId')
+    const status = searchParams.get('status')
+    const date = searchParams.get('date')
 
-    if (!customer) {
-      return NextResponse.json({ error: 'Customer not found' }, { status: 404 })
+    // 1. 管理員查詢所有預約
+    if (session.user.role === 'ADMIN') {
+      const where: any = {}
+      if (partnerId) {
+        where.schedule = { partnerId }
+      }
+      if (status) {
+        where.status = status
+      }
+      if (date) {
+        // 查詢該日期的預約（根據 schedule.date）
+        where.schedule = { ...(where.schedule || {}), date: new Date(date) }
+      }
+      const bookings = await prisma.booking.findMany({
+        where,
+        include: {
+          schedule: { include: { partner: true } },
+          customer: { include: { user: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+      })
+      return NextResponse.json({ bookings })
     }
 
-    const bookings = await prisma.booking.findMany({
-      where: {
-        customerId: customer.id
-      },
-      include: {
-        schedule: {
-          include: {
-            partner: true
-          }
-        }
-      },
-      orderBy: {
-        createdAt: 'desc'
-      }
-    })
+    // 2. 查詢目前登入用戶（個人）
+    const customer = await prisma.customer.findFirst({ where: { userId: session.user.id } })
+    if (customer) {
+      const where: any = { customerId: customer.id }
+      if (status) where.status = status
+      if (partnerId) where.schedule = { partnerId }
+      if (date) where.schedule = { ...(where.schedule || {}), date: new Date(date) }
+      const bookings = await prisma.booking.findMany({
+        where,
+        include: {
+          schedule: { include: { partner: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+      })
+      return NextResponse.json({ bookings })
+    }
 
-    return NextResponse.json({ bookings })
+    // 3. 查詢特定夥伴的預約（如果是夥伴本人）
+    const partner = await prisma.partner.findFirst({ where: { userId: session.user.id } })
+    if (partner) {
+      const where: any = { schedule: { partnerId: partner.id } }
+      if (status) where.status = status
+      if (date) where.schedule = { ...(where.schedule || {}), date: new Date(date) }
+      const bookings = await prisma.booking.findMany({
+        where,
+        include: {
+          schedule: { include: { partner: true } },
+          customer: { include: { user: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+      })
+      return NextResponse.json({ bookings })
+    }
+
+    return NextResponse.json({ error: 'No permission or not found' }, { status: 403 })
   } catch (error) {
     console.error('Error fetching bookings:', error)
     return NextResponse.json(
