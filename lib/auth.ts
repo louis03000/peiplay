@@ -32,14 +32,15 @@ const LineProvider = (options = {}) => ({
   userinfo: 'https://api.line.me/v2/profile',
   clientId: process.env.LINE_CLIENT_ID,
   clientSecret: process.env.LINE_CLIENT_SECRET,
-  profile(profile: any) {
+  profile(profile: unknown) {
+    const p = profile as { userId?: string; sub?: string; displayName?: string; email?: string; pictureUrl?: string }
     return {
-      id: profile.userId || profile.sub,
-      name: profile.displayName,
-      email: profile.email || `${profile.userId}@line.user`,
-      image: profile.pictureUrl,
+      id: String(p.userId || p.sub || ''),
+      name: String(p.displayName || ''),
+      email: p.email || `${p.userId || p.sub || 'unknown'}@line.user`,
+      image: String(p.pictureUrl || ''),
       role: 'CUSTOMER' as UserRole,
-      lineId: profile.userId || profile.sub,
+      lineId: String(p.userId || p.sub || ''),
       isTwoFactorEnabled: false
     }
   },
