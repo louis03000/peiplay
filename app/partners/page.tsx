@@ -15,13 +15,6 @@ interface Partner {
   schedules: { date: string; startTime: string; endTime: string }[];
 }
 
-interface Schedule {
-  id: string;
-  date: string;
-  startTime: string;
-  endTime: string;
-}
-
 interface Customer {
   name?: string;
   birthday?: string;
@@ -88,7 +81,7 @@ export default function PartnersPage() {
     try {
       const data = await fetchPartners(start, end)
       setPartners(data)
-    } catch (e) {
+    } catch {
       setPartners([])
     }
     setLoading(false)
@@ -100,8 +93,8 @@ export default function PartnersPage() {
       await quickBook(partner, schedule, customer as Customer)
       setMessage('預約成功！')
       handleFilter('', '')
-    } catch (e: unknown) {
-      setMessage((e as Error).message || '預約失敗')
+    } catch (err) {
+      setMessage((err instanceof Error ? err.message : '預約失敗'))
     }
   }
 
