@@ -6,32 +6,47 @@ import speakeasy from 'speakeasy'
 import QRCode from 'qrcode'
 import type { Prisma } from '@prisma/client'
 
-export async function POST() {
+export async function GET() {
   try {
     const session = await getServerSession(authOptions)
-    if (!session?.user?.id) {
+    if (!session?.user?.email) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const secret = speakeasy.generateSecret({
-      name: `PeiPlay:${session.user.email}`
-    })
+    const user = await prisma.user.findUnique({
+      where: { email: session.user.email }
+    }) as any
 
-    await prisma.user.update({
-      where: { id: session.user.id },
-      data: { twoFactorSecret: secret.base32 } as Prisma.UserUncheckedUpdateInput
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 })
+    }
+
+    if (user.isTwoFactorEnabled) {
+      return NextResponse.json({ error: '2FA already enabled' }, { status: 400 })
+    }
+
+    const secret = speakeasy.generateSecret({
+      name: `PeiPlay:${user.email}`
     })
 
     const qrCode = await QRCode.toDataURL(secret.otpauth_url!)
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        twoFactorSecret: secret.base32,
+        isTwoFactorEnabled: false // Will be enabled after verification
+      } as Prisma.UserUpdateInput
+    })
 
     return NextResponse.json({
       secret: secret.base32,
       qrCode
     })
   } catch (error) {
-    console.error('Error setting up 2FA:', error)
+    console.error('2FA setup error:', error)
     return NextResponse.json(
-      { error: 'Failed to setup 2FA' },
+      { error: 'Internal server error' },
       { status: 500 }
     )
   }

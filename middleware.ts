@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
-import { getToken } from 'next-auth/jwt'
+import createI18nMiddleware from 'next-intl/middleware'
 
-// 簡單的記憶體快取來追蹤請求
+// Simple in-memory rate limiting
 const rateLimit = new Map<string, { count: number; resetTime: number }>()
 
-// 清理過期的限制
+// Clean up expired limits
 setInterval(() => {
   const now = Date.now()
   for (const [key, value] of rateLimit.entries()) {
@@ -13,49 +13,50 @@ setInterval(() => {
       rateLimit.delete(key)
     }
   }
-}, 60000) // 每分鐘清理一次
+}, 60000) // Clean up every minute
+
+const I18nMiddleware = createI18nMiddleware({
+  locales: ['en', 'zh-TW', 'zh-CN'],
+  defaultLocale: 'zh-TW',
+  localePrefix: 'as-needed'
+})
 
 export async function middleware(request: NextRequest) {
-  // 只處理登入和註冊請求
-  if (!request.nextUrl.pathname.match(/^\/api\/(auth|register)/)) {
-    return NextResponse.next()
-  }
+  // Rate limiting for auth routes
+  if (request.nextUrl.pathname.startsWith('/api/auth')) {
+    const ip = request.headers.get('x-forwarded-for') ?? '127.0.0.1'
+    const now = Date.now()
+    const windowMs = 5 * 60 * 1000 // 5 minutes
+    const maxRequests = 5 // 5 requests per 5 minutes
 
-  const ip = request.headers.get('x-forwarded-for') ?? 'anonymous'
-  const now = Date.now()
-  const windowMs = 15 * 60 * 1000 // 15 分鐘
-  const maxRequests = 5 // 15 分鐘內最多 5 次請求
+    // Get or initialize limit
+    const limit = rateLimit.get(ip) ?? {
+      count: 0,
+      resetTime: now + windowMs
+    }
 
-  // 取得或初始化限制
-  const limit = rateLimit.get(ip) ?? {
-    count: 0,
-    resetTime: now + windowMs
-  }
-
-  // 如果已經超過限制
-  if (limit.count >= maxRequests) {
-    return new NextResponse(
-      JSON.stringify({
-        error: 'Too many requests, please try again later.'
-      }),
-      {
+    // Check if limit exceeded
+    if (limit.count >= maxRequests) {
+      return new NextResponse('Too Many Requests', {
         status: 429,
         headers: {
-          'Content-Type': 'application/json',
-          'Retry-After': '900' // 15 分鐘
-        }
-      }
-    )
+          'X-RateLimit-Limit': maxRequests.toString(),
+          'X-RateLimit-Remaining': '0',
+          'X-RateLimit-Reset': limit.resetTime.toString(),
+        },
+      })
+    }
+
+    // Update count
+    limit.count++
+    rateLimit.set(ip, limit)
   }
 
-  // 更新計數
-  limit.count++
-  rateLimit.set(ip, limit)
-
-  // 繼續處理請求
-  return NextResponse.next()
+  // Handle i18n
+  const response = I18nMiddleware(request)
+  return response
 }
 
 export const config = {
-  matcher: ['/api/auth/:path*', '/api/register/:path*']
+  matcher: ['/((?!api|_next|.*\\..*).*)']
 } 

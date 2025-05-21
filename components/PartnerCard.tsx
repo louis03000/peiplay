@@ -1,8 +1,27 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { useState } from 'react'
+import React from 'react'
 
-export default function PartnerCard({ partner, onQuickBook }: { partner: any, onQuickBook?: (partner: any, schedule: any) => void }) {
+interface Partner {
+  id: string;
+  name: string;
+  games: string[];
+  hourlyRate: number;
+  coverImage?: string;
+  schedules: Array<{
+    date: string;
+    startTime: string;
+    endTime: string;
+  }>;
+}
+
+interface PartnerCardProps {
+  partner: Partner;
+  onQuickBook: (partner: Partner, schedule: Partner['schedules'][0]) => void;
+}
+
+const PartnerCard: React.FC<PartnerCardProps> = ({ partner, onQuickBook }) => {
   const [showConfirm, setShowConfirm] = useState(false)
   const nextSchedule = partner.schedules?.[0]
 
@@ -84,4 +103,6 @@ export default function PartnerCard({ partner, onQuickBook }: { partner: any, on
       )}
     </div>
   )
-} 
+}
+
+export default PartnerCard 

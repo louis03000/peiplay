@@ -6,19 +6,23 @@ declare module 'next-auth' {
     user: {
       id: string
       name?: string | null
-      email?: string | null
+      email: string
       image?: string | null
-      role?: string
+      role: string
       lineId?: string
+      twoFactorSecret?: string | null
+      isTwoFactorEnabled?: boolean
     }
   }
 
   interface User {
     id: string
     name?: string | null
-    email?: string | null
+    email: string
     image?: string | null
-    role?: string
+    role: string
     lineId?: string
+    twoFactorSecret?: string | null
+    isTwoFactorEnabled?: boolean
   }
 } 

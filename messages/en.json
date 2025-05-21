@@ -13,7 +13,16 @@
     "password": "Password",
     "name": "Name",
     "phone": "Phone",
-    "birthday": "Birthday"
+    "birthday": "Birthday",
+    "confirmPassword": "Confirm Password",
+    "forgotPassword": "Forgot Password?",
+    "rememberMe": "Remember Me",
+    "loginSuccess": "Login Successful",
+    "registerSuccess": "Registration Successful",
+    "logoutSuccess": "Logout Successful",
+    "invalidCredentials": "Invalid email or password",
+    "emailExists": "Email already registered",
+    "passwordMismatch": "Passwords do not match"
   },
   "booking": {
     "success": "Booking Success!",
@@ -24,28 +33,54 @@
       "confirmed": "Confirmed",
       "cancelled": "Cancelled",
       "completed": "Completed"
-    }
+    },
+    "bookNow": "Book Now",
+    "quickBook": "Quick Book",
+    "confirmBooking": "Confirm Booking",
+    "cancelBooking": "Cancel Booking",
+    "bookingSuccess": "Booking Successful",
+    "bookingFailed": "Booking Failed",
+    "hourlyRate": "{rate} per hour",
+    "nextAvailable": "Next available: {date} {startTime}~{endTime}"
   },
   "review": {
-    "submit": "Submit Review",
-    "thank": "Thank you for your review!",
+    "title": "Review",
     "rating": "Rating",
-    "comment": "Comment"
+    "comment": "Comment",
+    "submit": "Submit Review",
+    "submitting": "Submitting...",
+    "cancel": "Cancel",
+    "success": "Review Submitted",
+    "failed": "Failed to Submit Review",
+    "noReviews": "No reviews yet",
+    "anonymous": "Anonymous User"
   },
   "2fa": {
+    "title": "Two-Factor Authentication",
     "setup": "Setup 2FA",
     "verify": "Verify",
-    "enabled": "2FA Enabled",
-    "disabled": "2FA Disabled",
-    "scan": "Scan this QR Code",
-    "enter": "Enter verification code"
+    "enable": "Enable",
+    "disable": "Disable",
+    "scanQR": "Scan QR Code",
+    "enterCode": "Enter verification code",
+    "setupSuccess": "2FA setup successful",
+    "setupFailed": "2FA setup failed",
+    "verifySuccess": "Verification successful",
+    "verifyFailed": "Verification failed",
+    "invalidCode": "Invalid verification code"
   },
   "common": {
+    "login": "Login",
+    "register": "Register",
+    "logout": "Logout",
+    "profile": "Profile",
+    "settings": "Settings",
     "save": "Save",
     "cancel": "Cancel",
     "confirm": "Confirm",
-    "loading": "Loading...",
-    "error": "Error",
-    "success": "Success"
+    "delete": "Delete",
+    "edit": "Edit",
+    "search": "Search",
+    "loading": "Loading..."
   }
 } 
