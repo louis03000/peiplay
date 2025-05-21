@@ -2,6 +2,7 @@
 export const dynamic = 'force-dynamic'
 
 import { useState } from 'react'
+import Image from 'next/image'
 
 const steps = [
   '選擇夥伴',
@@ -108,7 +109,7 @@ export default function BookingWizard() {
                   className={`rounded-2xl bg-white/10 border border-white/10 shadow-lg p-4 flex gap-4 items-center cursor-pointer transition-all duration-200 hover:scale-105 hover:border-indigo-400 ${selectedPartner?.id === p.id ? 'ring-2 ring-indigo-400' : ''}`}
                   onClick={() => setSelectedPartner(p)}
                 >
-                  <img src={p.avatar} alt={p.name} className="w-14 h-14 rounded-full object-cover border-2 border-white/20" />
+                  <Image src={p.avatar} alt={p.name} width={56} height={56} className="w-14 h-14 rounded-full object-cover border-2 border-white/20" />
                   <div className="flex-1">
                     <div className="font-bold text-white text-lg flex items-center gap-2">
                       {p.name}

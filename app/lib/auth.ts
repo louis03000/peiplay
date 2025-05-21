@@ -1,6 +1,5 @@
 import { AuthOptions } from 'next-auth'
 import LineProvider from 'next-auth/providers/line'
-import { prisma } from './prisma'
 
 export const authOptions: AuthOptions = {
   providers: [

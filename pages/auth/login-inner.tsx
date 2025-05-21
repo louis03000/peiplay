@@ -1,6 +1,3 @@
-import { signIn, useSession } from 'next-auth/react'
-import LineLoginButton from '../../components/LineLoginButton'
-import { useRouter } from 'next/router'
 import React from 'react'
 
 export default function LoginPage() {
@@ -9,20 +6,10 @@ export default function LoginPage() {
     return null;
   }
 
-  const { data: session, status } = useSession();
-  const router = useRouter();
-
-  React.useEffect(() => {
-    if (status === 'authenticated') {
-      router.replace('/'); // 登入成功自動導向首頁
-    }
-  }, [status, router]);
-
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-gray-900 via-gray-800 to-gray-700 text-white font-sans">
       <div className="bg-white rounded-2xl shadow-lg p-8 w-full max-w-md flex flex-col items-center">
         <h2 className="text-2xl font-bold mb-6 text-center text-black">LINE 一鍵登入</h2>
-        <LineLoginButton />
         <p className="mt-4 text-sm text-gray-500">
           登入即表示您同意我們的服務條款和隱私政策
         </p>

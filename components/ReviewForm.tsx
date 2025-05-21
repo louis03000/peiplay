@@ -2,12 +2,12 @@ import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 
 interface ReviewFormProps {
-  bookingId: string;
+  // bookingId: string; // 移除未使用的 bookingId
   onSubmit: (rating: number, comment: string) => Promise<void>;
   onCancel: () => void;
 }
 
-const ReviewForm: React.FC<ReviewFormProps> = ({ bookingId, onSubmit, onCancel }) => {
+const ReviewForm: React.FC<ReviewFormProps> = ({ onSubmit, onCancel }) => {
   const t = useTranslations('review');
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState('');

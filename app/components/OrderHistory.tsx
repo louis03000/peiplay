@@ -1,8 +1,22 @@
 "use client"
 import { useEffect, useState } from "react"
 
+interface Order {
+  id: string
+  amount: number
+  createdAt: string
+  booking?: {
+    schedule?: {
+      partner?: { name?: string }
+      date?: string
+      startTime?: string
+      endTime?: string
+    }
+  }
+}
+
 export default function OrderHistory() {
-  const [orders, setOrders] = useState<any[]>([])
+  const [orders, setOrders] = useState<Order[]>([])
   useEffect(() => {
     fetch("/api/orders").then(res => res.json()).then(data => setOrders(data.orders || []))
   }, [])
