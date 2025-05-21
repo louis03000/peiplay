@@ -1,15 +1,4 @@
 'use client'
-import { useEffect, useState } from 'react'
-import PartnerCard from '../components/PartnerCard'
-
-interface Partner {
-  id: string;
-  name: string;
-  games: string[];
-  hourlyRate: number;
-  coverImage?: string;
-  schedules: { date: string; startTime: string; endTime: string }[];
-}
 
 export default function Home() {
   return (
