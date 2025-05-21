@@ -67,7 +67,7 @@ export async function POST(request: Request) {
           name,
           birthday: new Date(birthday),
           phone,
-          role: 'CUSTOMER' as 'CUSTOMER',
+          role: 'CUSTOMER' as const,
         },
       });
       // 2. 建立 Customer

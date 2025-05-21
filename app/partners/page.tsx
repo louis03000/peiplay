@@ -11,7 +11,7 @@ interface Partner {
   name: string;
   games: string[];
   hourlyRate: number;
-  schedules: any[];
+  schedules: unknown[];
 }
 
 interface Schedule {

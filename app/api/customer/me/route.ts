@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 
-export async function GET(request: Request) {
+export async function GET() {
   try {
     const session = await getServerSession(authOptions)
     if (!session?.user?.id) {
@@ -28,7 +28,7 @@ export async function GET(request: Request) {
       email: customer.user.email,
       userId: customer.user.id,
     })
-  } catch (error) {
+  } catch {
     return NextResponse.json({ error: '獲取客戶資料失敗' }, { status: 500 })
   }
 }
@@ -69,7 +69,7 @@ export async function PUT(request: Request) {
       data: { email },
     })
     return NextResponse.json({ message: '更新成功' })
-  } catch (error) {
+  } catch {
     return NextResponse.json({ error: '更新失敗' }, { status: 500 })
   }
 } 
