@@ -11,9 +11,30 @@ const STATUS_OPTIONS = [
   { value: "COMPLETED", label: "已完成" },
 ];
 
+// Booking 型別定義
+type Booking = {
+  id: string;
+  status: string;
+  createdAt?: string;
+  customer?: {
+    user?: {
+      name?: string;
+      email?: string;
+    };
+  };
+  schedule?: {
+    partner?: {
+      name?: string;
+    };
+    date?: string;
+    startTime?: string;
+    endTime?: string;
+  };
+};
+
 export default function BookingsPage() {
   const { data: session } = useSession();
-  const [bookings, setBookings] = useState([]);
+  const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState("");
   const [date, setDate] = useState("");
@@ -59,7 +80,7 @@ export default function BookingsPage() {
           <select
             className="border rounded px-3 py-2"
             value={status}
-            onChange={e => setStatus(e.target.value)}
+            onChange={event => setStatus(event.target.value)}
           >
             {STATUS_OPTIONS.map(opt => (
               <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -72,7 +93,7 @@ export default function BookingsPage() {
             type="date"
             className="border rounded px-3 py-2"
             value={date}
-            onChange={e => setDate(e.target.value)}
+            onChange={event => setDate(event.target.value)}
           />
         </div>
         {isAdmin && (
@@ -82,7 +103,7 @@ export default function BookingsPage() {
               type="text"
               className="border rounded px-3 py-2"
               value={partnerId}
-              onChange={e => setPartnerId(e.target.value)}
+              onChange={event => setPartnerId(event.target.value)}
               placeholder="輸入夥伴ID查詢"
             />
           </div>
@@ -115,7 +136,7 @@ export default function BookingsPage() {
                 <td colSpan={7} className="text-center py-4">無資料</td>
               </tr>
             )}
-            {bookings.map((b: any) => (
+            {bookings.map((b: Booking) => (
               <tr key={b.id}>
                 <td className="border px-2 py-1">{b.id}</td>
                 <td className="border px-2 py-1">{b.customer?.user?.name || b.customer?.user?.email || '-'}</td>

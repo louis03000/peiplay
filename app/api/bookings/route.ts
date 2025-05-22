@@ -129,7 +129,7 @@ export async function GET(request: NextRequest) {
 
     // 1. 管理員查詢所有預約
     if (session.user.role === 'ADMIN') {
-      const where: any = {}
+      const where: Record<string, unknown> = {}
       if (partnerId) {
         where.schedule = { partnerId }
       }
@@ -154,7 +154,7 @@ export async function GET(request: NextRequest) {
     // 2. 查詢目前登入用戶（個人）
     const customer = await prisma.customer.findFirst({ where: { userId: session.user.id } })
     if (customer) {
-      const where: any = { customerId: customer.id }
+      const where: Record<string, unknown> = { customerId: customer.id }
       if (status) where.status = status
       if (partnerId) where.schedule = { partnerId }
       if (date) where.schedule = { ...(where.schedule || {}), date: new Date(date) }
@@ -171,7 +171,7 @@ export async function GET(request: NextRequest) {
     // 3. 查詢特定夥伴的預約（如果是夥伴本人）
     const partner = await prisma.partner.findFirst({ where: { userId: session.user.id } })
     if (partner) {
-      const where: any = { schedule: { partnerId: partner.id } }
+      const where: Record<string, unknown> = { schedule: { partnerId: partner.id } }
       if (status) where.status = status
       if (date) where.schedule = { ...(where.schedule || {}), date: new Date(date) }
       const bookings = await prisma.booking.findMany({
