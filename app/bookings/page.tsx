@@ -59,7 +59,7 @@ export default function BookingsPage() {
       } else {
         setError(data.error || "查詢失敗");
       }
-    } catch (e) {
+    } catch {
       setError("查詢失敗");
     } finally {
       setLoading(false);
