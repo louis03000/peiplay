@@ -2,6 +2,9 @@ import { NextResponse, NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
+import ExcelJS from 'exceljs';
+import path from 'path';
+import fs from 'fs';
 
 export async function POST(request: Request) {
   try {
@@ -97,6 +100,46 @@ export async function POST(request: Request) {
         amount: 300,
       },
     });
+
+    // 取得夥伴資訊
+    const partner = await prisma.partner.findUnique({ where: { id: schedule.partnerId } });
+    // 計算時長（小時）
+    const start = new Date(schedule.startTime);
+    const end = new Date(schedule.endTime);
+    const duration = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
+    // 取得時薪
+    const hourlyRate = partner?.hourlyRate || 0;
+    // 計算總費用
+    const total = duration * hourlyRate;
+
+    // 寫入 Excel
+    const workbook = new ExcelJS.Workbook();
+    const excelPath = path.join(process.cwd(), 'public', 'orders.xlsx');
+    let worksheet;
+    if (fs.existsSync(excelPath)) {
+      await workbook.xlsx.readFile(excelPath);
+      worksheet = workbook.getWorksheet('Orders') || workbook.addWorksheet('Orders');
+    } else {
+      worksheet = workbook.addWorksheet('Orders');
+      worksheet.addRow([
+        '預約ID', '顧客姓名', '顧客電話', '顧客Email', '夥伴姓名', '時長(小時)', '時薪', '總費用', '預約日期', '開始時間', '結束時間', '建立時間'
+      ]);
+    }
+    worksheet.addRow([
+      booking.id,
+      customer.name,
+      customer.phone,
+      email || session?.user?.email || '',
+      partner?.name || '',
+      duration,
+      hourlyRate,
+      total,
+      schedule.date.toISOString().slice(0, 10),
+      schedule.startTime.toISOString().slice(11, 16),
+      schedule.endTime.toISOString().slice(11, 16),
+      new Date().toISOString()
+    ]);
+    await workbook.xlsx.writeFile(excelPath);
 
     // 更新時段狀態
     await prisma.schedule.update({
