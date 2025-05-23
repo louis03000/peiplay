@@ -69,10 +69,11 @@ export default function RegisterPage() {
 
       if (!response.ok) {
         const error = await response.json()
+        alert(error.message || '註冊失敗')
         throw new Error(error.message || '註冊失敗')
       }
 
-      // 註冊成功後跳轉到登入頁面
+      alert('註冊成功，將導向登入頁')
       window.location.href = '/auth/login'
     } catch (error) {
       console.error(error)
@@ -87,7 +88,7 @@ export default function RegisterPage() {
       <h2 className="text-2xl font-bold mb-6 text-center">註冊</h2>
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         <input
-          className="w-full px-4 py-2 rounded bg-gray-900 text-white border border-gray-700"
+          className="w-full px-4 py-2 rounded bg-gray-900 text-black placeholder-gray-500 border border-gray-700"
           placeholder="Email"
           {...register('email')}
         />
@@ -95,7 +96,7 @@ export default function RegisterPage() {
           <p className="text-red-400 text-sm">{errors.email.message}</p>
         )}
         <input
-          className="w-full px-4 py-2 rounded bg-gray-900 text-white border border-gray-700"
+          className="w-full px-4 py-2 rounded bg-gray-900 text-black placeholder-gray-500 border border-gray-700"
           placeholder="密碼"
           type="password"
           {...register('password')}
@@ -104,7 +105,7 @@ export default function RegisterPage() {
           <p className="text-red-400 text-sm">{errors.password.message}</p>
         )}
         <input
-          className="w-full px-4 py-2 rounded bg-gray-900 text-white border border-gray-700"
+          className="w-full px-4 py-2 rounded bg-gray-900 text-black placeholder-gray-500 border border-gray-700"
           placeholder="姓名"
           {...register('name')}
         />
@@ -112,7 +113,7 @@ export default function RegisterPage() {
           <p className="text-red-400 text-sm">{errors.name.message}</p>
         )}
         <input
-          className="w-full px-4 py-2 rounded bg-gray-900 text-white border border-gray-700"
+          className="w-full px-4 py-2 rounded bg-gray-900 text-black placeholder-gray-500 border border-gray-700"
           placeholder="電話"
           {...register('phone')}
         />
@@ -120,7 +121,7 @@ export default function RegisterPage() {
           <p className="text-red-400 text-sm">{errors.phone.message}</p>
         )}
         <input
-          className="w-full px-4 py-2 rounded bg-gray-900 text-white border border-gray-700"
+          className="w-full px-4 py-2 rounded bg-gray-900 text-black placeholder-gray-500 border border-gray-700"
           placeholder="生日"
           type="date"
           {...register('birthday')}
@@ -138,7 +139,7 @@ export default function RegisterPage() {
           <div className="mt-1">
             <select
               {...register('role')}
-              className="block w-full rounded-lg border-0 bg-white/5 px-4 py-3 text-white shadow-sm ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-inset focus:ring-indigo-500 sm:text-sm sm:leading-6"
+              className="block w-full rounded-lg border-0 bg-white/5 px-4 py-3 text-black shadow-sm ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-inset focus:ring-indigo-500 sm:text-sm sm:leading-6"
             >
               <option value="CUSTOMER">客人</option>
               <option value="PARTNER">遊戲夥伴</option>
