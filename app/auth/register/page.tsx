@@ -123,7 +123,6 @@ export default function RegisterPage() {
         )}
         <input
           className="w-full px-4 py-2 rounded bg-gray-900 text-black placeholder-gray-500 border border-gray-700"
-          style={{ colorScheme: 'dark' }}
           placeholder="生日"
           type="date"
           {...register('birthday')}
