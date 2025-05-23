@@ -122,6 +122,15 @@ export default function RegisterPage() {
           )}
           <input
             className="w-full px-4 py-2 rounded bg-gray-900 text-black placeholder-gray-500 border border-gray-700"
+            placeholder="確認密碼"
+            type="password"
+            {...register('confirmPassword')}
+          />
+          {errors.confirmPassword && (
+            <p className="text-red-400 text-sm">{errors.confirmPassword.message}</p>
+)}
+          <input
+            className="w-full px-4 py-2 rounded bg-gray-900 text-black placeholder-gray-500 border border-gray-700"
             placeholder="姓名"
             {...register('name')}
           />
