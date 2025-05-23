@@ -101,7 +101,7 @@ export default function RegisterPage() {
         </div>
       ) : (
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          {/* debug: <pre>{JSON.stringify(errors, null, 2)}</pre> */}
+          <pre>{JSON.stringify(errors, null, 2)}</pre>
           {errorMsg && <div className="text-red-500 text-center mb-2">{errorMsg}</div>}
           <input
             className="w-full px-4 py-2 rounded bg-gray-900 text-black placeholder-gray-500 border border-gray-700"
