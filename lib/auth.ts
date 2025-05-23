@@ -2,6 +2,7 @@ import { NextAuthOptions } from 'next-auth'
 import { prisma } from './prisma'
 import { UserRole } from '@prisma/client'
 import CredentialsProvider from "next-auth/providers/credentials";
+import { compare } from "bcryptjs";
 
 declare module 'next-auth' {
   interface User {
@@ -61,7 +62,8 @@ export const authOptions: NextAuthOptions = {
         if (!credentials) return null;
         const user = await prisma.user.findUnique({ where: { email: credentials.email } });
         if (!user) return null;
-        if (user.password !== credentials.password) return null;
+        const isValid = await compare(credentials.password, user.password);
+        if (!isValid) return null;
         return {
           id: user.id,
           email: user.email,
