@@ -38,7 +38,7 @@ export default function LoginPage() {
           {errorMsg && <div className="text-red-500 text-center">{errorMsg}</div>}
           <input
             type="email"
-            className="w-full px-4 py-2 rounded border border-gray-300"
+            className="w-full px-4 py-2 rounded bg-white text-black border border-gray-300"
             placeholder="Email"
             value={email}
             onChange={e => setEmail(e.target.value)}
@@ -46,7 +46,7 @@ export default function LoginPage() {
           />
           <input
             type="password"
-            className="w-full px-4 py-2 rounded border border-gray-300"
+            className="w-full px-4 py-2 rounded bg-white text-black border border-gray-300"
             placeholder="密碼"
             value={password}
             onChange={e => setPassword(e.target.value)}
