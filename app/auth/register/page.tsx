@@ -26,7 +26,7 @@ const registerSchema = z.object({
   name: z.string().min(2, '姓名至少需要2個字'),
   birthday: z.string().min(1, '請選擇生日'),
   phone: z.string().min(10, '請輸入有效的電話號碼'),
-  role: z.enum(['CUSTOMER', 'PARTNER']),
+  role: z.string().min(1, '請選擇身份'),
   games: z.array(z.string()).optional(),
   customGame: z.string().optional(),
 }).refine((data) => data.password === data.confirmPassword, {
@@ -47,6 +47,7 @@ export default function RegisterPage() {
     watch,
   } = useForm<RegisterFormData>({
     resolver: zodResolver(registerSchema),
+    defaultValues: { role: '' },
   })
 
   const role = watch('role')
@@ -122,6 +123,7 @@ export default function RegisterPage() {
         )}
         <input
           className="w-full px-4 py-2 rounded bg-gray-900 text-black placeholder-gray-500 border border-gray-700"
+          style={{ colorScheme: 'dark' }}
           placeholder="生日"
           type="date"
           {...register('birthday')}
@@ -141,6 +143,7 @@ export default function RegisterPage() {
               {...register('role')}
               className="block w-full rounded-lg border-0 bg-white/5 px-4 py-3 text-black shadow-sm ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-inset focus:ring-indigo-500 sm:text-sm sm:leading-6"
             >
+              <option value="">請選擇身份</option>
               <option value="CUSTOMER">客人</option>
               <option value="PARTNER">遊戲夥伴</option>
             </select>
