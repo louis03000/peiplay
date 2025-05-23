@@ -38,6 +38,8 @@ type RegisterFormData = z.infer<typeof registerSchema>
 
 export default function RegisterPage() {
   const [isLoading, setIsLoading] = useState(false)
+  const [isSuccess, setIsSuccess] = useState(false)
+  const [errorMsg, setErrorMsg] = useState('')
   const [selectedGames, setSelectedGames] = useState<string[]>([])
   const [customGame, setCustomGame] = useState('')
   const {
@@ -54,6 +56,7 @@ export default function RegisterPage() {
 
   const onSubmit = async (data: RegisterFormData) => {
     setIsLoading(true)
+    setErrorMsg('')
     try {
       let games = selectedGames.filter((g) => g !== '其他')
       if (selectedGames.includes('其他') && customGame.trim()) {
@@ -70,15 +73,14 @@ export default function RegisterPage() {
 
       if (!response.ok) {
         const error = await response.json()
-        alert(error.message || '註冊失敗')
-        throw new Error(error.message || '註冊失敗')
+        setErrorMsg(error.message || '註冊失敗')
+        return
       }
 
-      alert('註冊成功，將導向登入頁')
-      window.location.href = '/auth/login'
+      setIsSuccess(true)
     } catch (error) {
       console.error(error)
-      alert(error instanceof Error ? error.message : '註冊失敗')
+      setErrorMsg(error instanceof Error ? error.message : '註冊失敗')
     } finally {
       setIsLoading(false)
     }
@@ -87,114 +89,128 @@ export default function RegisterPage() {
   return (
     <div className="max-w-md mx-auto mt-16 bg-white/10 rounded-xl p-8 shadow-lg backdrop-blur">
       <h2 className="text-2xl font-bold mb-6 text-center">註冊</h2>
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-        <input
-          className="w-full px-4 py-2 rounded bg-gray-900 text-black placeholder-gray-500 border border-gray-700"
-          placeholder="Email"
-          {...register('email')}
-        />
-        {errors.email && (
-          <p className="text-red-400 text-sm">{errors.email.message}</p>
-        )}
-        <input
-          className="w-full px-4 py-2 rounded bg-gray-900 text-black placeholder-gray-500 border border-gray-700"
-          placeholder="密碼"
-          type="password"
-          {...register('password')}
-        />
-        {errors.password && (
-          <p className="text-red-400 text-sm">{errors.password.message}</p>
-        )}
-        <input
-          className="w-full px-4 py-2 rounded bg-gray-900 text-black placeholder-gray-500 border border-gray-700"
-          placeholder="姓名"
-          {...register('name')}
-        />
-        {errors.name && (
-          <p className="text-red-400 text-sm">{errors.name.message}</p>
-        )}
-        <input
-          className="w-full px-4 py-2 rounded bg-gray-900 text-black placeholder-gray-500 border border-gray-700"
-          placeholder="電話"
-          {...register('phone')}
-        />
-        {errors.phone && (
-          <p className="text-red-400 text-sm">{errors.phone.message}</p>
-        )}
-        <input
-          className="w-full px-4 py-2 rounded bg-gray-900 text-black placeholder-gray-500 border border-gray-700"
-          placeholder="生日"
-          type="date"
-          {...register('birthday')}
-        />
-        {errors.birthday && (
-          <p className="text-red-400 text-sm">{errors.birthday.message}</p>
-        )}
-        <div>
-          <label
-            htmlFor="role"
-            className="block text-sm font-medium text-gray-300"
+      {isSuccess ? (
+        <div className="flex flex-col items-center justify-center py-12">
+          <div className="text-2xl font-bold text-green-500 mb-4">註冊成功！</div>
+          <button
+            className="mt-4 w-full py-2 rounded bg-gradient-to-r from-indigo-500 to-purple-500 text-white font-bold"
+            onClick={() => window.location.href = '/auth/login'}
           >
-            註冊身份
-          </label>
-          <div className="mt-1">
-            <select
-              {...register('role')}
-              className="block w-full rounded-lg border-0 bg-white/5 px-4 py-3 text-black shadow-sm ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-inset focus:ring-indigo-500 sm:text-sm sm:leading-6"
-            >
-              <option value="">請選擇身份</option>
-              <option value="CUSTOMER">客人</option>
-              <option value="PARTNER">遊戲夥伴</option>
-            </select>
-            {errors.role && (
-              <p className="mt-2 text-sm text-red-400">
-                {errors.role.message}
-              </p>
-            )}
-          </div>
+            前往登入
+          </button>
         </div>
-        {role === 'PARTNER' && (
+      ) : (
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          {/* debug: <pre>{JSON.stringify(errors, null, 2)}</pre> */}
+          {errorMsg && <div className="text-red-500 text-center mb-2">{errorMsg}</div>}
+          <input
+            className="w-full px-4 py-2 rounded bg-gray-900 text-black placeholder-gray-500 border border-gray-700"
+            placeholder="Email"
+            {...register('email')}
+          />
+          {errors.email && (
+            <p className="text-red-400 text-sm">{errors.email.message}</p>
+          )}
+          <input
+            className="w-full px-4 py-2 rounded bg-gray-900 text-black placeholder-gray-500 border border-gray-700"
+            placeholder="密碼"
+            type="password"
+            {...register('password')}
+          />
+          {errors.password && (
+            <p className="text-red-400 text-sm">{errors.password.message}</p>
+          )}
+          <input
+            className="w-full px-4 py-2 rounded bg-gray-900 text-black placeholder-gray-500 border border-gray-700"
+            placeholder="姓名"
+            {...register('name')}
+          />
+          {errors.name && (
+            <p className="text-red-400 text-sm">{errors.name.message}</p>
+          )}
+          <input
+            className="w-full px-4 py-2 rounded bg-gray-900 text-black placeholder-gray-500 border border-gray-700"
+            placeholder="電話"
+            {...register('phone')}
+          />
+          {errors.phone && (
+            <p className="text-red-400 text-sm">{errors.phone.message}</p>
+          )}
+          <input
+            className="w-full px-4 py-2 rounded bg-gray-900 text-black placeholder-gray-500 border border-gray-700"
+            placeholder="生日"
+            type="date"
+            {...register('birthday')}
+          />
+          {errors.birthday && (
+            <p className="text-red-400 text-sm">{errors.birthday.message}</p>
+          )}
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">專長遊戲（可複選）</label>
-            <div className="flex flex-wrap gap-2 mb-2">
-              {GAME_OPTIONS.map((game) => (
-                <label key={game} className="flex items-center text-gray-200">
-                  <input
-                    type="checkbox"
-                    value={game}
-                    checked={selectedGames.includes(game)}
-                    onChange={e => {
-                      if (e.target.checked) {
-                        setSelectedGames([...selectedGames, game])
-                      } else {
-                        setSelectedGames(selectedGames.filter(g => g !== game))
-                      }
-                    }}
-                    className="mr-2 accent-indigo-500"
-                  />
-                  {game}
-                </label>
-              ))}
+            <label
+              htmlFor="role"
+              className="block text-sm font-medium text-gray-300"
+            >
+              註冊身份
+            </label>
+            <div className="mt-1">
+              <select
+                {...register('role')}
+                className="block w-full rounded-lg border-0 bg-white/5 px-4 py-3 text-black shadow-sm ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-inset focus:ring-indigo-500 sm:text-sm sm:leading-6"
+              >
+                <option value="">請選擇身份</option>
+                <option value="CUSTOMER">客人</option>
+                <option value="PARTNER">遊戲夥伴</option>
+              </select>
+              {errors.role && (
+                <p className="mt-2 text-sm text-red-400">
+                  {errors.role.message}
+                </p>
+              )}
             </div>
-            {selectedGames.includes('其他') && (
-              <input
-                type="text"
-                placeholder="請輸入其他遊戲名稱"
-                value={customGame}
-                onChange={e => setCustomGame(e.target.value)}
-                className="block w-full rounded-lg border-0 bg-white/5 px-4 py-3 text-white shadow-sm ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-inset focus:ring-indigo-500 sm:text-sm sm:leading-6 mt-2"
-              />
-            )}
           </div>
-        )}
-        <button
-          type="submit"
-          disabled={isLoading}
-          className="w-full py-2 rounded bg-gradient-to-r from-indigo-500 to-purple-500 text-white font-bold"
-        >
-          {isLoading ? '註冊中...' : '註冊'}
-        </button>
-      </form>
+          {role === 'PARTNER' && (
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">專長遊戲（可複選）</label>
+              <div className="flex flex-wrap gap-2 mb-2">
+                {GAME_OPTIONS.map((game) => (
+                  <label key={game} className="flex items-center text-gray-200">
+                    <input
+                      type="checkbox"
+                      value={game}
+                      checked={selectedGames.includes(game)}
+                      onChange={e => {
+                        if (e.target.checked) {
+                          setSelectedGames([...selectedGames, game])
+                        } else {
+                          setSelectedGames(selectedGames.filter(g => g !== game))
+                        }
+                      }}
+                      className="mr-2 accent-indigo-500"
+                    />
+                    {game}
+                  </label>
+                ))}
+              </div>
+              {selectedGames.includes('其他') && (
+                <input
+                  type="text"
+                  placeholder="請輸入其他遊戲名稱"
+                  value={customGame}
+                  onChange={e => setCustomGame(e.target.value)}
+                  className="block w-full rounded-lg border-0 bg-white/5 px-4 py-3 text-white shadow-sm ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-inset focus:ring-indigo-500 sm:text-sm sm:leading-6 mt-2"
+                />
+              )}
+            </div>
+          )}
+          <button
+            type="submit"
+            disabled={isLoading}
+            className="w-full py-2 rounded bg-gradient-to-r from-indigo-500 to-purple-500 text-white font-bold"
+          >
+            {isLoading ? '註冊中...' : '註冊'}
+          </button>
+        </form>
+      )}
       <div className="text-center mt-4">
         <p className="text-sm text-gray-300">
           已經有帳號？{' '}
