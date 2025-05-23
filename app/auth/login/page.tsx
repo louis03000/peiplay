@@ -18,6 +18,7 @@ export default function LoginPage() {
       email,
       password,
     });
+    console.log('signIn result', res);
     if (res?.error) {
       setErrorMsg(res.error === 'CredentialsSignin' ? '帳號或密碼錯誤' : res.error);
     } else if (res?.ok) {
