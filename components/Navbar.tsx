@@ -2,9 +2,11 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { useSession, signOut } from 'next-auth/react'
 
 export default function Navbar() {
   const pathname = usePathname()
+  const { data: session, status } = useSession()
 
   const isActive = (path: string) => {
     return pathname === path
@@ -49,14 +51,21 @@ export default function Navbar() {
           >
             加入我們
           </Link>
-          <Link 
-            href="/auth/login" 
-            className={`hover:text-purple-400 transition-colors ${
-              isActive('/auth/login') ? 'text-purple-400' : 'text-gray-300'
-            }`}
-          >
-            登入
-          </Link>
+          {status === 'authenticated' ? (
+            <div className="flex items-center gap-2">
+              <span className="font-bold text-indigo-300">{session.user.name || session.user.email}</span>
+              <button onClick={() => signOut({ callbackUrl: '/' })} className="ml-2 text-sm text-gray-400 hover:text-red-400">登出</button>
+            </div>
+          ) : (
+            <Link 
+              href="/auth/login" 
+              className={`hover:text-purple-400 transition-colors ${
+                isActive('/auth/login') ? 'text-purple-400' : 'text-gray-300'
+              }`}
+            >
+              登入
+            </Link>
+          )}
         </div>
       </div>
     </nav>
