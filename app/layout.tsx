@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import Navbar from '../components/Navbar'
+import ClientNavbar from './components/ClientNavbar'
 import Footer from '../components/Footer'
 
 export const metadata: Metadata = {
@@ -16,7 +16,7 @@ export default function RootLayout({
   return (
     <html lang="zh-Hant">
       <body className="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-700 min-h-screen text-white font-sans">
-        <Navbar />
+        <ClientNavbar />
         <main className="container mx-auto py-8 min-h-[80vh]">{children}</main>
         <Footer />
       </body>
