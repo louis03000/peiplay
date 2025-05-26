@@ -1,12 +1,19 @@
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/app/lib/auth'
-import { redirect } from 'next/navigation'
-import ProfileClient from './ProfileClient'
+'use client';
 
-export default async function ProfilePage() {
-  const session = await getServerSession(authOptions)
-  if (!session) {
-    redirect('/auth/login')
+import { useSession } from 'next-auth/react';
+import { redirect } from 'next/navigation';
+import ProfileClient from './ProfileClient';
+
+export default function ProfilePage() {
+  const { data: session, status } = useSession();
+
+  if (status === 'loading') {
+    return <div>Loading...</div>;
   }
-  return <ProfileClient />
+
+  if (!session) {
+    redirect('/auth/login');
+  }
+
+  return <ProfileClient />;
 } 
