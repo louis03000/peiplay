@@ -29,9 +29,10 @@ export async function PATCH(request: Request) {
   if (!id || !['APPROVED', 'REJECTED'].includes(status)) {
     return NextResponse.json({ error: '參數錯誤' }, { status: 400 })
   }
+  // @ts-ignore
   const partner = await prisma.partner.update({
     where: { id },
-    data: { status: status as any },
+    data: { status },
   })
   return NextResponse.json(partner)
 } 
