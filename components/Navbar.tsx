@@ -51,6 +51,17 @@ export default function Navbar() {
           >
             加入我們
           </Link>
+          {/* 只有 ADMIN 才能看到管理員審核連結 */}
+          {session?.user?.role === 'ADMIN' && (
+            <Link
+              href="/admin/partners"
+              className={`hover:text-pink-400 transition-colors ${
+                isActive('/admin/partners') ? 'text-pink-400' : 'text-gray-300'
+              } ml-4`}
+            >
+              管理員審核
+            </Link>
+          )}
           {status === 'authenticated' ? (
             <div className="flex items-center gap-2">
               <span className="font-bold text-indigo-300">{session.user.name || session.user.email}</span>
