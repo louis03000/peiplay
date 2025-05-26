@@ -3,7 +3,7 @@ import "./globals.css";
 import ClientNavbar from './components/ClientNavbar'
 import Footer from '../components/Footer'
 import { Inter } from 'next/font/google'
-import { SessionProvider } from 'next-auth/react'
+import Providers from './providers'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -20,11 +20,11 @@ export default function RootLayout({
   return (
     <html lang="zh-TW">
       <body className={inter.className}>
-        <SessionProvider>
+        <Providers>
           <ClientNavbar />
           <main className="container mx-auto py-8 min-h-[80vh]">{children}</main>
           <Footer />
-        </SessionProvider>
+        </Providers>
       </body>
     </html>
   );
