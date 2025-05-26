@@ -73,6 +73,15 @@ export async function POST(request: Request) {
       )
     }
 
+    // 檢查是否已經申請過
+    const exist = await prisma.partner.findUnique({ where: { userId: data.userId } });
+    if (exist) {
+      return NextResponse.json(
+        { error: '你已經申請過，不可重複申請' },
+        { status: 400 }
+      );
+    }
+
     // 建立新夥伴
     const partner = await prisma.partner.create({
       data: {
