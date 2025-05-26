@@ -11,7 +11,7 @@ export async function GET(request: Request) {
   }
   const { searchParams } = new URL(request.url)
   const status = searchParams.get('status') as 'PENDING' | 'APPROVED' | 'REJECTED' | undefined
-  const where = status ? { status } : {};
+  const where: any = status ? { status } : {};
   const partners = await prisma.partner.findMany({
     where,
     include: { user: true },
@@ -31,7 +31,7 @@ export async function PATCH(request: Request) {
   }
   const partner = await prisma.partner.update({
     where: { id },
-    data: { status },
+    data: { status: status as any },
   })
   return NextResponse.json(partner)
 } 
