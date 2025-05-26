@@ -76,7 +76,7 @@ export async function POST(request: Request) {
     // 建立新夥伴
     const partner = await prisma.partner.create({
       data: {
-        user: { connect: { id: data.userId } },
+        userId: data.userId,
         name: data.name,
         birthday: new Date(data.birthday),
         phone: data.phone,
