@@ -11,7 +11,7 @@ export async function GET(request: Request) {
   }
   const { searchParams } = new URL(request.url)
   const status = searchParams.get('status') as 'PENDING' | 'APPROVED' | 'REJECTED' | undefined
-  const where = status ? { status } : undefined
+  const where = status ? { status } : {};
   const partners = await prisma.partner.findMany({
     where,
     include: { user: true },
