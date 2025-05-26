@@ -4,14 +4,14 @@ import bcrypt from 'bcrypt';
 const prisma = new PrismaClient();
 
 async function main() {
-  const email = 'louis92427@gmail.com';
-  const password = 'sss920427';
+  const email = 'peiplay2025@gmail.com';
+  const password = 'peiplay2025sss920427';
   const hashedPassword = await bcrypt.hash(password, 10);
 
   const exist = await prisma.user.findUnique({ where: { email } });
   if (exist) {
-    await prisma.user.update({ where: { email }, data: { role: 'ADMIN' } });
-    console.log('已將現有帳號設為管理員');
+    await prisma.user.update({ where: { email }, data: { role: 'ADMIN', password: hashedPassword } });
+    console.log('已將現有帳號設為管理員並重設密碼');
   } else {
     await prisma.user.create({
       data: {
