@@ -57,6 +57,13 @@ model Partner {
   isAvailableNow Boolean  @default(false)
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
+  status      PartnerStatus @default(PENDING)
+}
+
+enum PartnerStatus {
+  PENDING
+  APPROVED
+  REJECTED
 }
 
 model Customer {
