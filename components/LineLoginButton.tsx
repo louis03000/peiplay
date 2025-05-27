@@ -10,7 +10,7 @@ export default function LineLoginButton() {
       className="flex items-center justify-center w-full px-4 py-2 text-white bg-[#06C755] rounded-lg hover:bg-[#05a548] transition-colors"
     >
       <Image
-        src="/images/line-logo.svg"
+        src="/images/line-ar21.svg"
         alt="LINE"
         width={24}
         height={24}
