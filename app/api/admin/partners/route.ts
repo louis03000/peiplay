@@ -20,8 +20,9 @@ export async function GET(request: Request) {
     })
     return NextResponse.json(partners)
   } catch (error) {
-    console.error('Admin partners GET error:', error, error?.stack)
-    return NextResponse.json({ error: error instanceof Error ? error.message : String(error), stack: error?.stack }, { status: 500 })
+    const stack = error instanceof Error ? error.stack : undefined;
+    console.error('Admin partners GET error:', error, stack);
+    return NextResponse.json({ error: error instanceof Error ? error.message : String(error), stack }, { status: 500 });
   }
 }
 
