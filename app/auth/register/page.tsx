@@ -27,6 +27,7 @@ const registerSchema = z.object({
   name: z.string().min(2, '姓名至少需要2個字'),
   birthday: z.string().min(1, '請選擇生日'),
   phone: z.string().min(10, '請輸入有效的電話號碼'),
+  role: z.string().optional(),
   games: z.array(z.string()).optional(),
   customGame: z.string().optional(),
 }).refine((data) => data.password === data.confirmPassword, {
@@ -63,6 +64,7 @@ export default function RegisterPage() {
     formState: { errors },
   } = useForm<RegisterFormData>({
     resolver: zodResolver(registerSchema),
+    defaultValues: { role: 'CUSTOMER' },
   })
 
   const onSubmit = async (data: RegisterFormData) => {
@@ -73,7 +75,7 @@ export default function RegisterPage() {
       if (selectedGames.includes('其他') && customGame.trim()) {
         games = [...games, customGame.trim()]
       }
-      const submitData = { ...data, games }
+      const submitData = { ...data, games, role: 'CUSTOMER' }
       const response = await fetch('/api/auth/register', {
         method: 'POST',
         headers: {
