@@ -235,7 +235,7 @@ export default function JoinPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">擅長遊戲</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">偏好遊戲（可複選）</label>
                   <div className="flex flex-wrap gap-2 mt-1">
                     {GAME_OPTIONS.map(opt => (
                       <label key={opt.value} className="flex items-center text-gray-800">

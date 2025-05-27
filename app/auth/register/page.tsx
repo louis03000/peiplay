@@ -6,6 +6,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
 import Link from 'next/link'
+import { useSession } from 'next-auth/react'
 
 const GAME_OPTIONS = [
   'LOL',
@@ -37,6 +38,21 @@ const registerSchema = z.object({
 type RegisterFormData = z.infer<typeof registerSchema>
 
 export default function RegisterPage() {
+  const { data: session, status } = useSession();
+
+  if (status === "loading") {
+    return <div className="text-center py-10">載入中...</div>;
+  }
+
+  if (status === "unauthenticated") {
+    return (
+      <div className="max-w-md mx-auto mt-16 bg-white/10 rounded-xl p-8 shadow-lg backdrop-blur">
+        <div className="text-red-500 text-center mb-4">請先登入才能註冊夥伴</div>
+        <a href="/auth/login" className="block text-center text-indigo-500 underline">前往登入</a>
+      </div>
+    );
+  }
+
   const [isLoading, setIsLoading] = useState(false)
   const [isSuccess, setIsSuccess] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
