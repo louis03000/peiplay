@@ -1,7 +1,7 @@
 'use client'
 export const dynamic = 'force-dynamic'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
@@ -67,6 +67,12 @@ export default function RegisterPage() {
     defaultValues: { role: 'CUSTOMER' },
   })
 
+  useEffect(() => {
+    if (isSuccess) {
+      window.location.href = '/auth/login'
+    }
+  }, [isSuccess])
+
   const onSubmit = async (data: RegisterFormData) => {
     setIsLoading(true)
     setErrorMsg('')
@@ -102,17 +108,7 @@ export default function RegisterPage() {
   return (
     <div className="max-w-md mx-auto mt-16 bg-white/10 rounded-xl p-8 shadow-lg backdrop-blur">
       <h2 className="text-2xl font-bold mb-6 text-center">註冊</h2>
-      {isSuccess ? (
-        <div className="flex flex-col items-center justify-center py-12">
-          <div className="text-2xl font-bold text-green-500 mb-4">註冊成功！</div>
-          <button
-            className="mt-4 w-full py-2 rounded bg-gradient-to-r from-indigo-500 to-purple-500 text-white font-bold"
-            onClick={() => window.location.href = '/auth/login'}
-          >
-            前往登入
-          </button>
-        </div>
-      ) : (
+      {isSuccess ? null : (
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <pre>{JSON.stringify(errors, null, 2)}</pre>
           {errorMsg && <div className="text-red-500 text-center mb-2">{errorMsg}</div>}
