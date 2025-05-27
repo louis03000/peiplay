@@ -52,6 +52,12 @@ export default function JoinPage() {
     setValue('games', selectedGames, { shouldValidate: true });
   }, [selectedGames, setValue]);
 
+  useEffect(() => {
+    if (!session?.user?.id) {
+      router.replace('/auth/login')
+    }
+  }, [session?.user?.id, router])
+
   const onSubmit = async (data: PartnerFormData) => {
     try {
       setSubmitting(true)
