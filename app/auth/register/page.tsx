@@ -165,38 +165,6 @@ export default function RegisterPage() {
           {errors.birthday && (
             <p className="text-red-400 text-sm">{errors.birthday.message}</p>
           )}
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">專長遊戲（可複選）</label>
-            <div className="flex flex-wrap gap-2 mb-2">
-              {GAME_OPTIONS.map((game) => (
-                <label key={game} className="flex items-center text-gray-200">
-                  <input
-                    type="checkbox"
-                    value={game}
-                    checked={selectedGames.includes(game)}
-                    onChange={e => {
-                      if (e.target.checked) {
-                        setSelectedGames([...selectedGames, game])
-                      } else {
-                        setSelectedGames(selectedGames.filter(g => g !== game))
-                      }
-                    }}
-                    className="mr-2 accent-indigo-500"
-                  />
-                  {game}
-                </label>
-              ))}
-            </div>
-            {selectedGames.includes('其他') && (
-              <input
-                type="text"
-                placeholder="請輸入其他遊戲名稱"
-                value={customGame}
-                onChange={e => setCustomGame(e.target.value)}
-                className="block w-full rounded-lg border-0 bg-white/5 px-4 py-3 text-white shadow-sm ring-1 ring-inset ring-white/10 focus:ring-2 focus:ring-inset focus:ring-indigo-500 sm:text-sm sm:leading-6 mt-2"
-              />
-            )}
-          </div>
           <button
             type="submit"
             disabled={isLoading}
