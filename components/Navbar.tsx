@@ -7,6 +7,7 @@ import { useSession, signOut } from 'next-auth/react'
 export default function Navbar() {
   const pathname = usePathname()
   const { data: session, status } = useSession()
+  console.log('Navbar session.user.role', session?.user?.role)
 
   const isActive = (path: string) => {
     return pathname === path
