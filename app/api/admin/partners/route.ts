@@ -35,7 +35,10 @@ export async function PATCH(request: Request) {
   if (!id || !['APPROVED', 'REJECTED'].includes(status)) {
     return NextResponse.json({ error: '參數錯誤' }, { status: 400 })
   }
-  await prisma.$executeRaw`UPDATE "Partner" SET "status" = ${status} WHERE "id" = ${id}`;
-  const partner = await prisma.partner.findUnique({ where: { id }, include: { user: true } });
+  const partner = await prisma.partner.update({
+    where: { id },
+    data: { status },
+    include: { user: true },
+  });
   return NextResponse.json(partner);
 } 
