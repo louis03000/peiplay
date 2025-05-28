@@ -7,6 +7,7 @@ import { useSession, signOut } from 'next-auth/react'
 export default function Navbar() {
   const pathname = usePathname()
   const { data: session, status } = useSession()
+  const userRole = session?.user?.role ?? 'CUSTOMER'
   console.log('Navbar session.user.role', session?.user?.role)
 
   const isActive = (path: string) => {
@@ -53,7 +54,7 @@ export default function Navbar() {
             加入我們
           </Link>
           {/* 只有 ADMIN 才能看到管理員審核連結 */}
-          {session?.user?.role === 'ADMIN' && (
+          {userRole === 'ADMIN' && (
             <Link
               href="/admin/partners"
               className={`hover:text-pink-400 transition-colors ${
