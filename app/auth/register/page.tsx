@@ -37,7 +37,9 @@ const registerSchema = z.object({
 type RegisterFormData = z.infer<typeof registerSchema>
 
 export default function RegisterPage() {
-  const { data: session, status } = useSession();
+  const sessionData = typeof window !== "undefined" ? useSession() : { data: undefined, status: "unauthenticated" };
+  const session = sessionData.data;
+  const status = sessionData.status;
 
   if (status === "loading") {
     return <div className="text-center py-10">載入中...</div>;
