@@ -43,13 +43,9 @@ export default function RegisterPage() {
     return <div className="text-center py-10">載入中...</div>;
   }
 
-  if (status === "unauthenticated") {
-    return (
-      <div className="max-w-md mx-auto mt-16 bg-white/10 rounded-xl p-8 shadow-lg backdrop-blur">
-        <div className="text-red-500 text-center mb-4">請先登入才能註冊夥伴</div>
-        <a href="/auth/login" className="block text-center text-indigo-500 underline">前往登入</a>
-      </div>
-    );
+  if (status === "authenticated") {
+    if (typeof window !== "undefined") window.location.href = "/";
+    return null;
   }
 
   const [isLoading, setIsLoading] = useState(false)
