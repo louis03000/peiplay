@@ -1,9 +1,20 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
-import { useSession, signOut } from 'next-auth/react'
 
 export default function Navbar() {
-  return <div style={{color: 'white', padding: '2rem', fontSize: '2rem'}}>Navbar 測試</div>;
+  return (
+    <nav className="backdrop-blur bg-gradient-to-r from-purple-600/20 to-indigo-600/20 border-b border-white/10 px-6 py-4">
+      <div className="max-w-7xl mx-auto flex items-center">
+        <div className="text-2xl font-bold bg-gradient-to-r from-purple-400 to-indigo-400 bg-clip-text text-transparent">
+          <Link href="/">PeiPlay</Link>
+        </div>
+        <div className="ml-8 flex gap-4">
+          <Link href="/booking">預約</Link>
+          <Link href="/partners">夥伴</Link>
+          <Link href="/join">加入我們</Link>
+        </div>
+      </div>
+    </nav>
+  )
 } 
