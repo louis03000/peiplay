@@ -64,9 +64,9 @@ export default function Navbar() {
               管理員審核
             </Link>
           )}
-          {status === 'authenticated' ? (
+          {status === 'authenticated' && session?.user ? (
             <div className="flex items-center gap-2">
-              <span className="font-bold text-indigo-300">{session.user.name || session.user.email}</span>
+              <span className="font-bold text-indigo-300">{session.user?.name || session.user?.email || '未登入'}</span>
               <button onClick={() => signOut({ callbackUrl: '/' })} className="ml-2 text-sm text-gray-400 hover:text-red-400">登出</button>
             </div>
           ) : (
