@@ -7,6 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
 import Link from 'next/link'
 import { useSession } from 'next-auth/react'
+import { useRouter } from 'next/navigation';
 
 const GAME_OPTIONS = [
   'LOL',
@@ -37,17 +38,19 @@ const registerSchema = z.object({
 type RegisterFormData = z.infer<typeof registerSchema>
 
 export default function RegisterPage() {
+  const router = useRouter();
   const sessionData = typeof window !== "undefined" ? useSession() : { data: undefined, status: "unauthenticated" };
   const session = sessionData.data;
   const status = sessionData.status;
 
+  useEffect(() => {
+    if (status === "authenticated") {
+      router.replace("/");
+    }
+  }, [status, router]);
+
   if (status === "loading") {
     return <div className="text-center py-10">載入中...</div>;
-  }
-
-  if (status === "authenticated") {
-    if (typeof window !== "undefined") window.location.href = "/";
-    return null;
   }
 
   const [isLoading, setIsLoading] = useState(false)
