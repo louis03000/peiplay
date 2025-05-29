@@ -20,7 +20,9 @@ export default function RootLayout({
   return (
     <html lang="zh-TW">
       <body>
-        {children}
+        <Providers>
+          {children}
+        </Providers>
       </body>
     </html>
   );
