@@ -21,7 +21,9 @@ export default function RootLayout({
     <html lang="zh-TW">
       <body>
         <Providers>
+          <ClientNavbar />
           {children}
+          <Footer />
         </Providers>
       </body>
     </html>
