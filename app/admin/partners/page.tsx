@@ -16,8 +16,10 @@ interface Partner {
 }
 
 export default function AdminPartnersPage() {
-  const { data: session, status } = useSession();
   const router = useRouter();
+  const sessionData = typeof window !== "undefined" ? useSession() : { data: undefined, status: "unauthenticated" };
+  const session = sessionData.data;
+  const status = sessionData.status;
   const [partners, setPartners] = useState<Partner[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");

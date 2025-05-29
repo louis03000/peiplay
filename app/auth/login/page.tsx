@@ -6,8 +6,10 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
-  const { status } = useSession();
   const router = useRouter();
+  const sessionData = typeof window !== "undefined" ? useSession() : { data: undefined, status: "unauthenticated" };
+  const session = sessionData.data;
+  const status = sessionData.status;
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
