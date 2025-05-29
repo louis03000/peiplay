@@ -74,7 +74,7 @@ export default function JoinPage() {
         },
         body: JSON.stringify({
           ...data,
-          userId: session.user.id,
+          userId: session!.user!.id,
           coverImage: coverImageUrl,
           games,
         }),
