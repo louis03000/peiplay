@@ -1,3 +1,5 @@
+'use client'
+
 export default function PartnerHero({ onCTAClick }: { onCTAClick?: () => void }) {
   return (
     <section className="w-full py-16 flex flex-col items-center justify-center text-center">
