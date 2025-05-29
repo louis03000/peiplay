@@ -77,8 +77,9 @@ export default function PartnersPage() {
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
   const [customer, setCustomer] = useState<Customer | null>(null)
-  const sessionData = useSession();
-  const session = sessionData?.data;
+  const sessionData = typeof window !== "undefined" ? useSession() : { data: undefined, status: "unauthenticated" };
+  const session = sessionData.data;
+  const status = sessionData.status;
 
   const handleFilter = async (start: string, end: string) => {
     setLoading(true)

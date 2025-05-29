@@ -32,6 +32,7 @@ export default function JoinPage() {
   const router = useRouter()
   const sessionData = useSession();
   const session = sessionData?.data;
+
   const {
     register,
     handleSubmit,
@@ -54,19 +55,14 @@ export default function JoinPage() {
 
   useEffect(() => {
     if (!session?.user?.id) {
-      router.replace('/auth/login')
+      router.replace('/auth/login');
     }
-  }, [session?.user?.id, router])
+  }, [session?.user?.id, router]);
 
   const onSubmit = async (data: PartnerFormData) => {
     try {
       setSubmitting(true)
       setError('')
-      if (!session?.user?.id) {
-        setError('請先登入才能註冊夥伴')
-        setSubmitting(false)
-        return
-      }
       let games = selectedGames.filter(g => g !== 'other')
       if (selectedGames.includes('other') && customGame.trim()) {
         games = [...games, customGame.trim()]
