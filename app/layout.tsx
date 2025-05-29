@@ -19,12 +19,8 @@ export default function RootLayout({
 }) {
   return (
     <html lang="zh-TW">
-      <body className={inter.className}>
-        <Providers>
-          <ClientNavbar />
-          <main className="container mx-auto py-8 min-h-[80vh]">{children}</main>
-          <Footer />
-        </Providers>
+      <body>
+        {children}
       </body>
     </html>
   );
