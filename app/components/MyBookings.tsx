@@ -23,7 +23,8 @@ interface Booking {
 }
 
 export default function MyBookings() {
-  const { data: session } = useSession()
+  const sessionData = typeof window !== "undefined" ? useSession() : { data: undefined };
+  const session = sessionData.data;
   const [bookings, setBookings] = useState<Booking[]>([])
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null)
   const [showReviewForm, setShowReviewForm] = useState(false)
