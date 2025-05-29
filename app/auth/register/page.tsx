@@ -80,13 +80,16 @@ export default function RegisterPage() {
       if (selectedGames.includes('其他') && customGame.trim()) {
         games = [...games, customGame.trim()]
       }
-      const submitData = { ...data, games }
       const response = await fetch('/api/auth/register', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(submitData),
+        body: JSON.stringify({
+          ...data,
+          userId: session!.user!.id,
+          games,
+        }),
       })
 
       if (!response.ok) {
