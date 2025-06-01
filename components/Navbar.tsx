@@ -13,6 +13,7 @@ export default function Navbar() {
           <Link href="/booking">預約</Link>
           <Link href="/partners">夥伴</Link>
           <Link href="/join">加入我們</Link>
+          <Link href="/auth/login" className="text-indigo-600 font-bold hover:underline">登入</Link>
         </div>
       </div>
     </nav>
