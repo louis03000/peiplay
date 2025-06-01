@@ -3,6 +3,7 @@ import { prisma } from './prisma'
 import { UserRole } from '@prisma/client'
 import CredentialsProvider from "next-auth/providers/credentials";
 import { compare } from "bcryptjs";
+import LineProvider from 'next-auth/providers/line'
 
 declare module 'next-auth' {
   interface User {
@@ -21,37 +22,15 @@ declare module 'next-auth' {
   }
 }
 
-const LineProvider = (options = {}) => ({
-  id: 'line',
-  name: 'LINE',
-  type: 'oauth' as const,
-  wellKnown: 'https://access.line.me/.well-known/openid-configuration',
-  authorization: {
-    url: 'https://access.line.me/oauth2/v2.1/authorize',
-    params: { scope: 'openid profile email' },
-  },
-  token: 'https://api.line.me/oauth2/v2.1/token',
-  userinfo: 'https://api.line.me/v2/profile',
-  clientId: process.env.LINE_CLIENT_ID,
-  clientSecret: process.env.LINE_CLIENT_SECRET,
-  profile(profile: unknown) {
-    const p = profile as { userId?: string; sub?: string; displayName?: string; email?: string; pictureUrl?: string }
-    return {
-      id: String(p.userId || p.sub || ''),
-      name: String(p.displayName || ''),
-      email: p.email || `${p.userId || p.sub || 'unknown'}@line.user`,
-      image: String(p.pictureUrl || ''),
-      role: 'CUSTOMER' as UserRole,
-      lineId: String(p.userId || p.sub || ''),
-      isTwoFactorEnabled: false
-    }
-  },
-  ...options,
-})
-
 export const authOptions: NextAuthOptions = {
   providers: [
-    LineProvider(),
+    LineProvider({
+      clientId: process.env.LINE_CLIENT_ID!,
+      clientSecret: process.env.LINE_CLIENT_SECRET!,
+      authorization: {
+        params: { scope: 'openid profile email' },
+      },
+    }),
     CredentialsProvider({
       name: "Credentials",
       credentials: {
@@ -74,29 +53,18 @@ export const authOptions: NextAuthOptions = {
     })
   ],
   callbacks: {
-    async jwt({ token, user }) {
-      if (user) {
-        token.id = user.id
-        token.email = user.email
-        token.name = user.name
-        token.image = user.image
-        token.role = user.role
-        token.lineId = user.lineId
-        token.isTwoFactorEnabled = user.isTwoFactorEnabled
-      }
-      return token
-    },
     async session({ session, token }) {
-      if (token) {
-        session.user.id = token.id as string
-        session.user.email = token.email as string
-        session.user.name = token.name as string
-        session.user.image = token.image as string
-        session.user.role = token.role as UserRole
-        session.user.lineId = token.lineId as string
-        session.user.isTwoFactorEnabled = token.isTwoFactorEnabled as boolean
+      if (session.user) {
+        session.user.id = token.sub as string
       }
       return session
+    },
+    async jwt({ token, user, account }) {
+      if (account && user) {
+        token.accessToken = account.access_token
+        token.sub = user.id
+      }
+      return token
     },
     async signIn({ user, account, profile }) {
       if (account?.provider === 'line') {
@@ -138,4 +106,5 @@ export const authOptions: NextAuthOptions = {
     strategy: 'jwt',
     maxAge: 30 * 24 * 60 * 60, // 30 days
   },
+  debug: true,
 } 
