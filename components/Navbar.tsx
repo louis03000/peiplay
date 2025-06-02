@@ -1,8 +1,10 @@
 'use client'
 
 import Link from 'next/link'
+import { useSession, signOut } from 'next-auth/react'
 
 export default function Navbar() {
+  const { data: session } = useSession();
   return (
     <nav className="backdrop-blur bg-gradient-to-r from-purple-600/20 to-indigo-600/20 border-b border-white/10 px-6 py-4">
       <div className="max-w-7xl mx-auto flex items-center justify-between">
@@ -13,7 +15,11 @@ export default function Navbar() {
           <Link href="/booking">預約</Link>
           <Link href="/partners">夥伴</Link>
           <Link href="/join">加入我們</Link>
-          <Link href="/auth/login" className="text-indigo-600 font-bold hover:underline">登入</Link>
+          {session?.user ? (
+            <button onClick={() => signOut()} className="text-red-600 font-bold hover:underline">登出</button>
+          ) : (
+            <Link href="/auth/login" className="text-indigo-600 font-bold hover:underline">登入</Link>
+          )}
         </div>
       </div>
     </nav>
