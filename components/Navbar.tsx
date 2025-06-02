@@ -15,6 +15,9 @@ export default function Navbar() {
           <Link href="/booking">預約</Link>
           <Link href="/partners">夥伴</Link>
           <Link href="/join">加入我們</Link>
+          {session?.user?.role === 'ADMIN' && (
+            <Link href="/admin/partners" className="text-purple-600 font-bold hover:underline">夥伴審核</Link>
+          )}
           {session?.user ? (
             <>
               <span className="text-gray-700 font-medium">{session.user.name || session.user.email}</span>
