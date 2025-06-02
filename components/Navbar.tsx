@@ -11,12 +11,15 @@ export default function Navbar() {
         <div className="text-2xl font-bold bg-gradient-to-r from-purple-400 to-indigo-400 bg-clip-text text-transparent">
           <Link href="/">PeiPlay</Link>
         </div>
-        <div className="flex gap-8">
+        <div className="flex gap-8 items-center">
           <Link href="/booking">預約</Link>
           <Link href="/partners">夥伴</Link>
           <Link href="/join">加入我們</Link>
           {session?.user ? (
-            <button onClick={() => signOut()} className="text-red-600 font-bold hover:underline">登出</button>
+            <>
+              <span className="text-gray-700 font-medium">{session.user.name || session.user.email}</span>
+              <button onClick={() => signOut()} className="text-red-600 font-bold hover:underline ml-2">登出</button>
+            </>
           ) : (
             <Link href="/auth/login" className="text-indigo-600 font-bold hover:underline">登入</Link>
           )}
