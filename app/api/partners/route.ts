@@ -55,8 +55,21 @@ export async function POST(request: Request) {
   try {
     data = await request.json()
     
+    // 新增：用 email 查詢 User id
+    let userId = data.userId;
+    if (data.email && !userId) {
+      const user = await prisma.user.findUnique({ where: { email: data.email } });
+      if (!user) {
+        return NextResponse.json(
+          { error: '找不到對應的用戶，請重新登入' },
+          { status: 400 }
+        );
+      }
+      userId = user.id;
+    }
+    
     // 驗證必填欄位
-    const requiredFields = ['userId', 'name', 'birthday', 'phone', 'hourlyRate', 'games', 'coverImage']
+    const requiredFields = ['name', 'birthday', 'phone', 'hourlyRate', 'games', 'coverImage']
     for (const field of requiredFields) {
       if (!data[field]) {
         return NextResponse.json(
@@ -74,7 +87,7 @@ export async function POST(request: Request) {
     }
 
     // 檢查是否已經申請過
-    const exist = await prisma.partner.findUnique({ where: { userId: data.userId } });
+    const exist = await prisma.partner.findUnique({ where: { userId } });
     if (exist) {
       return NextResponse.json(
         { error: '你已經申請過，不可重複申請' },
@@ -85,7 +98,7 @@ export async function POST(request: Request) {
     // 建立新夥伴
     const partner = await prisma.partner.create({
       data: {
-        userId: data.userId,
+        userId,
         name: data.name,
         birthday: new Date(data.birthday),
         phone: data.phone,
