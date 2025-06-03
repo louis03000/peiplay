@@ -24,13 +24,13 @@ const localizer = dateFnsLocalizer({
 export default function PartnerSchedulePage() {
   // 假設預設為沒空
   const [isAvailableNow, setIsAvailableNow] = useState(false)
-  const [events, setEvents] = useState<Event[]>([])
+  const [events, setEvents] = useState<{ title: string; start: Date; end: Date }[]>([])
 
   // 點選空格時新增/移除可用時段
   const handleSelectSlot = (slotInfo: SlotInfo) => {
-    const exists = events.some(e => e.start.getTime() === slotInfo.start.getTime() && e.end.getTime() === slotInfo.end.getTime())
+    const exists = events.some(e => e.start && e.end && e.start.getTime() === slotInfo.start.getTime() && e.end.getTime() === slotInfo.end.getTime())
     if (exists) {
-      setEvents(events.filter(e => !(e.start.getTime() === slotInfo.start.getTime() && e.end.getTime() === slotInfo.end.getTime())))
+      setEvents(events.filter(e => !(e.start && e.end && e.start.getTime() === slotInfo.start.getTime() && e.end.getTime() === slotInfo.end.getTime())))
     } else {
       setEvents([...events, { title: '可預約', start: slotInfo.start, end: slotInfo.end }])
     }
