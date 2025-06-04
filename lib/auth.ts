@@ -70,6 +70,7 @@ export const authOptions: NextAuthOptions = {
   ],
   callbacks: {
     async signIn({ user, account, profile }) {
+      console.log('signIn callback', { user, account, profile });
       if (account?.provider === 'line') {
         const lineId = (profile as any)?.id || (profile as any)?.userId;
         let email = user.email ?? `${lineId}@line.local`;
@@ -93,6 +94,7 @@ export const authOptions: NextAuthOptions = {
       return true;
     },
     async session({ session, token }) {
+      console.log('session callback', { session, token });
       if (session.user) {
         session.user.id = token.sub as string;
         session.user.role = token.role as UserRole;
@@ -102,6 +104,7 @@ export const authOptions: NextAuthOptions = {
       return session;
     },
     async jwt({ token, user, account }) {
+      console.log('jwt callback', { token, user, account });
       if (user) {
         token.sub = user.id;
         token.role = user.role;
