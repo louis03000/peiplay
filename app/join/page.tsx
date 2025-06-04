@@ -53,11 +53,17 @@ export default function JoinPage() {
     setValue('games', selectedGames, { shouldValidate: true });
   }, [selectedGames, setValue]);
 
-  useEffect(() => {
-    if (!session?.user?.id) {
-      router.replace('/auth/login');
-    }
-  }, [session?.user?.id, router]);
+  if (!session?.user?.id) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center">
+        <div className="bg-white p-8 rounded shadow text-center">
+          <h2 className="text-2xl font-bold mb-4">請先登入</h2>
+          <p className="mb-4">登入後才能申請成為遊戲夥伴</p>
+          <a href="/auth/login" className="inline-block px-6 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700">前往登入</a>
+        </div>
+      </div>
+    )
+  }
 
   const onSubmit = async (data: PartnerFormData) => {
     try {
@@ -75,6 +81,7 @@ export default function JoinPage() {
         body: JSON.stringify({
           ...data,
           userId: session!.user!.id,
+          email: session!.user!.email,
           coverImage: coverImageUrl,
           games,
         }),
