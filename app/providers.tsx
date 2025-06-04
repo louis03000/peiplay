@@ -8,14 +8,14 @@ function OnboardingGuard({ children }: { children: React.ReactNode }) {
   const { data: session, status } = useSession();
   const router = useRouter();
   useEffect(() => {
+    console.log('session', session);
     if (
       status === 'authenticated' &&
       session?.user &&
-      (!session.user.phone || !session.user.birthday)
+      (!session.user.phone || !session.user.birthday) &&
+      window.location.pathname !== '/onboarding'
     ) {
-      if (window.location.pathname !== '/onboarding') {
-        router.replace('/onboarding');
-      }
+      router.replace('/onboarding');
     }
   }, [session, status, router]);
   return <>{children}</>;

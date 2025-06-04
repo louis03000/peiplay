@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useSession } from "next-auth/react";
+import { useSession, signIn } from "next-auth/react";
 
 export default function OnboardingPage() {
   const router = useRouter();
@@ -29,6 +29,7 @@ export default function OnboardingPage() {
       body: JSON.stringify(form),
     });
     if (res.ok) {
+      await signIn(undefined, { redirect: false });
       router.replace("/");
     } else {
       const data = await res.json();
