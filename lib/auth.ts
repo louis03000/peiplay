@@ -28,6 +28,14 @@ export const authOptions: NextAuthOptions = {
       clientId: process.env.LINE_CLIENT_ID!,
       clientSecret: process.env.LINE_CLIENT_SECRET!,
       authorization: { params: { scope: 'openid profile email' } },
+      profile(profile) {
+        return {
+          id: profile.userId,
+          name: profile.displayName,
+          email: profile.email ?? `${profile.userId}@line.local`,
+          image: profile.pictureUrl
+        }
+      }
     }),
     CredentialsProvider({
       name: "Credentials",
@@ -52,20 +60,23 @@ export const authOptions: NextAuthOptions = {
   ],
   callbacks: {
     async signIn({ user, account, profile }) {
-      if (account?.provider !== 'credentials') {
-        const existUser = await prisma.user.findUnique({ where: { email: user.email! } })
+      if (account?.provider === 'line') {
+        let email = user.email ?? `${profile?.userId}@line.local`;
+        let existUser = await prisma.user.findUnique({ where: { email } });
         if (!existUser) {
-          await prisma.user.create({
+          existUser = await prisma.user.create({
             data: {
-              email: user.email!,
+              email,
               name: user.name || '',
               role: 'CUSTOMER' as UserRole,
               password: '',
             },
-          })
+          });
         }
+        user.id = existUser.id;
+        user.email = existUser.email;
       }
-      return true
+      return true;
     },
     async session({ session, token }) {
       if (session.user) {
