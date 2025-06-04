@@ -27,9 +27,7 @@ export const authOptions: NextAuthOptions = {
     LineProvider({
       clientId: process.env.LINE_CLIENT_ID!,
       clientSecret: process.env.LINE_CLIENT_SECRET!,
-      authorization: {
-        params: { scope: 'openid profile email' },
-      },
+      authorization: { params: { scope: 'openid profile email' } },
     }),
     CredentialsProvider({
       name: "Credentials",
@@ -53,6 +51,22 @@ export const authOptions: NextAuthOptions = {
     })
   ],
   callbacks: {
+    async signIn({ user, account, profile }) {
+      if (account?.provider !== 'credentials') {
+        const existUser = await prisma.user.findUnique({ where: { email: user.email! } })
+        if (!existUser) {
+          await prisma.user.create({
+            data: {
+              email: user.email!,
+              name: user.name || '',
+              role: 'CUSTOMER' as UserRole,
+              password: '',
+            },
+          })
+        }
+      }
+      return true
+    },
     async session({ session, token }) {
       if (session.user) {
         session.user.id = token.sub as string;
@@ -67,36 +81,6 @@ export const authOptions: NextAuthOptions = {
         token.role = user.role;
       }
       return token;
-    },
-    async signIn({ user, account, profile }) {
-      if (account?.provider === 'line') {
-        const existUser = await prisma.user.findUnique({ where: { email: user.email! } })
-        if (!existUser) {
-          const newUser = await prisma.user.create({
-            data: {
-              email: user.email!,
-              name: user.name,
-              role: 'CUSTOMER' as UserRole,
-              password: '',
-            },
-          })
-          await prisma.customer.create({
-            data: {
-              userId: newUser.id,
-              name: user.name || '',
-              phone: '',
-              birthday: new Date('2000-01-01'),
-              lineId: profile?.sub || null,
-            },
-          })
-        } else {
-          await prisma.customer.updateMany({
-            where: { userId: existUser.id, lineId: null },
-            data: { lineId: profile?.sub || null },
-          })
-        }
-      }
-      return true
     },
   },
   pages: {
