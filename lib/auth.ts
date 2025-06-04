@@ -70,38 +70,39 @@ export const authOptions: NextAuthOptions = {
     },
     async signIn({ user, account, profile }) {
       if (account?.provider === 'line') {
-        const existUser = await prisma.user.findUnique({ where: { email: user.email! } })
+        const email = user.email || (profile?.sub ? `${profile.sub}@line.local` : `${user.id}@line.local`);
+        let existUser = await prisma.user.findUnique({ where: { email } });
         if (!existUser) {
-          const newUser = await prisma.user.create({
+          existUser = await prisma.user.create({
             data: {
-              email: user.email!,
+              email,
               name: user.name,
               role: 'CUSTOMER' as UserRole,
               password: '',
             },
-          })
+          });
           await prisma.customer.create({
             data: {
-              userId: newUser.id,
+              userId: existUser.id,
               name: user.name || '',
               phone: '',
               birthday: new Date('2000-01-01'),
               lineId: profile?.sub || null,
             },
-          })
+          });
         } else {
           await prisma.customer.updateMany({
             where: { userId: existUser.id, lineId: null },
             data: { lineId: profile?.sub || null },
-          })
+          });
         }
       }
-      return true
+      return true;
     },
   },
   pages: {
     signIn: '/auth/login',
-    newUser: '/profile',
+    newUser: '/onboarding',
     error: '/auth/login',
   },
   session: {
