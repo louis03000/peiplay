@@ -60,11 +60,22 @@ export const authOptions: NextAuthOptions = {
       }
       return session;
     },
-    async jwt({ token, user, account }) {
+    async jwt({ token, user, account, profile }) {
       if (account && user) {
         token.accessToken = account.access_token;
         token.sub = user.id;
-        token.role = user.role;
+        const email = user.email || (profile?.sub ? `${profile.sub}@line.local` : `${user.id}@line.local`);
+        let existingUser = await prisma.user.findUnique({ where: { email } });
+        if (!existingUser) {
+          existingUser = await prisma.user.create({
+            data: {
+              email,
+              name: user.name || '',
+              password: '',
+              role: 'CUSTOMER',
+            },
+          });
+        }
       }
       return token;
     },

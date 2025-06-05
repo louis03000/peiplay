@@ -12,6 +12,8 @@ declare module 'next-auth' {
       lineId?: string
       twoFactorSecret?: string | null
       isTwoFactorEnabled?: boolean
+      phone?: string | null
+      birthday?: string | null
     }
   }
 
@@ -24,5 +26,7 @@ declare module 'next-auth' {
     lineId?: string
     twoFactorSecret?: string | null
     isTwoFactorEnabled?: boolean
+    phone?: string | null
+    birthday?: string | null
   }
 } 
