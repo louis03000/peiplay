@@ -11,6 +11,9 @@ const schema = z.object({
   name: z.string().min(2, '姓名至少2字'),
   phone: z.string().min(10, '請輸入有效電話'),
   birthday: z.string().min(1, '請選擇生日'),
+  hourlyRate: z.number().min(0, '請輸入有效的小時費用'),
+  games: z.array(z.string()),
+  coverImage: z.string().url('請輸入有效的圖片網址'),
 });
 
 type FormData = z.infer<typeof schema>;
@@ -25,6 +28,9 @@ export default function OnboardingPage() {
       name: session?.user?.name || '',
       phone: session?.user?.phone || '',
       birthday: session?.user?.birthday ? session.user.birthday.slice(0, 10) : '',
+      hourlyRate: 0,
+      games: [],
+      coverImage: '',
     },
   });
 
@@ -33,7 +39,12 @@ export default function OnboardingPage() {
     const res = await fetch('/api/user/profile', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
+      body: JSON.stringify({
+        ...data,
+        hourlyRate: data.hourlyRate,
+        games: data.games,
+        coverImage: data.coverImage,
+      }),
     });
     if (!res.ok) {
       setError('補資料失敗，請重試');
@@ -63,6 +74,21 @@ export default function OnboardingPage() {
             <label className="block mb-1">生日</label>
             <input type="date" {...register('birthday')} className="w-full border rounded px-2 py-1" />
             {errors.birthday && <div className="text-red-600 text-sm">{errors.birthday.message}</div>}
+          </div>
+          <div>
+            <label className="block mb-1">小時費用</label>
+            <input type="number" {...register('hourlyRate')} className="w-full border rounded px-2 py-1" />
+            {errors.hourlyRate && <div className="text-red-600 text-sm">{errors.hourlyRate.message}</div>}
+          </div>
+          <div>
+            <label className="block mb-1">遊戲</label>
+            <input type="text" {...register('games')} className="w-full border rounded px-2 py-1" />
+            {errors.games && <div className="text-red-600 text-sm">{errors.games.message}</div>}
+          </div>
+          <div>
+            <label className="block mb-1">封面圖片</label>
+            <input type="text" {...register('coverImage')} className="w-full border rounded px-2 py-1" />
+            {errors.coverImage && <div className="text-red-600 text-sm">{errors.coverImage.message}</div>}
           </div>
           <button type="submit" className="w-full bg-indigo-600 text-white py-2 rounded">送出</button>
         </form>
