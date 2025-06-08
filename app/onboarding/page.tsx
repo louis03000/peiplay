@@ -61,33 +61,33 @@ export default function OnboardingPage() {
         {error && <div className="mb-2 text-red-600">{error}</div>}
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div>
-            <label className="block mb-1">姓名</label>
-            <input type="text" {...register('name')} className="w-full border rounded px-2 py-1" />
+            <label className="block mb-1 text-gray-800 font-semibold">姓名</label>
+            <input type="text" {...register('name')} className="w-full border border-gray-300 rounded px-2 py-1 bg-white text-gray-900 placeholder-gray-400" />
             {errors.name && <div className="text-red-600 text-sm">{errors.name.message}</div>}
           </div>
           <div>
-            <label className="block mb-1">電話</label>
-            <input type="text" {...register('phone')} className="w-full border rounded px-2 py-1" />
+            <label className="block mb-1 text-gray-800 font-semibold">電話</label>
+            <input type="text" {...register('phone')} className="w-full border border-gray-300 rounded px-2 py-1 bg-white text-gray-900 placeholder-gray-400" />
             {errors.phone && <div className="text-red-600 text-sm">{errors.phone.message}</div>}
           </div>
           <div>
-            <label className="block mb-1">生日</label>
-            <input type="date" {...register('birthday')} className="w-full border rounded px-2 py-1" />
+            <label className="block mb-1 text-gray-800 font-semibold">生日</label>
+            <input type="date" {...register('birthday')} className="w-full border border-gray-300 rounded px-2 py-1 bg-white text-gray-900 placeholder-gray-400" />
             {errors.birthday && <div className="text-red-600 text-sm">{errors.birthday.message}</div>}
           </div>
           <div>
-            <label className="block mb-1">小時費用</label>
-            <input type="number" {...register('hourlyRate')} className="w-full border rounded px-2 py-1" />
+            <label className="block mb-1 text-gray-800 font-semibold">小時費用</label>
+            <input type="number" {...register('hourlyRate')} className="w-full border border-gray-300 rounded px-2 py-1 bg-white text-gray-900 placeholder-gray-400" />
             {errors.hourlyRate && <div className="text-red-600 text-sm">{errors.hourlyRate.message}</div>}
           </div>
           <div>
-            <label className="block mb-1">遊戲</label>
-            <input type="text" {...register('games')} className="w-full border rounded px-2 py-1" />
+            <label className="block mb-1 text-gray-800 font-semibold">遊戲</label>
+            <input type="text" {...register('games')} className="w-full border border-gray-300 rounded px-2 py-1 bg-white text-gray-900 placeholder-gray-400" />
             {errors.games && <div className="text-red-600 text-sm">{errors.games.message}</div>}
           </div>
           <div>
-            <label className="block mb-1">封面圖片</label>
-            <input type="text" {...register('coverImage')} className="w-full border rounded px-2 py-1" />
+            <label className="block mb-1 text-gray-800 font-semibold">封面圖片</label>
+            <input type="text" {...register('coverImage')} className="w-full border border-gray-300 rounded px-2 py-1 bg-white text-gray-900 placeholder-gray-400" />
             {errors.coverImage && <div className="text-red-600 text-sm">{errors.coverImage.message}</div>}
           </div>
           <button type="submit" className="w-full bg-indigo-600 text-white py-2 rounded">送出</button>
