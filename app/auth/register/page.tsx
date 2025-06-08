@@ -39,19 +39,7 @@ type RegisterFormData = z.infer<typeof registerSchema>
 
 export default function RegisterPage() {
   const router = useRouter();
-  const sessionData = typeof window !== "undefined" ? useSession() : { data: undefined, status: "unauthenticated" };
-  const session = sessionData.data;
-  const status = sessionData.status;
-
-  useEffect(() => {
-    if (status === "authenticated") {
-      router.replace("/");
-    }
-  }, [status, router]);
-
-  if (status === "loading") {
-    return <div className="text-center py-10">載入中...</div>;
-  }
+  const { data: session, status } = useSession();
 
   const [isLoading, setIsLoading] = useState(false)
   const [isSuccess, setIsSuccess] = useState(false)
@@ -67,10 +55,20 @@ export default function RegisterPage() {
   })
 
   useEffect(() => {
+    if (status === "authenticated") {
+      router.replace("/");
+    }
+  }, [status, router]);
+
+  useEffect(() => {
     if (isSuccess) {
       window.location.href = '/auth/login'
     }
   }, [isSuccess])
+
+  if (status === "loading") {
+    return <div className="text-center py-10">載入中...</div>;
+  }
 
   const onSubmit = async (data: RegisterFormData) => {
     setIsLoading(true)
@@ -87,7 +85,7 @@ export default function RegisterPage() {
         },
         body: JSON.stringify({
           ...data,
-          userId: session!.user!.id,
+          userId: session?.user?.id,
           games,
         }),
       })
