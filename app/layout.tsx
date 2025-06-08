@@ -4,7 +4,6 @@ import ClientNavbar from './components/ClientNavbar'
 import Footer from '../components/Footer'
 import { Inter } from 'next/font/google'
 import Providers from './providers'
-import OnboardingRedirect from './components/OnboardingRedirect'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -22,7 +21,6 @@ export default function RootLayout({
     <html lang="zh-TW">
       <body className={inter.className}>
         <Providers>
-          <OnboardingRedirect />
           <ClientNavbar />
           {children}
           <Footer />
