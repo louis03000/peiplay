@@ -33,6 +33,7 @@ export default function OnboardingPage() {
     // 強制 birthday 格式為 YYYY-MM-DD
     let birthday = data.birthday.replaceAll('/', '-');
     if (birthday.length > 10) birthday = birthday.slice(0, 10);
+    console.log('送出資料', { name: data.name, phone: data.phone, birthday });
     const res = await fetch('/api/user/profile', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -43,10 +44,14 @@ export default function OnboardingPage() {
       }),
     });
     if (!res.ok) {
-      setError('補資料失敗，請重試');
+      const err = await res.json().catch(() => ({}));
+      setError(err?.error || '補資料失敗，請重試');
+      alert(err?.error || '補資料失敗，請重試');
+      console.error('補資料失敗', err);
       return;
     }
     await update(); // 強制刷新 session
+    alert('補資料成功！');
     router.replace('/');
   };
 
