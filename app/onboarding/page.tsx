@@ -30,13 +30,16 @@ export default function OnboardingPage() {
 
   const onSubmit = async (data: FormData) => {
     setError('');
+    // 強制 birthday 格式為 YYYY-MM-DD
+    let birthday = data.birthday.replaceAll('/', '-');
+    if (birthday.length > 10) birthday = birthday.slice(0, 10);
     const res = await fetch('/api/user/profile', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         name: data.name,
         phone: data.phone,
-        birthday: data.birthday,
+        birthday,
       }),
     });
     if (!res.ok) {
