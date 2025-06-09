@@ -64,6 +64,9 @@ export const authOptions: NextAuthOptions = {
       return session;
     },
     async jwt({ token, user, account, profile }) {
+      if (user) {
+        token.role = user.role;
+      }
       if (account && user) {
         token.accessToken = account.access_token;
         token.sub = user.id;
