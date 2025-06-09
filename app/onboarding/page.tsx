@@ -51,8 +51,7 @@ export default function OnboardingPage() {
       return;
     }
     await update(); // 強制刷新 session
-    alert('補資料成功！');
-    router.replace('/');
+    router.replace('/'); // 直接跳轉首頁
   };
 
   return (
