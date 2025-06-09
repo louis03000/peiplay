@@ -15,6 +15,7 @@ declare module 'next-auth' {
     lineId?: string | null
     twoFactorSecret?: string | null
     isTwoFactorEnabled?: boolean
+    provider: string
   }
 
   interface Session {
@@ -48,6 +49,7 @@ export const authOptions: NextAuthOptions = {
           email: user.email,
           name: user.name,
           role: user.role,
+          provider: 'credentials',
         };
       }
     })
@@ -57,6 +59,7 @@ export const authOptions: NextAuthOptions = {
       if (session.user) {
         session.user.id = token.sub as string;
         session.user.role = token.role as UserRole;
+        session.user.provider = token.provider as string;
       }
       return session;
     },
@@ -64,6 +67,7 @@ export const authOptions: NextAuthOptions = {
       if (account && user) {
         token.accessToken = account.access_token;
         token.sub = user.id;
+        token.provider = account.provider;
         const email = user.email || (profile?.sub ? `${profile.sub}@line.local` : `${user.id}@line.local`);
         let existingUser = await prisma.user.findUnique({ where: { email } });
         if (!existingUser) {

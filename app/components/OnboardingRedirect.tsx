@@ -10,7 +10,7 @@ export default function OnboardingRedirect() {
   useEffect(() => {
     if (status === "authenticated") {
       const user = session?.user;
-      if (user && (!user.phone || !user.birthday)) {
+      if (user && user.provider === 'line' && (!user.phone || !user.birthday)) {
         router.replace("/onboarding");
       }
     }
