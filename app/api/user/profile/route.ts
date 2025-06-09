@@ -14,12 +14,16 @@ export async function PATCH(request: Request) {
     if (!name || !phone || !birthday) {
       return NextResponse.json({ error: '缺少必要欄位' }, { status: 400 });
     }
+    const date = new Date(birthday);
+    if (isNaN(date.getTime())) {
+      return NextResponse.json({ error: '生日格式錯誤，請用 YYYY-MM-DD' }, { status: 400 });
+    }
     const user = await prisma.user.update({
       where: { id: session.user.id },
       data: {
         name,
         phone,
-        birthday: new Date(birthday),
+        birthday: date,
       },
     });
     return NextResponse.json({ success: true, user });
