@@ -28,7 +28,7 @@ export async function PATCH(request: Request) {
     });
     return NextResponse.json({ success: true, user });
   } catch (error: any) {
-    console.error('補資料 API 失敗:', error);
-    return NextResponse.json({ error: '補資料失敗', detail: error.message }, { status: 500 });
+    console.error('補資料 API 失敗:', error, error?.stack);
+    return NextResponse.json({ error: '補資料失敗', detail: error.message, stack: error.stack }, { status: 500 });
   }
 } 
