@@ -68,24 +68,29 @@ export const authOptions: NextAuthOptions = {
         token.accessToken = account.access_token;
         token.sub = user.id;
         token.provider = account.provider;
-        const email = user.email || (profile?.sub ? `${profile.sub}@line.local` : `${user.id}@line.local`);
-        let existingUser = await prisma.user.findUnique({ where: { email } });
-        if (!existingUser) {
-          existingUser = await prisma.user.create({
-            data: {
-              email,
-              name: user.name || '',
-              password: '',
-              role: 'CUSTOMER',
-            },
-          });
+        if (account.provider === 'line') {
+          const lineId = profile?.sub || null;
+          const email = user.email || (lineId ? `${lineId}@line.local` : `${user.id}@line.local`);
+          let existingUser = await prisma.user.findUnique({ where: { email } });
+          if (!existingUser) {
+            existingUser = await prisma.user.create({
+              data: {
+                email,
+                name: user.name || '',
+                password: '',
+                role: 'CUSTOMER',
+              },
+            });
+          }
+          token.sub = existingUser.id;
         }
       }
       return token;
     },
     async signIn({ user, account, profile }) {
       if (account?.provider === 'line') {
-        const email = user.email || (profile?.sub ? `${profile.sub}@line.local` : `${user.id}@line.local`);
+        const lineId = profile?.sub || null;
+        const email = user.email || (lineId ? `${lineId}@line.local` : `${user.id}@line.local`);
         let existUser = await prisma.user.findUnique({ where: { email } });
         if (!existUser) {
           existUser = await prisma.user.create({
@@ -96,21 +101,22 @@ export const authOptions: NextAuthOptions = {
               password: '',
             },
           });
+        }
+        let existCustomer = await prisma.customer.findUnique({ where: { userId: existUser.id } });
+        if (!existCustomer) {
           await prisma.customer.create({
             data: {
               userId: existUser.id,
               name: user.name || '',
               phone: '',
               birthday: new Date('2000-01-01'),
-              lineId: profile?.sub || null,
+              lineId,
             },
           });
-        } else {
-          await prisma.customer.updateMany({
-            where: { userId: existUser.id, lineId: null },
-            data: { lineId: profile?.sub || null },
-          });
+        } else if (!existCustomer.lineId && lineId) {
+          await prisma.customer.update({ where: { userId: existUser.id }, data: { lineId } });
         }
+        user.id = existUser.id;
       }
       return true;
     },
