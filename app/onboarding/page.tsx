@@ -11,9 +11,6 @@ const schema = z.object({
   name: z.string().min(2, '姓名至少2字'),
   phone: z.string().min(10, '請輸入有效電話'),
   birthday: z.string().min(1, '請選擇生日'),
-  hourlyRate: z.number().min(0, '請輸入有效的小時費用'),
-  games: z.array(z.string()),
-  coverImage: z.string().url('請輸入有效的圖片網址'),
 });
 
 type FormData = z.infer<typeof schema>;
@@ -28,9 +25,6 @@ export default function OnboardingPage() {
       name: session?.user?.name || '',
       phone: session?.user?.phone || '',
       birthday: session?.user?.birthday ? session.user.birthday.slice(0, 10) : '',
-      hourlyRate: 0,
-      games: [],
-      coverImage: '',
     },
   });
 
@@ -40,10 +34,9 @@ export default function OnboardingPage() {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        ...data,
-        hourlyRate: data.hourlyRate,
-        games: data.games,
-        coverImage: data.coverImage,
+        name: data.name,
+        phone: data.phone,
+        birthday: data.birthday,
       }),
     });
     if (!res.ok) {
