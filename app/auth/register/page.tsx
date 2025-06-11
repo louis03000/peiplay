@@ -20,6 +20,7 @@ const registerSchema = z.object({
   name: z.string().min(2, '姓名至少需要2個字'),
   birthday: z.string().min(1, '請選擇生日'),
   phone: z.string().min(10, '請輸入有效的電話號碼'),
+  discord: z.string().min(2, '請輸入 Discord 名稱'),
   games: z.array(z.string()).optional(),
   customGame: z.string().optional(),
 }).refine((data) => data.password === data.confirmPassword, {
@@ -76,6 +77,7 @@ export default function RegisterPage() {
         },
         body: JSON.stringify({
           ...data,
+          userId: session?.user?.id,
           games,
         }),
       })
@@ -152,34 +154,13 @@ export default function RegisterPage() {
           {errors.birthday && (
             <p className="text-red-400 text-sm">{errors.birthday.message}</p>
           )}
-          <div className="space-y-2">
-            <label className="block text-sm font-medium">擅長的遊戲（可複選）</label>
-            {GAME_OPTIONS.map((game) => (
-              <label key={game} className="flex items-center space-x-2">
-                <input
-                  type="checkbox"
-                  value={game}
-                  checked={selectedGames.includes(game)}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    setSelectedGames((prev) =>
-                      prev.includes(value)
-                        ? prev.filter((g) => g !== value)
-                        : [...prev, value]
-                    );
-                  }}
-                />
-                <span>{game}</span>
-              </label>
-            ))}
-          </div>
-          {selectedGames.includes('其他') && (
-            <input
-              className="w-full px-4 py-2 rounded bg-gray-900 text-white placeholder-gray-400 border border-gray-700 mt-2"
-              placeholder="請輸入其他遊戲"
-              value={customGame}
-              onChange={(e) => setCustomGame(e.target.value)}
-            />
+          <input
+            className="w-full px-4 py-2 rounded bg-gray-900 text-white placeholder-gray-400 border border-gray-700"
+            placeholder="Discord 名稱"
+            {...register('discord')}
+          />
+          {errors.discord && (
+            <p className="text-red-400 text-sm">{errors.discord.message}</p>
           )}
           <button
             type="submit"
