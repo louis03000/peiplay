@@ -14,6 +14,7 @@ declare module 'next-auth' {
       isTwoFactorEnabled?: boolean
       phone?: string | null
       birthday?: string | null
+      discord?: string | null
     }
   }
 
@@ -28,5 +29,6 @@ declare module 'next-auth' {
     isTwoFactorEnabled?: boolean
     phone?: string | null
     birthday?: string | null
+    discord?: string | null
   }
 } 
