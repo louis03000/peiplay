@@ -23,7 +23,7 @@ export async function GET(request: Request) {
     };
     const partners = await prisma.partner.findMany({
       where: {
-        isAvailableNow: true,
+        status: 'APPROVED',
         schedules: {
           some: {
             date: scheduleDateFilter,
@@ -49,6 +49,7 @@ export async function GET(request: Request) {
           },
         },
       },
+      orderBy: { createdAt: 'desc' },
     });
     return NextResponse.json(partners);
   } catch (error) {
