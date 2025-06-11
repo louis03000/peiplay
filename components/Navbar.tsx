@@ -2,9 +2,20 @@
 
 import Link from 'next/link'
 import { useSession, signOut } from 'next-auth/react'
+import { useEffect, useState } from 'react'
 
 export default function Navbar() {
   const { data: session } = useSession();
+  const [hasPartner, setHasPartner] = useState(false);
+  useEffect(() => {
+    if (session?.user?.id) {
+      fetch('/api/partners/self').then(res => res.json()).then(data => {
+        setHasPartner(!!data.partner);
+      });
+    } else {
+      setHasPartner(false);
+    }
+  }, [session]);
   console.log('session', session);
   return (
     <nav className="backdrop-blur bg-gradient-to-r from-purple-600/20 to-indigo-600/20 border-b border-white/10 px-6 py-4">
@@ -15,7 +26,7 @@ export default function Navbar() {
         <div className="flex gap-8 items-center">
           <Link href="/booking">預約</Link>
           <Link href="/partners">夥伴</Link>
-          <Link href="/join">加入我們</Link>
+          {!hasPartner && <Link href="/join">加入我們</Link>}
           {session?.user?.role === 'ADMIN' && (
             <Link href="/admin/partners" className="text-purple-600 font-bold hover:underline">夥伴審核</Link>
           )}

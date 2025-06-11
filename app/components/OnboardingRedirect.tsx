@@ -11,7 +11,11 @@ export default function OnboardingRedirect() {
     if (status === "authenticated") {
       const user = session?.user;
       if (user && user.provider === 'line' && (!user.phone || !user.birthday)) {
-        router.replace("/onboarding");
+        fetch('/api/partners/self').then(res => res.json()).then(data => {
+          if (!data.partner) {
+            router.replace("/onboarding");
+          }
+        });
       }
     }
   }, [session, status, router]);

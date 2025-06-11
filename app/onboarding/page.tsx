@@ -30,6 +30,13 @@ export default function OnboardingPage() {
 
   const onSubmit = async (data: FormData) => {
     setError('');
+    // 先查詢是否已申請過
+    const check = await fetch('/api/partners/self').then(res => res.json());
+    if (check.partner) {
+      alert('你已經申請過，不可重複申請');
+      router.replace('/');
+      return;
+    }
     // 強制 birthday 格式為 YYYY-MM-DD
     let birthday = data.birthday.replaceAll('/', '-');
     if (birthday.length > 10) birthday = birthday.slice(0, 10);
