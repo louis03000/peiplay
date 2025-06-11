@@ -10,15 +10,7 @@ import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation';
 
 const GAME_OPTIONS = [
-  'LOL',
-  'APEX',
-  '傳說對決',
-  '爐石戰記',
-  'CS:GO',
-  'Overwatch',
-  'Valorant',
-  'Minecraft',
-  '其他',
+  'LOL', 'APEX', '傳說對決', '爐石戰記', 'CS:GO', 'Overwatch', 'Valorant', 'Minecraft', '其他',
 ]
 
 const registerSchema = z.object({
@@ -84,7 +76,6 @@ export default function RegisterPage() {
         },
         body: JSON.stringify({
           ...data,
-          userId: session?.user?.id,
           games,
         }),
       })
@@ -109,10 +100,9 @@ export default function RegisterPage() {
       <h2 className="text-2xl font-bold mb-6 text-center">註冊</h2>
       {isSuccess ? null : (
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <pre>{JSON.stringify(errors, null, 2)}</pre>
           {errorMsg && <div className="text-red-500 text-center mb-2">{errorMsg}</div>}
           <input
-            className="w-full px-4 py-2 rounded bg-gray-900 text-black placeholder-gray-500 border border-gray-700"
+            className="w-full px-4 py-2 rounded bg-gray-900 text-white placeholder-gray-400 border border-gray-700"
             placeholder="Email"
             {...register('email')}
           />
@@ -120,7 +110,7 @@ export default function RegisterPage() {
             <p className="text-red-400 text-sm">{errors.email.message}</p>
           )}
           <input
-            className="w-full px-4 py-2 rounded bg-gray-900 text-black placeholder-gray-500 border border-gray-700"
+            className="w-full px-4 py-2 rounded bg-gray-900 text-white placeholder-gray-400 border border-gray-700"
             placeholder="密碼"
             type="password"
             {...register('password')}
@@ -129,7 +119,7 @@ export default function RegisterPage() {
             <p className="text-red-400 text-sm">{errors.password.message}</p>
           )}
           <input
-            className="w-full px-4 py-2 rounded bg-gray-900 text-black placeholder-gray-500 border border-gray-700"
+            className="w-full px-4 py-2 rounded bg-gray-900 text-white placeholder-gray-400 border border-gray-700"
             placeholder="確認密碼"
             type="password"
             {...register('confirmPassword')}
@@ -138,7 +128,7 @@ export default function RegisterPage() {
             <p className="text-red-400 text-sm">{errors.confirmPassword.message}</p>
           )}
           <input
-            className="w-full px-4 py-2 rounded bg-gray-900 text-black placeholder-gray-500 border border-gray-700"
+            className="w-full px-4 py-2 rounded bg-gray-900 text-white placeholder-gray-400 border border-gray-700"
             placeholder="姓名"
             {...register('name')}
           />
@@ -146,7 +136,7 @@ export default function RegisterPage() {
             <p className="text-red-400 text-sm">{errors.name.message}</p>
           )}
           <input
-            className="w-full px-4 py-2 rounded bg-gray-900 text-black placeholder-gray-500 border border-gray-700"
+            className="w-full px-4 py-2 rounded bg-gray-900 text-white placeholder-gray-400 border border-gray-700"
             placeholder="電話"
             {...register('phone')}
           />
@@ -154,13 +144,42 @@ export default function RegisterPage() {
             <p className="text-red-400 text-sm">{errors.phone.message}</p>
           )}
           <input
-            className="w-full px-4 py-2 rounded bg-gray-900 text-black placeholder-gray-500 border border-gray-700"
+            className="w-full px-4 py-2 rounded bg-gray-900 text-white placeholder-gray-400 border border-gray-700"
             placeholder="生日"
             type="date"
             {...register('birthday')}
           />
           {errors.birthday && (
             <p className="text-red-400 text-sm">{errors.birthday.message}</p>
+          )}
+          <div className="space-y-2">
+            <label className="block text-sm font-medium">擅長的遊戲（可複選）</label>
+            {GAME_OPTIONS.map((game) => (
+              <label key={game} className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  value={game}
+                  checked={selectedGames.includes(game)}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setSelectedGames((prev) =>
+                      prev.includes(value)
+                        ? prev.filter((g) => g !== value)
+                        : [...prev, value]
+                    );
+                  }}
+                />
+                <span>{game}</span>
+              </label>
+            ))}
+          </div>
+          {selectedGames.includes('其他') && (
+            <input
+              className="w-full px-4 py-2 rounded bg-gray-900 text-white placeholder-gray-400 border border-gray-700 mt-2"
+              placeholder="請輸入其他遊戲"
+              value={customGame}
+              onChange={(e) => setCustomGame(e.target.value)}
+            />
           )}
           <button
             type="submit"

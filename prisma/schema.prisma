@@ -21,6 +21,7 @@ model User {
   birthday      DateTime?
   phone         String?
   role          UserRole  @default(CUSTOMER)
+  discord       String?
   customer      Customer?
   partner       Partner?
   createdAt     DateTime  @default(now())

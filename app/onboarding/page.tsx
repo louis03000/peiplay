@@ -11,6 +11,7 @@ const schema = z.object({
   name: z.string().min(2, '姓名至少2字'),
   phone: z.string().min(10, '請輸入有效電話'),
   birthday: z.string().min(1, '請選擇生日'),
+  discord: z.string().min(2, '請輸入 Discord 名稱'),
 });
 
 type FormData = z.infer<typeof schema>;
@@ -25,6 +26,7 @@ export default function OnboardingPage() {
       name: session?.user?.name || '',
       phone: session?.user?.phone || '',
       birthday: session?.user?.birthday ? session.user.birthday.slice(0, 10) : '',
+      discord: session?.user?.discord || '',
     },
   });
 
@@ -48,6 +50,7 @@ export default function OnboardingPage() {
         name: data.name,
         phone: data.phone,
         birthday,
+        discord: data.discord,
       }),
     });
     if (!res.ok) {
@@ -81,6 +84,11 @@ export default function OnboardingPage() {
             <label className="block mb-1 text-gray-800 font-semibold">生日</label>
             <input type="date" {...register('birthday')} className="w-full border border-gray-300 rounded px-2 py-1 bg-white text-gray-900 placeholder-gray-400" />
             {errors.birthday && <div className="text-red-600 text-sm">{errors.birthday.message}</div>}
+          </div>
+          <div>
+            <label className="block mb-1 text-gray-800 font-semibold">Discord 名稱</label>
+            <input type="text" {...register('discord')} className="w-full border border-gray-300 rounded px-2 py-1 bg-white text-gray-900 placeholder-gray-400" />
+            {errors.discord && <div className="text-red-600 text-sm">{errors.discord.message}</div>}
           </div>
           <button type="submit" className="w-full bg-indigo-600 text-white py-2 rounded">送出</button>
         </form>

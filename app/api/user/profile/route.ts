@@ -11,7 +11,7 @@ export async function PATCH(request: Request) {
 
   try {
     const data = await request.json();
-    const { name, phone, birthday } = data;
+    const { name, phone, birthday, discord } = data;
 
     if (!name || !phone || !birthday) {
       return NextResponse.json({ error: '缺少必要欄位' }, { status: 400 });
@@ -43,6 +43,7 @@ export async function PATCH(request: Request) {
         name,
         phone,
         birthday: date,
+        ...(discord !== undefined ? { discord } : {}),
       },
     });
 
