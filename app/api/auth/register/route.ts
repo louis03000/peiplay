@@ -5,7 +5,7 @@ import bcrypt from 'bcrypt'
 export async function POST(request: Request) {
   try {
     const data = await request.json()
-    const { email, password, name, birthday, phone, role, games: requestedGames } = data
+    const { email, password, name, birthday, phone, role, games: requestedGames, discord } = data
 
     // 檢查郵箱是否已被註冊
     const existingUser = await prisma.user.findUnique({
@@ -31,6 +31,7 @@ export async function POST(request: Request) {
         birthday: new Date(birthday),
         phone,
         role: role || 'CUSTOMER',
+        discord,
       },
     })
 
