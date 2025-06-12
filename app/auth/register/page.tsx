@@ -81,13 +81,18 @@ export default function RegisterPage() {
           games,
         }),
       })
-
+  
       if (!response.ok) {
-        const error = await response.json()
-        setErrorMsg(error.message || '註冊失敗')
+        let error = null
+        try {
+          error = await response.json()
+        } catch (e) {
+          error = null
+        }
+        setErrorMsg(error?.message || error?.error || '註冊失敗')
         return
       }
-
+  
       setIsSuccess(true)
     } catch (error) {
       console.error(error)
