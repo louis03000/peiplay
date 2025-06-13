@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import bcrypt from 'bcrypt'
+import bcrypt from 'bcryptjs'
 
 export async function POST(request: Request) {
   try {
     const data = await request.json()
-    const { email, password, name, birthday, phone, role, games: requestedGames, discord } = data
+    const { email, password, name, birthday, phone, discord } = data
 
     // 檢查郵箱是否已被註冊
     const existingUser = await prisma.user.findUnique({
@@ -30,25 +30,10 @@ export async function POST(request: Request) {
         name,
         birthday: new Date(birthday),
         phone,
-        role: role || 'CUSTOMER',
         discord,
+        role: 'CUSTOMER',
       },
     })
-
-    // 如果是夥伴，創建夥伴資料
-    if (role === 'PARTNER') {
-      await prisma.partner.create({
-        data: {
-          userId: user.id,
-          name,
-          birthday: new Date(birthday),
-          phone,
-          coverImage: '',
-          games: requestedGames || [],
-          hourlyRate: 0, // 預設值，之後可以更新
-        },
-      })
-    }
 
     return NextResponse.json({ message: '註冊成功' })
   } catch (error) {
