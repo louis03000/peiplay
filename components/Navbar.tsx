@@ -10,7 +10,7 @@ export default function Navbar() {
   useEffect(() => {
     if (session?.user?.id) {
       fetch('/api/partners/self').then(res => res.json()).then(data => {
-        setHasPartner(!!data.partner);
+        setHasPartner(!!data.partner && data.partner.status === 'APPROVED');
       });
     } else {
       setHasPartner(false);

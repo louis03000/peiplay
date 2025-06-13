@@ -25,6 +25,7 @@ export default function PartnerSchedulePage() {
   // 假設預設為沒空
   const [isAvailableNow, setIsAvailableNow] = useState(false)
   const [events, setEvents] = useState<{ title: string; start: Date; end: Date }[]>([])
+  const [saveMsg, setSaveMsg] = useState<string>('')
 
   // 點選空格時新增/移除可用時段
   const handleSelectSlot = (slotInfo: SlotInfo) => {
@@ -34,6 +35,28 @@ export default function PartnerSchedulePage() {
     } else {
       setEvents([...events, { title: '可預約', start: slotInfo.start, end: slotInfo.end }])
     }
+  }
+
+  // 儲存所有時段到後端
+  const handleSave = async () => {
+    setSaveMsg('')
+    let success = 0, fail = 0
+    for (const e of events) {
+      const res = await fetch('/api/partner/schedule', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          date: e.start,
+          startTime: e.start,
+          endTime: e.end,
+        })
+      })
+      if (res.ok) success++
+      else fail++
+    }
+    if (success && !fail) setSaveMsg('所有時段已成功儲存！')
+    else if (success && fail) setSaveMsg(`部分成功：${success} 筆成功，${fail} 筆失敗`)
+    else setSaveMsg('儲存失敗，請重試')
   }
 
   return (
@@ -71,7 +94,15 @@ export default function PartnerSchedulePage() {
           messages={{ week: '週', day: '日', today: '今天', previous: '上週', next: '下週' }}
         />
       </div>
-      <p className="text-gray-300 text-center mt-4">點選格子可切換可預約時段，之後可串接 API 儲存。</p>
+      <button
+        className="mt-6 w-full py-2 rounded bg-gradient-to-r from-indigo-500 to-purple-500 text-white font-bold text-lg"
+        onClick={handleSave}
+        disabled={events.length === 0}
+      >
+        儲存時段
+      </button>
+      {saveMsg && <p className="text-center text-green-400 font-bold mt-2">{saveMsg}</p>}
+      <p className="text-gray-300 text-center mt-4">點選格子可切換可預約時段，儲存後顧客就能預約你！</p>
     </div>
   )
 } 
