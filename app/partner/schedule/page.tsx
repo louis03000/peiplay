@@ -40,11 +40,13 @@ export default function PartnerSchedulePage() {
 
   // 點選空格時新增/移除可用時段
   const handleSelectSlot = (slotInfo: SlotInfo) => {
-    const exists = events.some(e => e.start && e.end && e.start.getTime() === slotInfo.start.getTime() && e.end.getTime() === slotInfo.end.getTime())
+    const slotStart = slotInfo.start;
+    const slotEnd = slotInfo.end;
+    const exists = events.some(e => e.start.getTime() === slotStart.getTime() && e.end.getTime() === slotEnd.getTime());
     if (exists) {
-      setEvents(events.filter(e => !(e.start && e.end && e.start.getTime() === slotInfo.start.getTime() && e.end.getTime() === slotInfo.end.getTime())))
+      setEvents(events.filter(e => !(e.start.getTime() === slotStart.getTime() && e.end.getTime() === slotEnd.getTime())));
     } else {
-      setEvents([...events, { title: '可預約', start: slotInfo.start, end: slotInfo.end }])
+      setEvents([...events, { title: '可預約', start: slotStart, end: slotEnd }]);
     }
   }
 
@@ -68,6 +70,34 @@ export default function PartnerSchedulePage() {
     if (success && !fail) setSaveMsg('所有時段已成功儲存！')
     else if (success && fail) setSaveMsg(`部分成功：${success} 筆成功，${fail} 筆失敗`)
     else setSaveMsg('儲存失敗，請重試')
+  }
+
+  // 自訂 SlotWrapper，讓每個格子都顯示時間（移到 component 內部）
+  const CustomSlotWrapper = (props: any) => {
+    const slotStart: Date = props.value as Date;
+    const slotEnd = new Date(slotStart.getTime() + 30 * 60 * 1000);
+    // 檢查這個 slot 是否已被選為 event
+    const isSelected = events.some((e) => e.start.getTime() === slotStart.getTime() && e.end.getTime() === slotEnd.getTime());
+    return (
+      <div style={{
+        height: '100%',
+        background: isSelected ? '#4F46E5' : '#fff',
+        color: isSelected ? '#fff' : '#4F46E5',
+        border: '1px solid #a5b4fc',
+        borderRadius: 6,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontWeight: isSelected ? 'bold' : 'normal',
+        fontSize: 14,
+        cursor: 'pointer',
+        transition: 'background 0.2s, color 0.2s',
+      }}>
+        <span>{slotStart.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}</span>
+        <span style={{ fontSize: 12, opacity: 0.8 }}>{'-' + slotEnd.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}</span>
+      </div>
+    )
   }
 
   return (
@@ -114,7 +144,7 @@ export default function PartnerSchedulePage() {
             }
           })}
           messages={{ week: '週', day: '日', today: '今天', previous: '', next: '下週' }}
-          components={{ toolbar: CustomToolbar }}
+          components={{ toolbar: CustomToolbar, timeSlotWrapper: CustomSlotWrapper }}
         />
       </div>
       <button
