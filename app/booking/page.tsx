@@ -155,20 +155,23 @@ export default function BookingWizard() {
 
       {/* 上一步/下一步按鈕 */}
       <div className="flex justify-between px-10 pb-10">
-                      <button
+        <button
           className="px-6 py-2 rounded-full bg-gray-800/80 text-white font-medium shadow hover:bg-gray-700/90 transition disabled:opacity-40"
           onClick={() => setStep((s) => Math.max(0, s - 1))}
           disabled={step === 0}
-                      >
-                        上一步
-                      </button>
-                      <button
-          className="px-6 py-2 rounded-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 text-white font-bold shadow-lg hover:from-indigo-600 hover:to-pink-600 active:scale-95 transition disabled:opacity-40"
-          onClick={() => setStep((s) => Math.min(steps.length - 1, s + 1))}
-          disabled={step === steps.length - 1 || (step === 0 && !selectedPartner)}
-                      >
-          下一步
-                      </button>
+        >
+          上一步
+        </button>
+        {/* 下一步按鈕只在步驟0~2顯示，步驟3用確認送出，步驟4不顯示 */}
+        {step < 3 && (
+          <button
+            className="px-6 py-2 rounded-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 text-white font-bold shadow-lg hover:from-indigo-600 hover:to-pink-600 active:scale-95 transition disabled:opacity-40"
+            onClick={() => setStep((s) => Math.min(steps.length - 1, s + 1))}
+            disabled={step === steps.length - 1 || (step === 0 && !selectedPartner)}
+          >
+            下一步
+          </button>
+        )}
       </div>
       <style jsx global>{`
         @keyframes fadein { from { opacity: 0; transform: translateY(20px);} to { opacity: 1; transform: none; } }
