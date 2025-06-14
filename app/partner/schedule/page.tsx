@@ -90,7 +90,17 @@ export default function PartnerSchedulePage() {
           max={new Date(2023, 0, 1, 18, 0)}
           style={{ height: 600 }}
           onSelectSlot={handleSelectSlot}
-          eventPropGetter={() => ({ style: { backgroundColor: '#8b5cf6', color: 'white', borderRadius: 8 } })}
+          eventPropGetter={() => ({
+            style: {
+              backgroundColor: '#4F46E5', // indigo-600
+              color: '#fff',
+              borderRadius: 8,
+              border: '2px solid #a5b4fc', // indigo-200
+              fontWeight: 'bold',
+              fontSize: 16,
+              boxShadow: '0 2px 8px #6366f133'
+            }
+          })}
           messages={{ week: '週', day: '日', today: '今天', previous: '上週', next: '下週' }}
         />
       </div>

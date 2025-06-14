@@ -7,13 +7,16 @@ import { useEffect, useState } from 'react'
 export default function Navbar() {
   const { data: session } = useSession();
   const [hasPartner, setHasPartner] = useState(false);
+  const [isPartner, setIsPartner] = useState(false);
   useEffect(() => {
     if (session?.user?.id) {
       fetch('/api/partners/self').then(res => res.json()).then(data => {
         setHasPartner(!!data.partner && data.partner.status === 'APPROVED');
+        setIsPartner(!!data.partner);
       });
     } else {
       setHasPartner(false);
+      setIsPartner(false);
     }
   }, [session]);
   console.log('session', session);
@@ -29,6 +32,9 @@ export default function Navbar() {
           {!hasPartner && <Link href="/join">加入我們</Link>}
           {session?.user?.role === 'ADMIN' && (
             <Link href="/admin/partners" className="text-purple-600 font-bold hover:underline">夥伴審核</Link>
+          )}
+          {isPartner && (
+            <Link href="/partner/schedule" className="text-indigo-600 font-bold hover:underline">時段管理</Link>
           )}
           {session?.user ? (
             <>
