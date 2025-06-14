@@ -178,7 +178,7 @@ export default function PartnerSchedulePage() {
       <div className="bg-white rounded shadow p-4" style={{ minWidth: 900, maxWidth: 1200, margin: '0 auto', borderRadius: 16, boxShadow: '0 4px 24px #6366f133', overflow: 'auto', width: '100%' }}>
         <Calendar
           localizer={localizer}
-          events={events.filter((e, i, arr) => arr.findIndex(x => isSameSlot(x, e)) === i)}
+          events={[]}
           startAccessor="start"
           endAccessor="end"
           defaultView="week"
@@ -190,13 +190,44 @@ export default function PartnerSchedulePage() {
           max={new Date(2023, 0, 1, 23, 30)}
           style={{ height: 600 }}
           onSelectSlot={handleSelectSlot}
-          onSelectEvent={handleSelectEvent}
-          eventPropGetter={eventPropGetter}
           messages={{ week: '週', day: '日', today: '今天', previous: '', next: '下週' }}
           components={{
             toolbar: CustomToolbar,
-            timeSlotWrapper: CustomSlotWrapper,
-            event: CustomEvent,
+            timeSlotWrapper: (props: any) => {
+              const slotStart: Date = props.value as Date;
+              const slotEnd = new Date(slotStart.getTime() + 30 * 60 * 1000);
+              const now = new Date();
+              if (
+                slotStart.getHours() === 0 && slotStart.getMinutes() === 0 &&
+                slotEnd.getHours() === 0 && slotEnd.getMinutes() === 0
+              ) {
+                return <div style={{ pointerEvents: 'none', background: '#fff' }}></div>;
+              }
+              if (slotEnd <= now) {
+                return <div style={{ pointerEvents: 'none', background: '#fff' }}></div>;
+              }
+              const isSelected = events.some((e) => e.start.getTime() === slotStart.getTime() && e.end.getTime() === slotEnd.getTime());
+              return (
+                <div style={{
+                  height: '100%',
+                  background: isSelected ? '#4F46E5' : '#fff',
+                  color: isSelected ? '#fff' : '#222',
+                  border: '1px solid #a5b4fc',
+                  borderRadius: 6,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontWeight: isSelected ? 'bold' : 'normal',
+                  fontSize: 14,
+                  cursor: 'pointer',
+                  transition: 'background 0.2s, color 0.2s',
+                }}>
+                  <span>{slotStart.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}</span>
+                  <span style={{ fontSize: 12, opacity: 0.8 }}>{'-' + slotEnd.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}</span>
+                </div>
+              )
+            },
           }}
         />
       </div>
