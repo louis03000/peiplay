@@ -1,7 +1,7 @@
 'use client'
 export const dynamic = 'force-dynamic'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Image from 'next/image'
 
 const steps = [
@@ -13,45 +13,32 @@ const steps = [
   '完成'
 ]
 
-// 假資料
-const partners = [
-  {
-    id: 'p1',
-    name: '小明',
-    avatar: 'https://randomuser.me/api/portraits/men/32.jpg',
-    skills: ['Switch', '瑪利歐賽車', '健身環'],
-    desc: '熱情活潑，擅長 Switch 各類遊戲，歡迎一起玩！',
-    isAvailableNow: true,
-  },
-  {
-    id: 'p2',
-    name: '小美',
-    avatar: 'https://randomuser.me/api/portraits/women/44.jpg',
-    skills: ['PS5', 'FIFA', 'NBA 2K'],
-    desc: '運動遊戲高手，PS5 也能陪玩！',
-    isAvailableNow: false,
-  },
-  {
-    id: 'p3',
-    name: '阿宅',
-    avatar: 'https://randomuser.me/api/portraits/men/65.jpg',
-    skills: ['Steam', 'LOL', 'APEX'],
-    desc: '電競宅，歡迎一起開黑！',
-    isAvailableNow: true,
-  },
-]
+export type Partner = {
+  id: string;
+  name: string;
+  games: string[];
+  hourlyRate: number;
+  schedules: { id: string; date: string; startTime: string; endTime: string }[];
+};
 
 export default function BookingWizard() {
   const [step, setStep] = useState(0)
   const [search, setSearch] = useState('')
-  const [selectedPartner, setSelectedPartner] = useState(null as null | typeof partners[0])
+  const [partners, setPartners] = useState<Partner[]>([])
+  const [selectedPartner, setSelectedPartner] = useState<Partner | null>(null)
   const [onlyAvailable, setOnlyAvailable] = useState(false)
   const [instantBooking, setInstantBooking] = useState(false)
 
+  useEffect(() => {
+    fetch('/api/partners')
+      .then(res => res.json())
+      .then(data => setPartners(data))
+  }, [])
+
   // 搜尋過濾
   const filteredPartners = partners.filter(p =>
-    (p.name.includes(search) || p.skills.some(s => s.includes(search))) &&
-    (!onlyAvailable || p.isAvailableNow)
+    (p.name.includes(search) || (p.games && p.games.some(s => s.includes(search))))
+    // 這裡如需只看現在有空可再加條件
   )
 
   // 處理馬上預約
@@ -109,25 +96,20 @@ export default function BookingWizard() {
                   className={`rounded-2xl bg-white/10 border border-white/10 shadow-lg p-4 flex gap-4 items-center cursor-pointer transition-all duration-200 hover:scale-105 hover:border-indigo-400 ${selectedPartner?.id === p.id ? 'ring-2 ring-indigo-400' : ''}`}
                   onClick={() => setSelectedPartner(p)}
                 >
-                  <Image src={p.avatar} alt={p.name} width={56} height={56} className="w-14 h-14 rounded-full object-cover border-2 border-white/20" />
+                  {/* 你可以根據你的資料結構顯示頭像、名稱、技能等 */}
+                  <div className="w-14 h-14 rounded-full bg-gray-200 flex items-center justify-center text-2xl font-bold text-gray-400 mr-2">{p.name[0]}</div>
                   <div className="flex-1">
                     <div className="font-bold text-white text-lg flex items-center gap-2">
                       {p.name}
-                      {p.isAvailableNow && <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-green-500/20 text-green-400 text-xs rounded-full"><span className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>現在有空</span>}
                     </div>
-                    <div className="text-xs text-indigo-300 mb-1">{p.skills.join('、')}</div>
-                    <div className="text-sm text-gray-300">{p.desc}</div>
+                    <div className="text-xs text-indigo-300 mb-1">{p.games?.join('、')}</div>
+                    <div className="text-sm text-gray-300">每小時 {p.hourlyRate} 元</div>
+                    {p.schedules && p.schedules.length > 0 && (
+                      <div className="text-xs text-green-500 mt-1">最近時段：{p.schedules.map(s => `${s.date} ${s.startTime}~${s.endTime}`).join('、')}</div>
+                    )}
                   </div>
-                  {p.isAvailableNow && (
-                      <button
-                      className="ml-2 px-3 py-1 rounded-full bg-green-500/90 text-white text-xs font-bold shadow hover:bg-green-600 transition"
-                      onClick={e => { e.stopPropagation(); handleInstantBook(p) }}
-                      >
-                      馬上預約
-                      </button>
-                  )}
                   {selectedPartner?.id === p.id && <div className="text-indigo-400 font-bold">✔</div>}
-                    </div>
+                </div>
               ))}
                       </div>
                     </div>

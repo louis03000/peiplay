@@ -40,28 +40,38 @@ export default function PartnerSchedulePage() {
   const [events, setEvents] = useState<{ title: string; start: Date; end: Date }[]>([])
   const [saveMsg, setSaveMsg] = useState<string>('')
 
-  // 點選空格時新增/移除可用時段
+  // 幫助函式：判斷兩個時段是否相同
+  function isSameSlot(a: { start: Date; end: Date }, b: { start: Date; end: Date }) {
+    return a.start.getTime() === b.start.getTime() && a.end.getTime() === b.end.getTime();
+  }
+
+  // 點選空格時新增/移除可用時段（自動去重）
   const handleSelectSlot = (slotInfo: SlotInfo) => {
     const slotStart = slotInfo.start;
     const slotEnd = slotInfo.end;
-    const exists = events.some(e => e.start.getTime() === slotStart.getTime() && e.end.getTime() === slotEnd.getTime());
-    if (exists) {
-      setEvents(events.filter(e => !(e.start.getTime() === slotStart.getTime() && e.end.getTime() === slotEnd.getTime())));
-    } else {
-      setEvents([...events, { title: '可預約', start: slotStart, end: slotEnd }]);
-    }
+    setEvents(prev => {
+      const exists = prev.some(e => isSameSlot(e, { start: slotStart, end: slotEnd }));
+      if (exists) {
+        return prev.filter(e => !isSameSlot(e, { start: slotStart, end: slotEnd }));
+      } else {
+        // 新增時自動去重
+        return [...prev.filter((e, i, arr) => arr.findIndex(x => isSameSlot(x, e)) === i), { title: '可預約', start: slotStart, end: slotEnd }];
+      }
+    });
   }
 
   // 點選 event（已選時段）時可取消
   const handleSelectEvent = (event: { start: Date; end: Date }) => {
-    setEvents(events.filter(e => !(e.start.getTime() === new Date(event.start).getTime() && e.end.getTime() === new Date(event.end).getTime())))
+    setEvents(prev => prev.filter(e => !isSameSlot(e, event)))
   }
 
-  // 儲存所有時段到後端
+  // 儲存所有時段到後端（自動去重）
   const handleSave = async () => {
     setSaveMsg('')
+    // 去重
+    const uniqueEvents = events.filter((e, i, arr) => arr.findIndex(x => isSameSlot(x, e)) === i);
     let success = 0, fail = 0
-    for (const e of events) {
+    for (const e of uniqueEvents) {
       const res = await fetch('/api/partner/schedule', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -77,6 +87,23 @@ export default function PartnerSchedulePage() {
     if (success && !fail) setSaveMsg('所有時段已成功儲存！')
     else if (success && fail) setSaveMsg(`部分成功：${success} 筆成功，${fail} 筆失敗`)
     else setSaveMsg('儲存失敗，請重試')
+  }
+
+  // eventPropGetter 根據是否被選中改變底色
+  const eventPropGetter = (event: { start: Date; end: Date }) => {
+    const isSelected = events.some(e => isSameSlot(e, event));
+    return {
+      style: {
+        backgroundColor: isSelected ? '#4F46E5' : '#a5b4fc', // 選中主色，未選淡色
+        color: '#fff',
+        borderRadius: 8,
+        border: isSelected ? '2px solid #6366f1' : '2px solid #a5b4fc',
+        fontWeight: 'bold',
+        fontSize: 16,
+        boxShadow: isSelected ? '0 2px 8px #6366f133' : 'none',
+        zIndex: isSelected ? 2 : 1,
+      }
+    }
   }
 
   // 自訂 SlotWrapper，讓每個格子都顯示時間（移到 component 內部）
@@ -151,7 +178,7 @@ export default function PartnerSchedulePage() {
       <div className="bg-white rounded shadow p-4" style={{ minWidth: 900, maxWidth: 1200, margin: '0 auto', borderRadius: 16, boxShadow: '0 4px 24px #6366f133', overflow: 'auto', width: '100%' }}>
         <Calendar
           localizer={localizer}
-          events={events}
+          events={events.filter((e, i, arr) => arr.findIndex(x => isSameSlot(x, e)) === i)}
           startAccessor="start"
           endAccessor="end"
           defaultView="week"
@@ -164,17 +191,7 @@ export default function PartnerSchedulePage() {
           style={{ height: 600 }}
           onSelectSlot={handleSelectSlot}
           onSelectEvent={handleSelectEvent}
-          eventPropGetter={() => ({
-            style: {
-              backgroundColor: '#4F46E5', // indigo-600
-              color: '#fff',
-              borderRadius: 8,
-              border: '2px solid #a5b4fc', // indigo-200
-              fontWeight: 'bold',
-              fontSize: 16,
-              boxShadow: '0 2px 8px #6366f133'
-            }
-          })}
+          eventPropGetter={eventPropGetter}
           messages={{ week: '週', day: '日', today: '今天', previous: '', next: '下週' }}
           components={{
             toolbar: CustomToolbar,
