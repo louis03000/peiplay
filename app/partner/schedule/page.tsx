@@ -1,6 +1,6 @@
 'use client'
 import { useState } from 'react'
-import { Calendar, dateFnsLocalizer, SlotInfo, Event } from 'react-big-calendar'
+import { Calendar, dateFnsLocalizer, SlotInfo, Event, ToolbarProps } from 'react-big-calendar'
 import format from 'date-fns/format'
 import parse from 'date-fns/parse'
 import startOfWeek from 'date-fns/startOfWeek'
@@ -20,6 +20,17 @@ const localizer = dateFnsLocalizer({
   getDay,
   locales,
 })
+
+// 自訂 Toolbar 只顯示『今天』和『下週』
+function CustomToolbar(toolbar: import('react-big-calendar').ToolbarProps<{ title: string; start: Date; end: Date }, object>) {
+  return (
+    <div className="rbc-toolbar flex gap-2 mb-2">
+      <button type="button" onClick={() => toolbar.onNavigate('TODAY')} className="rbc-btn">今天</button>
+      <button type="button" onClick={() => toolbar.onNavigate('NEXT')} className="rbc-btn">下週</button>
+      <span className="ml-4 font-bold text-lg text-gray-700">{toolbar.label}</span>
+    </div>
+  )
+}
 
 export default function PartnerSchedulePage() {
   // 假設預設為沒空
@@ -62,6 +73,7 @@ export default function PartnerSchedulePage() {
   return (
     <div className="max-w-4xl mx-auto mt-16 bg-white/10 rounded-xl p-8 shadow-lg backdrop-blur">
       <h2 className="text-2xl font-bold mb-6 text-center">夥伴時段管理</h2>
+      <div className="text-center text-indigo-400 font-bold mb-2">點選下方任一格即可新增可預約時段，再點一次可取消</div>
       <div className="flex items-center justify-center mb-8">
         <label className="flex items-center gap-3 cursor-pointer select-none">
           <span className={`w-3 h-3 rounded-full ${isAvailableNow ? 'bg-green-400 animate-pulse' : 'bg-gray-400'}`}></span>
@@ -86,8 +98,8 @@ export default function PartnerSchedulePage() {
           selectable
           step={30}
           timeslots={1}
-          min={new Date(2023, 0, 1, 10, 0)}
-          max={new Date(2023, 0, 1, 18, 0)}
+          min={new Date(2023, 0, 1, 0, 0)}
+          max={new Date(2023, 0, 1, 23, 59)}
           style={{ height: 600 }}
           onSelectSlot={handleSelectSlot}
           eventPropGetter={() => ({
@@ -101,7 +113,8 @@ export default function PartnerSchedulePage() {
               boxShadow: '0 2px 8px #6366f133'
             }
           })}
-          messages={{ week: '週', day: '日', today: '今天', previous: '上週', next: '下週' }}
+          messages={{ week: '週', day: '日', today: '今天', previous: '', next: '下週' }}
+          components={{ toolbar: CustomToolbar }}
         />
       </div>
       <button
