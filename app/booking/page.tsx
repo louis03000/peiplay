@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic'
 
 import { useState, useEffect } from 'react'
 import Image from 'next/image'
+import DatePicker from 'react-datepicker'
 
 const steps = [
   '選擇夥伴',
@@ -27,6 +28,7 @@ export default function BookingWizard() {
   const [selectedPartner, setSelectedPartner] = useState<Partner | null>(null)
   const [onlyAvailable, setOnlyAvailable] = useState(false)
   const [instantBooking, setInstantBooking] = useState(false)
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null)
 
   useEffect(() => {
     fetch('/api/partners')
