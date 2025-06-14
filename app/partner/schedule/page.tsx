@@ -91,17 +91,17 @@ export default function PartnerSchedulePage() {
     ) {
       return <div style={{ pointerEvents: 'none', background: '#fff' }}></div>;
     }
-    // 判斷是否為過去的 slot
-    const isPastDay = slotStart < new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const isTodayPast = slotStart.toDateString() === now.toDateString() && slotEnd <= now;
-    const isPast = isPastDay || isTodayPast;
+    // 只顯示現在時間之後的時段
+    if (slotEnd <= now) {
+      return <div style={{ pointerEvents: 'none', background: '#fff' }}></div>;
+    }
     // 檢查這個 slot 是否已被選為 event
     const isSelected = events.some((e) => e.start.getTime() === slotStart.getTime() && e.end.getTime() === slotEnd.getTime());
     return (
       <div style={{
         height: '100%',
-        background: isSelected ? '#4F46E5' : isPast ? '#f3f4f6' : '#fff',
-        color: isSelected ? '#fff' : isPast ? '#bbb' : '#4F46E5',
+        background: isSelected ? '#4F46E5' : '#fff',
+        color: isSelected ? '#fff' : '#222',
         border: '1px solid #a5b4fc',
         borderRadius: 6,
         display: 'flex',
@@ -110,10 +110,8 @@ export default function PartnerSchedulePage() {
         justifyContent: 'center',
         fontWeight: isSelected ? 'bold' : 'normal',
         fontSize: 14,
-        cursor: isPast ? 'not-allowed' : 'pointer',
+        cursor: 'pointer',
         transition: 'background 0.2s, color 0.2s',
-        pointerEvents: isPast ? 'none' : 'auto',
-        opacity: isPast ? 0.3 : 1,
       }}>
         <span>{slotStart.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}</span>
         <span style={{ fontSize: 12, opacity: 0.8 }}>{'-' + slotEnd.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}</span>
