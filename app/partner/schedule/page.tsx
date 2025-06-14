@@ -7,6 +7,7 @@ import startOfWeek from 'date-fns/startOfWeek'
 import getDay from 'date-fns/getDay'
 import enUS from 'date-fns/locale/en-US'
 import 'react-big-calendar/lib/css/react-big-calendar.css'
+import './schedule-header-fix.css'
 
 export const dynamic = 'force-dynamic'
 
@@ -48,6 +49,11 @@ export default function PartnerSchedulePage() {
     } else {
       setEvents([...events, { title: '可預約', start: slotStart, end: slotEnd }]);
     }
+  }
+
+  // 點選 event（已選時段）時可取消
+  const handleSelectEvent = (event: { start: Date; end: Date }) => {
+    setEvents(events.filter(e => !(e.start.getTime() === new Date(event.start).getTime() && e.end.getTime() === new Date(event.end).getTime())))
   }
 
   // 儲存所有時段到後端
@@ -141,9 +147,10 @@ export default function PartnerSchedulePage() {
           step={30}
           timeslots={1}
           min={new Date(2023, 0, 1, 0, 0)}
-          max={new Date(2023, 0, 1, 23, 59)}
+          max={new Date(2023, 0, 1, 23, 30)}
           style={{ height: 600 }}
           onSelectSlot={handleSelectSlot}
+          onSelectEvent={handleSelectEvent}
           eventPropGetter={() => ({
             style: {
               backgroundColor: '#4F46E5', // indigo-600
