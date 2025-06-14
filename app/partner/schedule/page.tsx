@@ -91,11 +91,10 @@ export default function PartnerSchedulePage() {
     ) {
       return <div style={{ pointerEvents: 'none', background: '#fff' }}></div>;
     }
-    // 過濾已過的日期與時間格子
-    if (
-      slotStart < now &&
-      (slotStart.toDateString() !== now.toDateString() || slotEnd <= now)
-    ) {
+    // 只隱藏今天以前的所有格子，以及今天已過的時間
+    const isPastDay = slotStart < new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const isTodayPast = slotStart.toDateString() === now.toDateString() && slotEnd <= now;
+    if (isPastDay || isTodayPast) {
       return <div style={{ pointerEvents: 'none', background: '#f3f4f6', opacity: 0.3 }}></div>;
     }
     // 檢查這個 slot 是否已被選為 event
