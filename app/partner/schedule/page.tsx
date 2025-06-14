@@ -100,6 +100,18 @@ export default function PartnerSchedulePage() {
     )
   }
 
+  // 自訂 event component，讓已選時段也上下排顯示
+  const CustomEvent = ({ event }: { event: { start: Date; end: Date } }) => {
+    const start = new Date(event.start)
+    const end = new Date(event.end)
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+        <span>{start.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}</span>
+        <span style={{ fontSize: 12, opacity: 0.8 }}>{'-' + end.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}</span>
+      </div>
+    )
+  }
+
   return (
     <div className="max-w-4xl mx-auto mt-16 bg-white/10 rounded-xl p-8 shadow-lg backdrop-blur">
       <h2 className="text-2xl font-bold mb-6 text-center">夥伴時段管理</h2>
@@ -117,7 +129,7 @@ export default function PartnerSchedulePage() {
         </label>
         <span className={`ml-4 text-sm font-bold ${isAvailableNow ? 'text-green-400' : 'text-gray-400'}`}>{isAvailableNow ? '顧客可即時預約你' : '顧客看不到你'}</span>
       </div>
-      <div className="bg-white rounded shadow p-4">
+      <div className="bg-white rounded shadow p-4" style={{ minWidth: 900 }}>
         <Calendar
           localizer={localizer}
           events={events}
@@ -144,7 +156,11 @@ export default function PartnerSchedulePage() {
             }
           })}
           messages={{ week: '週', day: '日', today: '今天', previous: '', next: '下週' }}
-          components={{ toolbar: CustomToolbar, timeSlotWrapper: CustomSlotWrapper }}
+          components={{
+            toolbar: CustomToolbar,
+            timeSlotWrapper: CustomSlotWrapper,
+            event: CustomEvent,
+          }}
         />
       </div>
       <button
