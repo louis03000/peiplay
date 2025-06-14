@@ -8,7 +8,6 @@ const steps = [
   '選擇夥伴',
   '選擇日期',
   '選擇時段',
-  '填寫資料',
   '確認預約',
   '完成'
 ]
@@ -96,17 +95,16 @@ export default function BookingWizard() {
                   className={`rounded-2xl bg-white/10 border border-white/10 shadow-lg p-4 flex gap-4 items-center cursor-pointer transition-all duration-200 hover:scale-105 hover:border-indigo-400 ${selectedPartner?.id === p.id ? 'ring-2 ring-indigo-400' : ''}`}
                   onClick={() => setSelectedPartner(p)}
                 >
-                  {/* 你可以根據你的資料結構顯示頭像、名稱、技能等 */}
-                  <div className="w-14 h-14 rounded-full bg-gray-200 flex items-center justify-center text-2xl font-bold text-gray-400 mr-2">{p.name[0]}</div>
+                  {/* 封面：可用頭像或預設圖 */}
+                  <div className="w-14 h-14 rounded-full bg-gray-200 flex items-center justify-center text-2xl font-bold text-gray-400 mr-2">
+                    {p.name[0]}
+                  </div>
                   <div className="flex-1">
                     <div className="font-bold text-white text-lg flex items-center gap-2">
                       {p.name}
                     </div>
                     <div className="text-xs text-indigo-300 mb-1">{p.games?.join('、')}</div>
                     <div className="text-sm text-gray-300">每小時 {p.hourlyRate} 元</div>
-                    {p.schedules && p.schedules.length > 0 && (
-                      <div className="text-xs text-green-500 mt-1">最近時段：{p.schedules.map(s => `${s.date} ${s.startTime}~${s.endTime}`).join('、')}</div>
-                    )}
                   </div>
                   {selectedPartner?.id === p.id && <div className="text-indigo-400 font-bold">✔</div>}
                 </div>
@@ -114,29 +112,44 @@ export default function BookingWizard() {
                       </div>
                     </div>
         )}
-        {step === 1 && <div className="text-lg text-white/90">（2）選擇日期（月曆元件）</div>}
-        {step === 2 && <div className="text-lg text-white/90">（3）選擇時段（時段表）</div>}
-        {step === 3 && <div className="text-lg text-white/90">（4）填寫/確認個人資料</div>}
-        {step === 4 && <div className="text-lg text-white/90">（5）預約資訊確認與送出</div>}
-        {step === 5 && (
+        {step === 1 && (
+          <div className="text-lg text-white/90">（2）選擇日期（月曆元件）</div>
+        )}
+        {step === 2 && (
+          <div className="text-lg text-white/90">（3）選擇時段（時段表）</div>
+        )}
+        {step === 3 && selectedPartner && (
+          <div className="flex flex-col items-center gap-4">
+            <div className="text-white/90 text-xl font-bold mb-4">預約確認</div>
+            <div className="flex items-center gap-4 bg-white/10 rounded-2xl p-6 border border-white/10">
+              <div className="w-16 h-16 rounded-full bg-gray-200 flex items-center justify-center text-3xl font-bold text-gray-400 mr-4">
+                {selectedPartner.name[0]}
+              </div>
+              <div>
+                <div className="font-bold text-white text-lg mb-1">{selectedPartner.name}</div>
+                <div className="text-xs text-indigo-300 mb-1">{selectedPartner.games?.join('、')}</div>
+                <div className="text-sm text-gray-300">每小時 {selectedPartner.hourlyRate} 元</div>
+              </div>
+            </div>
+            <button
+              className="mt-6 px-6 py-2 rounded-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 text-white font-bold shadow-lg hover:from-indigo-600 hover:to-pink-600 active:scale-95 transition"
+              onClick={() => setStep(4)}
+            >
+              確認送出預約
+            </button>
+          </div>
+        )}
+        {step === 4 && (
           <div className="flex flex-col items-center gap-4">
             <div className="text-green-400 text-3xl">✔</div>
             <div className="text-green-300 text-xl font-bold">預約成功！</div>
-            {instantBooking && selectedPartner ? (
-              <div className="text-white/90 text-center">
-                你已成功預約 <span className="font-bold text-indigo-300">{selectedPartner.name}</span> 進行即時陪玩！<br />
-                <span className="text-sm text-gray-300">時間：現在（即時）</span>
-                      </div>
-            ) : (
-              <div className="text-white/90">（6）預約成功！</div>
-            )}
             <button
               className="mt-4 px-6 py-2 rounded-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 text-white font-bold shadow-lg hover:from-indigo-600 hover:to-pink-600 active:scale-95 transition"
               onClick={() => { setStep(0); setInstantBooking(false); setSelectedPartner(null) }}
             >
               回到預約首頁
             </button>
-                    </div>
+          </div>
         )}
                     </div>
 
