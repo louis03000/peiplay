@@ -8,6 +8,7 @@ import getDay from 'date-fns/getDay'
 import enUS from 'date-fns/locale/en-US'
 import 'react-big-calendar/lib/css/react-big-calendar.css'
 import './schedule-header-fix.css'
+import './schedule-hide-gutter.css'
 
 export const dynamic = 'force-dynamic'
 
@@ -82,6 +83,21 @@ export default function PartnerSchedulePage() {
   const CustomSlotWrapper = (props: any) => {
     const slotStart: Date = props.value as Date;
     const slotEnd = new Date(slotStart.getTime() + 30 * 60 * 1000);
+    const now = new Date();
+    // 過濾掉 00:00~00:00（上午12:00-上午12:00）這一行
+    if (
+      slotStart.getHours() === 0 && slotStart.getMinutes() === 0 &&
+      slotEnd.getHours() === 0 && slotEnd.getMinutes() === 0
+    ) {
+      return <div style={{ pointerEvents: 'none', background: '#fff' }}></div>;
+    }
+    // 過濾已過的日期與時間格子
+    if (
+      slotStart < now &&
+      (slotStart.toDateString() !== now.toDateString() || slotEnd <= now)
+    ) {
+      return <div style={{ pointerEvents: 'none', background: '#f3f4f6', opacity: 0.3 }}></div>;
+    }
     // 檢查這個 slot 是否已被選為 event
     const isSelected = events.some((e) => e.start.getTime() === slotStart.getTime() && e.end.getTime() === slotEnd.getTime());
     return (
@@ -100,8 +116,8 @@ export default function PartnerSchedulePage() {
         cursor: 'pointer',
         transition: 'background 0.2s, color 0.2s',
       }}>
-        <span>{slotStart.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}</span>
-        <span style={{ fontSize: 12, opacity: 0.8 }}>{'-' + slotEnd.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}</span>
+        <span>{slotStart.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}</span>
+        <span style={{ fontSize: 12, opacity: 0.8 }}>{'-' + slotEnd.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}</span>
       </div>
     )
   }
@@ -112,8 +128,8 @@ export default function PartnerSchedulePage() {
     const end = new Date(event.end)
     return (
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
-        <span>{start.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}</span>
-        <span style={{ fontSize: 12, opacity: 0.8 }}>{'-' + end.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}</span>
+        <span>{start.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}</span>
+        <span style={{ fontSize: 12, opacity: 0.8 }}>{'-' + end.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}</span>
       </div>
     )
   }
@@ -135,7 +151,7 @@ export default function PartnerSchedulePage() {
         </label>
         <span className={`ml-4 text-sm font-bold ${isAvailableNow ? 'text-green-400' : 'text-gray-400'}`}>{isAvailableNow ? '顧客可即時預約你' : '顧客看不到你'}</span>
       </div>
-      <div className="bg-white rounded shadow p-4" style={{ minWidth: 900 }}>
+      <div className="bg-white rounded shadow p-4" style={{ minWidth: 900, maxWidth: 1200, margin: '0 auto', borderRadius: 16, boxShadow: '0 4px 24px #6366f133', overflow: 'auto', width: '100%' }}>
         <Calendar
           localizer={localizer}
           events={events}
