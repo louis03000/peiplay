@@ -119,17 +119,30 @@ export default function BookingWizard() {
                       </div>
                     </div>
         )}
-        {step === 1 && (
+        {step === 1 && selectedPartner && (
           <div>
-            <div className="text-lg text-white/90 mb-4">（2）選擇日期</div>
-            <DatePicker
-              selected={selectedDate}
-              onChange={date => setSelectedDate(date)}
-              minDate={new Date()}
-              className="px-4 py-2 rounded"
-              dateFormat="yyyy-MM-dd"
-              placeholderText="請選擇日期"
-            />
+            <div className="text-lg text-white/90 mb-4">（2）選擇時段</div>
+            <div className="flex flex-wrap gap-2">
+              {selectedPartner.schedules.length > 0 ? (
+                selectedPartner.schedules.map(s => {
+                  const d = new Date(s.date);
+                  const dateStr = `${d.getMonth() + 1}/${d.getDate()}`;
+                  const start = s.startTime.slice(11, 16);
+                  const end = s.endTime.slice(11, 16);
+                  return (
+                    <button
+                      key={s.id}
+                      className={`px-4 py-2 rounded ${selectedTime === s.id ? 'bg-indigo-500 text-white' : 'bg-white/20 text-white'}`}
+                      onClick={() => setSelectedTime(s.id)}
+                    >
+                      {dateStr} {start}~{end}
+                    </button>
+                  );
+                })
+              ) : (
+                <div className="text-gray-400">目前沒有可預約時段</div>
+              )}
+            </div>
           </div>
         )}
         {step === 2 && (
