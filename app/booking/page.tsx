@@ -31,7 +31,7 @@ export default function BookingWizard() {
   const [onlyAvailable, setOnlyAvailable] = useState(false)
   const [instantBooking, setInstantBooking] = useState(false)
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
-  const [selectedTimes, setSelectedTimes] = useState<string[]>([])
+  const [selectedTime, setSelectedTime] = useState<string | null>(null)
 
   useEffect(() => {
     fetch('/api/partners')
@@ -162,31 +162,37 @@ export default function BookingWizard() {
           <div>
             <div className="text-lg text-white/90 mb-4">（3）選擇時段</div>
             <div className="flex flex-wrap gap-2">
-              {selectedPartner.schedules.length > 0 ? (
-                selectedPartner.schedules.map(s => {
+              {selectedPartner.schedules
+                .filter(s => {
                   const d = new Date(s.date);
-                  const dateStr = `${d.getMonth() + 1}/${d.getDate()}`;
-                  const start = s.startTime.slice(11, 16);
-                  const end = s.endTime.slice(11, 16);
-                  return (
-                    <button
-                      key={s.id}
-                      className={`px-4 py-2 rounded ${selectedTimes.includes(s.id) ? 'bg-indigo-500 text-white' : 'bg-white/20 text-white'}`}
-                      onClick={() => {
-                        if (selectedTimes.includes(s.id)) {
-                          setSelectedTimes(selectedTimes.filter(t => t !== s.id));
-                        } else {
-                          setSelectedTimes([...selectedTimes, s.id]);
-                        }
-                      }}
-                    >
-                      {dateStr} {start}~{end}
-                    </button>
-                  );
+                  d.setHours(0,0,0,0);
+                  return d.getTime() === selectedDate.getTime();
                 })
-              ) : (
-                <div className="text-gray-400">目前沒有可預約時段</div>
+                .map(s => (
+                  <button
+                    key={s.id}
+                    className={`px-4 py-2 rounded ${selectedTime === s.id ? 'bg-indigo-500 text-white' : 'bg-white/20 text-white'}`}
+                    onClick={() => setSelectedTime(s.id)}
+                  >
+                    {s.startTime.slice(11, 16)}~{s.endTime.slice(11, 16)}
+                  </button>
+                ))}
+              {selectedPartner.schedules.filter(s => {
+                const d = new Date(s.date);
+                d.setHours(0,0,0,0);
+                return d.getTime() === selectedDate.getTime();
+              }).length === 0 && (
+                <div className="text-gray-400">此日無可預約時段</div>
               )}
+            </div>
+            <div className="flex justify-end mt-8">
+              <button
+                className="px-6 py-2 rounded-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 text-white font-bold shadow-lg hover:from-indigo-600 hover:to-pink-600 active:scale-95 transition disabled:opacity-40"
+                onClick={() => setStep(3)}
+                disabled={!selectedTime}
+              >
+                下一步
+              </button>
             </div>
           </div>
         )}
@@ -234,35 +240,15 @@ export default function BookingWizard() {
         >
           上一步
         </button>
-        {/* 下一步按鈕只在步驟0~2顯示，步驟3用確認送出，步驟4不顯示 */}
-        {step < 3 && (
+        {/* 其他步驟維持原本邏輯 */}
+        {step !== 1 && step !== 2 && step < 3 && (
           <button
             className="px-6 py-2 rounded-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 text-white font-bold shadow-lg hover:from-indigo-600 hover:to-pink-600 active:scale-95 transition disabled:opacity-40"
             onClick={() => setStep((s) => Math.min(steps.length - 1, s + 1))}
             disabled={
               step === steps.length - 1 ||
-              (step === 0 && !selectedPartner) ||
-              (step === 1 && !selectedDate) ||
-              (step === 2 && selectedTimes.length === 0)
+              (step === 0 && !selectedPartner)
             }
-          >
-            下一步
-          </button>
-        )}
-        {step === 1 && (
-          <button
-            className="px-6 py-2 rounded-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 text-white font-bold shadow-lg hover:from-indigo-600 hover:to-pink-600 active:scale-95 transition disabled:opacity-40"
-            onClick={() => setStep(2)}
-            disabled={!selectedDate}
-          >
-            下一步
-          </button>
-        )}
-        {step === 2 && (
-          <button
-            className="px-6 py-2 rounded-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 text-white font-bold shadow-lg hover:from-indigo-600 hover:to-pink-600 active:scale-95 transition disabled:opacity-40"
-            onClick={() => setStep(3)}
-            disabled={selectedTimes.length === 0}
           >
             下一步
           </button>
