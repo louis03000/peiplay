@@ -30,8 +30,8 @@ export default function BookingWizard() {
   const [selectedPartner, setSelectedPartner] = useState<Partner | null>(null)
   const [onlyAvailable, setOnlyAvailable] = useState(false)
   const [instantBooking, setInstantBooking] = useState(false)
-  const [selectedDate, setSelectedDate] = useState<string | null>(null)
-  const [selectedTime, setSelectedTime] = useState<string | null>(null)
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null)
+  const [selectedTimes, setSelectedTimes] = useState<string[]>([])
 
   useEffect(() => {
     fetch('/api/partners')
@@ -122,22 +122,39 @@ export default function BookingWizard() {
         {step === 1 && selectedPartner && (
           <div>
             <div className="text-lg text-white/90 mb-4">（2）選擇日期</div>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2 justify-center">
               {Array.from(new Set(selectedPartner.schedules.map(s => {
                 const d = new Date(s.date);
-                return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
-              }))).map(dateStr => (
-                <button
-                  key={dateStr}
-                  className={`px-4 py-2 rounded ${selectedDate === dateStr ? 'bg-indigo-500 text-white' : 'bg-white/20 text-white'}`}
-                  onClick={() => setSelectedDate(dateStr)}
-                >
-                  {dateStr.replace(/-(\\d)$/, '-0$1').replace(/-(\\d)-/, '-0$1-').replace(/-(\\d)$/, '-0$1')}
-                </button>
-              ))}
+                d.setHours(0,0,0,0);
+                return d.getTime();
+              })))
+                .sort((a, b) => a - b)
+                .map(ts => {
+                  const d = new Date(ts);
+                  const label = `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+                  const isSelected = selectedDate && d.getTime() === selectedDate.getTime();
+                  return (
+                    <button
+                      key={ts}
+                      className={`px-4 py-2 rounded ${isSelected ? 'bg-indigo-500 text-white' : 'bg-white/20 text-white'}`}
+                      onClick={() => setSelectedDate(d)}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
               {selectedPartner.schedules.length === 0 && (
                 <div className="text-gray-400">目前沒有可預約日期</div>
               )}
+            </div>
+            <div className="flex justify-end mt-8">
+              <button
+                className="px-6 py-2 rounded-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 text-white font-bold shadow-lg hover:from-indigo-600 hover:to-pink-600 active:scale-95 transition disabled:opacity-40"
+                onClick={() => setStep(2)}
+                disabled={!selectedDate}
+              >
+                下一步
+              </button>
             </div>
           </div>
         )}
@@ -149,13 +166,19 @@ export default function BookingWizard() {
                 .filter(s => {
                   const d = new Date(s.date);
                   const dateStr = `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
-                  return dateStr === selectedDate;
+                  return dateStr === selectedDate.toISOString().split('T')[0];
                 })
                 .map(s => (
                   <button
                     key={s.id}
-                    className={`px-4 py-2 rounded ${selectedTime === s.id ? 'bg-indigo-500 text-white' : 'bg-white/20 text-white'}`}
-                    onClick={() => setSelectedTime(s.id)}
+                    className={`px-4 py-2 rounded ${selectedTimes.includes(s.id) ? 'bg-indigo-500 text-white' : 'bg-white/20 text-white'}`}
+                    onClick={() => {
+                      if (selectedTimes.includes(s.id)) {
+                        setSelectedTimes(selectedTimes.filter(t => t !== s.id));
+                      } else {
+                        setSelectedTimes([...selectedTimes, s.id]);
+                      }
+                    }}
                   >
                     {s.startTime.slice(11, 16)}~{s.endTime.slice(11, 16)}
                   </button>
@@ -163,7 +186,7 @@ export default function BookingWizard() {
               {selectedPartner.schedules.filter(s => {
                 const d = new Date(s.date);
                 const dateStr = `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
-                return dateStr === selectedDate;
+                return dateStr === selectedDate.toISOString().split('T')[0];
               }).length === 0 && (
                 <div className="text-gray-400">此日無可預約時段</div>
               )}
@@ -223,7 +246,7 @@ export default function BookingWizard() {
               step === steps.length - 1 ||
               (step === 0 && !selectedPartner) ||
               (step === 1 && !selectedDate) ||
-              (step === 2 && !selectedTime)
+              (step === 2 && selectedTimes.length === 0)
             }
           >
             下一步
@@ -242,7 +265,7 @@ export default function BookingWizard() {
           <button
             className="px-6 py-2 rounded-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 text-white font-bold shadow-lg hover:from-indigo-600 hover:to-pink-600 active:scale-95 transition disabled:opacity-40"
             onClick={() => setStep(3)}
-            disabled={!selectedTime}
+            disabled={selectedTimes.length === 0}
           >
             下一步
           </button>
