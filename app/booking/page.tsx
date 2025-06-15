@@ -4,6 +4,7 @@ export const dynamic = 'force-dynamic'
 import { useState, useEffect } from 'react'
 import Image from 'next/image'
 import DatePicker from 'react-datepicker'
+import 'react-datepicker/dist/react-datepicker.css'
 
 const steps = [
   '選擇夥伴',
@@ -18,6 +19,7 @@ export type Partner = {
   name: string;
   games: string[];
   hourlyRate: number;
+  coverImage?: string;
   schedules: { id: string; date: string; startTime: string; endTime: string }[];
 };
 
@@ -29,6 +31,7 @@ export default function BookingWizard() {
   const [onlyAvailable, setOnlyAvailable] = useState(false)
   const [instantBooking, setInstantBooking] = useState(false)
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
+  const [selectedTime, setSelectedTime] = useState<string | null>(null)
 
   useEffect(() => {
     fetch('/api/partners')
@@ -97,9 +100,11 @@ export default function BookingWizard() {
                   className={`rounded-2xl bg-white/10 border border-white/10 shadow-lg p-4 flex gap-4 items-center cursor-pointer transition-all duration-200 hover:scale-105 hover:border-indigo-400 ${selectedPartner?.id === p.id ? 'ring-2 ring-indigo-400' : ''}`}
                   onClick={() => setSelectedPartner(p)}
                 >
-                  {/* 封面：可用頭像或預設圖 */}
-                  <div className="w-14 h-14 rounded-full bg-gray-200 flex items-center justify-center text-2xl font-bold text-gray-400 mr-2">
-                    {p.name[0]}
+                  {/* 封面照：有圖顯圖，沒圖顯首字 */}
+                  <div className="w-14 h-14 rounded-full bg-gray-200 flex items-center justify-center text-2xl font-bold text-gray-400 mr-2 overflow-hidden">
+                    {p.coverImage
+                      ? <img src={p.coverImage} alt={p.name} className="object-cover w-full h-full" />
+                      : p.name[0]}
                   </div>
                   <div className="flex-1">
                     <div className="font-bold text-white text-lg flex items-center gap-2">
@@ -115,10 +120,38 @@ export default function BookingWizard() {
                     </div>
         )}
         {step === 1 && (
-          <div className="text-lg text-white/90">（2）選擇日期（月曆元件）</div>
+          <div>
+            <div className="text-lg text-white/90 mb-4">（2）選擇日期</div>
+            <DatePicker
+              selected={selectedDate}
+              onChange={date => setSelectedDate(date)}
+              minDate={new Date()}
+              className="px-4 py-2 rounded"
+              dateFormat="yyyy-MM-dd"
+              placeholderText="請選擇日期"
+            />
+          </div>
         )}
         {step === 2 && (
-          <div className="text-lg text-white/90">（3）選擇時段（時段表）</div>
+          <div>
+            <div className="text-lg text-white/90 mb-4">（3）選擇時段</div>
+            <div className="flex flex-wrap gap-2">
+              {selectedPartner?.schedules
+                ?.filter(s => selectedDate && s.date.startsWith(selectedDate.toISOString().slice(0, 10)))
+                .map(s => (
+                  <button
+                    key={s.id}
+                    className={`px-4 py-2 rounded ${selectedTime === s.id ? 'bg-indigo-500 text-white' : 'bg-white/20 text-white'}`}
+                    onClick={() => setSelectedTime(s.id)}
+                  >
+                    {s.startTime.slice(11, 16)}~{s.endTime.slice(11, 16)}
+                  </button>
+                ))}
+              {selectedPartner && selectedDate && selectedPartner.schedules.filter(s => s.date.startsWith(selectedDate.toISOString().slice(0, 10))).length === 0 && (
+                <div className="text-gray-400">此日無可預約時段</div>
+              )}
+            </div>
+          </div>
         )}
         {step === 3 && selectedPartner && (
           <div className="flex flex-col items-center gap-4">
@@ -169,7 +202,12 @@ export default function BookingWizard() {
           <button
             className="px-6 py-2 rounded-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 text-white font-bold shadow-lg hover:from-indigo-600 hover:to-pink-600 active:scale-95 transition disabled:opacity-40"
             onClick={() => setStep((s) => Math.min(steps.length - 1, s + 1))}
-            disabled={step === steps.length - 1 || (step === 0 && !selectedPartner)}
+            disabled={
+              step === steps.length - 1 ||
+              (step === 0 && !selectedPartner) ||
+              (step === 1 && !selectedDate) ||
+              (step === 2 && !selectedTime)
+            }
           >
             下一步
           </button>
