@@ -30,7 +30,7 @@ export default function BookingWizard() {
   const [selectedPartner, setSelectedPartner] = useState<Partner | null>(null)
   const [onlyAvailable, setOnlyAvailable] = useState(false)
   const [instantBooking, setInstantBooking] = useState(false)
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null)
+  const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [selectedTime, setSelectedTime] = useState<string | null>(null)
 
   useEffect(() => {
@@ -121,36 +121,36 @@ export default function BookingWizard() {
         )}
         {step === 1 && selectedPartner && (
           <div>
-            <div className="text-lg text-white/90 mb-4">（2）選擇時段</div>
+            <div className="text-lg text-white/90 mb-4">（2）選擇日期</div>
             <div className="flex flex-wrap gap-2">
-              {selectedPartner.schedules.length > 0 ? (
-                selectedPartner.schedules.map(s => {
-                  const d = new Date(s.date);
-                  const dateStr = `${d.getMonth() + 1}/${d.getDate()}`;
-                  const start = s.startTime.slice(11, 16);
-                  const end = s.endTime.slice(11, 16);
-                  return (
-                    <button
-                      key={s.id}
-                      className={`px-4 py-2 rounded ${selectedTime === s.id ? 'bg-indigo-500 text-white' : 'bg-white/20 text-white'}`}
-                      onClick={() => setSelectedTime(s.id)}
-                    >
-                      {dateStr} {start}~{end}
-                    </button>
-                  );
-                })
-              ) : (
-                <div className="text-gray-400">目前沒有可預約時段</div>
+              {Array.from(new Set(selectedPartner.schedules.map(s => {
+                const d = new Date(s.date);
+                return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+              }))).map(dateStr => (
+                <button
+                  key={dateStr}
+                  className={`px-4 py-2 rounded ${selectedDate === dateStr ? 'bg-indigo-500 text-white' : 'bg-white/20 text-white'}`}
+                  onClick={() => setSelectedDate(dateStr)}
+                >
+                  {dateStr.replace(/-(\\d)$/, '-0$1').replace(/-(\\d)-/, '-0$1-').replace(/-(\\d)$/, '-0$1')}
+                </button>
+              ))}
+              {selectedPartner.schedules.length === 0 && (
+                <div className="text-gray-400">目前沒有可預約日期</div>
               )}
             </div>
           </div>
         )}
-        {step === 2 && (
+        {step === 2 && selectedPartner && selectedDate && (
           <div>
             <div className="text-lg text-white/90 mb-4">（3）選擇時段</div>
             <div className="flex flex-wrap gap-2">
-              {selectedPartner?.schedules
-                ?.filter(s => selectedDate && s.date.startsWith(selectedDate.toISOString().slice(0, 10)))
+              {selectedPartner.schedules
+                .filter(s => {
+                  const d = new Date(s.date);
+                  const dateStr = `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+                  return dateStr === selectedDate;
+                })
                 .map(s => (
                   <button
                     key={s.id}
@@ -160,7 +160,11 @@ export default function BookingWizard() {
                     {s.startTime.slice(11, 16)}~{s.endTime.slice(11, 16)}
                   </button>
                 ))}
-              {selectedPartner && selectedDate && selectedPartner.schedules.filter(s => s.date.startsWith(selectedDate.toISOString().slice(0, 10))).length === 0 && (
+              {selectedPartner.schedules.filter(s => {
+                const d = new Date(s.date);
+                const dateStr = `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+                return dateStr === selectedDate;
+              }).length === 0 && (
                 <div className="text-gray-400">此日無可預約時段</div>
               )}
             </div>
@@ -221,6 +225,24 @@ export default function BookingWizard() {
               (step === 1 && !selectedDate) ||
               (step === 2 && !selectedTime)
             }
+          >
+            下一步
+          </button>
+        )}
+        {step === 1 && (
+          <button
+            className="px-6 py-2 rounded-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 text-white font-bold shadow-lg hover:from-indigo-600 hover:to-pink-600 active:scale-95 transition disabled:opacity-40"
+            onClick={() => setStep(2)}
+            disabled={!selectedDate}
+          >
+            下一步
+          </button>
+        )}
+        {step === 2 && (
+          <button
+            className="px-6 py-2 rounded-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 text-white font-bold shadow-lg hover:from-indigo-600 hover:to-pink-600 active:scale-95 transition disabled:opacity-40"
+            onClick={() => setStep(3)}
+            disabled={!selectedTime}
           >
             下一步
           </button>
