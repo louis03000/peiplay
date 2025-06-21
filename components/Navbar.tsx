@@ -74,7 +74,7 @@ export default function Navbar() {
             )}
 
             {menuOpen && session?.user && (
-              <div className="absolute right-0 md:left-1/2 md:-translate-x-1/2 mt-3 w-56 bg-white/10 backdrop-blur-lg rounded-md shadow-lg py-2 border border-white/20">
+              <div className="absolute right-0 md:left-1/2 md:-translate-x-1/2 mt-3 w-48 bg-white/10 backdrop-blur-lg rounded-md shadow-lg py-2 border border-white/20">
                 <div className="px-4 py-3 border-b border-white/20 text-center">
                   <p className="text-sm text-gray-300">Signed in as</p>
                   <p className="font-semibold truncate text-white">{session.user.name || session.user.email}</p>
