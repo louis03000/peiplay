@@ -36,6 +36,7 @@ export async function GET(request: Request) {
         name: true,
         games: true,
         hourlyRate: true,
+        coverImage: true,
         schedules: {
           where: {
             date: scheduleDateFilter,
