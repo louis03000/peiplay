@@ -180,28 +180,39 @@ export default function BookingWizard() {
           <div>
             <div className="text-lg text-white/90 mb-4">（3）選擇時段</div>
             <div className="flex flex-wrap gap-2">
-              {selectedPartner.schedules
-                .filter(s => {
-                  const d = new Date(s.date);
-                  d.setHours(0,0,0,0);
-                  return d.getTime() === selectedDate.getTime();
-                })
-                .map(s => (
+              {(() => {
+                const seenTimeSlots = new Set();
+                const uniqueSchedules = selectedPartner.schedules.filter(schedule => {
+                  const scheduleDate = new Date(schedule.date);
+                  scheduleDate.setHours(0, 0, 0, 0);
+                  
+                  if (scheduleDate.getTime() !== selectedDate.getTime()) {
+                    return false;
+                  }
+                  
+                  const timeSlotIdentifier = `${schedule.startTime}-${schedule.endTime}`;
+                  if (seenTimeSlots.has(timeSlotIdentifier)) {
+                    return false;
+                  }
+                  
+                  seenTimeSlots.add(timeSlotIdentifier);
+                  return true;
+                });
+
+                if (uniqueSchedules.length === 0) {
+                  return <div className="text-gray-400">此日無可預約時段</div>;
+                }
+
+                return uniqueSchedules.map(s => (
                   <button
                     key={s.id}
                     className={`px-4 py-2 rounded ${selectedTimes.includes(s.id) ? 'bg-indigo-500 text-white' : 'bg-white/20 text-white'}`}
                     onClick={() => handleTimeSelect(s.id)}
                   >
-                    {s.startTime.slice(11, 16)}~{s.endTime.slice(11, 16)}
+                    {new Date(s.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}~{new Date(s.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}
                   </button>
-                ))}
-              {selectedPartner.schedules.filter(s => {
-                const d = new Date(s.date);
-                d.setHours(0,0,0,0);
-                return d.getTime() === selectedDate.getTime();
-              }).length === 0 && (
-                <div className="text-gray-400">此日無可預約時段</div>
-              )}
+                ));
+              })()}
             </div>
           </div>
         )}

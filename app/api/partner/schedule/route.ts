@@ -12,6 +12,21 @@ export async function POST(request: Request) {
   // 取得 partnerId
   const partner = await prisma.partner.findUnique({ where: { userId: session.user.id } })
   if (!partner) return NextResponse.json({ error: '不是夥伴' }, { status: 403 })
+
+  // 檢查時段是否已存在
+  const existingSchedule = await prisma.schedule.findFirst({
+    where: {
+      partnerId: partner.id,
+      date: new Date(date),
+      startTime: new Date(startTime),
+      endTime: new Date(endTime),
+    },
+  });
+
+  if (existingSchedule) {
+    return NextResponse.json({ error: '該時段已存在，不可重複新增' }, { status: 409 }); // 409 Conflict
+  }
+
   const schedule = await prisma.schedule.create({
     data: {
       partnerId: partner.id,
