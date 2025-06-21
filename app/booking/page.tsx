@@ -254,20 +254,23 @@ export default function BookingWizard() {
       </div>
 
       {/* 導航按鈕 */}
-      {(step > 0 && step < 4) && (
-        <div className="flex justify-between items-center px-10 pb-8">
-          <button
-            className="px-6 py-2 rounded-full bg-gray-700/60 text-white/80 font-bold hover:bg-gray-600 active:scale-95 transition"
-            onClick={() => setStep(step - 1)}
-          >
-            上一步
-          </button>
+      {step < 4 && (
+        <div className={`flex items-center px-10 pb-8 ${step > 0 ? 'justify-between' : 'justify-end'}`}>
+          {step > 0 && (
+            <button
+              className="px-6 py-2 rounded-full bg-gray-700/60 text-white/80 font-bold hover:bg-gray-600 active:scale-95 transition"
+              onClick={() => setStep(step - 1)}
+            >
+              上一步
+            </button>
+          )}
 
           {step < 3 && (
             <button
               className="px-6 py-2 rounded-full bg-indigo-600 text-white font-bold shadow-lg hover:bg-indigo-700 active:scale-95 transition disabled:opacity-40"
               onClick={() => setStep(step + 1)}
               disabled={
+                (step === 0 && !selectedPartner) ||
                 (step === 1 && !selectedDate) ||
                 (step === 2 && selectedTimes.length === 0)
               }
