@@ -56,10 +56,10 @@ export default function JoinPage() {
   if (!session?.user?.id) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center">
-        <div className="bg-white p-8 rounded shadow text-center">
-          <h2 className="text-2xl font-bold mb-4">請先登入</h2>
-          <p className="mb-4">登入後才能申請成為遊戲夥伴</p>
-          <a href="/auth/login" className="inline-block px-6 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700">前往登入</a>
+        <div className="bg-white p-8 rounded-lg shadow-lg text-center">
+          <h2 className="text-2xl font-bold mb-4 text-gray-800">請先登入</h2>
+          <p className="mb-4 text-gray-600">登入後才能申請成為遊戲夥伴</p>
+          <a href="/auth/login" className="inline-block px-6 py-3 bg-indigo-600 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-700 transition-colors">前往登入</a>
         </div>
       </div>
     )
