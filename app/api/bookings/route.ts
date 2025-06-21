@@ -5,6 +5,10 @@ import { prisma } from '@/lib/prisma';
 
 // Re-deploy trigger
 export async function POST(request: Request) {
+  // DEBUG: Temporarily simplify the function to isolate the issue.
+  console.log("POST /api/bookings hit (simplified)");
+  return NextResponse.json({ message: "Test successful" });
+  /*
   const session = await getServerSession(authOptions);
 
   if (!session?.user?.id) {
@@ -79,6 +83,7 @@ export async function POST(request: Request) {
     // Use 409 Conflict for booking clashes or other transaction failures
     return NextResponse.json({ error: errorMessage }, { status: 409 }); 
   }
+  */
 }
 
 export async function GET(request: NextRequest) {
