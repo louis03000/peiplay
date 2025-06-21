@@ -35,8 +35,25 @@ export default function BookingWizard() {
 
   useEffect(() => {
     fetch('/api/partners')
-      .then(res => res.json())
-      .then(data => setPartners(data))
+      .then(res => {
+        if (!res.ok) {
+          // If response is not OK (e.g., 401 Unauthorized), return empty array
+          return []; 
+        }
+        return res.json();
+      })
+      .then(data => {
+        // Ensure data is an array before setting
+        if (Array.isArray(data)) {
+          setPartners(data)
+        } else {
+          setPartners([]); // Set to empty array if data is not an array
+        }
+      })
+      .catch(error => {
+        console.error("Failed to fetch partners:", error);
+        setPartners([]); // Also set to empty on network error
+      });
   }, [])
 
   // 搜尋過濾
