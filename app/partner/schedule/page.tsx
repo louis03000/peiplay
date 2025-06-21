@@ -159,87 +159,96 @@ export default function PartnerSchedulePage() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto mt-16 bg-white/10 rounded-xl p-8 shadow-lg backdrop-blur">
-      <h2 className="text-2xl font-bold mb-6 text-center">夥伴時段管理</h2>
-      <div className="text-center text-indigo-400 font-bold mb-2">點選下方任一格即可新增可預約時段，再點一次可取消</div>
-      <div className="flex items-center justify-center mb-8">
-        <label className="flex items-center gap-3 cursor-pointer select-none">
-          <span className={`w-3 h-3 rounded-full ${isAvailableNow ? 'bg-green-400 animate-pulse' : 'bg-gray-400'}`}></span>
-          <span className="text-white text-lg font-medium">現在有空</span>
-          <input
-            type="checkbox"
-            checked={isAvailableNow}
-            onChange={e => setIsAvailableNow(e.target.checked)}
-            className="accent-green-500 w-6 h-6"
-          />
-        </label>
-        <span className={`ml-4 text-sm font-bold ${isAvailableNow ? 'text-green-400' : 'text-gray-400'}`}>{isAvailableNow ? '顧客可即時預約你' : '顧客看不到你'}</span>
+    <div className="min-h-screen w-full flex flex-col items-center justify-center p-4 bg-gray-900 text-white">
+      <div className="w-full max-w-5xl mx-auto bg-white/10 rounded-xl p-6 md:p-8 shadow-lg backdrop-blur">
+        <h2 className="text-2xl md:text-3xl font-bold mb-4 text-center">夥伴時段管理</h2>
+        <p className="text-center text-indigo-300 font-medium mb-6">點選下方任一格即可新增可預約時段，再點一次可取消</p>
+        
+        <div className="flex items-center justify-center mb-8">
+          <label className="flex items-center gap-3 cursor-pointer select-none">
+            <span className={`w-3 h-3 rounded-full ${isAvailableNow ? 'bg-green-400 animate-pulse' : 'bg-gray-500'}`}></span>
+            <span className="text-white text-lg font-medium">現在有空</span>
+            <input
+              type="checkbox"
+              checked={isAvailableNow}
+              onChange={e => setIsAvailableNow(e.target.checked)}
+              className="accent-green-500 w-6 h-6"
+            />
+          </label>
+          <span className={`ml-4 text-sm font-bold ${isAvailableNow ? 'text-green-400' : 'text-gray-400'}`}>{isAvailableNow ? '顧客可即時預約你' : '顧客看不到你'}</span>
+        </div>
+
+        <div className="bg-white rounded-lg shadow-lg p-4 overflow-x-auto">
+          <div style={{ minWidth: '800px' }}> {/*
+            Ensures the calendar has enough space on smaller screens when scrolling
+          */}
+            <Calendar
+              localizer={localizer}
+              events={[]}
+              startAccessor="start"
+              endAccessor="end"
+              defaultView="week"
+              views={['week']}
+              selectable
+              step={30}
+              timeslots={1}
+              min={new Date(2023, 0, 1, 0, 0)}
+              max={new Date(2023, 0, 1, 23, 30)}
+              style={{ height: 600 }}
+              onSelectSlot={handleSelectSlot}
+              messages={{ week: '週', day: '日', today: '今天', previous: '', next: '下週' }}
+              components={{
+                toolbar: CustomToolbar,
+                timeSlotWrapper: (props: any) => {
+                  const slotStart: Date = props.value as Date;
+                  const slotEnd = new Date(slotStart.getTime() + 30 * 60 * 1000);
+                  const now = new Date();
+                  if (
+                    slotStart.getHours() === 0 && slotStart.getMinutes() === 0 &&
+                    slotEnd.getHours() === 0 && slotEnd.getMinutes() === 0
+                  ) {
+                    return <div style={{ pointerEvents: 'none', background: '#fff' }}></div>;
+                  }
+                  if (slotEnd <= now) {
+                    return <div style={{ pointerEvents: 'none', background: '#fff' }}></div>;
+                  }
+                  const isSelected = events.some((e) => e.start.getTime() === slotStart.getTime() && e.end.getTime() === slotEnd.getTime());
+                  return (
+                    <div style={{
+                      height: '100%',
+                      background: isSelected ? '#4F46E5' : '#fff',
+                      color: isSelected ? '#fff' : '#222',
+                      border: '1px solid #a5b4fc',
+                      borderRadius: 6,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontWeight: isSelected ? 'bold' : 'normal',
+                      fontSize: 14,
+                      cursor: 'pointer',
+                      transition: 'background 0.2s, color 0.2s',
+                    }}>
+                      <span>{slotStart.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}</span>
+                      <span style={{ fontSize: 12, opacity: 0.8 }}>{'-' + slotEnd.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}</span>
+                    </div>
+                  )
+                },
+              }}
+            />
+          </div>
+        </div>
+        
+        <button
+          className="mt-8 w-full py-3 rounded-lg bg-gradient-to-r from-indigo-500 to-purple-500 text-white font-bold text-lg hover:from-indigo-600 hover:to-purple-600 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+          onClick={handleSave}
+          disabled={events.length === 0}
+        >
+          儲存時段
+        </button>
+        {saveMsg && <p className="text-center text-green-400 font-bold mt-4">{saveMsg}</p>}
+        <p className="text-gray-400 text-center mt-4 text-sm">點選格子可切換可預約時段，儲存後顧客就能預約你！</p>
       </div>
-      <div className="bg-white rounded shadow p-4" style={{ minWidth: 900, maxWidth: 1200, margin: '0 auto', borderRadius: 16, boxShadow: '0 4px 24px #6366f133', overflow: 'auto', width: '100%' }}>
-        <Calendar
-          localizer={localizer}
-          events={[]}
-          startAccessor="start"
-          endAccessor="end"
-          defaultView="week"
-          views={['week']}
-          selectable
-          step={30}
-          timeslots={1}
-          min={new Date(2023, 0, 1, 0, 0)}
-          max={new Date(2023, 0, 1, 23, 30)}
-          style={{ height: 600 }}
-          onSelectSlot={handleSelectSlot}
-          messages={{ week: '週', day: '日', today: '今天', previous: '', next: '下週' }}
-          components={{
-            toolbar: CustomToolbar,
-            timeSlotWrapper: (props: any) => {
-              const slotStart: Date = props.value as Date;
-              const slotEnd = new Date(slotStart.getTime() + 30 * 60 * 1000);
-              const now = new Date();
-              if (
-                slotStart.getHours() === 0 && slotStart.getMinutes() === 0 &&
-                slotEnd.getHours() === 0 && slotEnd.getMinutes() === 0
-              ) {
-                return <div style={{ pointerEvents: 'none', background: '#fff' }}></div>;
-              }
-              if (slotEnd <= now) {
-                return <div style={{ pointerEvents: 'none', background: '#fff' }}></div>;
-              }
-              const isSelected = events.some((e) => e.start.getTime() === slotStart.getTime() && e.end.getTime() === slotEnd.getTime());
-              return (
-                <div style={{
-                  height: '100%',
-                  background: isSelected ? '#4F46E5' : '#fff',
-                  color: isSelected ? '#fff' : '#222',
-                  border: '1px solid #a5b4fc',
-                  borderRadius: 6,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontWeight: isSelected ? 'bold' : 'normal',
-                  fontSize: 14,
-                  cursor: 'pointer',
-                  transition: 'background 0.2s, color 0.2s',
-                }}>
-                  <span>{slotStart.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}</span>
-                  <span style={{ fontSize: 12, opacity: 0.8 }}>{'-' + slotEnd.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}</span>
-                </div>
-              )
-            },
-          }}
-        />
-      </div>
-      <button
-        className="mt-6 w-full py-2 rounded bg-gradient-to-r from-indigo-500 to-purple-500 text-white font-bold text-lg"
-        onClick={handleSave}
-        disabled={events.length === 0}
-      >
-        儲存時段
-      </button>
-      {saveMsg && <p className="text-center text-green-400 font-bold mt-2">{saveMsg}</p>}
-      <p className="text-gray-300 text-center mt-4">點選格子可切換可預約時段，儲存後顧客就能預約你！</p>
     </div>
   )
-} 
+}
