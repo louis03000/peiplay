@@ -36,6 +36,9 @@ export default function Navbar() {
           {isPartner && (
             <Link href="/partner/schedule" className="text-indigo-600 font-bold hover:underline">時段管理</Link>
           )}
+          {session?.user && (
+            <Link href="/bookings" className="text-indigo-600 font-bold hover:underline">查詢預約</Link>
+          )}
           {session?.user ? (
             <>
               <span className="text-gray-700 font-medium">{session.user.name || session.user.email}</span>

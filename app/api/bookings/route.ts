@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
@@ -77,5 +77,73 @@ export async function POST(request: Request) {
     const errorMessage = error instanceof Error ? error.message : '預約處理失敗';
     // Use 409 Conflict for booking clashes or other transaction failures
     return NextResponse.json({ error: errorMessage }, { status: 409 }); 
+  }
+}
+
+export async function GET(request: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id || !session.user.role) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { searchParams } = new URL(request.url);
+    const status = searchParams.get('status');
+
+    const whereClause: any = {};
+    if (status) {
+      whereClause.status = status;
+    }
+
+    // Role-based access control
+    if (session.user.role === 'ADMIN') {
+      // Admin can see all bookings, filters apply to all
+    } else if (session.user.role === 'PARTNER') {
+      const partner = await prisma.partner.findUnique({
+        where: { userId: session.user.id },
+        select: { id: true },
+      });
+      if (!partner) {
+        return NextResponse.json({ bookings: [] });
+      }
+      whereClause.schedule = { partnerId: partner.id };
+    } else { // CUSTOMER
+      const customer = await prisma.customer.findUnique({
+        where: { userId: session.user.id },
+        select: { id: true },
+      });
+      if (!customer) {
+        return NextResponse.json({ bookings: [] });
+      }
+      whereClause.customerId = customer.id;
+    }
+
+    const bookings = await prisma.booking.findMany({
+      where: whereClause,
+      include: {
+        schedule: {
+          include: {
+            partner: {
+              select: { name: true },
+            },
+          },
+        },
+        customer: {
+          select: { name: true },
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+
+    return NextResponse.json({ bookings });
+
+  } catch (error) {
+    console.error('Error fetching bookings:', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
   }
 }
