@@ -1,0 +1,87 @@
+{
+  "nav": {
+    "home": "首页",
+    "book": "预约",
+    "profile": "会员中心",
+    "join": "加入我们"
+  },
+  "auth": {
+    "login": "登录",
+    "register": "注册",
+    "logout": "退出",
+    "email": "电子邮箱",
+    "password": "密码",
+    "name": "姓名",
+    "phone": "电话",
+    "birthday": "生日",
+    "confirmPassword": "确认密码",
+    "forgotPassword": "忘记密码？",
+    "rememberMe": "记住我",
+    "loginSuccess": "登录成功",
+    "registerSuccess": "注册成功",
+    "logoutSuccess": "退出成功",
+    "invalidCredentials": "账号或密码错误",
+    "emailExists": "此电子邮箱已被注册",
+    "passwordMismatch": "密码不一致"
+  },
+  "booking": {
+    "bookNow": "立即预约",
+    "quickBook": "即时预约",
+    "confirmBooking": "确认预约",
+    "cancelBooking": "取消预约",
+    "bookingSuccess": "预约成功",
+    "bookingFailed": "预约失败",
+    "hourlyRate": "每小时 {rate} 元",
+    "nextAvailable": "最近有空：{date} {startTime}~{endTime}",
+    "success": "预约成功！",
+    "cancel": "取消预约",
+    "status": {
+      "pending": "待确认",
+      "confirmed": "已确认",
+      "cancelled": "已取消",
+      "completed": "已完成"
+    }
+  },
+  "review": {
+    "title": "评价",
+    "rating": "评分",
+    "comment": "评论",
+    "submit": "提交评价",
+    "submitting": "提交中...",
+    "cancel": "取消",
+    "success": "评价成功",
+    "failed": "评价失败",
+    "noReviews": "暂无评价",
+    "anonymous": "匿名用户"
+  },
+  "2fa": {
+    "title": "两步验证",
+    "setup": "设置两步验证",
+    "verify": "验证",
+    "enable": "启用",
+    "disable": "停用",
+    "scanQR": "请扫描 QR Code",
+    "enterCode": "请输入验证码",
+    "setupSuccess": "两步验证设置成功",
+    "setupFailed": "两步验证设置失败",
+    "verifySuccess": "验证成功",
+    "verifyFailed": "验证失败",
+    "invalidCode": "无效的验证码"
+  },
+  "common": {
+    "login": "登录",
+    "register": "注册",
+    "logout": "退出",
+    "profile": "个人资料",
+    "settings": "设置",
+    "save": "保存",
+    "cancel": "取消",
+    "confirm": "确认",
+    "delete": "删除",
+    "edit": "编辑",
+    "search": "搜索",
+    "loading": "加载中...",
+    "error": "发生错误",
+    "success": "成功"
+  }
+} 

@@ -1,0 +1,8 @@
+/* 強制 header 黑字且不可點選 */
+.rbc-header {
+  color: #222 !important;
+  pointer-events: none !important;
+  background: #fff !important;
+  font-weight: bold;
+  font-size: 16px;
+} 

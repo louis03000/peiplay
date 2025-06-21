@@ -1,0 +1,86 @@
+{
+  "nav": {
+    "home": "首頁",
+    "book": "預約",
+    "profile": "會員中心",
+    "join": "加入我們"
+  },
+  "auth": {
+    "login": "登入",
+    "register": "註冊",
+    "logout": "登出",
+    "email": "電子郵件",
+    "password": "密碼",
+    "name": "姓名",
+    "phone": "電話",
+    "birthday": "生日",
+    "confirmPassword": "確認密碼",
+    "forgotPassword": "忘記密碼？",
+    "rememberMe": "記住我",
+    "loginSuccess": "登入成功",
+    "registerSuccess": "註冊成功",
+    "logoutSuccess": "登出成功",
+    "invalidCredentials": "電子郵件或密碼錯誤",
+    "emailExists": "此電子郵件已註冊",
+    "passwordMismatch": "密碼不相符"
+  },
+  "booking": {
+    "success": "預約成功！",
+    "cancel": "取消預約",
+    "confirm": "確認預約",
+    "status": {
+      "pending": "待確認",
+      "confirmed": "已確認",
+      "cancelled": "已取消",
+      "completed": "已完成"
+    },
+    "bookNow": "立即預約",
+    "quickBook": "快速預約",
+    "confirmBooking": "確認預約",
+    "cancelBooking": "取消預約",
+    "bookingSuccess": "預約成功",
+    "bookingFailed": "預約失敗",
+    "hourlyRate": "每小時 {rate}",
+    "nextAvailable": "下次可預約：{date} {startTime}~{endTime}"
+  },
+  "review": {
+    "title": "評價",
+    "rating": "評分",
+    "comment": "評論",
+    "submit": "提交評價",
+    "submitting": "提交中...",
+    "cancel": "取消",
+    "success": "評價已提交",
+    "failed": "評價提交失敗",
+    "noReviews": "尚無評價",
+    "anonymous": "匿名用戶"
+  },
+  "2fa": {
+    "title": "雙重認證",
+    "setup": "設定 2FA",
+    "verify": "驗證",
+    "enable": "啟用",
+    "disable": "停用",
+    "scanQR": "掃描 QR Code",
+    "enterCode": "輸入驗證碼",
+    "setupSuccess": "2FA 設定成功",
+    "setupFailed": "2FA 設定失敗",
+    "verifySuccess": "驗證成功",
+    "verifyFailed": "驗證失敗",
+    "invalidCode": "驗證碼無效"
+  },
+  "common": {
+    "login": "登入",
+    "register": "註冊",
+    "logout": "登出",
+    "profile": "個人資料",
+    "settings": "設定",
+    "save": "儲存",
+    "cancel": "取消",
+    "confirm": "確認",
+    "delete": "刪除",
+    "edit": "編輯",
+    "search": "搜尋",
+    "loading": "載入中..."
+  }
+} 
