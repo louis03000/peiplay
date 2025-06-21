@@ -36,7 +36,10 @@ export default function Navbar() {
           {isPartner && (
             <Link href="/partner/schedule" className="text-indigo-600 font-bold hover:underline">時段管理</Link>
           )}
-          {session?.user && (
+          {session?.user && session.user.role === 'CUSTOMER' && (
+            <Link href="/profile" className="text-indigo-600 font-bold hover:underline">我的預約</Link>
+          )}
+          {session?.user && (session.user.role === 'ADMIN' || session.user.role === 'PARTNER') && (
             <Link href="/bookings" className="text-indigo-600 font-bold hover:underline">查詢預約</Link>
           )}
           {session?.user ? (
