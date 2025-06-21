@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
+// Re-deploy trigger
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions);
 
