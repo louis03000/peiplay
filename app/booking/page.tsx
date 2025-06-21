@@ -203,6 +203,9 @@ export default function BookingWizard() {
                   return <div className="text-gray-400">此日無可預約時段</div>;
                 }
 
+                // Sort the unique schedules by start time
+                uniqueSchedules.sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
+
                 return uniqueSchedules.map(s => (
                   <button
                     key={s.id}
