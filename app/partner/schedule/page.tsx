@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useState, useCallback, useMemo } from 'react'
 import { Calendar, dateFnsLocalizer, SlotInfo, Event, ToolbarProps } from 'react-big-calendar'
 import format from 'date-fns/format'
 import parse from 'date-fns/parse'
@@ -39,14 +39,15 @@ export default function PartnerSchedulePage() {
   const [isAvailableNow, setIsAvailableNow] = useState(false)
   const [events, setEvents] = useState<{ title: string; start: Date; end: Date }[]>([])
   const [saveMsg, setSaveMsg] = useState<string>('')
+  const [isSaving, setIsSaving] = useState(false)
 
   // 幫助函式：判斷兩個時段是否相同
-  function isSameSlot(a: { start: Date; end: Date }, b: { start: Date; end: Date }) {
+  const isSameSlot = useCallback((a: { start: Date; end: Date }, b: { start: Date; end: Date }) => {
     return a.start.getTime() === b.start.getTime() && a.end.getTime() === b.end.getTime();
-  }
+  }, [])
 
   // 點選空格時新增/移除可用時段（自動去重）
-  const handleSelectSlot = (slotInfo: SlotInfo) => {
+  const handleSelectSlot = useCallback((slotInfo: SlotInfo) => {
     const slotStart = slotInfo.start;
     const slotEnd = slotInfo.end;
     setEvents(prev => {
@@ -58,39 +59,68 @@ export default function PartnerSchedulePage() {
         return [...prev.filter((e, i, arr) => arr.findIndex(x => isSameSlot(x, e)) === i), { title: '可預約', start: slotStart, end: slotEnd }];
       }
     });
-  }
+  }, [isSameSlot])
 
   // 點選 event（已選時段）時可取消
-  const handleSelectEvent = (event: { start: Date; end: Date }) => {
+  const handleSelectEvent = useCallback((event: { start: Date; end: Date }) => {
     setEvents(prev => prev.filter(e => !isSameSlot(e, event)))
-  }
+  }, [isSameSlot])
 
-  // 儲存所有時段到後端（自動去重）
-  const handleSave = async () => {
+  // 儲存所有時段到後端（批量處理）
+  const handleSave = useCallback(async () => {
+    if (isSaving) return; // 防止重複點擊
+    
+    setIsSaving(true)
     setSaveMsg('')
-    // 去重
-    const uniqueEvents = events.filter((e, i, arr) => arr.findIndex(x => isSameSlot(x, e)) === i);
-    let success = 0, fail = 0
-    for (const e of uniqueEvents) {
+    
+    try {
+      // 去重
+      const uniqueEvents = events.filter((e, i, arr) => arr.findIndex(x => isSameSlot(x, e)) === i);
+      
+      if (uniqueEvents.length === 0) {
+        setSaveMsg('沒有可儲存的時段')
+        return
+      }
+
+      // 使用批量 API
+      const scheduleData = uniqueEvents.map(e => ({
+        date: e.start,
+        startTime: e.start,
+        endTime: e.end,
+      }))
+
       const res = await fetch('/api/partner/schedule', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          date: e.start,
-          startTime: e.start,
-          endTime: e.end,
-        })
+        body: JSON.stringify(scheduleData)
       })
-      if (res.ok) success++
-      else fail++
+
+      if (!res.ok) {
+        throw new Error('儲存失敗')
+      }
+
+      const result = await res.json()
+      
+      if (result.success) {
+        if (result.errors === 0) {
+          setSaveMsg(`所有時段已成功儲存！共 ${result.created} 筆`)
+          setEvents([]) // 清空已儲存的時段
+        } else {
+          setSaveMsg(`部分成功：${result.created} 筆成功，${result.errors} 筆失敗`)
+        }
+      } else {
+        setSaveMsg('儲存失敗，請重試')
+      }
+    } catch (error) {
+      console.error('儲存時段失敗:', error)
+      setSaveMsg('儲存失敗，請重試')
+    } finally {
+      setIsSaving(false)
     }
-    if (success && !fail) setSaveMsg('所有時段已成功儲存！')
-    else if (success && fail) setSaveMsg(`部分成功：${success} 筆成功，${fail} 筆失敗`)
-    else setSaveMsg('儲存失敗，請重試')
-  }
+  }, [events, isSaving, isSameSlot])
 
   // eventPropGetter 根據是否被選中改變底色
-  const eventPropGetter = (event: { start: Date; end: Date }) => {
+  const eventPropGetter = useCallback((event: { start: Date; end: Date }) => {
     const isSelected = events.some(e => isSameSlot(e, event));
     return {
       style: {
@@ -104,10 +134,10 @@ export default function PartnerSchedulePage() {
         zIndex: isSelected ? 2 : 1,
       }
     }
-  }
+  }, [events, isSameSlot])
 
   // 自訂 SlotWrapper，讓每個格子都顯示時間（移到 component 內部）
-  const CustomSlotWrapper = (props: any) => {
+  const CustomSlotWrapper = useCallback((props: any) => {
     const slotStart: Date = props.value as Date;
     const slotEnd = new Date(slotStart.getTime() + 30 * 60 * 1000);
     const now = new Date();
@@ -144,10 +174,10 @@ export default function PartnerSchedulePage() {
         <span style={{ fontSize: 12, opacity: 0.8 }}>{'-' + slotEnd.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}</span>
       </div>
     )
-  }
+  }, [events])
 
   // 自訂 event component，讓已選時段也上下排顯示
-  const CustomEvent = ({ event }: { event: { start: Date; end: Date } }) => {
+  const CustomEvent = useCallback(({ event }: { event: { start: Date; end: Date } }) => {
     const start = new Date(event.start)
     const end = new Date(event.end)
     return (
@@ -156,7 +186,13 @@ export default function PartnerSchedulePage() {
         <span style={{ fontSize: 12, opacity: 0.8 }}>{'-' + end.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}</span>
       </div>
     )
-  }
+  }, [])
+
+  // 使用 useMemo 優化組件配置
+  const calendarComponents = useMemo(() => ({
+    toolbar: CustomToolbar,
+    timeSlotWrapper: CustomSlotWrapper,
+  }), [CustomSlotWrapper])
 
   return (
     <div className="min-h-screen w-full flex flex-col items-center justify-center p-4 bg-gray-900 text-white">
@@ -196,45 +232,9 @@ export default function PartnerSchedulePage() {
               max={new Date(2023, 0, 1, 23, 30)}
               style={{ height: 600 }}
               onSelectSlot={handleSelectSlot}
+              onSelectEvent={handleSelectEvent}
               messages={{ week: '週', day: '日', today: '今天', previous: '', next: '下週' }}
-              components={{
-                toolbar: CustomToolbar,
-                timeSlotWrapper: (props: any) => {
-                  const slotStart: Date = props.value as Date;
-                  const slotEnd = new Date(slotStart.getTime() + 30 * 60 * 1000);
-                  const now = new Date();
-                  if (
-                    slotStart.getHours() === 0 && slotStart.getMinutes() === 0 &&
-                    slotEnd.getHours() === 0 && slotEnd.getMinutes() === 0
-                  ) {
-                    return <div style={{ pointerEvents: 'none', background: '#fff' }}></div>;
-                  }
-                  if (slotEnd <= now) {
-                    return <div style={{ pointerEvents: 'none', background: '#fff' }}></div>;
-                  }
-                  const isSelected = events.some((e) => e.start.getTime() === slotStart.getTime() && e.end.getTime() === slotEnd.getTime());
-                  return (
-                    <div style={{
-                      height: '100%',
-                      background: isSelected ? '#4F46E5' : '#fff',
-                      color: isSelected ? '#fff' : '#222',
-                      border: '1px solid #a5b4fc',
-                      borderRadius: 6,
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontWeight: isSelected ? 'bold' : 'normal',
-                      fontSize: 14,
-                      cursor: 'pointer',
-                      transition: 'background 0.2s, color 0.2s',
-                    }}>
-                      <span>{slotStart.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}</span>
-                      <span style={{ fontSize: 12, opacity: 0.8 }}>{'-' + slotEnd.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}</span>
-                    </div>
-                  )
-                },
-              }}
+              components={calendarComponents}
             />
           </div>
         </div>
@@ -242,9 +242,9 @@ export default function PartnerSchedulePage() {
         <button
           className="mt-8 w-full py-3 rounded-lg bg-gradient-to-r from-indigo-500 to-purple-500 text-white font-bold text-lg hover:from-indigo-600 hover:to-purple-600 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
           onClick={handleSave}
-          disabled={events.length === 0}
+          disabled={events.length === 0 || isSaving}
         >
-          儲存時段
+          {isSaving ? '儲存中...' : '儲存時段'}
         </button>
         {saveMsg && <p className="text-center text-green-400 font-bold mt-4">{saveMsg}</p>}
         <p className="text-gray-400 text-center mt-4 text-sm">點選格子可切換可預約時段，儲存後顧客就能預約你！</p>

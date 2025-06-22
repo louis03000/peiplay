@@ -1,7 +1,7 @@
 'use client'
 export const dynamic = 'force-dynamic'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import Image from 'next/image'
 import DatePicker from 'react-datepicker'
 import 'react-datepicker/dist/react-datepicker.css'
@@ -56,28 +56,69 @@ export default function BookingWizard() {
       });
   }, [])
 
-  // 搜尋過濾
-  const filteredPartners = partners.filter(p =>
-    (p.name.includes(search) || (p.games && p.games.some(s => s.includes(search))))
-    // 這裡如需只看現在有空可再加條件
-  )
+  // 搜尋過濾 - 使用 useMemo 優化
+  const filteredPartners = useMemo(() => {
+    return partners.filter(p =>
+      (p.name.includes(search) || (p.games && p.games.some(s => s.includes(search))))
+      // 這裡如需只看現在有空可再加條件
+    )
+  }, [partners, search])
 
   // 處理馬上預約
-  const handleInstantBook = (p: typeof partners[0]) => {
+  const handleInstantBook = useCallback((p: typeof partners[0]) => {
     setSelectedPartner(p)
     setInstantBooking(true)
     setStep(5) // 直接跳到預約成功畫面
-  }
+  }, [])
 
-  const handleTimeSelect = (timeId: string) => {
+  const handleTimeSelect = useCallback((timeId: string) => {
     setSelectedTimes(prev => 
       prev.includes(timeId) 
         ? prev.filter(t => t !== timeId)
         : [...prev, timeId]
     )
-  }
+  }, [])
 
-  const handleCreateBooking = async () => {
+  // 優化日期選擇邏輯
+  const availableDates = useMemo(() => {
+    if (!selectedPartner) return []
+    
+    const dateSet = new Set<number>()
+    selectedPartner.schedules.forEach(s => {
+      const d = new Date(s.date)
+      d.setHours(0, 0, 0, 0)
+      dateSet.add(d.getTime())
+    })
+    
+    return Array.from(dateSet).sort((a, b) => a - b)
+  }, [selectedPartner])
+
+  // 優化時段選擇邏輯
+  const availableTimeSlots = useMemo(() => {
+    if (!selectedPartner || !selectedDate) return []
+    
+    const seenTimeSlots = new Set<string>()
+    const uniqueSchedules = selectedPartner.schedules.filter(schedule => {
+      const scheduleDate = new Date(schedule.date)
+      scheduleDate.setHours(0, 0, 0, 0)
+      
+      if (scheduleDate.getTime() !== selectedDate.getTime()) {
+        return false
+      }
+      
+      const timeSlotIdentifier = `${schedule.startTime}-${schedule.endTime}`
+      if (seenTimeSlots.has(timeSlotIdentifier)) {
+        return false
+      }
+      
+      seenTimeSlots.add(timeSlotIdentifier)
+      return true
+    })
+
+    return uniqueSchedules.sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime())
+  }, [selectedPartner, selectedDate])
+
+  const handleCreateBooking = useCallback(async () => {
     if (!selectedPartner || selectedTimes.length === 0) return;
 
     const res = await fetch('/api/bookings', {
@@ -94,7 +135,39 @@ export default function BookingWizard() {
     } else {
       alert('預約失敗，請重試');
     }
-  }
+  }, [selectedPartner, selectedTimes])
+
+  // 優化夥伴選擇
+  const handlePartnerSelect = useCallback((partner: Partner) => {
+    setSelectedPartner(partner)
+    setSelectedDate(null)
+    setSelectedTimes([])
+  }, [])
+
+  // 優化日期選擇
+  const handleDateSelect = useCallback((date: Date) => {
+    setSelectedDate(date)
+    setSelectedTimes([])
+  }, [])
+
+  // 優化步驟導航
+  const handleNextStep = useCallback(() => {
+    setStep(prev => prev + 1)
+  }, [])
+
+  const handlePrevStep = useCallback(() => {
+    setStep(prev => prev - 1)
+  }, [])
+
+  // 檢查是否可以進入下一步
+  const canProceed = useMemo(() => {
+    switch (step) {
+      case 0: return selectedPartner !== null
+      case 1: return selectedDate !== null
+      case 2: return selectedTimes.length > 0
+      default: return true
+    }
+  }, [step, selectedPartner, selectedDate, selectedTimes])
 
   return (
     <div className="max-w-2xl mx-auto mt-16 rounded-3xl p-0 shadow-2xl bg-gradient-to-br from-[#23243a]/80 via-[#2d2e4a]/70 to-[#1a1b2b]/80 backdrop-blur-lg border border-white/10 overflow-hidden">
@@ -142,7 +215,7 @@ export default function BookingWizard() {
                 <div
                   key={p.id}
                   className={`rounded-2xl bg-white/10 border border-white/10 shadow-lg p-4 flex gap-4 items-center cursor-pointer transition-all duration-200 hover:scale-105 hover:border-indigo-400 ${selectedPartner?.id === p.id ? 'ring-2 ring-indigo-400' : ''}`}
-                  onClick={() => setSelectedPartner(p)}
+                  onClick={() => handlePartnerSelect(p)}
                 >
                   {/* 封面照：有圖顯圖，沒圖顯首字 */}
                   <div className="w-14 h-14 rounded-full bg-gray-200 flex items-center justify-center text-2xl font-bold text-gray-400 mr-2 overflow-hidden">
@@ -167,27 +240,21 @@ export default function BookingWizard() {
           <div>
             <div className="text-lg text-white/90 mb-4">（2）選擇日期</div>
             <div className="flex flex-wrap gap-2 justify-center">
-              {Array.from(new Set(selectedPartner.schedules.map(s => {
-                const d = new Date(s.date);
-                d.setHours(0,0,0,0);
-                return d.getTime();
-              })))
-                .sort((a, b) => a - b)
-                .map(ts => {
-                  const d = new Date(ts);
-                  const label = `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
-                  const isSelected = selectedDate && d.getTime() === selectedDate.getTime();
-                  return (
-                    <button
-                      key={ts}
-                      className={`px-4 py-2 rounded ${isSelected ? 'bg-indigo-500 text-white' : 'bg-white/20 text-white'}`}
-                      onClick={() => setSelectedDate(d)}
-                    >
-                      {label}
-                    </button>
-                  );
-                })}
-              {selectedPartner.schedules.length === 0 && (
+              {availableDates.map(ts => {
+                const d = new Date(ts);
+                const label = `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+                const isSelected = selectedDate && d.getTime() === selectedDate.getTime();
+                return (
+                  <button
+                    key={ts}
+                    className={`px-4 py-2 rounded ${isSelected ? 'bg-indigo-500 text-white' : 'bg-white/20 text-white'}`}
+                    onClick={() => handleDateSelect(d)}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+              {availableDates.length === 0 && (
                 <div className="text-gray-400">目前沒有可預約日期</div>
               )}
             </div>
@@ -197,33 +264,10 @@ export default function BookingWizard() {
           <div>
             <div className="text-lg text-white/90 mb-4">（3）選擇時段</div>
             <div className="flex flex-wrap gap-2">
-              {(() => {
-                const seenTimeSlots = new Set();
-                const uniqueSchedules = selectedPartner.schedules.filter(schedule => {
-                  const scheduleDate = new Date(schedule.date);
-                  scheduleDate.setHours(0, 0, 0, 0);
-                  
-                  if (scheduleDate.getTime() !== selectedDate.getTime()) {
-                    return false;
-                  }
-                  
-                  const timeSlotIdentifier = `${schedule.startTime}-${schedule.endTime}`;
-                  if (seenTimeSlots.has(timeSlotIdentifier)) {
-                    return false;
-                  }
-                  
-                  seenTimeSlots.add(timeSlotIdentifier);
-                  return true;
-                });
-
-                if (uniqueSchedules.length === 0) {
-                  return <div className="text-gray-400">此日無可預約時段</div>;
-                }
-
-                // Sort the unique schedules by start time
-                uniqueSchedules.sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
-
-                return uniqueSchedules.map(s => (
+              {availableTimeSlots.length === 0 ? (
+                <div className="text-gray-400">此日無可預約時段</div>
+              ) : (
+                availableTimeSlots.map(s => (
                   <button
                     key={s.id}
                     className={`px-4 py-2 rounded ${selectedTimes.includes(s.id) ? 'bg-indigo-500 text-white' : 'bg-white/20 text-white'}`}
@@ -231,8 +275,8 @@ export default function BookingWizard() {
                   >
                     {new Date(s.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}~{new Date(s.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}
                   </button>
-                ));
-              })()}
+                ))
+              )}
             </div>
           </div>
         )}
@@ -290,7 +334,7 @@ export default function BookingWizard() {
           {step > 0 && (
             <button
               className="px-6 py-2 rounded-full bg-gray-700/60 text-white/80 font-bold hover:bg-gray-600 active:scale-95 transition"
-              onClick={() => setStep(step - 1)}
+              onClick={handlePrevStep}
             >
               上一步
             </button>
@@ -299,12 +343,8 @@ export default function BookingWizard() {
           {step < 3 && (
             <button
               className="px-6 py-2 rounded-full bg-indigo-600 text-white font-bold shadow-lg hover:bg-indigo-700 active:scale-95 transition disabled:opacity-40"
-              onClick={() => setStep(step + 1)}
-              disabled={
-                (step === 0 && !selectedPartner) ||
-                (step === 1 && !selectedDate) ||
-                (step === 2 && selectedTimes.length === 0)
-              }
+              onClick={handleNextStep}
+              disabled={!canProceed}
             >
               下一步
             </button>
