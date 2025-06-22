@@ -121,21 +121,23 @@ export default function BookingWizard() {
   const handleCreateBooking = useCallback(async () => {
     if (!selectedPartner || selectedTimes.length === 0) return;
 
-    const res = await fetch('/api/bookings', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        partnerId: selectedPartner.id,
-        scheduleIds: selectedTimes,
-      }),
-    });
+    try {
+      const res = await fetch('/api/bookings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ scheduleIds: selectedTimes }),
+      });
 
-    if (res.ok) {
-      setStep(4); // Go to success step
-    } else {
-      alert('預約失敗，請重試');
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || '預約失敗，請重試');
+      }
+
+      setStep(4); // 移至預約成功頁面
+    } catch (err) {
+      alert(err instanceof Error ? err.message : '預約失敗，請重試');
     }
-  }, [selectedPartner, selectedTimes])
+  }, [selectedPartner, selectedTimes]);
 
   // 優化夥伴選擇
   const handlePartnerSelect = useCallback((partner: Partner) => {
