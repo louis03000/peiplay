@@ -91,12 +91,12 @@ export const authOptions: NextAuthOptions = {
       return token;
     },
     async signIn({ user, account, profile }) {
-      if (!user?.id) return false
+      if (!user?.id) return false;
 
-      // 檢查 Customer 是否存在
+      // 查一次 customer
       let existCustomer = await prisma.customer.findUnique({ where: { userId: user.id } });
 
-      // 如果 Customer 不存在，則創建一個
+      // 沒有才建立
       if (!existCustomer) {
         await prisma.customer.create({
           data: {
@@ -104,47 +104,15 @@ export const authOptions: NextAuthOptions = {
             name: user.name || 'New User',
             phone: '',
             birthday: new Date('2000-01-01'),
-            // 如果是 Line 登入，則記錄 lineId
             lineId: account?.provider === 'line' ? profile?.sub : null,
           },
         });
       } else if (account?.provider === 'line' && !existCustomer.lineId && profile?.sub) {
-        // 如果是 Line 登入且 Customer 已存在但沒有 lineId，則更新
+        // 如果是 line 登入且已存在但沒 lineId，則補上
         await prisma.customer.update({
           where: { userId: user.id },
           data: { lineId: profile.sub }
         });
-      }
-      
-      if (account?.provider === 'line') {
-        const lineId = profile?.sub || null;
-        const email = user.email || (lineId ? `${lineId}@line.local` : `${user.id}@line.local`);
-        let existUser = await prisma.user.findUnique({ where: { email } });
-        if (!existUser) {
-          existUser = await prisma.user.create({
-            data: {
-              email,
-              name: user.name,
-              role: 'CUSTOMER' as UserRole,
-              password: '',
-            },
-          });
-        }
-        let existCustomer = await prisma.customer.findUnique({ where: { userId: existUser.id } });
-        if (!existCustomer) {
-          await prisma.customer.create({
-            data: {
-              userId: existUser.id,
-              name: user.name || '',
-              phone: '',
-              birthday: new Date('2000-01-01'),
-              lineId,
-            },
-          });
-        } else if (!existCustomer.lineId && lineId) {
-          await prisma.customer.update({ where: { userId: existUser.id }, data: { lineId } });
-        }
-        user.id = existUser.id;
       }
       return true;
     },
