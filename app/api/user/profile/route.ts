@@ -29,16 +29,21 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: '生日格式錯誤，請用 YYYY-MM-DD' }, { status: 400 });
     }
 
-    // 先查 user 是否存在
-    const existingUser = await prisma.user.findUnique({
-      where: { id: session.user.id },
+    // 先查 user 是否存在（id 或 email 其一即可）
+    const existingUser = await prisma.user.findFirst({
+      where: {
+        OR: [
+          { id: session.user.id },
+          { email: session.user.email }
+        ]
+      },
     });
     if (!existingUser) {
       return NextResponse.json({ error: '找不到使用者' }, { status: 404 });
     }
 
     const updatedUser = await prisma.user.update({
-      where: { id: session.user.id },
+      where: { id: existingUser.id },
       data: {
         name,
         phone,

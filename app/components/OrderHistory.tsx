@@ -23,22 +23,22 @@ export default function OrderHistory() {
   return (
     <div>
       <h2 className="text-xl font-bold mb-4">消費紀錄</h2>
-      <table className="w-full border">
+      <table className="w-full border border-gray-700 text-sm">
         <thead>
-          <tr>
-            <th>消費日期</th>
-            <th>金額</th>
-            <th>陪玩師</th>
-            <th>預約時段</th>
+          <tr className="bg-gray-800 text-white">
+            <th className="px-4 py-2 border border-gray-700 text-center">消費日期</th>
+            <th className="px-4 py-2 border border-gray-700 text-center">金額</th>
+            <th className="px-4 py-2 border border-gray-700 text-center">陪玩師</th>
+            <th className="px-4 py-2 border border-gray-700 text-center">預約時段</th>
           </tr>
         </thead>
         <tbody>
-          {orders.map(o => (
-            <tr key={o.id}>
-              <td>{new Date(o.createdAt).toLocaleString()}</td>
-              <td>${o.amount}</td>
-              <td>{o.booking?.schedule?.partner?.name || 'N/A'}</td>
-              <td>
+          {orders.map((o, idx) => (
+            <tr key={o.id} className={idx % 2 === 0 ? "bg-gray-900" : "bg-gray-800"}>
+              <td className="px-4 py-2 border border-gray-700 text-center">{new Date(o.createdAt).toLocaleString()}</td>
+              <td className="px-4 py-2 border border-gray-700 text-center">${o.amount}</td>
+              <td className="px-4 py-2 border border-gray-700 text-center">{o.booking?.schedule?.partner?.name || 'N/A'}</td>
+              <td className="px-4 py-2 border border-gray-700 text-center">
                 {o.booking?.schedule?.date
                   ? new Date(o.booking.schedule.date).toLocaleDateString()
                   : ''}

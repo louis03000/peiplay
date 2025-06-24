@@ -1,5 +1,5 @@
 'use client'
-import { useState, useCallback, useMemo } from 'react'
+import { useState, useCallback, useMemo, useEffect } from 'react'
 import { Calendar, dateFnsLocalizer, SlotInfo, Event, ToolbarProps } from 'react-big-calendar'
 import format from 'date-fns/format'
 import parse from 'date-fns/parse'
@@ -9,6 +9,7 @@ import enUS from 'date-fns/locale/en-US'
 import 'react-big-calendar/lib/css/react-big-calendar.css'
 import './schedule-header-fix.css'
 import './schedule-hide-gutter.css'
+import { FaLock } from 'react-icons/fa'
 
 export const dynamic = 'force-dynamic'
 
@@ -40,26 +41,40 @@ export default function PartnerSchedulePage() {
   const [events, setEvents] = useState<{ title: string; start: Date; end: Date }[]>([])
   const [saveMsg, setSaveMsg] = useState<string>('')
   const [isSaving, setIsSaving] = useState(false)
+  const [allSlots, setAllSlots] = useState<any[]>([])
+  const [selectedSlots, setSelectedSlots] = useState<{start: Date, end: Date}[]>([])
+  const [saveResult, setSaveResult] = useState<{time: string, status: string, reason: string}[] | null>(null)
 
   // 幫助函式：判斷兩個時段是否相同
   const isSameSlot = useCallback((a: { start: Date; end: Date }, b: { start: Date; end: Date }) => {
     return a.start.getTime() === b.start.getTime() && a.end.getTime() === b.end.getTime();
   }, [])
 
-  // 點選空格時新增/移除可用時段（自動去重）
+  // 載入所有時段（含 booked/saved 狀態）
+  useEffect(() => {
+    fetch('/api/partner/schedule')
+      .then(res => res.json())
+      .then(data => {
+        setAllSlots(data)
+      })
+  }, [])
+
+  // 點選空格時新增/移除可用時段（僅可選未 booked/saved 的 slot）
   const handleSelectSlot = useCallback((slotInfo: SlotInfo) => {
     const slotStart = slotInfo.start;
     const slotEnd = slotInfo.end;
-    setEvents(prev => {
+    // 檢查是否已被預約或已儲存
+    const slot = allSlots.find(s => new Date(s.startTime).getTime() === slotStart.getTime() && new Date(s.endTime).getTime() === slotEnd.getTime())
+    if (slot && (slot.booked || slot.saved)) return;
+    setSelectedSlots(prev => {
       const exists = prev.some(e => isSameSlot(e, { start: slotStart, end: slotEnd }));
       if (exists) {
         return prev.filter(e => !isSameSlot(e, { start: slotStart, end: slotEnd }));
       } else {
-        // 新增時自動去重
-        return [...prev.filter((e, i, arr) => arr.findIndex(x => isSameSlot(x, e)) === i), { title: '可預約', start: slotStart, end: slotEnd }];
+        return [...prev, { start: slotStart, end: slotEnd }];
       }
     });
-  }, [isSameSlot])
+  }, [allSlots, isSameSlot])
 
   // 點選 event（已選時段）時可取消
   const handleSelectEvent = useCallback((event: { start: Date; end: Date }) => {
@@ -68,56 +83,46 @@ export default function PartnerSchedulePage() {
 
   // 儲存所有時段到後端（批量處理）
   const handleSave = useCallback(async () => {
-    if (isSaving) return; // 防止重複點擊
-    
+    if (isSaving) return;
     setIsSaving(true)
     setSaveMsg('')
-    
+    setSaveResult(null)
     try {
-      // 去重
-      const uniqueEvents = events.filter((e, i, arr) => arr.findIndex(x => isSameSlot(x, e)) === i);
-      
+      const uniqueEvents = selectedSlots.filter((e, i, arr) => arr.findIndex(x => isSameSlot(x, e)) === i);
       if (uniqueEvents.length === 0) {
         setSaveMsg('沒有可儲存的時段')
         return
       }
-
-      // 使用批量 API
-      const scheduleData = uniqueEvents.map(e => ({
-        date: e.start,
-        startTime: e.start,
-        endTime: e.end,
-      }))
-
+      const scheduleData = uniqueEvents.map(e => ({ date: e.start, startTime: e.start, endTime: e.end }))
       const res = await fetch('/api/partner/schedule', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(scheduleData)
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(scheduleData)
       })
-
-      if (!res.ok) {
-        throw new Error('儲存失敗')
-      }
-
+      if (!res.ok) throw new Error('儲存失敗')
       const result = await res.json()
-      
       if (result.success) {
-        if (result.errors === 0) {
-          setSaveMsg(`所有時段已成功儲存！共 ${result.created} 筆`)
-          setEvents([]) // 清空已儲存的時段
-        } else {
-          setSaveMsg(`部分成功：${result.created} 筆成功，${result.errors} 筆失敗`)
-        }
+        setSaveResult([
+          ...result.details.createdSchedules.map((s: any) => ({
+            time: `${new Date(s.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}-${new Date(s.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}`,
+            status: '成功', reason: ''
+          })),
+          ...result.details.errors.map((e: any) => ({
+            time: `${new Date(e.schedule.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}-${new Date(e.schedule.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}`,
+            status: '失敗', reason: e.error
+          }))
+        ])
+        // 重新載入所有時段，讓已儲存的 slot 變灰
+        fetch('/api/partner/schedule').then(res => res.json()).then(data => setAllSlots(data))
+        setSelectedSlots([])
+        setSaveMsg(result.errors === 0 ? `所有時段已成功儲存！共 ${result.created} 筆` : `部分成功：${result.created} 筆成功，${result.errors} 筆失敗`)
       } else {
         setSaveMsg('儲存失敗，請重試')
       }
     } catch (error) {
-      console.error('儲存時段失敗:', error)
       setSaveMsg('儲存失敗，請重試')
     } finally {
       setIsSaving(false)
     }
-  }, [events, isSaving, isSameSlot])
+  }, [selectedSlots, isSaving, isSameSlot])
 
   // eventPropGetter 根據是否被選中改變底色
   const eventPropGetter = useCallback((event: { start: Date; end: Date }) => {
@@ -136,7 +141,7 @@ export default function PartnerSchedulePage() {
     }
   }, [events, isSameSlot])
 
-  // 自訂 SlotWrapper，讓每個格子都顯示時間（移到 component 內部）
+  // SlotWrapper 根據 slot 狀態渲染
   const CustomSlotWrapper = useCallback((props: any) => {
     const slotStart: Date = props.value as Date;
     const slotEnd = new Date(slotStart.getTime() + 30 * 60 * 1000);
@@ -152,29 +157,30 @@ export default function PartnerSchedulePage() {
     if (slotEnd <= now) {
       return <div style={{ pointerEvents: 'none', background: '#fff' }}></div>;
     }
-    // 檢查這個 slot 是否已被選為 event
-    const isSelected = events.some((e) => e.start.getTime() === slotStart.getTime() && e.end.getTime() === slotEnd.getTime());
+    // 檢查 slot 狀態
+    const slot = allSlots.find(s => new Date(s.startTime).getTime() === slotStart.getTime() && new Date(s.endTime).getTime() === slotEnd.getTime())
+    const isBooked = slot?.booked
+    const isSaved = !!slot
+    const isSelected = selectedSlots.some((e) => e.start.getTime() === slotStart.getTime() && e.end.getTime() === slotEnd.getTime());
+    let bg = '#fff', color = '#222', cursor = 'pointer', icon = null;
+    if (isBooked) {
+      bg = '#d1d5db'; color = '#888'; cursor = 'not-allowed'; icon = <FaLock style={{marginLeft:4}}/>;
+    } else if (isSaved) {
+      bg = '#e5e7eb'; color = '#aaa'; cursor = 'not-allowed';
+    } else if (isSelected) {
+      bg = '#4F46E5'; color = '#fff';
+    }
     return (
       <div style={{
-        height: '100%',
-        background: isSelected ? '#4F46E5' : '#fff',
-        color: isSelected ? '#fff' : '#222',
-        border: '1px solid #a5b4fc',
-        borderRadius: 6,
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        fontWeight: isSelected ? 'bold' : 'normal',
-        fontSize: 14,
-        cursor: 'pointer',
-        transition: 'background 0.2s, color 0.2s',
+        height: '100%', background: bg, color, border: '1px solid #a5b4fc', borderRadius: 6,
+        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', fontWeight: isSelected ? 'bold' : 'normal', fontSize: 14, cursor, transition: 'background 0.2s, color 0.2s', opacity: isBooked || isSaved ? 0.6 : 1
       }}>
         <span>{slotStart.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}</span>
         <span style={{ fontSize: 12, opacity: 0.8 }}>{'-' + slotEnd.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}</span>
+        {icon}
       </div>
     )
-  }, [events])
+  }, [allSlots, selectedSlots])
 
   // 自訂 event component，讓已選時段也上下排顯示
   const CustomEvent = useCallback(({ event }: { event: { start: Date; end: Date } }) => {
@@ -242,11 +248,21 @@ export default function PartnerSchedulePage() {
         <button
           className="mt-8 w-full py-3 rounded-lg bg-gradient-to-r from-indigo-500 to-purple-500 text-white font-bold text-lg hover:from-indigo-600 hover:to-purple-600 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
           onClick={handleSave}
-          disabled={events.length === 0 || isSaving}
+          disabled={selectedSlots.length === 0 || isSaving}
         >
           {isSaving ? '儲存中...' : '儲存時段'}
         </button>
         {saveMsg && <p className="text-center text-green-400 font-bold mt-4">{saveMsg}</p>}
+        {saveResult && (
+          <div className="mt-4 bg-gray-800 rounded-lg p-4 text-sm">
+            <div className="mb-2 font-bold">儲存結果：</div>
+            {saveResult.map((r: {time: string, status: string, reason: string}, i: number) => (
+              <div key={i} className={r.status === '成功' ? 'text-green-400' : 'text-red-400'}>
+                {r.time}：{r.status}{r.reason && `（${r.reason}）`}
+              </div>
+            ))}
+          </div>
+        )}
         <p className="text-gray-400 text-center mt-4 text-sm">點選格子可切換可預約時段，儲存後顧客就能預約你！</p>
       </div>
     </div>

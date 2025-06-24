@@ -135,6 +135,14 @@ export async function GET() {
   const schedules = await prisma.schedule.findMany({
     where: { partnerId: partner.id },
     orderBy: { date: 'asc' },
+    include: {
+      bookings: true,
+    },
   })
-  return NextResponse.json(schedules)
+  // 加上 booked 屬性
+  const result = schedules.map(s => ({
+    ...s,
+    booked: s.bookings.some(b => b.status === 'CONFIRMED' || b.status === 'PENDING'),
+  }))
+  return NextResponse.json(result)
 } 
