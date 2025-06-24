@@ -67,10 +67,15 @@ export const authOptions: NextAuthOptions = {
       // 新登入時
       if (user) {
         token.sub = user.id;
-        token.role = user.role;
         token.provider = account?.provider;
       }
-      // 保證 token.sub、token.role 永遠存在
+      // 每次都查一次 DB，把 role 補進 token
+      if (!token.role && token.sub) {
+        const dbUser = await prisma.user.findUnique({ where: { id: token.sub as string } });
+        if (dbUser) {
+          token.role = dbUser.role;
+        }
+      }
       return token;
     },
     async signIn({ user, account, profile }) {
