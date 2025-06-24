@@ -7,10 +7,16 @@ export const dynamic = 'force-dynamic';
 
 export async function GET() {
   const session = await getServerSession(authOptions);
-  if (!session?.user?.id || session.user.role !== 'CUSTOMER') {
+  let role = session?.user?.role;
+  let userId = session?.user?.id;
+  if (!role && userId) {
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    role = user?.role;
+  }
+  if (!userId || role !== 'CUSTOMER') {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
-  const customer = await prisma.customer.findUnique({ where: { userId: session.user.id }, select: { id: true } });
+  const customer = await prisma.customer.findUnique({ where: { userId }, select: { id: true } });
   if (!customer) return NextResponse.json({ bookings: [] });
   const now = new Date();
   const bookings = await prisma.booking.findMany({
