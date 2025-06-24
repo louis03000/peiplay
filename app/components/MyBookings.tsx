@@ -84,7 +84,7 @@ export default function MyBookings() {
                 <th scope="col" className="py-3 px-6">預約日期</th>
                 <th scope="col" className="py-3 px-6">時段</th>
                 <th scope="col" className="py-3 px-6">狀態</th>
-                <th scope="col" className="py-3 px-6">操作</th>
+                <th scope="col" className="py-3 px-6">預約誰</th>
               </tr>
             </thead>
             <tbody>
@@ -97,19 +97,7 @@ export default function MyBookings() {
                     {b.schedule?.endTime ? new Date(b.schedule.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }) : ''}
                   </td>
                   <td className="py-4 px-6">{b.status}</td>
-                  <td className="py-4 px-6">
-                    {canReview(b) && (
-                      <button
-                        onClick={() => {
-                          setSelectedBooking(b)
-                          setShowReviewForm(true)
-                        }}
-                        className="font-medium text-indigo-400 hover:underline"
-                      >
-                        評價
-                      </button>
-                    )}
-                  </td>
+                  <td className="py-4 px-6">{b.schedule?.partner?.name || 'N/A'}</td>
                 </tr>
               ))}
             </tbody>

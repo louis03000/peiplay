@@ -55,6 +55,8 @@ export default function BookingsPage() {
   if (!session) {
     return <div className="text-center p-8 text-white">請先登入以查詢預約。</div>
   }
+  // debug session
+  console.log('session', session)
 
   return (
     <div className="max-w-6xl mx-auto mt-16 bg-white/10 rounded-xl p-8 shadow-lg backdrop-blur">
