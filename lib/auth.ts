@@ -93,27 +93,41 @@ export const authOptions: NextAuthOptions = {
     async signIn({ user, account, profile }) {
       if (!user?.id) return false;
 
-      // 查一次 customer
-      let existCustomer = await prisma.customer.findUnique({ where: { userId: user.id } });
+      let userId = user.id;
+      let lineId = account?.provider === 'line' ? profile?.sub : null;
+
+      // 如果是 line 登入，先查 lineId 對應的 customer
+      let existCustomer = null;
+      if (lineId) {
+        existCustomer = await prisma.customer.findUnique({ where: { lineId } });
+        if (existCustomer) {
+          userId = existCustomer.userId;
+        }
+      }
+
+      // 如果還沒查到 customer，再用 userId 查
+      if (!existCustomer) {
+        existCustomer = await prisma.customer.findUnique({ where: { userId } });
+      }
 
       // 沒有才建立
       if (!existCustomer) {
         await prisma.customer.create({
           data: {
-            userId: user.id,
+            userId,
             name: user.name || 'New User',
             phone: '',
             birthday: new Date('2000-01-01'),
-            lineId: account?.provider === 'line' ? profile?.sub : null,
+            lineId,
           },
         });
-      } else if (account?.provider === 'line' && !existCustomer.lineId && profile?.sub) {
-        // 如果是 line 登入且已存在但沒 lineId，則補上
+      } else if (lineId && !existCustomer.lineId) {
         await prisma.customer.update({
-          where: { userId: user.id },
-          data: { lineId: profile.sub }
+          where: { userId },
+          data: { lineId }
         });
       }
+
       return true;
     },
   },
