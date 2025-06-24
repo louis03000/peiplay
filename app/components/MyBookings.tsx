@@ -67,6 +67,10 @@ export default function MyBookings() {
   }
 
   // 合併連續時段的預約
+  function getTimeHM(dateStr: string) {
+    const d = new Date(dateStr);
+    return d.getHours().toString().padStart(2, '0') + ':' + d.getMinutes().toString().padStart(2, '0');
+  }
   function mergeBookings(bookings: Booking[]) {
     if (!bookings.length) return [];
     // 先排序：日期、預約誰、狀態、startTime
@@ -82,12 +86,12 @@ export default function MyBookings() {
     let prev = sorted[0];
     for (let i = 1; i < sorted.length; i++) {
       const curr = sorted[i];
-      // 合併條件：同日期、同夥伴、同狀態，且前一筆 endTime == 這一筆 startTime
+      // 合併條件：同日期、同夥伴、同狀態，且前一筆 endTime == 這一筆 startTime（只比對時:分）
       if (
         prev.schedule.date === curr.schedule.date &&
         prev.schedule.partner.name === curr.schedule.partner.name &&
         prev.status === curr.status &&
-        new Date(prev.schedule.endTime).getTime() === new Date(curr.schedule.startTime).getTime()
+        getTimeHM(prev.schedule.endTime) === getTimeHM(curr.schedule.startTime)
       ) {
         // 合併：只更新 endTime
         prev = {
