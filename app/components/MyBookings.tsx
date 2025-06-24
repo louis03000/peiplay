@@ -73,7 +73,6 @@ export default function MyBookings() {
   }
   function mergeBookings(bookings: Booking[]) {
     if (!bookings.length) return [];
-    // 先排序：日期、預約誰、狀態、startTime
     const sorted = [...bookings].sort((a, b) => {
       const d1 = new Date(a.schedule.date).getTime();
       const d2 = new Date(b.schedule.date).getTime();
@@ -83,30 +82,30 @@ export default function MyBookings() {
       return new Date(a.schedule.startTime).getTime() - new Date(b.schedule.startTime).getTime();
     });
     const merged = [];
-    let prev = sorted[0];
-    for (let i = 1; i < sorted.length; i++) {
-      const curr = sorted[i];
-      // 合併條件：同日期、同夥伴、同狀態，且前一筆 endTime == 這一筆 startTime（只比對時:分）
-      if (
-        prev.schedule.date === curr.schedule.date &&
-        prev.schedule.partner.name === curr.schedule.partner.name &&
-        prev.status === curr.status &&
-        getTimeHM(prev.schedule.endTime) === getTimeHM(curr.schedule.startTime)
+    let i = 0;
+    while (i < sorted.length) {
+      let curr = sorted[i];
+      let j = i + 1;
+      while (
+        j < sorted.length &&
+        curr.schedule.date === sorted[j].schedule.date &&
+        curr.schedule.partner.name === sorted[j].schedule.partner.name &&
+        curr.status === sorted[j].status &&
+        getTimeHM(curr.schedule.endTime) === getTimeHM(sorted[j].schedule.startTime)
       ) {
-        // 合併：只更新 endTime
-        prev = {
-          ...prev,
+        // 合併到下一筆
+        curr = {
+          ...curr,
           schedule: {
-            ...prev.schedule,
-            endTime: curr.schedule.endTime
+            ...curr.schedule,
+            endTime: sorted[j].schedule.endTime
           }
-        }
-      } else {
-        merged.push(prev);
-        prev = curr;
+        };
+        j++;
       }
+      merged.push(curr);
+      i = j;
     }
-    merged.push(prev);
     return merged;
   }
 
