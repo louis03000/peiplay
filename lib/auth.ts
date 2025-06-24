@@ -64,30 +64,13 @@ export const authOptions: NextAuthOptions = {
       return session;
     },
     async jwt({ token, user, account, profile }) {
+      // 新登入時
       if (user) {
-        token.role = user.role;
-      }
-      if (account && user) {
-        token.accessToken = account.access_token;
         token.sub = user.id;
-        token.provider = account.provider;
-        if (account.provider === 'line') {
-          const lineId = profile?.sub || null;
-          const email = user.email || (lineId ? `${lineId}@line.local` : `${user.id}@line.local`);
-          let existingUser = await prisma.user.findUnique({ where: { email } });
-          if (!existingUser) {
-            existingUser = await prisma.user.create({
-              data: {
-                email,
-                name: user.name || '',
-                password: '',
-                role: 'CUSTOMER',
-              },
-            });
-          }
-          token.sub = existingUser.id;
-        }
+        token.role = user.role;
+        token.provider = account?.provider;
       }
+      // 保證 token.sub、token.role 永遠存在
       return token;
     },
     async signIn({ user, account, profile }) {
