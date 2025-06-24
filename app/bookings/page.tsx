@@ -49,6 +49,51 @@ export default function BookingsPage() {
     }
   }, [status, tab])
 
+  // 合併連續時段的預約
+  function mergeBookings(bookings: any[]) {
+    if (!bookings.length) return [];
+    // 先排序：日期、預約誰、狀態、startTime
+    const sorted = [...bookings].sort((a, b) => {
+      const d1 = new Date(a.schedule.date).getTime();
+      const d2 = new Date(b.schedule.date).getTime();
+      if (d1 !== d2) return d1 - d2;
+      // partner 名稱
+      const partnerA = a.schedule?.partner?.name || '';
+      const partnerB = b.schedule?.partner?.name || '';
+      if (partnerA !== partnerB) return partnerA.localeCompare(partnerB);
+      if (a.status !== b.status) return a.status.localeCompare(b.status);
+      return new Date(a.schedule.startTime).getTime() - new Date(b.schedule.startTime).getTime();
+    });
+    const merged = [];
+    let prev = sorted[0];
+    for (let i = 1; i < sorted.length; i++) {
+      const curr = sorted[i];
+      // 合併條件：同日期、同夥伴、同狀態，且前一筆 endTime == 這一筆 startTime
+      const partnerA = prev.schedule?.partner?.name || '';
+      const partnerB = curr.schedule?.partner?.name || '';
+      if (
+        prev.schedule.date === curr.schedule.date &&
+        partnerA === partnerB &&
+        prev.status === curr.status &&
+        new Date(prev.schedule.endTime).getTime() === new Date(curr.schedule.startTime).getTime()
+      ) {
+        // 合併：只更新 endTime
+        prev = {
+          ...prev,
+          schedule: {
+            ...prev.schedule,
+            endTime: curr.schedule.endTime
+          }
+        }
+      } else {
+        merged.push(prev);
+        prev = curr;
+      }
+    }
+    merged.push(prev);
+    return merged;
+  }
+
   if (status === 'loading') {
     return <div className="text-center p-8 text-white">載入中...</div>
   }
@@ -90,8 +135,8 @@ export default function BookingsPage() {
               </tr>
             </thead>
             <tbody>
-              {bookings.map((booking) => (
-                <tr key={booking.id} className="bg-gray-800/60 border-b border-gray-700 hover:bg-gray-700/80">
+              {mergeBookings(bookings).map((booking) => (
+                <tr key={booking.id + booking.schedule.startTime + booking.schedule.endTime} className="bg-gray-800/60 border-b border-gray-700 hover:bg-gray-700/80">
                   {tab === 'partner' && <td className="py-4 px-6">{booking.customer?.name || '-'}</td>}
                   {tab === 'me' && <td className="py-4 px-6">{booking.schedule?.partner?.name || '-'}</td>}
                   <td className="py-4 px-6">{booking.schedule?.date ? new Date(booking.schedule.date).toLocaleDateString() : '-'}</td>

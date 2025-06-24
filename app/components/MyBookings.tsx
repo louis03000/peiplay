@@ -66,6 +66,46 @@ export default function MyBookings() {
     )
   }
 
+  // 合併連續時段的預約
+  function mergeBookings(bookings: Booking[]) {
+    if (!bookings.length) return [];
+    // 先排序：日期、預約誰、狀態、startTime
+    const sorted = [...bookings].sort((a, b) => {
+      const d1 = new Date(a.schedule.date).getTime();
+      const d2 = new Date(b.schedule.date).getTime();
+      if (d1 !== d2) return d1 - d2;
+      if (a.schedule.partner.name !== b.schedule.partner.name) return a.schedule.partner.name.localeCompare(b.schedule.partner.name);
+      if (a.status !== b.status) return a.status.localeCompare(b.status);
+      return new Date(a.schedule.startTime).getTime() - new Date(b.schedule.startTime).getTime();
+    });
+    const merged = [];
+    let prev = sorted[0];
+    for (let i = 1; i < sorted.length; i++) {
+      const curr = sorted[i];
+      // 合併條件：同日期、同夥伴、同狀態，且前一筆 endTime == 這一筆 startTime
+      if (
+        prev.schedule.date === curr.schedule.date &&
+        prev.schedule.partner.name === curr.schedule.partner.name &&
+        prev.status === curr.status &&
+        new Date(prev.schedule.endTime).getTime() === new Date(curr.schedule.startTime).getTime()
+      ) {
+        // 合併：只更新 endTime
+        prev = {
+          ...prev,
+          schedule: {
+            ...prev.schedule,
+            endTime: curr.schedule.endTime
+          }
+        }
+      } else {
+        merged.push(prev);
+        prev = curr;
+      }
+    }
+    merged.push(prev);
+    return merged;
+  }
+
   return (
     <div className="bg-gray-800/50 p-6 rounded-lg shadow-inner">
       <h2 className="text-xl font-bold mb-4 text-white">我的預約</h2>
@@ -84,12 +124,12 @@ export default function MyBookings() {
                 <th scope="col" className="py-3 px-6">預約日期</th>
                 <th scope="col" className="py-3 px-6">時段</th>
                 <th scope="col" className="py-3 px-6">狀態</th>
-                <th scope="col" className="py-3 px-6">預約誰</th>
+                <th scope="col" className="py-3 px-6">服務人員</th>
               </tr>
             </thead>
             <tbody>
-              {bookings.map(b => (
-                <tr key={b.id} className="bg-gray-800/60 border-b border-gray-700 hover:bg-gray-700/80">
+              {mergeBookings(bookings).map(b => (
+                <tr key={b.id + b.schedule.startTime + b.schedule.endTime} className="bg-gray-800/60 border-b border-gray-700 hover:bg-gray-700/80">
                   <td className="py-4 px-6">{session?.user?.name || session?.user?.email || 'N/A'}</td>
                   <td className="py-4 px-6">{b.schedule?.date ? new Date(b.schedule.date).toLocaleDateString() : ''}</td>
                   <td className="py-4 px-6">
