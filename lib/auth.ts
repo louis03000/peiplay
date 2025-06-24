@@ -56,11 +56,11 @@ export const authOptions: NextAuthOptions = {
   ],
   callbacks: {
     async session({ session, token }) {
-      if (session.user) {
-        session.user.id = token.sub as string;
-        session.user.role = token.role as UserRole;
-        session.user.provider = token.provider as string;
-      }
+      // 確保 session.user 一定存在
+      session.user = session.user || {};
+      session.user.id = token.sub as string;
+      session.user.role = token.role as UserRole;
+      session.user.provider = token.provider as string;
       return session;
     },
     async jwt({ token, user, account, profile }) {
