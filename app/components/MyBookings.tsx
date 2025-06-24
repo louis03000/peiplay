@@ -80,7 +80,7 @@ export default function MyBookings() {
           <table className="w-full text-sm text-left text-gray-300">
             <thead className="text-xs text-gray-400 uppercase bg-gray-700/50">
               <tr>
-                <th scope="col" className="py-3 px-6">夥伴</th>
+                <th scope="col" className="py-3 px-6">預約者</th>
                 <th scope="col" className="py-3 px-6">預約日期</th>
                 <th scope="col" className="py-3 px-6">時段</th>
                 <th scope="col" className="py-3 px-6">狀態</th>
@@ -90,7 +90,7 @@ export default function MyBookings() {
             <tbody>
               {bookings.map(b => (
                 <tr key={b.id} className="bg-gray-800/60 border-b border-gray-700 hover:bg-gray-700/80">
-                  <td className="py-4 px-6">{b.schedule?.partner?.name || 'N/A'}</td>
+                  <td className="py-4 px-6">{session?.user?.name || session?.user?.email || 'N/A'}</td>
                   <td className="py-4 px-6">{b.schedule?.date ? new Date(b.schedule.date).toLocaleDateString() : ''}</td>
                   <td className="py-4 px-6">
                     {b.schedule?.startTime ? new Date(b.schedule.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }) : ''}-

@@ -67,7 +67,7 @@ export default function BookingsPage() {
         <button
           className={`px-6 py-2 rounded-t-lg font-bold ${tab === 'partner' ? 'bg-indigo-600 text-white' : 'bg-gray-700 text-gray-300'}`}
           onClick={() => setTab('partner')}
-        >夥伴訂單</button>
+        >我的訂單</button>
       </div>
       <div className="overflow-x-auto relative shadow-md sm:rounded-lg">
         {loading ? (
