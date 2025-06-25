@@ -69,6 +69,36 @@ export async function POST(request: Request) {
         },
       });
 
+      // 取得預約者與夥伴的 Discord ID，並通知 Discord Bot
+      // 只處理單一時段預約（如需多時段可改為 for 迴圈）
+      if (Array.isArray(scheduleIds) && scheduleIds.length === 1) {
+        const schedule = await prisma.schedule.findUnique({
+          where: { id: scheduleIds[0] },
+          include: { partner: { select: { userId: true } } }
+        });
+        const user1 = await prisma.user.findUnique({ where: { id: customer.userId } });
+        const user2 = schedule?.partner?.userId
+          ? await prisma.user.findUnique({ where: { id: schedule.partner.userId } })
+          : null;
+        if (user1?.discord && user2?.discord && schedule?.startTime && schedule?.endTime) {
+          const start = new Date(schedule.startTime).getTime();
+          const end = new Date(schedule.endTime).getTime();
+          const minutes = Math.round((end - start) / (1000 * 60));
+          await fetch('http://localhost:5001/pair', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer 你的密鑰'
+            },
+            body: JSON.stringify({
+              user1_id: user1.discord,
+              user2_id: user2.discord,
+              minutes
+            })
+          });
+        }
+      }
+
       return createdBookings;
     });
 

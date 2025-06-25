@@ -92,6 +92,7 @@ export default function Navbar() {
                   {(session.user.role === 'ADMIN' || isPartner) && (
                     <Link href="/bookings" className="block w-full px-4 py-2 text-sm text-white hover:bg-white/20 transition-colors text-center">查詢預約</Link>
                   )}
+                  <Link href="/profile" className="block w-full px-4 py-2 text-sm text-indigo-200 hover:bg-white/20 transition-colors text-center">修改個人資料</Link>
                 </div>
                 <div className="border-t border-white/20 mt-2">
                   <button 
