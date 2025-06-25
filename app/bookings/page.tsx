@@ -55,11 +55,9 @@ export default function BookingsPage() {
     const sorted = [...bookings].sort((a, b) => {
       const t1 = new Date(a.schedule.startTime).getTime();
       const t2 = new Date(b.schedule.startTime).getTime();
-      const partnerA = a.schedule?.partner?.name || '';
-      const partnerB = b.schedule?.partner?.name || '';
-      if (partnerA !== partnerB) return partnerA.localeCompare(partnerB);
-      if (a.status !== b.status) return a.status.localeCompare(b.status);
-      return t1 - t2;
+      const partnerA = (a.schedule?.partner?.name || '').trim().toLowerCase();
+      const partnerB = (b.schedule?.partner?.name || '').trim().toLowerCase();
+      return partnerA.localeCompare(partnerB) || t1 - t2;
     });
     const merged = [];
     let i = 0;
@@ -68,12 +66,10 @@ export default function BookingsPage() {
       let j = i + 1;
       let mergedStartTime = curr.schedule.startTime;
       let mergedEndTime = curr.schedule.endTime;
-      const partnerA = curr.schedule?.partner?.name || '';
-      const statusA = curr.status;
+      const partnerA = (curr.schedule?.partner?.name || '').trim().toLowerCase();
       while (
         j < sorted.length &&
-        (sorted[j].schedule?.partner?.name || '') === partnerA &&
-        sorted[j].status === statusA &&
+        (sorted[j].schedule?.partner?.name || '').trim().toLowerCase() === partnerA &&
         new Date(mergedEndTime).getTime() === new Date(sorted[j].schedule.startTime).getTime()
       ) {
         mergedEndTime = sorted[j].schedule.endTime;
