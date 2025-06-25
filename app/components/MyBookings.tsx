@@ -74,12 +74,11 @@ export default function MyBookings() {
   function mergeBookings(bookings: Booking[]) {
     if (!bookings.length) return [];
     const sorted = [...bookings].sort((a, b) => {
-      const d1 = new Date(a.schedule.date).getTime();
-      const d2 = new Date(b.schedule.date).getTime();
-      if (d1 !== d2) return d1 - d2;
+      const t1 = new Date(a.schedule.startTime).getTime();
+      const t2 = new Date(b.schedule.startTime).getTime();
       if (a.schedule.partner.name !== b.schedule.partner.name) return a.schedule.partner.name.localeCompare(b.schedule.partner.name);
       if (a.status !== b.status) return a.status.localeCompare(b.status);
-      return new Date(a.schedule.startTime).getTime() - new Date(b.schedule.startTime).getTime();
+      return t1 - t2;
     });
     const merged = [];
     let i = 0;
@@ -88,12 +87,10 @@ export default function MyBookings() {
       let j = i + 1;
       while (
         j < sorted.length &&
-        curr.schedule.date === sorted[j].schedule.date &&
         curr.schedule.partner.name === sorted[j].schedule.partner.name &&
         curr.status === sorted[j].status &&
-        getTimeHM(curr.schedule.endTime) === getTimeHM(sorted[j].schedule.startTime)
+        new Date(curr.schedule.endTime).getTime() === new Date(sorted[j].schedule.startTime).getTime()
       ) {
-        // 合併到下一筆
         curr = {
           ...curr,
           schedule: {
