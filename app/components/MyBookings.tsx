@@ -85,22 +85,25 @@ export default function MyBookings() {
     while (i < sorted.length) {
       let curr = sorted[i];
       let j = i + 1;
+      let mergedStartTime = curr.schedule.startTime;
+      let mergedEndTime = curr.schedule.endTime;
       while (
         j < sorted.length &&
         curr.schedule.partner.name === sorted[j].schedule.partner.name &&
         curr.status === sorted[j].status &&
-        new Date(curr.schedule.endTime).getTime() === new Date(sorted[j].schedule.startTime).getTime()
+        new Date(mergedEndTime).getTime() === new Date(sorted[j].schedule.startTime).getTime()
       ) {
-        curr = {
-          ...curr,
-          schedule: {
-            ...curr.schedule,
-            endTime: sorted[j].schedule.endTime
-          }
-        };
+        mergedEndTime = sorted[j].schedule.endTime;
         j++;
       }
-      merged.push(curr);
+      merged.push({
+        ...curr,
+        schedule: {
+          ...curr.schedule,
+          startTime: mergedStartTime,
+          endTime: mergedEndTime
+        }
+      });
       i = j;
     }
     return merged;
@@ -131,7 +134,7 @@ export default function MyBookings() {
               {mergeBookings(bookings).map(b => (
                 <tr key={b.id + b.schedule.startTime + b.schedule.endTime} className="bg-gray-800/60 border-b border-gray-700 hover:bg-gray-700/80">
                   <td className="py-4 px-6">{session?.user?.name || session?.user?.email || 'N/A'}</td>
-                  <td className="py-4 px-6">{b.schedule?.date ? new Date(b.schedule.date).toLocaleDateString() : ''}</td>
+                  <td className="py-4 px-6">{b.schedule?.startTime ? new Date(b.schedule.startTime).toLocaleDateString() : ''}</td>
                   <td className="py-4 px-6">
                     {b.schedule?.startTime ? new Date(b.schedule.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }) : ''}-
                     {b.schedule?.endTime ? new Date(b.schedule.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }) : ''}
