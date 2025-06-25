@@ -52,45 +52,43 @@ export default function BookingsPage() {
   // 合併連續時段的預約
   function mergeBookings(bookings: any[]) {
     if (!bookings.length) return [];
-    // 先排序：日期、預約誰、狀態、startTime
     const sorted = [...bookings].sort((a, b) => {
-      const d1 = new Date(a.schedule.date).getTime();
-      const d2 = new Date(b.schedule.date).getTime();
-      if (d1 !== d2) return d1 - d2;
-      // partner 名稱
+      const t1 = new Date(a.schedule.startTime).getTime();
+      const t2 = new Date(b.schedule.startTime).getTime();
       const partnerA = a.schedule?.partner?.name || '';
       const partnerB = b.schedule?.partner?.name || '';
       if (partnerA !== partnerB) return partnerA.localeCompare(partnerB);
       if (a.status !== b.status) return a.status.localeCompare(b.status);
-      return new Date(a.schedule.startTime).getTime() - new Date(b.schedule.startTime).getTime();
+      return t1 - t2;
     });
     const merged = [];
-    let prev = sorted[0];
-    for (let i = 1; i < sorted.length; i++) {
-      const curr = sorted[i];
-      // 合併條件：同日期、同夥伴、同狀態，且前一筆 endTime == 這一筆 startTime
-      const partnerA = prev.schedule?.partner?.name || '';
-      const partnerB = curr.schedule?.partner?.name || '';
-      if (
-        prev.schedule.date === curr.schedule.date &&
-        partnerA === partnerB &&
-        prev.status === curr.status &&
-        new Date(prev.schedule.endTime).getTime() === new Date(curr.schedule.startTime).getTime()
+    let i = 0;
+    while (i < sorted.length) {
+      let curr = sorted[i];
+      let j = i + 1;
+      let mergedStartTime = curr.schedule.startTime;
+      let mergedEndTime = curr.schedule.endTime;
+      const partnerA = curr.schedule?.partner?.name || '';
+      const statusA = curr.status;
+      while (
+        j < sorted.length &&
+        (sorted[j].schedule?.partner?.name || '') === partnerA &&
+        sorted[j].status === statusA &&
+        new Date(mergedEndTime).getTime() === new Date(sorted[j].schedule.startTime).getTime()
       ) {
-        // 合併：只更新 endTime
-        prev = {
-          ...prev,
-          schedule: {
-            ...prev.schedule,
-            endTime: curr.schedule.endTime
-          }
-        }
-      } else {
-        merged.push(prev);
-        prev = curr;
+        mergedEndTime = sorted[j].schedule.endTime;
+        j++;
       }
+      merged.push({
+        ...curr,
+        schedule: {
+          ...curr.schedule,
+          startTime: mergedStartTime,
+          endTime: mergedEndTime
+        }
+      });
+      i = j;
     }
-    merged.push(prev);
     return merged;
   }
 
@@ -139,7 +137,7 @@ export default function BookingsPage() {
                 <tr key={booking.id + booking.schedule.startTime + booking.schedule.endTime} className="bg-gray-800/60 border-b border-gray-700 hover:bg-gray-700/80">
                   {tab === 'partner' && <td className="py-4 px-6">{booking.customer?.name || '-'}</td>}
                   {tab === 'me' && <td className="py-4 px-6">{booking.schedule?.partner?.name || '-'}</td>}
-                  <td className="py-4 px-6">{booking.schedule?.date ? new Date(booking.schedule.date).toLocaleDateString() : '-'}</td>
+                  <td className="py-4 px-6">{booking.schedule?.startTime ? new Date(booking.schedule.startTime).toLocaleDateString() : '-'}</td>
                   <td className="py-4 px-6">{booking.schedule?.startTime && booking.schedule?.endTime ? `${new Date(booking.schedule.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })} - ${new Date(booking.schedule.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}` : '-'}</td>
                   <td className="py-4 px-6">{booking.status}</td>
                 </tr>
