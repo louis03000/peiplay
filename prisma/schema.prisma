@@ -98,7 +98,7 @@ model Booking {
   id          String      @id @default(cuid())
   customerId  String
   customer    Customer    @relation(fields: [customerId], references: [id])
-  scheduleId  String
+  scheduleId  String      @unique
   schedule    Schedule    @relation(fields: [scheduleId], references: [id])
   status      BookingStatus @default(PENDING)
   createdAt   DateTime    @default(now())

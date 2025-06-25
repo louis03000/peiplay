@@ -96,21 +96,24 @@ export default function BookingWizard() {
   // 優化時段選擇邏輯
   const availableTimeSlots = useMemo(() => {
     if (!selectedPartner || !selectedDate) return []
-    
+
     const seenTimeSlots = new Set<string>()
     const uniqueSchedules = selectedPartner.schedules.filter(schedule => {
+      // 只顯示 isAvailable 為 true 的時段
+      if (!schedule.isAvailable) return false;
+
       const scheduleDate = new Date(schedule.date)
       scheduleDate.setHours(0, 0, 0, 0)
-      
+
       if (scheduleDate.getTime() !== selectedDate.getTime()) {
         return false
       }
-      
+
       const timeSlotIdentifier = `${schedule.startTime}-${schedule.endTime}`
       if (seenTimeSlots.has(timeSlotIdentifier)) {
         return false
       }
-      
+
       seenTimeSlots.add(timeSlotIdentifier)
       return true
     })
