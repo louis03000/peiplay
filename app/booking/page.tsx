@@ -34,11 +34,12 @@ export default function BookingWizard() {
   const [selectedTimes, setSelectedTimes] = useState<string[]>([])
 
   useEffect(() => {
-    fetch('/api/partners')
+    const url = onlyAvailable ? '/api/partners?availableNow=true' : '/api/partners';
+    fetch(url)
       .then(res => {
         if (!res.ok) {
           // If response is not OK (e.g., 401 Unauthorized), return empty array
-          return []; 
+          return [];
         }
         return res.json();
       })
@@ -54,7 +55,7 @@ export default function BookingWizard() {
         console.error("Failed to fetch partners:", error);
         setPartners([]); // Also set to empty on network error
       });
-  }, [])
+  }, [onlyAvailable])
 
   // 搜尋過濾 - 使用 useMemo 優化
   const filteredPartners = useMemo(() => {
@@ -198,22 +199,21 @@ export default function BookingWizard() {
         {step === 0 && (
           <div className="w-full">
             <div className="flex items-center gap-4 mb-6">
-                        <input
+              <input
+                type="checkbox"
+                checked={onlyAvailable}
+                onChange={e => setOnlyAvailable(e.target.checked)}
+                id="only-available"
+                className="accent-indigo-500 w-5 h-5"
+              />
+              <label htmlFor="only-available" className="text-white text-sm select-none cursor-pointer">只看現在有空</label>
+              <input
                 className="flex-1 px-4 py-2 rounded-full bg-gray-900/80 text-white border border-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-400 placeholder-gray-400"
                 placeholder="搜尋夥伴姓名或專長..."
                 value={search}
                 onChange={e => setSearch(e.target.value)}
               />
-              <label className="flex items-center gap-2 text-sm text-indigo-300 cursor-pointer select-none">
-                        <input
-                  type="checkbox"
-                  checked={onlyAvailable}
-                  onChange={e => setOnlyAvailable(e.target.checked)}
-                  className="accent-indigo-500 w-4 h-4"
-                        />
-                只看現在有空
-              </label>
-                      </div>
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {filteredPartners.length === 0 && <div className="col-span-2 text-gray-400 text-center">查無夥伴</div>}
               {filteredPartners.map(p => (

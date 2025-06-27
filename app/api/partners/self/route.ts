@@ -12,4 +12,17 @@ export async function GET() {
     where: { userId: session.user.id }
   })
   return NextResponse.json({ partner })
+}
+
+export async function PATCH(request: Request) {
+  const session = await getServerSession(authOptions)
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+  const { isAvailableNow } = await request.json();
+  const partner = await prisma.partner.update({
+    where: { userId: session.user.id },
+    data: { isAvailableNow: !!isAvailableNow },
+  })
+  return NextResponse.json({ partner })
 } 

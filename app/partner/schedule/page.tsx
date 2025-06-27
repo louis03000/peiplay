@@ -10,6 +10,7 @@ import 'react-big-calendar/lib/css/react-big-calendar.css'
 import './schedule-header-fix.css'
 import './schedule-hide-gutter.css'
 import { FaLock } from 'react-icons/fa'
+import { Switch } from '@headlessui/react'
 
 export const dynamic = 'force-dynamic'
 
@@ -56,6 +57,17 @@ export default function PartnerSchedulePage() {
       .then(res => res.json())
       .then(data => {
         setAllSlots(data)
+      })
+  }, [])
+
+  // 初始化 isAvailableNow 狀態
+  useEffect(() => {
+    fetch('/api/partners/self')
+      .then(res => res.json())
+      .then(data => {
+        if (data.partner && typeof data.partner.isAvailableNow === 'boolean') {
+          setIsAvailableNow(data.partner.isAvailableNow)
+        }
       })
   }, [])
 
@@ -200,6 +212,17 @@ export default function PartnerSchedulePage() {
     timeSlotWrapper: CustomSlotWrapper,
   }), [CustomSlotWrapper])
 
+  // 切換「現在有空」狀態
+  const handleToggleAvailableNow = async () => {
+    const next = !isAvailableNow;
+    setIsAvailableNow(next)
+    await fetch('/api/partners/self', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ isAvailableNow: next })
+    })
+  }
+
   return (
     <div className="min-h-screen w-full flex flex-col items-center justify-center p-4 bg-gray-900 text-white">
       <div className="w-full max-w-5xl mx-auto bg-white/10 rounded-xl p-6 md:p-8 shadow-lg backdrop-blur">
@@ -207,16 +230,19 @@ export default function PartnerSchedulePage() {
         <p className="text-center text-indigo-300 font-medium mb-6">點選下方任一格即可新增可預約時段，再點一次可取消</p>
         
         <div className="flex items-center justify-center mb-8">
-          <label className="flex items-center gap-3 cursor-pointer select-none">
-            <span className={`w-3 h-3 rounded-full ${isAvailableNow ? 'bg-green-400 animate-pulse' : 'bg-gray-500'}`}></span>
-            <span className="text-white text-lg font-medium">現在有空</span>
-            <input
-              type="checkbox"
+          <div className="flex items-center gap-4 mb-6">
+            <Switch
               checked={isAvailableNow}
-              onChange={e => setIsAvailableNow(e.target.checked)}
-              className="accent-green-500 w-6 h-6"
-            />
-          </label>
+              onChange={handleToggleAvailableNow}
+              className={`${isAvailableNow ? 'bg-green-500' : 'bg-gray-400'} relative inline-flex h-6 w-11 items-center rounded-full transition-colors`}
+            >
+              <span className="sr-only">現在有空</span>
+              <span
+                className={`${isAvailableNow ? 'translate-x-6' : 'translate-x-1'} inline-block h-4 w-4 transform rounded-full bg-white transition-transform`}
+              />
+            </Switch>
+            <span className="text-gray-700 font-medium">現在有空</span>
+          </div>
           <span className={`ml-4 text-sm font-bold ${isAvailableNow ? 'text-green-400' : 'text-gray-400'}`}>{isAvailableNow ? '顧客可即時預約你' : '顧客看不到你'}</span>
         </div>
 

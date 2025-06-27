@@ -15,6 +15,7 @@ export async function GET(request: Request) {
     const url = new URL(request.url);
     const startDate = url.searchParams.get("startDate");
     const endDate = url.searchParams.get("endDate");
+    const availableNow = url.searchParams.get("availableNow");
     const scheduleDateFilter = startDate && endDate ? {
       gt: new Date(startDate),
       lt: new Date(endDate),
@@ -24,6 +25,7 @@ export async function GET(request: Request) {
     const partners = await prisma.partner.findMany({
       where: {
         status: 'APPROVED',
+        ...(availableNow === 'true' ? { isAvailableNow: true } : {}),
         schedules: {
           some: {
             date: scheduleDateFilter,
@@ -37,6 +39,7 @@ export async function GET(request: Request) {
         games: true,
         hourlyRate: true,
         coverImage: true,
+        isAvailableNow: true,
         schedules: {
           where: {
             date: scheduleDateFilter,
