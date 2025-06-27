@@ -241,9 +241,11 @@ export default function PartnerSchedulePage() {
                 className={`${isAvailableNow ? 'translate-x-6' : 'translate-x-1'} inline-block h-4 w-4 transform rounded-full bg-white transition-transform`}
               />
             </Switch>
-            <span className="text-gray-700 font-medium">現在有空</span>
+            <div className="flex flex-col items-start">
+              <span className="text-black font-medium">現在有空</span>
+              <span className={`text-sm font-bold ${isAvailableNow ? 'text-green-400' : 'text-gray-400'} mt-1`}>{isAvailableNow ? '顧客可即時預約你' : '顧客看不到你'}</span>
+            </div>
           </div>
-          <span className={`ml-4 text-sm font-bold ${isAvailableNow ? 'text-green-400' : 'text-gray-400'}`}>{isAvailableNow ? '顧客可即時預約你' : '顧客看不到你'}</span>
         </div>
 
         <div className="bg-white rounded-lg shadow-lg p-4 overflow-x-auto">

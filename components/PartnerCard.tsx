@@ -16,6 +16,7 @@ interface Partner {
     startTime: string;
     endTime: string;
   }>;
+  isAvailableNow: boolean;
 }
 
 interface PartnerCardProps {
@@ -45,6 +46,13 @@ const PartnerCard: React.FC<PartnerCardProps> = ({ partner, onQuickBook }) => {
           fill
           className="object-cover"
         />
+        {partner.isAvailableNow && (
+          <div className="absolute top-3 left-3 flex items-center z-10">
+            <span className="flex items-center justify-center w-8 h-8 rounded-full bg-green-500 text-white text-xs font-bold shadow-lg animate-pulse">
+              現在有空
+            </span>
+          </div>
+        )}
       </div>
       <div className="flex-1 flex flex-col px-6 py-5">
         <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">{partner.name}</h3>
