@@ -13,6 +13,7 @@ interface Partner {
   hourlyRate: number;
   coverImage?: string;
   schedules: { date: string; startTime: string; endTime: string }[];
+  isAvailableNow: boolean;
 }
 
 interface Customer {
@@ -30,12 +31,13 @@ async function fetchPartners(startDate?: string, endDate?: string) {
   const res = await fetch(`/api/partners?${params.toString()}`)
   if (!res.ok) throw new Error('獲取夥伴失敗')
   const data = await res.json()
-  return (data as Array<{ id: string; name: string; games: string[]; hourlyRate: number; coverImage?: string; schedules?: unknown[] }>).map((p) => ({
+  return (data as Array<{ id: string; name: string; games: string[]; hourlyRate: number; coverImage?: string; isAvailableNow: boolean; schedules?: unknown[] }>).map((p) => ({
     id: p.id,
     name: p.name,
     games: p.games,
     hourlyRate: p.hourlyRate,
     coverImage: p.coverImage,
+    isAvailableNow: p.isAvailableNow,
     schedules: (p.schedules || []).map((s) => ({
       date: (s as { date: string }).date,
       startTime: (s as { startTime: string }).startTime,
