@@ -4,6 +4,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { useState } from 'react'
 import React from 'react'
+import { FaBolt } from 'react-icons/fa'
 
 interface Partner {
   id: string;
@@ -48,7 +49,8 @@ const PartnerCard: React.FC<PartnerCardProps> = ({ partner, onQuickBook }) => {
         />
         {partner.isAvailableNow && (
           <div className="absolute top-3 left-3 flex items-center z-10">
-            <span className="flex items-center justify-center w-8 h-8 rounded-full bg-green-500 text-white text-xs font-bold shadow-lg animate-pulse">
+            <span className="flex items-center gap-1 px-3 h-7 rounded-full bg-gradient-to-br from-green-400 to-green-600 text-white text-xs font-bold border-2 border-white shadow-md animate-pulse">
+              <FaBolt className="text-yellow-200 text-sm" />
               現在有空
             </span>
           </div>

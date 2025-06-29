@@ -99,7 +99,6 @@ export default function BookingsPage() {
 
   return (
     <div className="max-w-6xl mx-auto mt-16 bg-white/10 rounded-xl p-8 shadow-lg backdrop-blur">
-      <h1 className="text-3xl font-bold mb-6 text-center text-white">預約查詢</h1>
       <div className="flex justify-center gap-4 mb-8">
         <button
           className={`px-6 py-2 rounded-t-lg font-bold ${tab === 'me' ? 'bg-indigo-600 text-white' : 'bg-gray-700 text-gray-300'}`}
