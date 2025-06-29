@@ -59,10 +59,12 @@ export default function ProfileClient() {
         <div className="max-w-md mx-auto bg-gray-800/60 p-6 rounded-lg mb-8">
           <h2 className="text-lg font-semibold mb-4 text-white">個人資料</h2>
           <div className="mb-4"><span className="block text-gray-300 mb-1">姓名</span><span className="text-white">{form.name}</span></div>
-          <div className="mb-4"><span className="block text-gray-300 mb-1">電話</span><span className="text-white">{form.phone}</span></div>
-          <div className="mb-4"><span className="block text-gray-300 mb-1">生日</span><span className="text-white">{form.birthday}</span></div>
-          <div className="mb-4"><span className="block text-gray-300 mb-1">Discord 名稱</span><span className="text-white">{form.discord}</span></div>
-          <button className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 rounded text-white font-bold mt-4" onClick={() => setEditMode(true)}>修改個人資料</button>
+          <div className="mb-4"><span className="block text-gray-300 mb-1">電話</span><span className="text-white">{form.phone || '-'}</span></div>
+          <div className="mb-4"><span className="block text-gray-300 mb-1">生日</span><span className="text-white">{form.birthday ? (typeof form.birthday === 'string' ? form.birthday : new Date(form.birthday).toLocaleDateString()) : '-'}</span></div>
+          <div className="mb-4"><span className="block text-gray-300 mb-1">Discord 名稱</span><span className="text-white">{form.discord || '-'}</span></div>
+          <button className="w-full py-3 rounded-lg bg-indigo-500 text-white font-bold text-lg mt-4 hover:bg-indigo-600 transition" onClick={() => setEditMode(true)}>
+            修改個人資料
+          </button>
         </div>
       ) : (
         <form className="max-w-md mx-auto bg-gray-800/60 p-6 rounded-lg mb-8" onSubmit={handleSubmit}>

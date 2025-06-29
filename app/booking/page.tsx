@@ -268,12 +268,25 @@ export default function BookingWizard() {
               </div>
             </div>
             <div className="text-white/80">您選擇了『現在有空』的夥伴，將直接進行即時預約。</div>
-            <button
-              className="px-8 py-3 rounded-full bg-gradient-to-r from-green-400 to-cyan-500 text-white font-bold text-lg shadow-xl hover:from-green-500 hover:to-cyan-600 active:scale-95 transition"
-              onClick={() => setStep(4)}
-            >
-              確認預約
-            </button>
+            <div className="flex gap-4 mt-4">
+              <button
+                className="px-8 py-3 rounded-full bg-gradient-to-r from-green-400 to-cyan-500 text-white font-bold text-lg shadow-xl hover:from-green-500 hover:to-cyan-600 active:scale-95 transition"
+                onClick={() => setStep(4)}
+              >
+                確認預約
+              </button>
+              <button
+                className="px-8 py-3 rounded-full bg-gray-500 text-white font-bold text-lg shadow-xl hover:bg-gray-600 active:scale-95 transition"
+                onClick={() => {
+                  setStep(0);
+                  setSelectedPartner(null);
+                  setSelectedDate(null);
+                  setSelectedTimes([]);
+                }}
+              >
+                取消
+              </button>
+            </div>
           </div>
         )}
         {!onlyAvailable && step === 1 && selectedPartner && (
