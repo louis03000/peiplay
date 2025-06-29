@@ -86,9 +86,7 @@ export default function Navbar() {
                   {isPartner && (
                     <Link href="/partner/schedule" className="block w-full px-4 py-2 text-sm text-gray-900 hover:text-indigo-600 hover:bg-indigo-50 transition-colors text-center">時段管理</Link>
                   )}
-                  {session.user.role === 'CUSTOMER' && (
-                    <Link href="/bookings" className="block w-full px-4 py-2 text-sm text-gray-900 hover:text-indigo-600 hover:bg-indigo-50 transition-colors text-center">預約查詢</Link>
-                  )}
+                  {session.user.role === 'CUSTOMER' && null}
                   {(session.user.role === 'ADMIN' || isPartner) && (
                     <Link href="/bookings" className="block w-full px-4 py-2 text-sm text-gray-900 hover:text-indigo-600 hover:bg-indigo-50 transition-colors text-center">查詢預約</Link>
                   )}

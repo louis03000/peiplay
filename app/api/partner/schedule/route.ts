@@ -53,75 +53,45 @@ async function handleSingleCreate(data: any, userId: string) {
 }
 
 async function handleBatchCreate(schedules: any[], userId: string) {
-  // 取得 partnerId
   const partner = await prisma.partner.findUnique({ where: { userId } })
   if (!partner) return NextResponse.json({ error: '不是夥伴' }, { status: 403 })
 
-  // 驗證所有時段數據
-  const validSchedules = schedules.filter(schedule => {
-    return schedule.date && schedule.startTime && schedule.endTime
-  })
-
+  // 過濾有效時段
+  const validSchedules = schedules.filter(schedule => schedule.date && schedule.startTime && schedule.endTime)
   if (validSchedules.length === 0) {
     return NextResponse.json({ error: '沒有有效的時段數據' }, { status: 400 })
   }
 
+  // 檢查重複
+  const existing = await prisma.schedule.findMany({
+    where: {
+      partnerId: partner.id,
+      OR: validSchedules.map(s => ({
+        date: new Date(s.date),
+        startTime: new Date(s.startTime),
+        endTime: new Date(s.endTime),
+      })),
+    }
+  })
+  if (existing.length > 0) {
+    return NextResponse.json({ error: '有重複的時段', details: existing }, { status: 409 })
+  }
+
+  // 批量插入
   try {
-    // 使用事務來確保數據一致性
-    const results = await prisma.$transaction(async (tx) => {
-      const createdSchedules = []
-      const errors = []
-
-      for (const scheduleData of validSchedules) {
-        try {
-          // 檢查時段是否已存在
-          const existingSchedule = await tx.schedule.findFirst({
-            where: {
-              partnerId: partner.id,
-              date: new Date(scheduleData.date),
-              startTime: new Date(scheduleData.startTime),
-              endTime: new Date(scheduleData.endTime),
-            },
-          });
-
-          if (existingSchedule) {
-            errors.push({ 
-              schedule: scheduleData, 
-              error: '該時段已存在，不可重複新增' 
-            })
-            continue
-          }
-
-          const schedule = await tx.schedule.create({
-            data: {
-              partnerId: partner.id,
-              date: new Date(scheduleData.date),
-              startTime: new Date(scheduleData.startTime),
-              endTime: new Date(scheduleData.endTime),
-              isAvailable: true,
-            }
-          })
-          createdSchedules.push(schedule)
-        } catch (error) {
-          errors.push({ 
-            schedule: scheduleData, 
-            error: error instanceof Error ? error.message : '創建失敗' 
-          })
-        }
-      }
-
-      return { createdSchedules, errors }
+    const result = await prisma.schedule.createMany({
+      data: validSchedules.map(s => ({
+        partnerId: partner.id,
+        date: new Date(s.date),
+        startTime: new Date(s.startTime),
+        endTime: new Date(s.endTime),
+        isAvailable: true,
+      })),
+      skipDuplicates: true,
     })
-
-    return NextResponse.json({
-      success: true,
-      created: results.createdSchedules.length,
-      errors: results.errors.length,
-      details: results
-    })
+    return NextResponse.json({ success: true, count: result.count })
   } catch (error) {
-    console.error('批量創建時段失敗:', error)
-    return NextResponse.json({ error: '批量創建時段失敗' }, { status: 500 })
+    return NextResponse.json({ error: error instanceof Error ? error.message : '批量創建時段失敗' }, { status: 500 })
   }
 }
 
