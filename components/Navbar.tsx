@@ -87,12 +87,12 @@ export default function Navbar() {
                     <Link href="/partner/schedule" className="block w-full px-4 py-2 text-sm text-gray-900 hover:text-indigo-600 hover:bg-indigo-50 transition-colors text-center">時段管理</Link>
                   )}
                   {session.user.role === 'CUSTOMER' && (
-                    <Link href="/profile" className="block w-full px-4 py-2 text-sm text-gray-900 hover:text-indigo-600 hover:bg-indigo-50 transition-colors text-center">預約查詢</Link>
+                    <Link href="/bookings" className="block w-full px-4 py-2 text-sm text-gray-900 hover:text-indigo-600 hover:bg-indigo-50 transition-colors text-center">預約查詢</Link>
                   )}
                   {(session.user.role === 'ADMIN' || isPartner) && (
                     <Link href="/bookings" className="block w-full px-4 py-2 text-sm text-gray-900 hover:text-indigo-600 hover:bg-indigo-50 transition-colors text-center">查詢預約</Link>
                   )}
-                  <Link href="/profile" className="block w-full px-4 py-2 text-sm text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 transition-colors text-center">修改個人資料</Link>
+                  <Link href="/profile" className="block w-full px-4 py-2 text-sm text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 transition-colors text-center">個人資料</Link>
                 </div>
                 <div className="border-t border-white/40 mt-2">
                   <button 
