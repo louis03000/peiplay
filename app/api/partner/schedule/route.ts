@@ -115,4 +115,36 @@ export async function GET() {
     booked: s.bookings.some(b => b.status === 'CONFIRMED' || b.status === 'PENDING'),
   }))
   return NextResponse.json(result)
+}
+
+export async function DELETE(request: Request) {
+  const session = await getServerSession(authOptions)
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: '未登入' }, { status: 401 })
+  }
+  const partner = await prisma.partner.findUnique({ where: { userId: session.user.id } })
+  if (!partner) return NextResponse.json({ error: '不是夥伴' }, { status: 403 })
+  const body = await request.json()
+  if (!Array.isArray(body) || body.length === 0) {
+    return NextResponse.json({ error: '請傳入要刪除的時段陣列' }, { status: 400 })
+  }
+  // 只允許刪除未被預約的時段
+  const schedules = await prisma.schedule.findMany({
+    where: {
+      partnerId: partner.id,
+      OR: body.map(s => ({
+        date: new Date(s.date),
+        startTime: new Date(s.startTime),
+        endTime: new Date(s.endTime),
+      })),
+    },
+    include: { bookings: true },
+  })
+  const deletable = schedules.filter(s => !s.bookings.some(b => b.status === 'CONFIRMED' || b.status === 'PENDING'))
+  const ids = deletable.map(s => s.id)
+  if (ids.length === 0) {
+    return NextResponse.json({ error: '沒有可刪除的時段（可能已被預約）' }, { status: 409 })
+  }
+  await prisma.schedule.deleteMany({ where: { id: { in: ids } } })
+  return NextResponse.json({ success: true, count: ids.length })
 } 
