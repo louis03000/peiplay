@@ -242,7 +242,7 @@ export default function PartnerSchedulePage() {
               />
             </Switch>
             <div className="flex flex-col items-start">
-              <span className="text-black font-medium">現在有空</span>
+              <span className="text-indigo-300 font-medium">現在有空</span>
               <span className={`text-sm font-bold ${isAvailableNow ? 'text-green-400' : 'text-gray-400'} mt-1`}>{isAvailableNow ? '顧客可即時預約你' : '顧客看不到你'}</span>
             </div>
           </div>

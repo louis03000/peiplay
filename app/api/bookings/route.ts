@@ -69,7 +69,7 @@ export async function POST(request: Request) {
         },
       });
 
-      // 取得預約者與夥伴的 Discord ID，並通知 Discord Bot
+      // 取得預約者與夥伴的 Discord 名稱，並通知 Discord Bot
       // 只處理單一時段預約（如需多時段可改為 for 迴圈）
       if (Array.isArray(scheduleIds) && scheduleIds.length === 1) {
         const schedule = await prisma.schedule.findUnique({

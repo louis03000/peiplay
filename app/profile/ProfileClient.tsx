@@ -32,12 +32,6 @@ export default function ProfileClient() {
     setLoading(true);
     setSuccess('');
     setError('');
-    // Discord ID 格式驗證
-    if (form.discord && !/^[0-9]{17,20}$/.test(form.discord)) {
-      setLoading(false);
-      setError('請輸入正確的 Discord 數字 ID（17~20 位數字，可在 Discord 開發者模式下複製）');
-      return;
-    }
     try {
       const res = await fetch('/api/user/profile', {
         method: 'PATCH',
@@ -75,9 +69,8 @@ export default function ProfileClient() {
           <input name="birthday" type="date" value={form.birthday} onChange={handleChange} className="w-full px-3 py-2 rounded bg-gray-900 text-white" required />
         </div>
         <div className="mb-4">
-          <label className="block text-gray-300 mb-1">Discord ID</label>
+          <label className="block text-gray-300 mb-1">Discord 名稱</label>
           <input name="discord" value={form.discord} onChange={handleChange} className="w-full px-3 py-2 rounded bg-gray-900 text-white" />
-          <p className="text-xs text-gray-400 mt-1">請填寫 Discord 數字 ID（開啟 Discord「設定→進階→開發者模式」後，右鍵頭像→複製使用者 ID）</p>
         </div>
         {success && <div className="text-green-400 mb-2">{success}</div>}
         {error && <div className="text-red-400 mb-2">{error}</div>}

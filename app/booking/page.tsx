@@ -21,6 +21,7 @@ export type Partner = {
   hourlyRate: number;
   coverImage?: string;
   schedules: { id: string; date: string; startTime: string; endTime: string, isAvailable: boolean }[];
+  isAvailableNow: boolean;
 };
 
 export default function BookingWizard() {
@@ -236,6 +237,13 @@ export default function BookingWizard() {
                     <div className="text-sm text-gray-300">每小時 {p.hourlyRate} 元</div>
                   </div>
                   {selectedPartner?.id === p.id && <div className="text-indigo-400 font-bold">✔</div>}
+                  {p.isAvailableNow && (
+                    <div className="absolute top-3 left-3 flex items-center z-10">
+                      <span className="flex items-center justify-center w-8 h-8 rounded-full bg-green-500 text-white text-xs font-bold shadow-lg animate-pulse">
+                        現在有空
+                      </span>
+                    </div>
+                  )}
                 </div>
               ))}
                       </div>

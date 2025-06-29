@@ -74,30 +74,30 @@ export default function Navbar() {
             )}
 
             {menuOpen && session?.user && (
-              <div className="absolute right-0 md:left-1/2 md:-translate-x-1/2 mt-3 w-48 bg-white/10 backdrop-blur-lg rounded-md shadow-lg py-2 border border-white/20">
-                <div className="px-4 py-3 border-b border-white/20 text-center">
-                  <p className="text-sm text-gray-300">Signed in as</p>
-                  <p className="font-semibold truncate text-white">{session.user.name || session.user.email}</p>
+              <div className="absolute right-0 md:left-1/2 md:-translate-x-1/2 mt-3 w-48 bg-white/90 rounded-md shadow-lg py-2 border border-white/40">
+                <div className="px-4 py-3 border-b border-white/40 text-center">
+                  <p className="text-sm text-gray-500">Signed in as</p>
+                  <p className="font-semibold truncate text-gray-900">{session.user.name || session.user.email}</p>
                 </div>
                 <div className="mt-2 text-center">
                   {session?.user?.role === 'ADMIN' && (
-                    <Link href="/admin/partners" className="block w-full px-4 py-2 text-sm text-white hover:bg-white/20 transition-colors text-center">夥伴審核</Link>
+                    <Link href="/admin/partners" className="block w-full px-4 py-2 text-sm text-gray-900 hover:text-indigo-600 hover:bg-indigo-50 transition-colors text-center">夥伴審核</Link>
                   )}
                   {isPartner && (
-                    <Link href="/partner/schedule" className="block w-full px-4 py-2 text-sm text-white hover:bg-white/20 transition-colors text-center">時段管理</Link>
+                    <Link href="/partner/schedule" className="block w-full px-4 py-2 text-sm text-gray-900 hover:text-indigo-600 hover:bg-indigo-50 transition-colors text-center">時段管理</Link>
                   )}
                   {session.user.role === 'CUSTOMER' && (
-                    <Link href="/profile" className="block w-full px-4 py-2 text-sm text-white hover:bg-white/20 transition-colors text-center">預約查詢</Link>
+                    <Link href="/profile" className="block w-full px-4 py-2 text-sm text-gray-900 hover:text-indigo-600 hover:bg-indigo-50 transition-colors text-center">預約查詢</Link>
                   )}
                   {(session.user.role === 'ADMIN' || isPartner) && (
-                    <Link href="/bookings" className="block w-full px-4 py-2 text-sm text-white hover:bg-white/20 transition-colors text-center">查詢預約</Link>
+                    <Link href="/bookings" className="block w-full px-4 py-2 text-sm text-gray-900 hover:text-indigo-600 hover:bg-indigo-50 transition-colors text-center">查詢預約</Link>
                   )}
-                  <Link href="/profile" className="block w-full px-4 py-2 text-sm text-indigo-200 hover:bg-white/20 transition-colors text-center">修改個人資料</Link>
+                  <Link href="/profile" className="block w-full px-4 py-2 text-sm text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 transition-colors text-center">修改個人資料</Link>
                 </div>
-                <div className="border-t border-white/20 mt-2">
+                <div className="border-t border-white/40 mt-2">
                   <button 
                     onClick={() => signOut()} 
-                    className="block w-full px-4 py-3 text-sm text-red-400 hover:bg-red-500/50 hover:text-white transition-colors text-center"
+                    className="block w-full px-4 py-3 text-sm text-red-500 hover:bg-red-50 hover:text-red-700 transition-colors text-center"
                   >
                     登出
                   </button>

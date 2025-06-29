@@ -25,13 +25,17 @@ export async function GET(request: Request) {
     const partners = await prisma.partner.findMany({
       where: {
         status: 'APPROVED',
-        ...(availableNow === 'true' ? { isAvailableNow: true } : {}),
-        schedules: {
-          some: {
-            date: scheduleDateFilter,
-            isAvailable: true,
+        OR: [
+          {
+            schedules: {
+              some: {
+                date: scheduleDateFilter,
+                isAvailable: true,
+              },
+            },
           },
-        },
+          { isAvailableNow: true },
+        ],
       },
       select: {
         id: true,
