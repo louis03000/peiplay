@@ -149,7 +149,10 @@ export default function BookingWizard() {
     setSelectedPartner(partner)
     setSelectedDate(null)
     setSelectedTimes([])
-  }, [])
+    if (onlyAvailable) {
+      setStep(3) // 直接跳到確認預約
+    }
+  }, [onlyAvailable])
 
   // 優化日期選擇
   const handleDateSelect = useCallback((date: Date) => {
@@ -249,7 +252,31 @@ export default function BookingWizard() {
                       </div>
                     </div>
         )}
-        {step === 1 && selectedPartner && (
+        {/* 只看現在有空時，跳過步驟 1、2 */}
+        {onlyAvailable && step === 3 && selectedPartner && (
+          <div className="flex flex-col items-center gap-4">
+            <div className="text-white/90 text-xl font-bold mb-4">預約確認</div>
+            <div className="flex items-center gap-4 bg-white/10 rounded-2xl p-6 border border-white/10">
+              <div className="w-16 h-16 rounded-full bg-gray-200 flex items-center justify-center text-3xl font-bold text-gray-400 overflow-hidden">
+                {selectedPartner.coverImage
+                  ? <img src={selectedPartner.coverImage} alt={selectedPartner.name} className="object-cover w-full h-full" />
+                  : selectedPartner.name[0]}
+              </div>
+              <div>
+                <div className="text-lg font-bold text-white">{selectedPartner.name}</div>
+                <div className="text-sm text-indigo-300">{selectedPartner.games.join('、')}</div>
+              </div>
+            </div>
+            <div className="text-white/80">您選擇了『現在有空』的夥伴，將直接進行即時預約。</div>
+            <button
+              className="px-8 py-3 rounded-full bg-gradient-to-r from-green-400 to-cyan-500 text-white font-bold text-lg shadow-xl hover:from-green-500 hover:to-cyan-600 active:scale-95 transition"
+              onClick={() => setStep(4)}
+            >
+              確認預約
+            </button>
+          </div>
+        )}
+        {!onlyAvailable && step === 1 && selectedPartner && (
           <div>
             <div className="text-lg text-white/90 mb-4">（2）選擇日期</div>
             <div className="flex flex-wrap gap-2 justify-center">
@@ -273,7 +300,7 @@ export default function BookingWizard() {
             </div>
           </div>
         )}
-        {step === 2 && selectedPartner && selectedDate && (
+        {!onlyAvailable && step === 2 && selectedPartner && selectedDate && (
           <div>
             <div className="text-lg text-white/90 mb-4">（3）選擇時段</div>
             <div className="flex flex-wrap gap-2">
@@ -293,7 +320,7 @@ export default function BookingWizard() {
             </div>
           </div>
         )}
-        {step === 3 && selectedPartner && selectedDate && selectedTimes.length > 0 && (
+        {!onlyAvailable && step === 3 && selectedPartner && selectedDate && selectedTimes.length > 0 && (
           <div className="flex flex-col items-center gap-4">
             <div className="text-white/90 text-xl font-bold mb-4">預約確認</div>
             <div className="flex items-center gap-4 bg-white/10 rounded-2xl p-6 border border-white/10">
@@ -325,24 +352,21 @@ export default function BookingWizard() {
           </div>
         )}
         {step === 4 && (
-          <div className="flex flex-col items-center text-center">
-            <div className="w-20 h-20 flex items-center justify-center rounded-full bg-gradient-to-br from-green-400 to-cyan-500 mb-6">
-              <span className="text-4xl text-white">✔</span>
+          <div className="flex flex-col items-center text-center min-h-[200px] justify-center">
+            <div className="w-20 h-20 flex items-center justify-center rounded-full bg-gradient-to-br from-indigo-400 to-purple-400 mb-6">
+              <span className="text-4xl text-white">💳</span>
             </div>
-            <div className="text-2xl font-bold text-white">預約成功！</div>
-            <div className="text-gray-300 mt-2">已為您保留時段，請準時上線。</div>
-            <button className="mt-8 px-6 py-2 rounded-full bg-indigo-500 text-white font-bold" onClick={() => {
-              setStep(0);
-              setSelectedPartner(null);
-              setSelectedDate(null);
-              setSelectedTimes([]);
-            }}>返回首頁</button>
+            <div className="text-2xl font-bold text-white mb-2">付款功能即將上線</div>
+            <div className="text-gray-300 mb-4">請稍候，預約尚未完成，付款功能將於近期開放。</div>
+            <button className="mt-4 px-6 py-2 rounded-full bg-indigo-500 text-white font-bold" onClick={() => setStep(0)}>
+              返回首頁
+            </button>
           </div>
         )}
       </div>
 
       {/* 導航按鈕 */}
-      {step < 4 && (
+      {step < 4 && !onlyAvailable && (
         <div className={`flex items-center px-10 pb-8 ${step > 0 ? 'justify-between' : 'justify-end'}`}>
           {step > 0 && (
             <button

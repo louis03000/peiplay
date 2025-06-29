@@ -16,11 +16,14 @@ export async function GET(request: Request) {
     const startDate = url.searchParams.get("startDate");
     const endDate = url.searchParams.get("endDate");
     const availableNow = url.searchParams.get("availableNow");
+    // 計算今天0點
+    const now = new Date();
+    const todayZero = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
     const scheduleDateFilter = startDate && endDate ? {
-      gt: new Date(startDate),
+      gte: new Date(startDate),
       lt: new Date(endDate),
     } : {
-      gt: new Date(),
+      gte: todayZero,
     };
     const partners = await prisma.partner.findMany({
       where: {
