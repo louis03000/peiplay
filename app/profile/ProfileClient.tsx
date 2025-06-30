@@ -42,6 +42,17 @@ export default function ProfileClient() {
       const data = await res.json();
       if (res.ok) {
         setSuccess('資料已更新！');
+        // 儲存成功後自動 fetch 最新 user 資料
+        const userRes = await fetch('/api/user/profile');
+        const userData = await userRes.json();
+        if (userRes.ok && userData.user) {
+          setForm({
+            name: userData.user.name || '',
+            phone: userData.user.phone || '',
+            birthday: userData.user.birthday ? userData.user.birthday.slice(0, 10) : '',
+            discord: userData.user.discord || ''
+          });
+        }
       } else {
         setError(data.error || '更新失敗');
       }
