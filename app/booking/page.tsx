@@ -24,6 +24,13 @@ export type Partner = {
   isAvailableNow: boolean;
 };
 
+// 工具函式：判斷兩個日期是否同一天（本地時區）
+function isSameDay(d1: Date, d2: Date) {
+  return d1.getFullYear() === d2.getFullYear() &&
+    d1.getMonth() === d2.getMonth() &&
+    d1.getDate() === d2.getDate();
+}
+
 export default function BookingWizard() {
   const [step, setStep] = useState(0)
   const [search, setSearch] = useState('')
@@ -84,42 +91,34 @@ export default function BookingWizard() {
   // 優化日期選擇邏輯
   const availableDates = useMemo(() => {
     if (!selectedPartner) return []
-    
-    const dateSet = new Set<number>()
+    const dateSet = new Set<string>()
     selectedPartner.schedules.forEach(s => {
       const d = new Date(s.date)
-      d.setHours(0, 0, 0, 0)
-      dateSet.add(d.getTime())
+      const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`
+      dateSet.add(key)
     })
-    
-    return Array.from(dateSet).sort((a, b) => a - b)
+    // 回傳 getTime() 整數陣列，方便當作 key
+    return Array.from(dateSet).map(key => {
+      const [year, month, date] = key.split('-').map(Number)
+      return new Date(year, month, date).getTime()
+    }).sort((a, b) => a - b)
   }, [selectedPartner])
 
   // 優化時段選擇邏輯
   const availableTimeSlots = useMemo(() => {
     if (!selectedPartner || !selectedDate) return []
-
     const seenTimeSlots = new Set<string>()
     const uniqueSchedules = selectedPartner.schedules.filter(schedule => {
-      // 只顯示 isAvailable 為 true 的時段
       if (!schedule.isAvailable) return false;
-
       const scheduleDate = new Date(schedule.date)
-      scheduleDate.setHours(0, 0, 0, 0)
-
-      if (scheduleDate.getTime() !== selectedDate.getTime()) {
-        return false
-      }
-
+      if (!isSameDay(scheduleDate, selectedDate)) return false;
       const timeSlotIdentifier = `${schedule.startTime}-${schedule.endTime}`
       if (seenTimeSlots.has(timeSlotIdentifier)) {
         return false
       }
-
       seenTimeSlots.add(timeSlotIdentifier)
       return true
     })
-
     return uniqueSchedules.sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime())
   }, [selectedPartner, selectedDate])
 
