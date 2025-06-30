@@ -25,21 +25,27 @@ export async function GET(request: Request) {
     } : {
       gte: todayZero,
     };
-    const partners = await prisma.partner.findMany({
-      where: {
-        status: 'APPROVED',
-        OR: [
-          {
-            schedules: {
-              some: {
-                date: scheduleDateFilter,
-                isAvailable: true,
-              },
+
+    // 修正：availableNow=true 時只回傳 isAvailableNow: true 的夥伴
+    let where: any = { status: 'APPROVED' };
+    if (availableNow === 'true') {
+      where.isAvailableNow = true;
+    } else {
+      where.OR = [
+        {
+          schedules: {
+            some: {
+              date: scheduleDateFilter,
+              isAvailable: true,
             },
           },
-          { isAvailableNow: true },
-        ],
-      },
+        },
+        { isAvailableNow: true },
+      ];
+    }
+
+    const partners = await prisma.partner.findMany({
+      where,
       select: {
         id: true,
         name: true,
