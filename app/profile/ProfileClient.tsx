@@ -12,16 +12,25 @@ export default function ProfileClient() {
   const [error, setError] = useState('');
   const [editMode, setEditMode] = useState(false);
 
-  // 初始載入 user 資料
+  // 初始載入 user 資料（改為 fetch /api/user/profile）
   useEffect(() => {
-    if (session?.user) {
-      setForm({
-        name: session.user.name || '',
-        phone: session.user.phone || '',
-        birthday: session.user.birthday ? session.user.birthday.slice(0, 10) : '',
-        discord: session.user.discord || ''
-      });
+    async function fetchProfile() {
+      try {
+        const res = await fetch('/api/user/profile');
+        const data = await res.json();
+        if (res.ok && data.user) {
+          setForm({
+            name: data.user.name || '',
+            phone: data.user.phone || '',
+            birthday: data.user.birthday ? data.user.birthday.slice(0, 10) : '',
+            discord: data.user.discord || ''
+          });
+        }
+      } catch {
+        // ignore
+      }
     }
+    fetchProfile();
   }, [session]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {

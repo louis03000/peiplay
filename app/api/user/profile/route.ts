@@ -61,4 +61,30 @@ export async function PATCH(request: Request) {
       stack: error?.stack,
     }, { status: 500 });
   }
+}
+
+export async function GET(request: Request) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: '請先登入' }, { status: 401 });
+  }
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: {
+        id: true,
+        name: true,
+        phone: true,
+        birthday: true,
+        discord: true,
+        email: true,
+      },
+    });
+    if (!user) {
+      return NextResponse.json({ error: '找不到使用者' }, { status: 404 });
+    }
+    return NextResponse.json({ user });
+  } catch (error: any) {
+    return NextResponse.json({ error: '取得個人資料失敗', detail: error?.message || '未知錯誤' }, { status: 500 });
+  }
 } 
