@@ -63,6 +63,7 @@ export async function GET(request: Request) {
             date: true,
             startTime: true,
             endTime: true,
+            isAvailable: true,
           },
         },
       },
