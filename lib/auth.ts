@@ -58,9 +58,9 @@ export const authOptions: NextAuthOptions = {
     async session({ session, token }) {
       // 確保 session.user 一定存在
       session.user = session.user || {};
-      session.user.id = token.sub as string;
-      session.user.role = token.role as UserRole;
-      session.user.provider = token.provider as string;
+        session.user.id = token.sub as string;
+        session.user.role = token.role as UserRole;
+        session.user.provider = token.provider as string;
       return session;
     },
     async jwt({ token, user, account, profile }) {
@@ -99,22 +99,22 @@ export const authOptions: NextAuthOptions = {
       }
 
       // 沒有才建立
-      if (!existCustomer) {
-        await prisma.customer.create({
-          data: {
+        if (!existCustomer) {
+          await prisma.customer.create({
+            data: {
             userId,
             name: user.name || 'New User',
-            phone: '',
-            birthday: new Date('2000-01-01'),
-            lineId,
-          },
-        });
+              phone: '',
+              birthday: new Date('2000-01-01'),
+              lineId,
+            },
+          });
       } else if (lineId && !existCustomer.lineId) {
         await prisma.customer.update({
           where: { userId },
           data: { lineId }
         });
-      }
+        }
 
       return true;
     },

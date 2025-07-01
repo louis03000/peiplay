@@ -266,7 +266,7 @@ export default function PartnerSchedulePage() {
               <span className="sr-only">現在有空</span>
               <span
                 className={`${isAvailableNow ? 'translate-x-6' : 'translate-x-1'} inline-block h-4 w-4 transform rounded-full bg-white transition-transform`}
-              />
+            />
             </Switch>
             <div className="flex flex-col items-start">
               <span className="text-indigo-300 font-medium">現在有空</span>
