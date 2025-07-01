@@ -7,15 +7,11 @@ export const dynamic = 'force-dynamic';
 
 export async function GET() {
   const session = await getServerSession(authOptions);
-  let role = session?.user?.role;
-  let userId = session?.user?.id;
-  if (!role && userId) {
-    const user = await prisma.user.findUnique({ where: { id: userId } });
-    role = user?.role;
-  }
-  if (!userId || role !== 'PARTNER') {
+  const userId = session?.user?.id;
+  if (!userId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
+  // 只要有 partner 資料即可查詢
   const partner = await prisma.partner.findUnique({ where: { userId }, select: { id: true } });
   if (!partner) return NextResponse.json({ bookings: [] });
   const now = new Date();

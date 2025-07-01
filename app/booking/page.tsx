@@ -224,6 +224,7 @@ export default function BookingWizard() {
                   key={p.id}
                   className={`rounded-2xl bg-white/10 border border-white/10 shadow-lg p-4 flex gap-4 items-center cursor-pointer transition-all duration-200 hover:scale-105 hover:border-indigo-400 ${selectedPartner?.id === p.id ? 'ring-2 ring-indigo-400' : ''}`}
                   onClick={() => handlePartnerSelect(p)}
+                  style={{ position: 'relative' }}
                 >
                   {/* 封面照：有圖顯圖，沒圖顯首字 */}
                   <div className="w-14 h-14 rounded-full bg-gray-200 flex items-center justify-center text-2xl font-bold text-gray-400 mr-2 overflow-hidden">
@@ -239,13 +240,6 @@ export default function BookingWizard() {
                     <div className="text-sm text-gray-300">每小時 {p.hourlyRate} 元</div>
                   </div>
                   {selectedPartner?.id === p.id && <div className="text-indigo-400 font-bold">✔</div>}
-                  {p.isAvailableNow && (
-                    <div className="absolute top-3 left-3 flex items-center z-10">
-                      <span className="flex items-center justify-center w-8 h-8 rounded-full bg-green-500 text-white text-xs font-bold shadow-lg animate-pulse">
-                        現在有空
-                      </span>
-                    </div>
-                  )}
                 </div>
               ))}
                       </div>

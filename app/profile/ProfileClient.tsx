@@ -62,6 +62,7 @@ export default function ProfileClient() {
             discord: userData.user.discord || ''
           });
         }
+        setEditMode(false); // 儲存成功後自動切回檢視模式
       } else {
         setError(data.error || '更新失敗');
       }
