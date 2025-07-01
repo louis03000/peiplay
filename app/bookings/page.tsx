@@ -88,59 +88,183 @@ export default function BookingsPage() {
     return merged;
   }
 
+  // 取得狀態中文說明
+  function getStatusText(status: string) {
+    const statusMap: { [key: string]: string } = {
+      'PENDING': '待確認',
+      'CONFIRMED': '已確認',
+      'CANCELLED': '已取消',
+      'COMPLETED': '已完成'
+    }
+    return statusMap[status] || status
+  }
+
   if (status === 'loading') {
     return <div className="text-center p-8 text-white">載入中...</div>
   }
   if (!session) {
     return <div className="text-center p-8 text-white">請先登入以查詢預約。</div>
   }
-  // debug session
-  console.log('session', session)
 
   return (
     <div className="max-w-6xl mx-auto mt-16 bg-white/10 rounded-xl p-8 shadow-lg backdrop-blur">
+      {/* 頁面標題和說明 */}
+      <div className="text-center mb-8">
+        <h1 className="text-3xl font-bold text-white mb-4">預約管理</h1>
+        <p className="text-gray-300 text-lg">
+          {session?.user?.role === 'PARTNER' 
+            ? '管理您的預約服務和客戶訂單' 
+            : '查看您的預約記錄和服務訂單'
+          }
+        </p>
+      </div>
+
+      {/* Tab 切換按鈕 */}
       <div className="flex justify-center gap-4 mb-8">
         <button
-          className={`px-6 py-2 rounded-t-lg font-bold ${tab === 'me' ? 'bg-indigo-600 text-white' : 'bg-gray-700 text-gray-300'}`}
+          className={`px-8 py-3 rounded-lg font-bold transition-all duration-200 ${
+            tab === 'me' 
+              ? 'bg-indigo-600 text-white shadow-lg' 
+              : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+          }`}
           onClick={() => setTab('me')}
-        >我的預約</button>
+        >
+          <div className="text-center">
+            <div className="text-lg">我的預約</div>
+            <div className="text-xs opacity-80">我預約的夥伴</div>
+          </div>
+        </button>
         <button
-          className={`px-6 py-2 rounded-t-lg font-bold ${tab === 'partner' ? 'bg-indigo-600 text-white' : 'bg-gray-700 text-gray-300'}`}
+          className={`px-8 py-3 rounded-lg font-bold transition-all duration-200 ${
+            tab === 'partner' 
+              ? 'bg-indigo-600 text-white shadow-lg' 
+              : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+          }`}
           onClick={() => setTab('partner')}
-        >我的訂單</button>
+        >
+          <div className="text-center">
+            <div className="text-lg">我的訂單</div>
+            <div className="text-xs opacity-80">預約我的顧客</div>
+          </div>
+        </button>
       </div>
+
+      {/* 功能說明 */}
+      <div className="bg-blue-900/20 border border-blue-500/30 rounded-lg p-4 mb-6">
+        <div className="flex items-start space-x-3">
+          <div className="text-blue-400 text-xl">ℹ️</div>
+          <div className="text-blue-100">
+            <div className="font-semibold mb-1">
+              {tab === 'me' ? '我的預約' : '我的訂單'} 說明：
+            </div>
+            <div className="text-sm">
+              {tab === 'me' 
+                ? '顯示您作為顧客，主動預約了哪些夥伴的服務時段。您可以查看預約狀態、時間安排等資訊。'
+                : '顯示您作為夥伴，被哪些顧客預約了服務時段。您可以查看客戶資訊、預約狀態等詳細資料。'
+              }
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* 資料表格 */}
       <div className="overflow-x-auto relative shadow-md sm:rounded-lg">
         {loading ? (
-          <p className="text-center p-4 text-white">正在載入預約...</p>
+          <div className="text-center p-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto mb-4"></div>
+            <p className="text-white">正在載入{tab === 'me' ? '預約' : '訂單'}資料...</p>
+          </div>
         ) : error ? (
-          <p className="text-center p-4 text-red-400">{error}</p>
+          <div className="text-center p-8">
+            <p className="text-red-400">{error}</p>
+          </div>
         ) : bookings.length === 0 ? (
-          <p className="text-center p-4 text-gray-400">找不到預約。</p>
+          <div className="text-center p-8">
+            <div className="text-gray-400 text-6xl mb-4">📋</div>
+            <p className="text-gray-400 text-lg">
+              目前沒有任何{tab === 'me' ? '預約' : '訂單'}記錄
+            </p>
+            <p className="text-gray-500 text-sm mt-2">
+              {tab === 'me' 
+                ? '您還沒有預約任何夥伴的服務' 
+                : '還沒有顧客預約您的服務'
+              }
+            </p>
+          </div>
         ) : (
           <table className="w-full text-sm text-left text-gray-300">
             <thead className="text-xs text-gray-400 uppercase bg-gray-700/50">
               <tr>
-                {tab === 'partner' && <th className="py-3 px-6">顧客</th>}
-                {tab === 'me' && <th className="py-3 px-6">夥伴</th>}
-                <th className="py-3 px-6">日期</th>
-                <th className="py-3 px-6">時間</th>
-                <th className="py-3 px-6">狀態</th>
+                {tab === 'partner' && <th className="py-3 px-6">顧客姓名</th>}
+                {tab === 'me' && <th className="py-3 px-6">夥伴姓名</th>}
+                <th className="py-3 px-6">預約日期</th>
+                <th className="py-3 px-6">服務時段</th>
+                <th className="py-3 px-6">預約狀態</th>
+                <th className="py-3 px-6">建立時間</th>
               </tr>
             </thead>
             <tbody>
               {mergeBookings(bookings).map((booking) => (
-                <tr key={booking.id + booking.schedule.startTime + booking.schedule.endTime} className="bg-gray-800/60 border-b border-gray-700 hover:bg-gray-700/80">
-                  {tab === 'partner' && <td className="py-4 px-6">{booking.customer?.name || '-'}</td>}
-                  {tab === 'me' && <td className="py-4 px-6">{booking.schedule?.partner?.name || '-'}</td>}
-                  <td className="py-4 px-6">{booking.schedule?.startTime ? new Date(booking.schedule.startTime).toLocaleDateString() : '-'}</td>
-                  <td className="py-4 px-6">{booking.schedule?.startTime && booking.schedule?.endTime ? `${new Date(booking.schedule.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })} - ${new Date(booking.schedule.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}` : '-'}</td>
-                  <td className="py-4 px-6">{booking.status}</td>
+                <tr key={booking.id + booking.schedule.startTime + booking.schedule.endTime} 
+                    className="bg-gray-800/60 border-b border-gray-700 hover:bg-gray-700/80 transition-colors">
+                  {tab === 'partner' && (
+                    <td className="py-4 px-6 font-medium">
+                      {booking.customer?.name || '匿名顧客'}
+                    </td>
+                  )}
+                  {tab === 'me' && (
+                    <td className="py-4 px-6 font-medium">
+                      {booking.schedule?.partner?.name || '未知夥伴'}
+                    </td>
+                  )}
+                  <td className="py-4 px-6">
+                    {booking.schedule?.startTime 
+                      ? new Date(booking.schedule.startTime).toLocaleDateString('zh-TW') 
+                      : '-'
+                    }
+                  </td>
+                  <td className="py-4 px-6">
+                    {booking.schedule?.startTime && booking.schedule?.endTime 
+                      ? `${new Date(booking.schedule.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })} - ${new Date(booking.schedule.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}`
+                      : '-'
+                    }
+                  </td>
+                  <td className="py-4 px-6">
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                      booking.status === 'CONFIRMED' ? 'bg-green-600 text-white' :
+                      booking.status === 'PENDING' ? 'bg-yellow-600 text-white' :
+                      booking.status === 'CANCELLED' ? 'bg-red-600 text-white' :
+                      booking.status === 'COMPLETED' ? 'bg-blue-600 text-white' :
+                      'bg-gray-600 text-white'
+                    }`}>
+                      {getStatusText(booking.status)}
+                    </span>
+                  </td>
+                  <td className="py-4 px-6 text-gray-400">
+                    {booking.createdAt 
+                      ? new Date(booking.createdAt).toLocaleString('zh-TW', {
+                          year: 'numeric',
+                          month: '2-digit',
+                          day: '2-digit',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })
+                      : '-'
+                    }
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
         )}
       </div>
+
+      {/* 統計資訊 */}
+      {bookings.length > 0 && (
+        <div className="mt-6 text-center text-gray-400 text-sm">
+          共找到 {bookings.length} 筆{tab === 'me' ? '預約' : '訂單'}記錄
+        </div>
+      )}
     </div>
   )
 } 

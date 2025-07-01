@@ -66,6 +66,17 @@ export default function MyBookings() {
     )
   }
 
+  // 取得狀態中文說明
+  function getStatusText(status: string) {
+    const statusMap: { [key: string]: string } = {
+      'PENDING': '待確認',
+      'CONFIRMED': '已確認',
+      'CANCELLED': '已取消',
+      'COMPLETED': '已完成'
+    }
+    return statusMap[status] || status
+  }
+
   // 合併連續時段的預約
   function getTimeHM(dateStr: string) {
     const d = new Date(dateStr);
@@ -111,42 +122,97 @@ export default function MyBookings() {
 
   return (
     <div className="bg-gray-800/50 p-6 rounded-lg shadow-inner">
-      <h2 className="text-xl font-bold mb-4 text-white">我的預約</h2>
+      {/* 標題和說明 */}
+      <div className="mb-6">
+        <h2 className="text-xl font-bold mb-2 text-white">我的預約</h2>
+        <p className="text-gray-300 text-sm">
+          顯示您作為顧客，主動預約的夥伴服務記錄
+        </p>
+      </div>
+
       <div className="overflow-x-auto relative">
         {loading ? (
-          <p className="text-center p-4 text-gray-300">正在載入您的預約...</p>
+          <div className="text-center p-8">
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white mx-auto mb-3"></div>
+            <p className="text-gray-300">正在載入您的預約...</p>
+          </div>
         ) : error ? (
-          <p className="text-center p-4 text-red-400">{error}</p>
+          <div className="text-center p-4">
+            <p className="text-red-400">{error}</p>
+          </div>
         ) : bookings.length === 0 ? (
-          <p className="text-center p-4 text-gray-400">您目前沒有任何預約。</p>
+          <div className="text-center p-8">
+            <div className="text-gray-400 text-4xl mb-3">📅</div>
+            <p className="text-gray-400">您目前沒有任何預約</p>
+            <p className="text-gray-500 text-sm mt-1">快去預約喜歡的夥伴吧！</p>
+          </div>
         ) : (
           <table className="w-full text-sm text-left text-gray-300">
             <thead className="text-xs text-gray-400 uppercase bg-gray-700/50">
               <tr>
-                <th scope="col" className="py-3 px-6">預約者</th>
                 <th scope="col" className="py-3 px-6">預約日期</th>
-                <th scope="col" className="py-3 px-6">時段</th>
-                <th scope="col" className="py-3 px-6">狀態</th>
-                <th scope="col" className="py-3 px-6">服務人員</th>
+                <th scope="col" className="py-3 px-6">服務時段</th>
+                <th scope="col" className="py-3 px-6">夥伴姓名</th>
+                <th scope="col" className="py-3 px-6">預約狀態</th>
+                <th scope="col" className="py-3 px-6">操作</th>
               </tr>
             </thead>
             <tbody>
               {mergeBookings(bookings).map(b => (
-                <tr key={b.id + b.schedule.startTime + b.schedule.endTime} className="bg-gray-800/60 border-b border-gray-700 hover:bg-gray-700/80">
-                  <td className="py-4 px-6">{session?.user?.name || session?.user?.email || 'N/A'}</td>
-                  <td className="py-4 px-6">{b.schedule?.startTime ? new Date(b.schedule.startTime).toLocaleDateString() : ''}</td>
+                <tr key={b.id + b.schedule.startTime + b.schedule.endTime} 
+                    className="bg-gray-800/60 border-b border-gray-700 hover:bg-gray-700/80 transition-colors">
                   <td className="py-4 px-6">
-                    {b.schedule?.startTime ? new Date(b.schedule.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }) : ''}-
-                    {b.schedule?.endTime ? new Date(b.schedule.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }) : ''}
+                    {b.schedule?.startTime 
+                      ? new Date(b.schedule.startTime).toLocaleDateString('zh-TW') 
+                      : '-'
+                    }
                   </td>
-                  <td className="py-4 px-6">{b.status}</td>
-                  <td className="py-4 px-6">{b.schedule?.partner?.name || 'N/A'}</td>
+                  <td className="py-4 px-6">
+                    {b.schedule?.startTime && b.schedule?.endTime 
+                      ? `${new Date(b.schedule.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })} - ${new Date(b.schedule.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}`
+                      : '-'
+                    }
+                  </td>
+                  <td className="py-4 px-6 font-medium">
+                    {b.schedule?.partner?.name || '未知夥伴'}
+                  </td>
+                  <td className="py-4 px-6">
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                      b.status === 'CONFIRMED' ? 'bg-green-600 text-white' :
+                      b.status === 'PENDING' ? 'bg-yellow-600 text-white' :
+                      b.status === 'CANCELLED' ? 'bg-red-600 text-white' :
+                      b.status === 'COMPLETED' ? 'bg-blue-600 text-white' :
+                      'bg-gray-600 text-white'
+                    }`}>
+                      {getStatusText(b.status)}
+                    </span>
+                  </td>
+                  <td className="py-4 px-6">
+                    {canReview(b) && (
+                      <button
+                        onClick={() => {
+                          setSelectedBooking(b)
+                          setShowReviewForm(true)
+                        }}
+                        className="px-3 py-1 bg-indigo-600 text-white text-xs rounded hover:bg-indigo-700 transition-colors"
+                      >
+                        評價
+                      </button>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
         )}
       </div>
+
+      {/* 統計資訊 */}
+      {bookings.length > 0 && (
+        <div className="mt-4 text-right text-gray-400 text-sm">
+          共 {bookings.length} 筆預約記錄
+        </div>
+      )}
 
       {showReviewForm && selectedBooking && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">

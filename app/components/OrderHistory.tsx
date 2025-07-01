@@ -17,39 +17,106 @@ interface Order {
 
 export default function OrderHistory() {
   const [orders, setOrders] = useState<Order[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
   useEffect(() => {
-    fetch("/api/orders").then(res => res.json()).then(data => setOrders(data.orders || []))
+    setLoading(true)
+    fetch("/api/orders")
+      .then(res => {
+        if (!res.ok) throw new Error('無法載入訂單資料')
+        return res.json()
+      })
+      .then(data => {
+        setOrders(data.orders || [])
+        setError(null)
+      })
+      .catch(err => setError(err.message))
+      .finally(() => setLoading(false))
   }, [])
+
   return (
-    <div>
-      <h2 className="text-xl font-bold mb-4">消費紀錄</h2>
-      <table className="w-full border border-gray-700 text-sm">
-        <thead>
-          <tr className="bg-gray-800 text-white">
-            <th className="px-4 py-2 border border-gray-700 text-center">消費日期</th>
-            <th className="px-4 py-2 border border-gray-700 text-center">金額</th>
-            <th className="px-4 py-2 border border-gray-700 text-center">陪玩師</th>
-            <th className="px-4 py-2 border border-gray-700 text-center">預約時段</th>
-          </tr>
-        </thead>
-        <tbody>
-          {orders.map((o, idx) => (
-            <tr key={o.id} className={idx % 2 === 0 ? "bg-gray-900" : "bg-gray-800"}>
-              <td className="px-4 py-2 border border-gray-700 text-center">{new Date(o.createdAt).toLocaleString()}</td>
-              <td className="px-4 py-2 border border-gray-700 text-center">${o.amount}</td>
-              <td className="px-4 py-2 border border-gray-700 text-center">{o.booking?.schedule?.partner?.name || 'N/A'}</td>
-              <td className="px-4 py-2 border border-gray-700 text-center">
-                {o.booking?.schedule?.date
-                  ? new Date(o.booking.schedule.date).toLocaleDateString()
-                  : ''}
-                {' '}
-                {o.booking?.schedule?.startTime?.slice(0, 5)}-
-                {o.booking?.schedule?.endTime?.slice(0, 5)}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+    <div className="bg-gray-800/50 p-6 rounded-lg shadow-inner">
+      {/* 標題和說明 */}
+      <div className="mb-6">
+        <h2 className="text-xl font-bold mb-2 text-white">消費紀錄</h2>
+        <p className="text-gray-300 text-sm">
+          顯示您作為顧客，向夥伴購買服務的消費記錄
+        </p>
+      </div>
+
+      <div className="overflow-x-auto relative">
+        {loading ? (
+          <div className="text-center p-8">
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white mx-auto mb-3"></div>
+            <p className="text-gray-300">正在載入消費紀錄...</p>
+          </div>
+        ) : error ? (
+          <div className="text-center p-4">
+            <p className="text-red-400">{error}</p>
+          </div>
+        ) : orders.length === 0 ? (
+          <div className="text-center p-8">
+            <div className="text-gray-400 text-4xl mb-3">💰</div>
+            <p className="text-gray-400">您目前沒有任何消費紀錄</p>
+            <p className="text-gray-500 text-sm mt-1">完成預約後會顯示在這裡</p>
+          </div>
+        ) : (
+          <table className="w-full text-sm text-left text-gray-300">
+            <thead className="text-xs text-gray-400 uppercase bg-gray-700/50">
+              <tr>
+                <th className="py-3 px-6">消費日期</th>
+                <th className="py-3 px-6">消費金額</th>
+                <th className="py-3 px-6">服務夥伴</th>
+                <th className="py-3 px-6">服務時段</th>
+              </tr>
+            </thead>
+            <tbody>
+              {orders.map((order, idx) => (
+                <tr key={order.id} 
+                    className={`border-b border-gray-700 hover:bg-gray-700/80 transition-colors ${
+                      idx % 2 === 0 ? "bg-gray-800/60" : "bg-gray-800/40"
+                    }`}>
+                  <td className="py-4 px-6">
+                    {new Date(order.createdAt).toLocaleString('zh-TW', {
+                      year: 'numeric',
+                      month: '2-digit',
+                      day: '2-digit',
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    })}
+                  </td>
+                  <td className="py-4 px-6 font-medium text-green-400">
+                    NT$ {order.amount.toLocaleString()}
+                  </td>
+                  <td className="py-4 px-6 font-medium">
+                    {order.booking?.schedule?.partner?.name || '未知夥伴'}
+                  </td>
+                  <td className="py-4 px-6">
+                    {order.booking?.schedule?.date
+                      ? new Date(order.booking.schedule.date).toLocaleDateString('zh-TW')
+                      : '-'
+                    }
+                    {' '}
+                    {order.booking?.schedule?.startTime?.slice(0, 5)}-
+                    {order.booking?.schedule?.endTime?.slice(0, 5)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      {/* 統計資訊 */}
+      {orders.length > 0 && (
+        <div className="mt-4 flex justify-between items-center text-gray-400 text-sm">
+          <span>共 {orders.length} 筆消費記錄</span>
+          <span className="font-medium">
+            總消費金額: NT$ {orders.reduce((sum, order) => sum + order.amount, 0).toLocaleString()}
+          </span>
+        </div>
+      )}
     </div>
   )
 } 
