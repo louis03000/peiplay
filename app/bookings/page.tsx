@@ -26,6 +26,9 @@ export default function BookingsPage() {
   const [bookings, setBookings] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [cancellingBooking, setCancellingBooking] = useState<string | null>(null)
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 10;
 
   // 根據身分預設分頁
   useEffect(() => {
@@ -48,6 +51,58 @@ export default function BookingsPage() {
         .finally(() => setLoading(false))
     }
   }, [status, tab])
+
+  // 檢查是否可以取消預約
+  const canCancel = (booking: any) => {
+    if (booking.status === 'CANCELLED' || booking.status === 'COMPLETED') {
+      return false;
+    }
+    
+    const now = new Date();
+    const bookingStartTime = new Date(booking.schedule.startTime);
+    const hoursUntilBooking = (bookingStartTime.getTime() - now.getTime()) / (1000 * 60 * 60);
+    
+    // 距離預約時間少於 2 小時不能取消
+    return hoursUntilBooking >= 2;
+  }
+
+  // 取消預約
+  const handleCancelBooking = async (bookingId: string) => {
+    if (!confirm('確定要取消這個預約嗎？取消後無法復原。')) {
+      return;
+    }
+
+    setCancellingBooking(bookingId);
+    try {
+      const response = await fetch(`/api/bookings/${bookingId}/cancel`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        alert('預約已成功取消！');
+        // 重新載入資料
+        setLoading(true)
+        setError(null)
+        const url = tab === 'me' ? '/api/bookings/me' : '/api/bookings/partner'
+        fetch(url)
+          .then(res => res.json())
+          .then(data => setBookings(data.bookings || []))
+          .catch(err => setError('載入失敗'))
+          .finally(() => setLoading(false))
+      } else {
+        alert(data.error || '取消預約失敗');
+      }
+    } catch (error) {
+      alert('取消預約時發生錯誤，請稍後再試');
+    } finally {
+      setCancellingBooking(null);
+    }
+  };
 
   // 合併連續時段的預約
   function mergeBookings(bookings: any[]) {
@@ -98,6 +153,10 @@ export default function BookingsPage() {
     }
     return statusMap[status] || status
   }
+
+  // 分頁資料
+  const pagedBookings = mergeBookings(bookings).slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  const totalPages = Math.ceil(mergeBookings(bookings).length / pageSize);
 
   if (status === 'loading') {
     return <div className="text-center p-8 text-white">載入中...</div>
@@ -159,7 +218,7 @@ export default function BookingsPage() {
             </div>
             <div className="text-sm">
               {tab === 'me' 
-                ? '顯示您作為顧客，主動預約了哪些夥伴的服務時段。您可以查看預約狀態、時間安排等資訊。'
+                ? '顯示您作為顧客，主動預約了哪些夥伴的服務時段。您可以查看預約狀態、時間安排等資訊。距離預約時間 2 小時前可以取消預約。'
                 : '顯示您作為夥伴，被哪些顧客預約了服務時段。您可以查看客戶資訊、預約狀態等詳細資料。'
               }
             </div>
@@ -192,6 +251,7 @@ export default function BookingsPage() {
             </p>
           </div>
         ) : (
+          <>
           <table className="w-full text-sm text-left text-gray-300">
             <thead className="text-xs text-gray-400 uppercase bg-gray-700/50">
               <tr>
@@ -201,10 +261,11 @@ export default function BookingsPage() {
                 <th className="py-3 px-6">服務時段</th>
                 <th className="py-3 px-6">預約狀態</th>
                 <th className="py-3 px-6">建立時間</th>
+                {tab === 'me' && <th className="py-3 px-6">操作</th>}
               </tr>
             </thead>
             <tbody>
-              {mergeBookings(bookings).map((booking) => (
+              {pagedBookings.map((booking) => (
                 <tr key={booking.id + booking.schedule.startTime + booking.schedule.endTime} 
                     className="bg-gray-800/60 border-b border-gray-700 hover:bg-gray-700/80 transition-colors">
                   {tab === 'partner' && (
@@ -252,10 +313,46 @@ export default function BookingsPage() {
                       : '-'
                     }
                   </td>
+                  {tab === 'me' && (
+                    <td className="py-4 px-6">
+                      {canCancel(booking) && (
+                        <button
+                          onClick={() => handleCancelBooking(booking.id)}
+                          disabled={cancellingBooking === booking.id}
+                          className="px-3 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {cancellingBooking === booking.id ? '取消中...' : '取消預約'}
+                        </button>
+                      )}
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
           </table>
+          {/* 分頁按鈕 */}
+          {totalPages > 1 && (
+            <div className="flex justify-center items-center gap-2 mt-6">
+              <button
+                className="px-3 py-1 rounded bg-gray-700 text-white disabled:opacity-50"
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+              >上一頁</button>
+              {Array.from({ length: totalPages }, (_, i) => (
+                <button
+                  key={i + 1}
+                  className={`px-3 py-1 rounded ${currentPage === i + 1 ? 'bg-indigo-600 text-white' : 'bg-gray-700 text-gray-300'}`}
+                  onClick={() => setCurrentPage(i + 1)}
+                >{i + 1}</button>
+              ))}
+              <button
+                className="px-3 py-1 rounded bg-gray-700 text-white disabled:opacity-50"
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+              >下一頁</button>
+            </div>
+          )}
+          </>
         )}
       </div>
 

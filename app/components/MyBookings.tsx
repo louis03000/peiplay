@@ -30,6 +30,9 @@ export default function MyBookings() {
   const [error, setError] = useState<string | null>(null);
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null)
   const [showReviewForm, setShowReviewForm] = useState(false)
+  const [cancellingBooking, setCancellingBooking] = useState<string | null>(null)
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 10;
 
   const fetchBookings = () => {
     setLoading(true);
@@ -65,6 +68,50 @@ export default function MyBookings() {
       !booking.reviews.some(review => review.reviewerId === session.user.id)
     )
   }
+
+  // 檢查是否可以取消預約
+  const canCancel = (booking: Booking) => {
+    if (booking.status === 'CANCELLED' || booking.status === 'COMPLETED') {
+      return false;
+    }
+    
+    const now = new Date();
+    const bookingStartTime = new Date(booking.schedule.startTime);
+    const hoursUntilBooking = (bookingStartTime.getTime() - now.getTime()) / (1000 * 60 * 60);
+    
+    // 距離預約時間少於 2 小時不能取消
+    return hoursUntilBooking >= 2;
+  }
+
+  // 取消預約
+  const handleCancelBooking = async (bookingId: string) => {
+    if (!confirm('確定要取消這個預約嗎？取消後無法復原。')) {
+      return;
+    }
+
+    setCancellingBooking(bookingId);
+    try {
+      const response = await fetch(`/api/bookings/${bookingId}/cancel`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        alert('預約已成功取消！');
+        fetchBookings(); // 重新載入預約資料
+      } else {
+        alert(data.error || '取消預約失敗');
+      }
+    } catch (error) {
+      alert('取消預約時發生錯誤，請稍後再試');
+    } finally {
+      setCancellingBooking(null);
+    }
+  };
 
   // 取得狀態中文說明
   function getStatusText(status: string) {
@@ -120,6 +167,10 @@ export default function MyBookings() {
     return merged;
   }
 
+  // 分頁資料
+  const pagedBookings = mergeBookings(bookings).slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  const totalPages = Math.ceil(mergeBookings(bookings).length / pageSize);
+
   return (
     <div className="bg-gray-800/50 p-6 rounded-lg shadow-inner">
       {/* 標題和說明 */}
@@ -147,6 +198,7 @@ export default function MyBookings() {
             <p className="text-gray-500 text-sm mt-1">快去預約喜歡的夥伴吧！</p>
           </div>
         ) : (
+          <>
           <table className="w-full text-sm text-left text-gray-300">
             <thead className="text-xs text-gray-400 uppercase bg-gray-700/50">
               <tr>
@@ -158,7 +210,7 @@ export default function MyBookings() {
               </tr>
             </thead>
             <tbody>
-              {mergeBookings(bookings).map(b => (
+              {pagedBookings.map(b => (
                 <tr key={b.id + b.schedule.startTime + b.schedule.endTime} 
                     className="bg-gray-800/60 border-b border-gray-700 hover:bg-gray-700/80 transition-colors">
                   <td className="py-4 px-6">
@@ -188,22 +240,56 @@ export default function MyBookings() {
                     </span>
                   </td>
                   <td className="py-4 px-6">
-                    {canReview(b) && (
-                      <button
-                        onClick={() => {
-                          setSelectedBooking(b)
-                          setShowReviewForm(true)
-                        }}
-                        className="px-3 py-1 bg-indigo-600 text-white text-xs rounded hover:bg-indigo-700 transition-colors"
-                      >
-                        評價
-                      </button>
-                    )}
+                    <div className="flex gap-2">
+                      {canReview(b) && (
+                        <button
+                          onClick={() => {
+                            setSelectedBooking(b)
+                            setShowReviewForm(true)
+                          }}
+                          className="px-3 py-1 bg-indigo-600 text-white text-xs rounded hover:bg-indigo-700 transition-colors"
+                        >
+                          評價
+                        </button>
+                      )}
+                      {canCancel(b) && (
+                        <button
+                          onClick={() => handleCancelBooking(b.id)}
+                          disabled={cancellingBooking === b.id}
+                          className="px-3 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {cancellingBooking === b.id ? '取消中...' : '取消預約'}
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
+          {/* 分頁按鈕 */}
+          {totalPages > 1 && (
+            <div className="flex justify-center items-center gap-2 mt-6">
+              <button
+                className="px-3 py-1 rounded bg-gray-700 text-white disabled:opacity-50"
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+              >上一頁</button>
+              {Array.from({ length: totalPages }, (_, i) => (
+                <button
+                  key={i + 1}
+                  className={`px-3 py-1 rounded ${currentPage === i + 1 ? 'bg-indigo-600 text-white' : 'bg-gray-700 text-gray-300'}`}
+                  onClick={() => setCurrentPage(i + 1)}
+                >{i + 1}</button>
+              ))}
+              <button
+                className="px-3 py-1 rounded bg-gray-700 text-white disabled:opacity-50"
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+              >下一頁</button>
+            </div>
+          )}
+          </>
         )}
       </div>
 

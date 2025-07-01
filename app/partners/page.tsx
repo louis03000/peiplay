@@ -79,6 +79,7 @@ export default function PartnersPage() {
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
   const [customer, setCustomer] = useState<Customer | null>(null)
+  const [showCards, setShowCards] = useState(false)
   const sessionData = typeof window !== "undefined" ? useSession() : { data: undefined, status: "unauthenticated" };
   const session = sessionData.data;
   const status = sessionData.status;
@@ -88,8 +89,10 @@ export default function PartnersPage() {
     try {
       const data = await fetchPartners(start, end)
       setPartners(data)
+      setShowCards(true)
     } catch {
       setPartners([])
+      setShowCards(true)
     }
     setLoading(false)
   }
@@ -106,7 +109,8 @@ export default function PartnersPage() {
   }
 
   useEffect(() => {
-    handleFilter('', '')
+    // 預設不顯示卡片
+    setShowCards(false)
   }, [])
 
   useEffect(() => {
@@ -132,11 +136,13 @@ export default function PartnersPage() {
         {loading ? (
           <div className="text-center text-lg text-gray-500 py-12">載入中...</div>
         ) : (
-          <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
-            {partners.map(partner => (
-              <PartnerCard key={partner.id} partner={partner} onQuickBook={handleQuickBook} />
-            ))}
-          </div>
+          showCards && (
+            <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
+              {partners.map(partner => (
+                <PartnerCard key={partner.id} partner={partner} onQuickBook={handleQuickBook} />
+              ))}
+            </div>
+          )
         )}
       </div>
     </div>

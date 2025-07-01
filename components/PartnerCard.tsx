@@ -39,8 +39,8 @@ const PartnerCard: React.FC<PartnerCardProps> = ({ partner, onQuickBook }) => {
   }
 
   return (
-    <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-lg hover:shadow-2xl transition-shadow overflow-hidden flex flex-col relative">
-      <div className="relative w-full h-48">
+    <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-lg hover:shadow-2xl transition-shadow overflow-hidden flex flex-col relative w-64 max-w-full mx-auto">
+      <div className="relative w-full h-32">
         <Image
           src={partner.coverImage || '/images/placeholder.svg'}
           alt={partner.name}
@@ -56,29 +56,26 @@ const PartnerCard: React.FC<PartnerCardProps> = ({ partner, onQuickBook }) => {
           </div>
         )}
       </div>
-      <div className="flex-1 flex flex-col px-6 py-5">
-        <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">{partner.name}</h3>
-        <div className="flex flex-wrap gap-2 mb-3">
+      <div className="flex-1 flex flex-col px-4 py-4">
+        <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">{partner.name}</h3>
+        <div className="flex flex-wrap gap-2 mb-2">
           {partner.games?.map((game: string) => (
-            <span key={game} className="inline-block bg-purple-100 text-purple-700 px-3 py-1 rounded-full text-xs font-semibold">
+            <span key={game} className="inline-block bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full text-xs font-semibold">
               {game}
             </span>
           ))}
         </div>
-        <div className="text-gray-500 dark:text-gray-300 text-sm mb-2">每小時 {partner.hourlyRate} 元</div>
-        {nextSchedule && (
-          <div className="text-xs text-green-600 mb-2">最近有空：{nextSchedule.date} {nextSchedule.startTime}~{nextSchedule.endTime}</div>
-        )}
+        <div className="text-gray-500 dark:text-gray-300 text-xs mb-2">每小時 {partner.hourlyRate} 元</div>
         <div className="flex-1" />
-        <div className="mt-4 flex gap-2">
+        <div className="mt-3 flex gap-2">
           <Link
             href={`/booking?partnerId=${partner.id}`}
-            className="flex-1 px-4 py-2 rounded-full bg-gradient-to-r from-purple-500 to-indigo-500 text-white font-semibold text-center shadow hover:scale-105 transition-transform"
+            className="flex-1 px-3 py-1.5 rounded-full bg-gradient-to-r from-purple-500 to-indigo-500 text-white font-semibold text-center shadow hover:scale-105 transition-transform text-sm"
           >
             立即預約
           </Link>
           <button
-            className="px-4 py-2 rounded-full border border-purple-400 text-purple-600 font-semibold bg-white hover:bg-purple-50 transition"
+            className="px-3 py-1.5 rounded-full border border-purple-400 text-purple-600 font-semibold bg-white hover:bg-purple-50 transition text-sm"
             onClick={handleQuickBook}
             type="button"
             disabled={!nextSchedule}
