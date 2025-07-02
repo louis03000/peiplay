@@ -37,12 +37,17 @@ export default function BookingWizard() {
   const [partners, setPartners] = useState<Partner[]>([])
   const [selectedPartner, setSelectedPartner] = useState<Partner | null>(null)
   const [onlyAvailable, setOnlyAvailable] = useState(false)
+  const [onlyRankBooster, setOnlyRankBooster] = useState(false)
   const [instantBooking, setInstantBooking] = useState(false)
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
   const [selectedTimes, setSelectedTimes] = useState<string[]>([])
 
   useEffect(() => {
-    const url = onlyAvailable ? '/api/partners?availableNow=true' : '/api/partners';
+    let url = '/api/partners';
+    const params = [];
+    if (onlyAvailable) params.push('availableNow=true');
+    if (onlyRankBooster) params.push('rankBooster=true');
+    if (params.length > 0) url += '?' + params.join('&');
     fetch(url)
       .then(res => {
         if (!res.ok) {
@@ -63,7 +68,7 @@ export default function BookingWizard() {
         console.error("Failed to fetch partners:", error);
         setPartners([]); // Also set to empty on network error
       });
-  }, [onlyAvailable])
+  }, [onlyAvailable, onlyRankBooster])
 
   // 搜尋過濾 - 使用 useMemo 優化
   const filteredPartners = useMemo(() => {
@@ -200,16 +205,28 @@ export default function BookingWizard() {
       {/* 步驟內容 */}
       <div className="min-h-[200px] flex flex-col items-center justify-center px-10 py-12 transition-all duration-300 animate-fadein">
         {step === 0 && (
-          <div className="w-full">
+          <div className="px-10 pb-10">
             <div className="flex items-center gap-4 mb-6">
-              <input
-                type="checkbox"
-                checked={onlyAvailable}
-                onChange={e => setOnlyAvailable(e.target.checked)}
-                id="only-available"
-                className="accent-indigo-500 w-5 h-5"
-              />
-              <label htmlFor="only-available" className="text-white text-sm select-none cursor-pointer">只看現在有空</label>
+              <label className="flex items-center gap-2 text-white text-sm select-none cursor-pointer">
+                <input
+                  id="only-available"
+                  type="checkbox"
+                  checked={onlyAvailable}
+                  onChange={e => setOnlyAvailable(e.target.checked)}
+                  className="accent-indigo-500 w-5 h-5"
+                />
+                只看現在有空
+              </label>
+              <label className="flex items-center gap-2 text-white text-sm select-none cursor-pointer">
+                <input
+                  id="only-rank-booster"
+                  type="checkbox"
+                  checked={onlyRankBooster}
+                  onChange={e => setOnlyRankBooster(e.target.checked)}
+                  className="accent-purple-500 w-5 h-5"
+                />
+                只看上分高手
+              </label>
               <input
                 className="flex-1 px-4 py-2 rounded-full bg-gray-900/80 text-white border border-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-400 placeholder-gray-400"
                 placeholder="搜尋夥伴姓名或專長..."

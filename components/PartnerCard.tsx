@@ -18,6 +18,7 @@ interface Partner {
     endTime: string;
   }>;
   isAvailableNow: boolean;
+  isRankBooster?: boolean;
 }
 
 interface PartnerCardProps {
@@ -52,6 +53,13 @@ const PartnerCard: React.FC<PartnerCardProps> = ({ partner, onQuickBook }) => {
             <span className="flex items-center gap-1 px-3 h-7 rounded-full bg-gradient-to-br from-green-400 to-green-600 text-white text-xs font-bold border-2 border-white shadow-md animate-pulse">
               <FaBolt className="text-yellow-200 text-sm" />
               現在有空
+            </span>
+          </div>
+        )}
+        {partner.isRankBooster && (
+          <div className="absolute top-3 right-3 flex items-center z-10">
+            <span className="flex items-center gap-1 px-3 h-7 rounded-full bg-gradient-to-br from-yellow-400 to-orange-500 text-white text-xs font-bold border-2 border-white shadow-md">
+              🏆 上分高手
             </span>
           </div>
         )}

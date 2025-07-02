@@ -16,6 +16,7 @@ export async function GET(request: Request) {
     const startDate = url.searchParams.get("startDate");
     const endDate = url.searchParams.get("endDate");
     const availableNow = url.searchParams.get("availableNow");
+    const rankBooster = url.searchParams.get("rankBooster");
     // 計算今天0點
     const now = new Date();
     const todayZero = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
@@ -28,6 +29,9 @@ export async function GET(request: Request) {
 
     // 修正：availableNow=true 時只回傳 isAvailableNow: true 的夥伴
     let where: any = { status: 'APPROVED' };
+    if (rankBooster === 'true') {
+      where.isRankBooster = true;
+    }
     if (availableNow === 'true') {
       where.isAvailableNow = true;
     } else {
@@ -53,6 +57,7 @@ export async function GET(request: Request) {
         hourlyRate: true,
         coverImage: true,
         isAvailableNow: true,
+        isRankBooster: true,
         schedules: {
           where: {
             date: scheduleDateFilter,
@@ -66,7 +71,7 @@ export async function GET(request: Request) {
             isAvailable: true,
           },
         },
-      },
+      } as any,
       orderBy: { createdAt: 'desc' },
     });
     return NextResponse.json(partners);
