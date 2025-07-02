@@ -19,7 +19,7 @@ export async function PATCH(request: Request) {
   if (!session?.user?.id) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
-  const { isAvailableNow, isRankBooster, rankBoosterNote, rankBoosterRank } = await request.json();
+  const { isAvailableNow, isRankBooster, rankBoosterNote, rankBoosterRank, customerMessage } = await request.json();
   const partner = await prisma.partner.update({
     where: { userId: session.user.id },
     data: {
@@ -27,6 +27,7 @@ export async function PATCH(request: Request) {
       ...(typeof isRankBooster === 'boolean' ? { isRankBooster } : {}),
       ...(typeof rankBoosterNote === 'string' ? { rankBoosterNote } : {}),
       ...(typeof rankBoosterRank === 'string' ? { rankBoosterRank } : {}),
+      ...(typeof customerMessage === 'string' ? { customerMessage } : {}),
     },
   })
   return NextResponse.json({ partner })

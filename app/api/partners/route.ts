@@ -60,6 +60,7 @@ export async function GET(request: Request) {
         isRankBooster: true,
         rankBoosterNote: true,
         rankBoosterRank: true,
+        customerMessage: true,
         schedules: {
           where: {
             date: scheduleDateFilter,

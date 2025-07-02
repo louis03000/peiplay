@@ -11,7 +11,7 @@ export async function PATCH(request: Request) {
 
   try {
     const data = await request.json();
-    const { name, phone, birthday, discord } = data;
+    const { name, phone, birthday, discord, customerMessage } = data;
 
     if (!name || !phone || !birthday) {
       return NextResponse.json({ error: '缺少必要欄位' }, { status: 400 });
@@ -52,7 +52,20 @@ export async function PATCH(request: Request) {
       },
     });
 
-    return NextResponse.json({ success: true, user: updatedUser });
+    // 如果有 customerMessage 並且有 partner 身分則一併更新
+    let updatedPartner = null;
+    if (typeof customerMessage === 'string') {
+      // 先查 partner
+      const partner = await prisma.partner.findUnique({ where: { userId: existingUser.id } });
+      if (partner) {
+        updatedPartner = await prisma.partner.update({
+          where: { userId: existingUser.id },
+          data: { customerMessage: customerMessage }
+        });
+      }
+    }
+
+    return NextResponse.json({ success: true, user: updatedUser, partner: updatedPartner });
   } catch (error: any) {
     console.error('補資料 API 失敗:', JSON.stringify(error, null, 2));
     return NextResponse.json({
@@ -78,6 +91,7 @@ export async function GET(request: Request) {
         birthday: true,
         discord: true,
         email: true,
+        partner: true
       },
     });
     if (!user) {

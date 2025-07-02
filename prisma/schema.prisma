@@ -59,6 +59,7 @@ model Partner {
   isRankBooster Boolean  @default(false)
   rankBoosterNote String?
   rankBoosterRank String?
+  customerMessage String?
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
   status      PartnerStatus @default(PENDING)

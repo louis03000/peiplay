@@ -6,7 +6,7 @@ import { useState, useEffect } from 'react'
 
 export default function ProfileClient() {
   const { data: session } = useSession();
-  const [form, setForm] = useState({ name: '', phone: '', birthday: '', discord: '' });
+  const [form, setForm] = useState({ name: '', phone: '', birthday: '', discord: '', customerMessage: '' });
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState('');
   const [error, setError] = useState('');
@@ -23,7 +23,8 @@ export default function ProfileClient() {
             name: data.user.name || '',
             phone: data.user.phone || '',
             birthday: data.user.birthday ? data.user.birthday.slice(0, 10) : '',
-            discord: data.user.discord || ''
+            discord: data.user.discord || '',
+            customerMessage: data.user.partner?.customerMessage || ''
           });
         }
       } catch {
@@ -33,7 +34,7 @@ export default function ProfileClient() {
     fetchProfile();
   }, [session]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
@@ -59,7 +60,8 @@ export default function ProfileClient() {
             name: userData.user.name || '',
             phone: userData.user.phone || '',
             birthday: userData.user.birthday ? userData.user.birthday.slice(0, 10) : '',
-            discord: userData.user.discord || ''
+            discord: userData.user.discord || '',
+            customerMessage: userData.user.partner?.customerMessage || ''
           });
         }
         setEditMode(false); // 儲存成功後自動切回檢視模式
@@ -105,6 +107,12 @@ export default function ProfileClient() {
                 <div><span className="block text-gray-300 mb-1">生日</span><span className="text-white font-medium">{form.birthday ? (typeof form.birthday === 'string' ? form.birthday : new Date(form.birthday).toLocaleDateString()) : '-'}</span></div>
                 <div><span className="block text-gray-300 mb-1">Discord 名稱</span><span className="text-white font-medium">{form.discord || '-'}</span></div>
               </div>
+              <div className="mt-6">
+                <div className="text-gray-300 mb-1 font-semibold">留言板（顧客預約時會看到）</div>
+                <div className="bg-gray-900/80 rounded p-3 text-white min-h-[40px] border border-gray-700 text-sm">
+                  {form.customerMessage ? form.customerMessage : <span className="text-gray-500">（尚未填寫留言）</span>}
+                </div>
+              </div>
               <button className="w-full py-3 rounded-lg bg-indigo-500 text-white font-bold text-lg mt-6 hover:bg-indigo-600 transition" onClick={() => setEditMode(true)}>
                 修改個人資料
               </button>
@@ -128,6 +136,20 @@ export default function ProfileClient() {
                   <label className="block text-gray-300 mb-1">Discord 名稱</label>
                   <input name="discord" value={form.discord} onChange={handleChange} className="w-full px-3 py-2 rounded bg-gray-900 text-white border border-gray-600 focus:border-indigo-500 focus:outline-none" />
                 </div>
+              </div>
+              <div className="mt-6">
+                <label className="block text-gray-300 mb-1 font-semibold">留言板（顧客預約時會看到，限 50 字）</label>
+                <textarea
+                  name="customerMessage"
+                  value={form.customerMessage}
+                  onChange={e => {
+                    if (e.target.value.length <= 50) handleChange(e)
+                  }}
+                  maxLength={50}
+                  className="w-full rounded bg-gray-900 text-white border border-gray-700 focus:border-indigo-500 focus:outline-none p-3 min-h-[40px] text-sm"
+                  placeholder="請輸入想對顧客說的話...（限 50 字）"
+                />
+                <div className="text-right text-xs text-gray-400 mt-1">{form.customerMessage.length}/50</div>
               </div>
               {success && <div className="text-green-400 mb-4 text-center">{success}</div>}
               {error && <div className="text-red-400 mb-4 text-center">{error}</div>}
