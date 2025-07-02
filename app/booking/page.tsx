@@ -5,6 +5,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react'
 import Image from 'next/image'
 import DatePicker from 'react-datepicker'
 import 'react-datepicker/dist/react-datepicker.css'
+import PartnerCard from '@/components/PartnerCard'
 
 const steps = [
   '選擇夥伴',
@@ -237,26 +238,11 @@ export default function BookingWizard() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {filteredPartners.length === 0 && <div className="col-span-2 text-gray-400 text-center">查無夥伴</div>}
               {filteredPartners.map(p => (
-                <div
-                  key={p.id}
-                  className={`rounded-2xl bg-white/10 border border-white/10 shadow-lg p-4 flex gap-4 items-center cursor-pointer transition-all duration-200 hover:scale-105 hover:border-indigo-400 ${selectedPartner?.id === p.id ? 'ring-2 ring-indigo-400' : ''}`}
-                  onClick={() => handlePartnerSelect(p)}
-                  style={{ position: 'relative' }}
-                >
-                  {/* 封面照：有圖顯圖，沒圖顯首字 */}
-                  <div className="w-14 h-14 rounded-full bg-gray-200 flex items-center justify-center text-2xl font-bold text-gray-400 mr-2 overflow-hidden">
-                    {p.coverImage
-                      ? <img src={p.coverImage} alt={p.name} className="object-cover w-full h-full" />
-                      : p.name[0]}
-                  </div>
-                  <div className="flex-1">
-                    <div className="font-bold text-white text-lg flex items-center gap-2">
-                      {p.name}
-                    </div>
-                    <div className="text-xs text-indigo-300 mb-1">{p.games?.join('、')}</div>
-                    <div className="text-sm text-gray-300">每小時 {p.hourlyRate} 元</div>
-                  </div>
-                  {selectedPartner?.id === p.id && <div className="text-indigo-400 font-bold">✔</div>}
+                <div key={p.id} className="mb-4">
+                  <PartnerCard
+                    partner={p}
+                    onQuickBook={() => handlePartnerSelect(p)}
+                  />
                 </div>
               ))}
                       </div>
