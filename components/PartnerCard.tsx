@@ -62,67 +62,44 @@ const PartnerCard: React.FC<PartnerCardProps> = ({ partner, onQuickBook }) => {
           style={{ backfaceVisibility: 'hidden' }}
           onClick={() => setFlipped(true)}
         >
-          <div className="relative w-full h-32">
-            <Image
-              src={partner.coverImage || '/images/placeholder.svg'}
-              alt={partner.name}
-              fill
-              className="object-cover"
-            />
-            {partner.isAvailableNow && (
-              <div className="absolute top-3 left-3 flex items-center z-10">
-                <span className="flex items-center gap-1 px-3 h-7 rounded-full bg-gradient-to-br from-green-400 to-green-600 text-white text-xs font-bold border-2 border-white shadow-md animate-pulse">
-                  <FaBolt className="text-yellow-200 text-sm" />
-                  現在有空
-                </span>
-              </div>
-            )}
-            {partner.isRankBooster && (
-              <div className="absolute top-3 right-3 flex items-center z-10">
-                <span className="flex items-center gap-1 px-3 h-7 rounded-full bg-gradient-to-br from-yellow-400 to-orange-500 text-white text-xs font-bold border-2 border-white shadow-md group-hover:scale-105 transition-transform">
-                  🏆 上分高手
-                  <span className="ml-1 text-yellow-100 text-[10px] hidden group-hover:inline">點擊預覽</span>
-                </span>
-              </div>
-            )}
-          </div>
-          <div className="flex-1 flex flex-col px-4 py-4">
-            <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">{partner.name}</h3>
-            <div className="flex flex-wrap gap-2 mb-2">
-              {partner.games?.map((game: string) => (
-                <span key={game} className="inline-block bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full text-xs font-semibold">
-                  {game}
-                </span>
-              ))}
-            </div>
-            <div className="text-gray-500 dark:text-gray-300 text-xs mb-2">每小時 {partner.hourlyRate} 元</div>
-            {partner.isRankBooster && (
-              <div className="mt-2 mb-2 p-3 rounded-xl bg-gradient-to-br from-yellow-50 to-yellow-100 border border-yellow-200 shadow-inner">
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="text-yellow-500 text-lg">🏆</span>
-                  <span className="font-bold text-yellow-700 text-sm">上分高手專屬</span>
+          <div className="flex flex-col h-full">
+            {/* 上方 3/4 封面圖 */}
+            <div className="relative" style={{ height: '75%' }}>
+              <Image
+                src={partner.coverImage || '/images/placeholder.svg'}
+                alt={partner.name}
+                fill
+                className="object-cover rounded-t-2xl"
+                style={{ borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }}
+              />
+              {partner.isAvailableNow && (
+                <div className="absolute top-3 left-3 flex items-center z-10">
+                  <span className="flex items-center gap-1 px-3 h-8 rounded-full bg-gradient-to-r from-green-400 via-green-500 to-emerald-400 text-white text-sm font-bold border border-white/60 shadow-lg shadow-green-200/50 backdrop-blur-[2px] drop-shadow-md animate-pulse" style={{ boxShadow: '0 2px 8px 0 #6ee7b7cc' }}>
+                    <FaBolt className="text-yellow-200 text-lg drop-shadow-[0_0_6px_#fef08a]" />
+                    <span className="text-shadow">現在有空</span>
+                  </span>
                 </div>
-                <div className="text-yellow-700 text-xs italic opacity-70">點擊卡片預覽詳細</div>
+              )}
+              {partner.isRankBooster && (
+                <div className="absolute top-3 right-3 flex items-center z-10">
+                  <span className="flex items-center gap-1 px-3 h-8 rounded-full bg-gradient-to-r from-yellow-400 via-orange-400 to-orange-500 text-white text-sm font-bold border border-white/60 shadow-lg shadow-orange-200/40 backdrop-blur-[2px] drop-shadow-md group-hover:scale-105 transition-transform" style={{ boxShadow: '0 2px 8px 0 #fdba74cc' }}>
+                    <span className="text-yellow-100 text-lg drop-shadow-[0_0_6px_#fde68a]">🏆</span>
+                    <span className="text-shadow">上分高手</span>
+                  </span>
+                </div>
+              )}
+            </div>
+            {/* 下方 1/4 資訊區塊 */}
+            <div className="flex flex-col items-center justify-center text-center px-4" style={{ height: '25%' }}>
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-1 mt-2">{partner.name}</h3>
+              <div className="flex flex-wrap gap-2 mb-1 justify-center">
+                {partner.games?.map((game: string) => (
+                  <span key={game} className="inline-block bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full text-xs font-semibold">
+                    {game}
+                  </span>
+                ))}
               </div>
-            )}
-            <div className="flex-1" />
-            <div className="mt-3 flex gap-2">
-              <Link
-                href={`/booking?partnerId=${partner.id}`}
-                className="flex-1 px-3 py-1.5 rounded-full bg-gradient-to-r from-purple-500 to-indigo-500 text-white font-semibold text-center shadow hover:scale-105 transition-transform text-sm"
-                onClick={e => e.stopPropagation()}
-              >
-                立即預約
-              </Link>
-              <button
-                className="px-3 py-1.5 rounded-full border border-purple-400 text-purple-600 font-semibold bg-white hover:bg-purple-50 transition text-sm"
-                onClick={e => { e.stopPropagation(); handleQuickBook(); }}
-                type="button"
-                disabled={!nextSchedule}
-                title={!nextSchedule ? '暫無可預約時段' : ''}
-              >
-                即時預約
-              </button>
+              <div className="text-gray-500 dark:text-gray-300 text-xs">每小時 {partner.hourlyRate} 元</div>
             </div>
           </div>
           {showConfirm && nextSchedule && (
@@ -175,6 +152,7 @@ const PartnerCard: React.FC<PartnerCardProps> = ({ partner, onQuickBook }) => {
       {/* 3D 翻轉效果 CSS */}
       <style>{`
         .perspective { perspective: 1200px; }
+        .text-shadow { text-shadow: 0 1px 4px rgba(0,0,0,0.18), 0 0px 2px #fff2; }
       `}</style>
     </div>
   )
