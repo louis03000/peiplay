@@ -58,6 +58,8 @@ export async function GET(request: Request) {
         coverImage: true,
         isAvailableNow: true,
         isRankBooster: true,
+        rankBoosterNote: true,
+        rankBoosterRank: true,
         schedules: {
           where: {
             date: scheduleDateFilter,

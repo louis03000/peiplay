@@ -19,6 +19,8 @@ interface Partner {
   }>;
   isAvailableNow: boolean;
   isRankBooster?: boolean;
+  rankBoosterNote?: string;
+  rankBoosterRank?: string;
 }
 
 interface PartnerCardProps {
@@ -74,6 +76,20 @@ const PartnerCard: React.FC<PartnerCardProps> = ({ partner, onQuickBook }) => {
           ))}
         </div>
         <div className="text-gray-500 dark:text-gray-300 text-xs mb-2">每小時 {partner.hourlyRate} 元</div>
+        {partner.isRankBooster && (
+          <div className="mt-2 mb-2 p-3 rounded-xl bg-gradient-to-br from-yellow-50 to-yellow-100 border border-yellow-200 shadow-inner">
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-yellow-500 text-lg">🏆</span>
+              <span className="font-bold text-yellow-700 text-sm">上分高手專屬</span>
+            </div>
+            {partner.rankBoosterNote && (
+              <div className="text-yellow-800 text-xs mb-1 whitespace-pre-line">{partner.rankBoosterNote}</div>
+            )}
+            {partner.rankBoosterRank && (
+              <div className="text-yellow-700 text-xs font-semibold">段位：{partner.rankBoosterRank}</div>
+            )}
+          </div>
+        )}
         <div className="flex-1" />
         <div className="mt-3 flex gap-2">
           <Link

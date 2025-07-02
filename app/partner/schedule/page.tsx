@@ -9,7 +9,7 @@ import enUS from 'date-fns/locale/en-US'
 import 'react-big-calendar/lib/css/react-big-calendar.css'
 import './schedule-header-fix.css'
 import './schedule-hide-gutter.css'
-import { FaLock } from 'react-icons/fa'
+import { FaLock, FaCrown } from 'react-icons/fa'
 import { Switch } from '@headlessui/react'
 
 export const dynamic = 'force-dynamic'
@@ -45,6 +45,10 @@ export default function PartnerSchedulePage() {
   const [allSlots, setAllSlots] = useState<any[]>([])
   const [selectedSlots, setSelectedSlots] = useState<{start: Date, end: Date}[]>([])
   const [saveResult, setSaveResult] = useState<{time: string, status: string, reason: string}[] | null>(null)
+  const [isRankBooster, setIsRankBooster] = useState(false)
+  const [rankBoosterNote, setRankBoosterNote] = useState('')
+  const [rankBoosterRank, setRankBoosterRank] = useState('')
+  const [rankBoosterMsg, setRankBoosterMsg] = useState('')
 
   // 幫助函式：判斷兩個時段是否相同
   const isSameSlot = useCallback((a: { start: Date; end: Date }, b: { start: Date; end: Date }) => {
@@ -67,6 +71,11 @@ export default function PartnerSchedulePage() {
       .then(data => {
         if (data.partner && typeof data.partner.isAvailableNow === 'boolean') {
           setIsAvailableNow(data.partner.isAvailableNow)
+        }
+        if (data.partner && typeof data.partner.isRankBooster === 'boolean') {
+          setIsRankBooster(data.partner.isRankBooster)
+          setRankBoosterNote(data.partner.rankBoosterNote || '')
+          setRankBoosterRank(data.partner.rankBoosterRank || '')
         }
       })
   }, [])
@@ -250,13 +259,40 @@ export default function PartnerSchedulePage() {
     })
   }
 
+  // 切換「我是上分高手」狀態
+  const handleToggleRankBooster = async () => {
+    const next = !isRankBooster;
+    setIsRankBooster(next)
+    await fetch('/api/partners/self', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ isRankBooster: next })
+    })
+  }
+
+  // 儲存上分高手資料
+  const handleSaveRankBooster = async () => {
+    setRankBoosterMsg('')
+    const res = await fetch('/api/partners/self', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        isRankBooster: true,
+        rankBoosterNote,
+        rankBoosterRank
+      })
+    })
+    if (res.ok) setRankBoosterMsg('已儲存！')
+    else setRankBoosterMsg('儲存失敗，請重試')
+  }
+
   return (
     <div className="min-h-screen w-full flex flex-col items-center justify-center p-4 bg-gray-900 text-white">
       <div className="w-full max-w-5xl mx-auto bg-white/10 rounded-xl p-6 md:p-8 shadow-lg backdrop-blur">
         <h2 className="text-2xl md:text-3xl font-bold mb-4 text-center">夥伴時段管理</h2>
         <p className="text-center text-indigo-300 font-medium mb-6">點選下方任一格即可新增可預約時段，再點一次可取消</p>
         
-        <div className="flex items-center justify-center mb-8">
+        <div className="flex flex-col md:flex-row items-center justify-center gap-8 mb-8">
           <div className="flex items-center gap-4 mb-6">
             <Switch
               checked={isAvailableNow}
@@ -273,7 +309,58 @@ export default function PartnerSchedulePage() {
               <span className={`text-sm font-bold ${isAvailableNow ? 'text-green-400' : 'text-gray-400'} mt-1`}>{isAvailableNow ? '顧客可即時預約你' : '顧客看不到你'}</span>
             </div>
           </div>
+
+          <div className="flex items-center gap-4 mb-6">
+            <Switch
+              checked={isRankBooster}
+              onChange={handleToggleRankBooster}
+              className={`${isRankBooster ? 'bg-yellow-400' : 'bg-gray-400'} relative inline-flex h-6 w-11 items-center rounded-full transition-colors`}
+            >
+              <span className="sr-only">我是上分高手</span>
+              <span
+                className={`${isRankBooster ? 'translate-x-6' : 'translate-x-1'} inline-block h-4 w-4 transform rounded-full bg-white transition-transform`}
+              />
+            </Switch>
+            <div className="flex flex-col items-start">
+              <span className="text-yellow-300 font-medium flex items-center gap-1"><FaCrown className="inline text-yellow-400"/>我是上分高手</span>
+              <span className={`text-sm font-bold ${isRankBooster ? 'text-yellow-400' : 'text-gray-400'} mt-1`}>{isRankBooster ? '顧客可搜尋上分高手' : '不顯示於上分高手列表'}</span>
+            </div>
+          </div>
         </div>
+
+        {isRankBooster && (
+          <div className="w-full max-w-2xl mx-auto bg-white/80 rounded-xl shadow-lg p-6 mb-8 border border-yellow-200">
+            <div className="flex items-center gap-2 mb-4">
+              <FaCrown className="text-2xl text-yellow-400"/>
+              <span className="text-lg font-bold text-yellow-700">上分高手專屬資料</span>
+            </div>
+            <div className="mb-4">
+              <label className="block text-gray-700 font-semibold mb-1">強項（可多行描述）</label>
+              <textarea
+                className="w-full rounded-lg border border-yellow-300 p-3 text-gray-800 focus:outline-none focus:ring-2 focus:ring-yellow-400 bg-yellow-50 min-h-[64px] resize-none shadow-sm"
+                value={rankBoosterNote}
+                onChange={e => setRankBoosterNote(e.target.value)}
+                placeholder="請輸入你的遊戲強項、擅長角色、服務特色等..."
+              />
+            </div>
+            <div className="mb-4">
+              <label className="block text-gray-700 font-semibold mb-1">目前段位</label>
+              <input
+                className="w-full rounded-lg border border-yellow-300 p-3 text-gray-800 focus:outline-none focus:ring-2 focus:ring-yellow-400 bg-yellow-50 shadow-sm"
+                value={rankBoosterRank}
+                onChange={e => setRankBoosterRank(e.target.value)}
+                placeholder="例：英雄聯盟 S13 大師、傳說對決 S30 王者..."
+              />
+            </div>
+            <button
+              className="w-full py-2 rounded-lg bg-gradient-to-r from-yellow-400 to-yellow-300 text-yellow-900 font-bold text-lg hover:from-yellow-500 hover:to-yellow-400 transition-all duration-300 shadow-md"
+              onClick={handleSaveRankBooster}
+            >
+              儲存上分高手資料
+            </button>
+            {rankBoosterMsg && <p className="text-center text-green-600 font-bold mt-2">{rankBoosterMsg}</p>}
+          </div>
+        )}
 
         <div className="bg-white rounded-lg shadow-lg p-4 overflow-x-auto">
           <div style={{ minWidth: '800px' }}> {/*
