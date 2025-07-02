@@ -67,3 +67,8 @@ body {
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 0.5rem;
 }
+
+.perspective { perspective: 1200px; }
+.rotate-y-180 { transform: rotateY(180deg); }
+[transform-style\:preserve-3d] { transform-style: preserve-3d; }
+[style*='backfaceVisibility'] { backface-visibility: hidden; }

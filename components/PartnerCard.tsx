@@ -148,8 +148,9 @@ const PartnerCard: React.FC<PartnerCardProps> = ({ partner, onQuickBook }) => {
         </div>
         {/* 背面 */}
         <div
-          className="bg-white dark:bg-slate-900 rounded-2xl shadow-lg overflow-hidden flex flex-col absolute w-full h-full top-0 left-0 z-20 [transform:rotateY(180deg)]"
+          className="bg-white dark:bg-slate-900 rounded-2xl shadow-lg overflow-hidden flex flex-col absolute w-full h-full top-0 left-0 z-20 [transform:rotateY(180deg)] cursor-pointer"
           style={{ backfaceVisibility: 'hidden' }}
+          onClick={() => setFlipped(false)}
         >
           <div className="flex-1 flex flex-col items-center justify-center px-6 py-8">
             <div className="w-16 h-16 rounded-full overflow-hidden border-4 border-blue-200 mb-3">
@@ -162,10 +163,7 @@ const PartnerCard: React.FC<PartnerCardProps> = ({ partner, onQuickBook }) => {
                 {partner.customerMessage ? partner.customerMessage : <span className="text-gray-400">（尚未填寫留言）</span>}
               </div>
             </div>
-            <button
-              className="mt-6 px-4 py-2 rounded-full bg-gradient-to-r from-blue-400 to-blue-300 text-blue-900 font-bold shadow hover:from-blue-500 hover:to-blue-400 transition-all"
-              onClick={() => setFlipped(false)}
-            >返回</button>
+            <div className="mt-4 text-xs text-blue-400">（點擊卡片任意處返回）</div>
           </div>
         </div>
       </div>
