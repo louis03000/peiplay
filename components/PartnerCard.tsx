@@ -46,10 +46,15 @@ const PartnerCard: React.FC<PartnerCardProps> = ({ partner, onQuickBook }) => {
   return (
     <div
       className="perspective w-64 max-w-full mx-auto"
+      style={{ minHeight: 340 }}
     >
       <div
-        className={`relative w-full h-full transition-transform duration-500 ${flipped ? 'rotate-y-180' : ''}`}
-        style={{ minHeight: 340, transformStyle: 'preserve-3d' }}
+        className="relative w-full h-full transition-transform duration-500"
+        style={{
+          minHeight: 340,
+          transformStyle: 'preserve-3d',
+          transform: flipped ? 'rotateY(180deg)' : 'none'
+        }}
       >
         {/* 正面 */}
         <div
@@ -170,7 +175,6 @@ const PartnerCard: React.FC<PartnerCardProps> = ({ partner, onQuickBook }) => {
       {/* 3D 翻轉效果 CSS */}
       <style>{`
         .perspective { perspective: 1200px; }
-        .rotate-y-180 { transform: rotateY(180deg); }
       `}</style>
     </div>
   )
