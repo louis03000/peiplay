@@ -1,6 +1,7 @@
 import { AuthOptions } from 'next-auth'
 import LineProvider from 'next-auth/providers/line'
 import { prisma } from '@/app/lib/prisma'
+import type { UserRole } from '@prisma/client'
 
 export const authOptions: AuthOptions = {
   providers: [
@@ -13,7 +14,9 @@ export const authOptions: AuthOptions = {
     async session({ session, token }) {
       if (session.user) {
         session.user.id = token.sub as string
-        if (token.role) session.user.role = token.role
+        if (typeof token.role === 'string' && ['CUSTOMER', 'PARTNER', 'ADMIN'].includes(token.role)) {
+          session.user.role = token.role as UserRole
+        }
       }
       return session
     },
