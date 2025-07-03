@@ -1,5 +1,6 @@
 import { AuthOptions } from 'next-auth'
 import LineProvider from 'next-auth/providers/line'
+import { prisma } from '@/app/lib/prisma'
 
 export const authOptions: AuthOptions = {
   providers: [
@@ -12,6 +13,7 @@ export const authOptions: AuthOptions = {
     async session({ session, token }) {
       if (session.user) {
         session.user.id = token.sub as string
+        if (token.role) session.user.role = token.role
       }
       return session
     },
@@ -19,6 +21,11 @@ export const authOptions: AuthOptions = {
       if (account && user) {
         token.accessToken = account.access_token
         token.sub = user.id
+        token.role = user.role
+      }
+      if (token?.sub && !user) {
+        const dbUser = await prisma.user.findUnique({ where: { id: token.sub as string }, select: { role: true } })
+        if (dbUser && typeof dbUser.role === 'string') token.role = dbUser.role
       }
       return token
     }
