@@ -37,7 +37,7 @@ export default function ProfileClient() {
       'dangerZone': '危險操作',
       'deleteWarning': '註銷帳號將永久刪除您的所有資料，包括個人資料、預約記錄、訂單歷史等，此操作無法復原。',
       'firstConfirm': '第一次確認：您確定要註銷帳號嗎？此操作將永久刪除您的所有資料。',
-      'secondConfirm': `第二次確認：請輸入確認碼 ${params?.code || 'DELETE_ACCOUNT_2024'} 來完成註銷。`,
+      'secondConfirm': `第二次確認：請輸入確認碼 delect_account 來完成註銷。`,
       'confirmCode': '請輸入確認碼',
       'confirmDelete': '確定註銷',
       'processing': '處理中...',
