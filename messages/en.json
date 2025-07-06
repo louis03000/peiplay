@@ -82,5 +82,18 @@
     "edit": "Edit",
     "search": "Search",
     "loading": "Loading..."
+  },
+  "account": {
+    "deleteAccount": "Delete Account",
+    "dangerZone": "Danger Zone",
+    "deleteWarning": "Deleting your account will permanently remove all your data, including profile information, booking records, order history, etc. This action cannot be undone.",
+    "firstConfirm": "First Confirmation: Are you sure you want to delete your account? This action will permanently delete all your data.",
+    "secondConfirm": "Second Confirmation: Please enter the confirmation code {code} to complete the deletion.",
+    "confirmCode": "Please enter confirmation code",
+    "confirmDelete": "Confirm Deletion",
+    "processing": "Processing...",
+    "deleteSuccess": "Account successfully deleted, all data has been completely removed",
+    "deleteFailed": "Deletion failed, please try again later",
+    "invalidCode": "Invalid confirmation code"
   }
 } 

@@ -83,5 +83,18 @@
     "loading": "加载中...",
     "error": "发生错误",
     "success": "成功"
+  },
+  "account": {
+    "deleteAccount": "注销账号",
+    "dangerZone": "危险操作",
+    "deleteWarning": "注销账号将永久删除您的所有数据，包括个人资料、预约记录、订单历史等，此操作无法复原。",
+    "firstConfirm": "第一次确认：您确定要注销账号吗？此操作将永久删除您的所有数据。",
+    "secondConfirm": "第二次确认：请输入确认码 {code} 来完成注销。",
+    "confirmCode": "请输入确认码",
+    "confirmDelete": "确定注销",
+    "processing": "处理中...",
+    "deleteSuccess": "账号已成功注销，所有数据已完全移除",
+    "deleteFailed": "注销失败，请稍后再试",
+    "invalidCode": "确认码错误"
   }
 } 

@@ -1,7 +1,7 @@
 'use client'
 import MyBookings from '@/app/components/MyBookings'
 import OrderHistory from '@/app/components/OrderHistory'
-import { useSession } from 'next-auth/react'
+import { useSession, signOut } from 'next-auth/react'
 import { useState, useEffect } from 'react'
 
 const ALL_GAMES = [
@@ -16,6 +16,37 @@ export default function ProfileClient() {
   const [error, setError] = useState('');
   const [editMode, setEditMode] = useState(false);
   const [customGame, setCustomGame] = useState('');
+  
+  // 註銷帳號相關狀態
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showFinalConfirm, setShowFinalConfirm] = useState(false);
+  const [confirmationCode, setConfirmationCode] = useState('');
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  
+  // 多語言支援（只在客戶端使用）
+  const [mounted, setMounted] = useState(false);
+  
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+  
+  // 暫時使用硬編碼的中文，避免 SSR 問題
+  const t = (key: string, params?: any) => {
+    const translations: { [key: string]: string } = {
+      'deleteAccount': '註銷帳號',
+      'dangerZone': '危險操作',
+      'deleteWarning': '註銷帳號將永久刪除您的所有資料，包括個人資料、預約記錄、訂單歷史等，此操作無法復原。',
+      'firstConfirm': '第一次確認：您確定要註銷帳號嗎？此操作將永久刪除您的所有資料。',
+      'secondConfirm': `第二次確認：請輸入確認碼 ${params?.code || 'DELETE_ACCOUNT_2024'} 來完成註銷。`,
+      'confirmCode': '請輸入確認碼',
+      'confirmDelete': '確定註銷',
+      'processing': '處理中...',
+      'deleteSuccess': '帳號已成功註銷，所有資料已完全移除',
+      'deleteFailed': '註銷失敗，請稍後再試',
+      'invalidCode': '確認碼錯誤'
+    };
+    return translations[key] || key;
+  };
 
   // 初始載入 user 資料（改為 fetch /api/user/profile）
   useEffect(() => {
@@ -102,6 +133,38 @@ export default function ProfileClient() {
     }
   };
 
+  // 處理註銷帳號
+  const handleDeleteAccount = async () => {
+    if (confirmationCode !== 'DELETE_ACCOUNT_2024') {
+      setError(t('invalidCode'));
+      return;
+    }
+
+    setDeleteLoading(true);
+    setError('');
+    
+    try {
+      const res = await fetch('/api/user/delete-account', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ confirmationCode })
+      });
+      
+      const data = await res.json();
+      
+      if (res.ok) {
+        // 註銷成功，登出用戶
+        await signOut({ callbackUrl: '/' });
+      } else {
+        setError(data.error || t('deleteFailed'));
+      }
+    } catch (err) {
+      setError(t('deleteFailed'));
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
   return (
     <div className="container mx-auto px-4 py-8">
       {/* 頁面標題 */}
@@ -153,6 +216,80 @@ export default function ProfileClient() {
               <button className="w-full py-3 rounded-lg bg-indigo-500 text-white font-bold text-lg mt-6 hover:bg-indigo-600 transition" onClick={() => setEditMode(true)}>
                 修改個人資料
               </button>
+              
+              {/* 註銷帳號區域 */}
+              <div className="mt-8 pt-6 border-t border-red-500/30">
+                <h3 className="text-lg font-bold text-red-400 mb-3 flex items-center">
+                  <span className="mr-2">⚠️</span>
+                  {t('dangerZone')}
+                </h3>
+                <p className="text-gray-300 text-sm mb-4">
+                  {t('deleteWarning')}
+                </p>
+                
+                {!showDeleteConfirm ? (
+                  <button 
+                    className="w-full py-3 rounded-lg bg-red-600 text-white font-bold hover:bg-red-700 transition"
+                    onClick={() => setShowDeleteConfirm(true)}
+                  >
+                    {t('deleteAccount')}
+                  </button>
+                ) : !showFinalConfirm ? (
+                  <div className="bg-red-900/20 border border-red-500/30 rounded-lg p-4">
+                    <p className="text-red-300 text-sm mb-4">
+                      <strong>{t('firstConfirm')}</strong>
+                    </p>
+                    <div className="flex gap-3">
+                      <button 
+                        className="flex-1 py-2 bg-red-600 text-white font-bold rounded hover:bg-red-700 transition"
+                        onClick={() => setShowFinalConfirm(true)}
+                      >
+                        {t('confirmDelete')}
+                      </button>
+                      <button 
+                        className="flex-1 py-2 bg-gray-600 text-white font-bold rounded hover:bg-gray-700 transition"
+                        onClick={() => setShowDeleteConfirm(false)}
+                      >
+                        取消
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="bg-red-900/20 border border-red-500/30 rounded-lg p-4">
+                    <p className="text-red-300 text-sm mb-4">
+                      <strong>{t('secondConfirm', { code: 'DELETE_ACCOUNT_2024' })}</strong>
+                    </p>
+                    <input
+                      type="text"
+                      value={confirmationCode}
+                      onChange={(e) => setConfirmationCode(e.target.value)}
+                      placeholder={t('confirmCode')}
+                      className="w-full px-3 py-2 rounded bg-gray-900 text-white border border-red-500 focus:border-red-400 focus:outline-none mb-4"
+                    />
+                    {error && <div className="text-red-400 text-sm mb-4">{error}</div>}
+                    <div className="flex gap-3">
+                      <button 
+                        className="flex-1 py-2 bg-red-600 text-white font-bold rounded hover:bg-red-700 transition disabled:opacity-50"
+                        onClick={handleDeleteAccount}
+                        disabled={deleteLoading}
+                      >
+                        {deleteLoading ? t('processing') : t('confirmDelete')}
+                      </button>
+                      <button 
+                        className="flex-1 py-2 bg-gray-600 text-white font-bold rounded hover:bg-gray-700 transition"
+                        onClick={() => {
+                          setShowFinalConfirm(false);
+                          setShowDeleteConfirm(false);
+                          setConfirmationCode('');
+                          setError('');
+                        }}
+                      >
+                        取消
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           ) : (
             <form className="bg-gray-800/60 p-6 rounded-lg" onSubmit={handleSubmit}>
