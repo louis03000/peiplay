@@ -81,16 +81,16 @@ export default function Navbar() {
                 </div>
                 
                 {/* 管理員功能 */}
-                {session?.user?.role === 'ADMIN' && (
+                  {session?.user?.role === 'ADMIN' && (
                   <div className="mt-2">
                     <Link href="/admin/partners" className="block w-full px-4 py-2 text-sm text-gray-900 hover:text-indigo-600 hover:bg-indigo-50 transition-colors text-center">
                       🔧 夥伴審核
                     </Link>
                   </div>
-                )}
+                  )}
                 
                 {/* 夥伴功能 */}
-                {isPartner && (
+                  {isPartner && (
                   <div className="mt-2">
                     <Link href="/partner/schedule" className="block w-full px-4 py-2 text-sm text-gray-900 hover:text-indigo-600 hover:bg-indigo-50 transition-colors text-center">
                       📅 時段管理
