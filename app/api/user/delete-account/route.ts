@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
     // 驗證確認碼（這裡使用簡單的驗證，實際應用中可以更複雜）
     const expectedCode = 'delect_account';
     
-    if (confirmationCode !== expectedCode) {
+    if ((confirmationCode || '').trim().toLowerCase() !== expectedCode) {
       return NextResponse.json({ error: '確認碼錯誤' }, { status: 400 });
     }
 
