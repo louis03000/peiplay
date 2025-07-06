@@ -25,21 +25,21 @@ interface Partner {
 interface PartnerCardProps {
   partner: Partner;
   onQuickBook?: (partner: Partner, schedule: Partner['schedules'][0]) => void;
+  flipped?: boolean;
 }
 
-const PartnerCard: React.FC<PartnerCardProps> = ({ partner, onQuickBook }) => {
-  const [flipped, setFlipped] = useState(false)
+const PartnerCard: React.FC<PartnerCardProps> = ({ partner, onQuickBook, flipped = false }) => {
   const nextSchedule = partner.schedules?.[0]
 
   return (
     <div
       className="perspective w-72 max-w-full mx-auto cursor-pointer"
-      style={{ minHeight: 380 }}
+      style={{ minHeight: 340 }}
     >
       <div
         className="relative w-full h-full transition-transform duration-500"
         style={{
-          minHeight: 380,
+          minHeight: 340,
           transformStyle: 'preserve-3d',
           transform: flipped ? 'rotateY(180deg)' : 'none'
         }}
@@ -48,10 +48,9 @@ const PartnerCard: React.FC<PartnerCardProps> = ({ partner, onQuickBook }) => {
         <div
           className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl hover:shadow-2xl transition-shadow overflow-hidden flex flex-col absolute w-full h-full top-0 left-0 group z-10 border border-gray-200 dark:border-gray-700"
           style={{ backfaceVisibility: 'hidden' }}
-          onClick={() => setFlipped(true)}
         >
           {/* 封面照 */}
-          <div className="relative w-full h-40 bg-gray-100 dark:bg-gray-800">
+          <div className="relative w-full h-36 bg-gray-100 dark:bg-gray-800">
             <Image
               src={partner.coverImage || '/images/placeholder.svg'}
               alt={partner.name}
@@ -60,22 +59,24 @@ const PartnerCard: React.FC<PartnerCardProps> = ({ partner, onQuickBook }) => {
             />
             {partner.isAvailableNow && (
               <div className="absolute top-3 left-3 flex items-center z-10">
-                <span className="flex items-center gap-1 px-3 h-8 rounded-full bg-gradient-to-r from-green-400 via-green-500 to-emerald-400 text-white text-sm font-bold border border-white/60 shadow-lg shadow-green-200/50 backdrop-blur-[2px] drop-shadow-md animate-pulse" style={{ boxShadow: '0 2px 8px 0 #6ee7b7cc' }}>
-                  <FaBolt className="text-yellow-200 text-lg drop-shadow-[0_0_6px_#fef08a]" />
+                <span className="flex items-center gap-1 px-3 h-7 rounded-full bg-gradient-to-r from-green-400 via-green-500 to-emerald-400 text-white text-xs font-bold border border-white/60 shadow-lg shadow-green-200/50 backdrop-blur-[2px] drop-shadow-md animate-pulse" style={{ boxShadow: '0 2px 8px 0 #6ee7b7cc' }}>
+                  <FaBolt className="text-yellow-200 text-base drop-shadow-[0_0_6px_#fef08a]" />
                   <span className="text-shadow">現在有空</span>
                 </span>
               </div>
             )}
           </div>
           {/* 內容區塊 */}
-          <div className="flex-1 flex flex-col p-4 gap-2">
-            <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-1 truncate">{partner.name}</h3>
-            <div className="flex flex-wrap gap-2 mb-1">
-              {partner.games?.map((game: string) => (
-                <span key={game} className="inline-block bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full text-xs font-semibold">
-                  {game}
-                </span>
-              ))}
+          <div className="flex-1 flex flex-col px-4 pt-3 pb-4 gap-1 justify-between">
+            <div>
+              <h3 className="text-base font-bold text-gray-900 dark:text-white mb-1 truncate">{partner.name}</h3>
+              <div className="flex flex-wrap gap-1 mb-1">
+                {partner.games?.map((game: string) => (
+                  <span key={game} className="inline-block bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full text-xs font-semibold">
+                    {game}
+                  </span>
+                ))}
+              </div>
             </div>
             <div className="flex items-center gap-2 mt-1">
               <span className="text-indigo-600 dark:text-indigo-300 font-bold text-base">${partner.hourlyRate}</span>
@@ -90,7 +91,6 @@ const PartnerCard: React.FC<PartnerCardProps> = ({ partner, onQuickBook }) => {
         <div
           className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl overflow-hidden flex flex-col absolute w-full h-full top-0 left-0 z-20 [transform:rotateY(180deg)] cursor-pointer border border-gray-200 dark:border-gray-700"
           style={{ backfaceVisibility: 'hidden' }}
-          onClick={() => setFlipped(false)}
         >
           <div className="flex-1 flex flex-col items-center justify-center px-6 py-8">
             <div className="w-20 h-20 rounded-xl overflow-hidden border-4 border-blue-200 mb-3">

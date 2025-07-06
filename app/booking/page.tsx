@@ -238,15 +238,22 @@ export default function BookingWizard() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {filteredPartners.length === 0 && <div className="col-span-2 text-gray-400 text-center">查無夥伴</div>}
               {filteredPartners.map(p => (
-                <div key={p.id} className="mb-4">
-                  <PartnerCard
-                    partner={p}
-                    onQuickBook={() => handlePartnerSelect(p)}
-                  />
+                <div key={p.id} className="mb-4 relative group">
+                  <div
+                    className={`transition-all duration-200 rounded-2xl border-2 ${selectedPartner?.id === p.id ? 'border-indigo-500 shadow-xl scale-105' : 'border-transparent'} cursor-pointer`}
+                    onClick={() => {
+                      setSelectedPartner(p);
+                    }}
+                  >
+                    <PartnerCard
+                      partner={p}
+                      flipped={selectedPartner?.id === p.id}
+                    />
+                  </div>
                 </div>
               ))}
-                      </div>
-                    </div>
+            </div>
+          </div>
         )}
         {/* 只看現在有空時，跳過步驟 1、2 */}
         {onlyAvailable && step === 3 && selectedPartner && (
