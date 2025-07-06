@@ -13,12 +13,22 @@ export const authOptions: AuthOptions = {
   callbacks: {
     async session({ session, token }) {
       if (session.user) {
-        session.user.id = token.sub as string
-        if (typeof token.role === 'string' && ['CUSTOMER', 'PARTNER', 'ADMIN'].includes(token.role)) {
-          session.user.role = token.role as UserRole
+        session.user.id = token.sub as string;
+        // 查詢完整 user 資料
+        const dbUser = await prisma.user.findUnique({
+          where: { id: token.sub as string },
+          select: { name: true, phone: true, birthday: true, discord: true, role: true, email: true }
+        });
+        if (dbUser) {
+          session.user.name = dbUser.name;
+          session.user.phone = dbUser.phone;
+          session.user.birthday = dbUser.birthday ? dbUser.birthday.toISOString().slice(0, 10) : null;
+          session.user.discord = dbUser.discord;
+          session.user.role = dbUser.role;
+          session.user.email = dbUser.email;
         }
       }
-      return session
+      return session;
     },
     async jwt({ token, user, account }) {
       if (account && user) {
