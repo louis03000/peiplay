@@ -1,6 +1,11 @@
 import { NextResponse } from 'next/server'
-import { writeFile } from 'fs/promises'
-import { join } from 'path'
+import cloudinary from 'cloudinary'
+
+cloudinary.v2.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+})
 
 export async function POST(request: Request) {
   const formData = await request.formData();
@@ -10,9 +15,21 @@ export async function POST(request: Request) {
   }
   const bytes = await file.arrayBuffer();
   const buffer = Buffer.from(bytes);
-  const filename = `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
-  const uploadDir = join(process.cwd(), 'public', 'uploads');
-  await writeFile(join(uploadDir, filename), buffer);
-  // 回傳 public 路徑
-  return NextResponse.json({ url: `/uploads/${filename}` });
+
+  // 直接上傳 buffer 到 Cloudinary
+  try {
+    const uploadRes = await new Promise((resolve, reject) => {
+      cloudinary.v2.uploader.upload_stream(
+        { folder: 'peiplay_uploads' },
+        (error, result) => {
+          if (error) reject(error);
+          else resolve(result);
+        }
+      ).end(buffer);
+    });
+    // @ts-ignore
+    return NextResponse.json({ url: uploadRes.secure_url });
+  } catch (err) {
+    return NextResponse.json({ error: 'Cloudinary upload failed', detail: String(err) }, { status: 500 });
+  }
 } 
