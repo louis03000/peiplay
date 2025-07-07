@@ -53,7 +53,7 @@ model Partner {
   phone       String
   coverImage  String
   games       String[]
-  hourlyRate  Float
+  halfHourlyRate  Float
   schedules   Schedule[]
   isAvailableNow Boolean  @default(false)
   isRankBooster Boolean  @default(false)

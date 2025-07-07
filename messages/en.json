@@ -40,7 +40,7 @@
     "cancelBooking": "Cancel Booking",
     "bookingSuccess": "Booking Successful",
     "bookingFailed": "Booking Failed",
-    "hourlyRate": "{rate} per hour",
+    "hourlyRate": "{rate} per half hour",
     "nextAvailable": "Next available: {date} {startTime}~{endTime}"
   },
   "review": {

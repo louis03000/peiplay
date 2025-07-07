@@ -10,7 +10,7 @@ interface Partner {
   id: string;
   name: string;
   games: string[];
-  hourlyRate: number;
+  halfHourlyRate: number;
   coverImage?: string;
   schedules: { date: string; startTime: string; endTime: string }[];
   isAvailableNow: boolean;
@@ -39,7 +39,7 @@ async function fetchPartners(startDate?: string, endDate?: string) {
     id: p.id,
     name: p.name,
     games: p.games,
-    hourlyRate: p.hourlyRate,
+    halfHourlyRate: p.hourlyRate,
     coverImage: p.coverImage,
     isAvailableNow: p.isAvailableNow,
     isRankBooster: p.isRankBooster,

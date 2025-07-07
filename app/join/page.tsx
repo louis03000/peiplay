@@ -13,7 +13,7 @@ const partnerSchema = z.object({
   name: z.string().min(2, '姓名至少需要2個字'),
   birthday: z.string().min(1, '請選擇生日'),
   phone: z.string().min(10, '請輸入有效的電話號碼'),
-  hourlyRate: z.number().min(1, '請設定每小時收費'),
+  halfHourlyRate: z.number().min(1, '請設定每半小時收費'),
   games: z.array(z.string()).min(1, '請至少選擇一個遊戲'),
   coverImage: z.string().min(1, '請上傳封面照片'),
 })
@@ -84,6 +84,7 @@ export default function JoinPage() {
           email: session!.user!.email,
           coverImage: coverImageUrl,
           games,
+          halfHourlyRate: data.halfHourlyRate,
         }),
       })
       const text = await response.text();
@@ -224,20 +225,20 @@ export default function JoinPage() {
 
                 <div>
                   <label
-                    htmlFor="hourlyRate"
+                    htmlFor="halfHourlyRate"
                     className="block text-sm font-medium text-gray-700"
                   >
-                    每小時收費
+                    每半小時收費
                   </label>
                   <div className="mt-1">
                     <input
                       type="number"
-                      {...register('hourlyRate', { valueAsNumber: true })}
+                      {...register('halfHourlyRate', { valueAsNumber: true })}
                       className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md text-black"
                     />
-                    {errors.hourlyRate && (
+                    {errors.halfHourlyRate && (
                       <p className="mt-2 text-sm text-red-600">
-                        {errors.hourlyRate.message}
+                        {errors.halfHourlyRate.message}
                       </p>
                     )}
                   </div>

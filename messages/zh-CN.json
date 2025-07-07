@@ -31,7 +31,7 @@
     "cancelBooking": "取消预约",
     "bookingSuccess": "预约成功",
     "bookingFailed": "预约失败",
-    "hourlyRate": "每小时 {rate} 元",
+    "hourlyRate": "每半小時 {rate} 元",
     "nextAvailable": "最近有空：{date} {startTime}~{endTime}",
     "success": "预约成功！",
     "cancel": "取消预约",

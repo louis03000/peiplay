@@ -54,7 +54,7 @@ export async function GET(request: Request) {
         id: true,
         name: true,
         games: true,
-        hourlyRate: true,
+        halfHourlyRate: true,
         coverImage: true,
         isAvailableNow: true,
         isRankBooster: true,
@@ -64,7 +64,6 @@ export async function GET(request: Request) {
         schedules: {
           where: {
             date: scheduleDateFilter,
-            isAvailable: true,
           },
           select: {
             id: true,
@@ -97,7 +96,7 @@ export async function POST(request: Request) {
     }
     data = await request.json()
     // 驗證必填欄位（移除 userId）
-    const requiredFields = ['name', 'birthday', 'phone', 'hourlyRate', 'games', 'coverImage']
+    const requiredFields = ['name', 'birthday', 'phone', 'halfHourlyRate', 'games', 'coverImage']
     for (const field of requiredFields) {
       if (!data[field]) {
         return NextResponse.json(
@@ -128,7 +127,7 @@ export async function POST(request: Request) {
         name: data.name,
         birthday: new Date(data.birthday),
         phone: data.phone,
-        hourlyRate: data.hourlyRate,
+        halfHourlyRate: data.halfHourlyRate,
         games: data.games,
         coverImage: data.coverImage,
       },

@@ -40,7 +40,7 @@
     "cancelBooking": "取消預約",
     "bookingSuccess": "預約成功",
     "bookingFailed": "預約失敗",
-    "hourlyRate": "每小時 {rate}",
+    "hourlyRate": "每半小時 {rate}",
     "nextAvailable": "下次可預約：{date} {startTime}~{endTime}"
   },
   "review": {
