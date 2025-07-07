@@ -9,12 +9,14 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 
+const MAX_GAMES = 10;
+
 const partnerSchema = z.object({
   name: z.string().min(2, '姓名至少需要2個字'),
   birthday: z.string().min(1, '請選擇生日'),
   phone: z.string().min(10, '請輸入有效的電話號碼'),
   halfHourlyRate: z.number().min(1, '請設定每半小時收費'),
-  games: z.array(z.string()).min(1, '請至少選擇一個遊戲'),
+  games: z.array(z.string()).min(1, '請至少選擇一個遊戲').max(MAX_GAMES, '最多 10 個遊戲'),
   coverImage: z.string().min(1, '請上傳封面照片'),
 })
 
