@@ -34,7 +34,7 @@ export async function GET(request: Request) {
           select: {
             name: true,
             games: true,
-            hourlyRate: true,
+            halfHourlyRate: true,
           },
         },
         bookings: {

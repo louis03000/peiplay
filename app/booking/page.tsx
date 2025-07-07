@@ -19,7 +19,7 @@ export type Partner = {
   id: string;
   name: string;
   games: string[];
-  hourlyRate: number;
+  halfHourlyRate: number;
   coverImage?: string;
   schedules: { id: string; date: string; startTime: string; endTime: string, isAvailable: boolean }[];
   isAvailableNow: boolean;
