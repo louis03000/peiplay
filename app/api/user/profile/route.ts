@@ -54,13 +54,14 @@ export async function PATCH(request: Request) {
 
     // 如果有 customerMessage 或 games 並且有 partner 身分則一併更新
     let updatedPartner = null;
-    if (typeof customerMessage === 'string' || Array.isArray(games)) {
+    if (typeof customerMessage === 'string' || Array.isArray(games) || typeof data.halfHourlyRate === 'number') {
       // 先查 partner
       const partner = await prisma.partner.findUnique({ where: { userId: existingUser.id } });
       if (partner) {
         const partnerUpdateData: any = {};
         if (typeof customerMessage === 'string') partnerUpdateData.customerMessage = customerMessage;
         if (Array.isArray(games)) partnerUpdateData.games = games;
+        if (typeof data.halfHourlyRate === 'number') partnerUpdateData.halfHourlyRate = data.halfHourlyRate;
         if (Object.keys(partnerUpdateData).length > 0) {
           updatedPartner = await prisma.partner.update({
             where: { userId: existingUser.id },

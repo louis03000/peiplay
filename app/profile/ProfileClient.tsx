@@ -10,7 +10,7 @@ const ALL_GAMES = [
 
 export default function ProfileClient() {
   const { data: session } = useSession();
-  const [form, setForm] = useState<{ name: string; phone: string; birthday: string; discord: string; customerMessage: string; games: string[] }>({ name: '', phone: '', birthday: '', discord: '', customerMessage: '', games: [] });
+  const [form, setForm] = useState<{ name: string; phone: string; birthday: string; discord: string; customerMessage: string; games: string[]; halfHourlyRate?: number }>({ name: '', phone: '', birthday: '', discord: '', customerMessage: '', games: [], halfHourlyRate: undefined });
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState('');
   const [error, setError] = useState('');
@@ -61,7 +61,8 @@ export default function ProfileClient() {
             birthday: data.user.birthday ? data.user.birthday.slice(0, 10) : '',
             discord: data.user.discord || '',
             customerMessage: data.user.partner?.customerMessage || '',
-            games: data.user.partner?.games || []
+            games: data.user.partner?.games || [],
+            halfHourlyRate: data.user.partner?.halfHourlyRate,
           });
         }
       } catch {
@@ -72,7 +73,11 @@ export default function ProfileClient() {
   }, [session]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
+    const { name, value, type } = e.target;
+    setForm({
+      ...form,
+      [name]: type === 'number' ? Number(value) : value
+    });
   };
 
   const handleGameChange = (game: string) => {
@@ -119,7 +124,8 @@ export default function ProfileClient() {
             birthday: userData.user.birthday ? userData.user.birthday.slice(0, 10) : '',
             discord: userData.user.discord || '',
             customerMessage: userData.user.partner?.customerMessage || '',
-            games: userData.user.partner?.games || []
+            games: userData.user.partner?.games || [],
+            halfHourlyRate: userData.user.partner?.halfHourlyRate,
           });
         }
         setEditMode(false); // 儲存成功後自動切回檢視模式
@@ -207,6 +213,10 @@ export default function ProfileClient() {
                   </div>
                 </div>
               )}
+              <div className="mt-6">
+                <div className="text-gray-300 mb-1 font-semibold">每半小時收費</div>
+                <span className="text-white font-medium">{form.halfHourlyRate !== undefined ? `$${form.halfHourlyRate}` : '-'}</span>
+              </div>
               <div className="mt-6">
                 <div className="text-gray-300 mb-1 font-semibold">留言板（顧客預約時會看到）</div>
                 <div className="bg-gray-900/80 rounded p-3 text-white min-h-[40px] border border-gray-700 text-sm">
@@ -313,48 +323,60 @@ export default function ProfileClient() {
               </div>
               {session?.user?.role === 'PARTNER' && (
                 <div className="mt-6">
-                  <label className="block text-gray-300 mb-1 font-semibold">擅長遊戲（最多 5 個，每個限 50 字）</label>
-                  <div className="flex flex-wrap gap-2 mb-2">
-                    {ALL_GAMES.map(game => (
-                      <button
-                        type="button"
-                        key={game}
-                        className={`px-3 py-1 rounded-full border text-xs font-semibold mr-2 mb-2 ${form.games.includes(game) ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-gray-900 text-gray-300 border-gray-700'}`}
-                        onClick={() => handleGameChange(game)}
-                        disabled={form.games.length >= 5 && !form.games.includes(game)}
-                      >
-                        {game}
-                      </button>
-                    ))}
-                  </div>
-                  <div className="flex gap-2 mb-2">
-                    <input
-                      type="text"
-                      value={customGame}
-                      onChange={e => setCustomGame(e.target.value.slice(0, 50))}
-                      className="flex-1 px-3 py-1 rounded bg-gray-900 text-white border border-gray-700 focus:border-indigo-500 focus:outline-none text-xs"
-                      placeholder="自訂遊戲名稱（限 50 字）"
-                      maxLength={50}
-                      disabled={form.games.length >= 5}
-                    />
-                    <button
-                      type="button"
-                      className="px-3 py-1 rounded bg-indigo-500 text-white text-xs font-semibold"
-                      onClick={handleAddCustomGame}
-                      disabled={!customGame.trim() || form.games.length >= 5}
-                    >新增</button>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {form.games.map(game => (
-                      <span key={game} className="bg-indigo-600 text-white px-3 py-1 rounded-full text-xs font-semibold flex items-center mr-2 mb-2">
-                        {game}
-                        <button type="button" className="ml-2 text-white hover:text-red-300" onClick={() => handleRemoveGame(game)}>&times;</button>
-                      </span>
-                    ))}
-                  </div>
-                  <div className="text-right text-xs text-gray-400 mt-1">{form.games.length}/5</div>
+                  <label className="block text-gray-300 mb-1">每半小時收費</label>
+                  <input
+                    name="halfHourlyRate"
+                    type="number"
+                    value={form.halfHourlyRate ?? ''}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 rounded bg-gray-900 text-white border border-gray-600 focus:border-indigo-500 focus:outline-none"
+                    required
+                    min={1}
+                  />
                 </div>
               )}
+              <div className="mt-6">
+                <label className="block text-gray-300 mb-1 font-semibold">擅長遊戲（最多 5 個，每個限 50 字）</label>
+                <div className="flex flex-wrap gap-2 mb-2">
+                  {ALL_GAMES.map(game => (
+                    <button
+                      type="button"
+                      key={game}
+                      className={`px-3 py-1 rounded-full border text-xs font-semibold mr-2 mb-2 ${form.games.includes(game) ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-gray-900 text-gray-300 border-gray-700'}`}
+                      onClick={() => handleGameChange(game)}
+                      disabled={form.games.length >= 5 && !form.games.includes(game)}
+                    >
+                      {game}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex gap-2 mb-2">
+                  <input
+                    type="text"
+                    value={customGame}
+                    onChange={e => setCustomGame(e.target.value.slice(0, 50))}
+                    className="flex-1 px-3 py-1 rounded bg-gray-900 text-white border border-gray-700 focus:border-indigo-500 focus:outline-none text-xs"
+                    placeholder="自訂遊戲名稱（限 50 字）"
+                    maxLength={50}
+                    disabled={form.games.length >= 5}
+                  />
+                  <button
+                    type="button"
+                    className="px-3 py-1 rounded bg-indigo-500 text-white text-xs font-semibold"
+                    onClick={handleAddCustomGame}
+                    disabled={!customGame.trim() || form.games.length >= 5}
+                  >新增</button>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {form.games.map(game => (
+                    <span key={game} className="bg-indigo-600 text-white px-3 py-1 rounded-full text-xs font-semibold flex items-center mr-2 mb-2">
+                      {game}
+                      <button type="button" className="ml-2 text-white hover:text-red-300" onClick={() => handleRemoveGame(game)}>&times;</button>
+                    </span>
+                  ))}
+                </div>
+                <div className="text-right text-xs text-gray-400 mt-1">{form.games.length}/5</div>
+              </div>
               <div className="mt-6">
                 <label className="block text-gray-300 mb-1 font-semibold">留言板（顧客預約時會看到，限 50 字）</label>
                 <textarea

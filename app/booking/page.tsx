@@ -240,7 +240,12 @@ export default function BookingWizard() {
               {filteredPartners.map(p => (
                 <div key={p.id} className="mb-4 relative group">
                   <div
-                    className={`transition-all duration-200 rounded-2xl border-2 ${selectedPartner?.id === p.id ? 'border-indigo-500 shadow-xl scale-105' : 'border-transparent'} cursor-pointer`}
+                    className={`transition-all duration-200 rounded-2xl border-2 
+                      ${selectedPartner?.id === p.id 
+                        ? 'border-transparent ring-4 ring-indigo-400/60 ring-offset-2 shadow-2xl scale-105 bg-gradient-to-br from-indigo-900/40 to-purple-900/30' 
+                        : 'border-transparent hover:ring-2 hover:ring-indigo-300/40 hover:scale-102'} 
+                      cursor-pointer`}
+                    style={{ boxShadow: selectedPartner?.id === p.id ? '0 0 0 4px #818cf8, 0 8px 32px 0 rgba(55,48,163,0.15)' : undefined }}
                     onClick={() => {
                       setSelectedPartner(p);
                     }}
