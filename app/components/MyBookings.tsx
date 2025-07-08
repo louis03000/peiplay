@@ -167,11 +167,9 @@ export default function MyBookings() {
     return merged;
   }
 
-  // 先排序 bookings 再 merge
+  // 先依 startTime 由新到舊排序，再合併
   const sortedBookings = [...bookings].sort((a, b) => {
-    const aStart = new Date(a.schedule.startTime).getTime();
-    const bStart = new Date(b.schedule.startTime).getTime();
-    return bStart - aStart;
+    return new Date(b.schedule.startTime).getTime() - new Date(a.schedule.startTime).getTime();
   });
   const pagedBookings = mergeBookings(sortedBookings)
     .slice((currentPage - 1) * pageSize, currentPage * pageSize);
