@@ -175,9 +175,9 @@ export default function MyBookings() {
     <div className="bg-gray-800/50 p-6 rounded-lg shadow-inner">
       {/* 標題和說明 */}
       <div className="mb-6">
-        <h2 className="text-xl font-bold mb-2 text-white">我的預約</h2>
+        <h2 className="text-xl font-bold mb-2 text-white">消費紀錄</h2>
         <p className="text-gray-300 text-sm">
-          顯示您作為顧客，主動預約的夥伴服務記錄
+          顯示您作為顧客，主動預約的消費記錄
         </p>
       </div>
 
