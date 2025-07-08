@@ -167,13 +167,11 @@ export default function MyBookings() {
     return merged;
   }
 
-  // 先依 startTime 由新到舊排序，再合併
-  const sortedBookings = [...bookings].sort((a, b) => {
-    return new Date(b.schedule.startTime).getTime() - new Date(a.schedule.startTime).getTime();
-  });
-  const pagedBookings = mergeBookings(sortedBookings)
-    .slice((currentPage - 1) * pageSize, currentPage * pageSize);
-  const totalPages = Math.ceil(mergeBookings(sortedBookings).length / pageSize);
+  // 先合併，再排序，再分頁
+  const merged = mergeBookings(bookings);
+  const sortedMerged = merged.sort((a, b) => new Date(b.schedule.startTime).getTime() - new Date(a.schedule.startTime).getTime());
+  const pagedBookings = sortedMerged.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  const totalPages = Math.ceil(sortedMerged.length / pageSize);
 
   return (
     <div className="bg-gray-800/50 p-6 rounded-lg shadow-inner">
