@@ -167,21 +167,21 @@ export default function MyBookings() {
     return merged;
   }
 
-  // 分頁資料
-  const pagedBookings = mergeBookings(bookings)
-    .sort((a, b) => {
-      const aStart = new Date(a.schedule.date + 'T' + a.schedule.startTime).getTime();
-      const bStart = new Date(b.schedule.date + 'T' + b.schedule.startTime).getTime();
-      return bStart - aStart;
-    })
+  // 先排序 bookings 再 merge
+  const sortedBookings = [...bookings].sort((a, b) => {
+    const aStart = new Date(a.schedule.startTime).getTime();
+    const bStart = new Date(b.schedule.startTime).getTime();
+    return bStart - aStart;
+  });
+  const pagedBookings = mergeBookings(sortedBookings)
     .slice((currentPage - 1) * pageSize, currentPage * pageSize);
-  const totalPages = Math.ceil(mergeBookings(bookings).length / pageSize);
+  const totalPages = Math.ceil(mergeBookings(sortedBookings).length / pageSize);
 
   return (
     <div className="bg-gray-800/50 p-6 rounded-lg shadow-inner">
       {/* 標題和說明 */}
       <div className="mb-6">
-        <h2 className="text-xl font-bold mb-2 text-white">消費紀錄</h2>
+        <h2 className="text-xl font-bold mb-2 text-white">預約紀錄</h2>
         <p className="text-gray-300 text-sm">
           顯示您作為顧客，主動預約的消費記錄
         </p>
