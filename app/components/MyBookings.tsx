@@ -168,7 +168,13 @@ export default function MyBookings() {
   }
 
   // 分頁資料
-  const pagedBookings = mergeBookings(bookings).slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  const pagedBookings = mergeBookings(bookings)
+    .sort((a, b) => {
+      const aStart = new Date(a.schedule.date + 'T' + a.schedule.startTime).getTime();
+      const bStart = new Date(b.schedule.date + 'T' + b.schedule.startTime).getTime();
+      return bStart - aStart;
+    })
+    .slice((currentPage - 1) * pageSize, currentPage * pageSize);
   const totalPages = Math.ceil(mergeBookings(bookings).length / pageSize);
 
   return (
