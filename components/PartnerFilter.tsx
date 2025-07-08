@@ -18,7 +18,7 @@ export default function PartnerFilter({ onFilter }: { onFilter: (start: string, 
         type="date"
         value={startDate}
         onChange={e => setStartDate(e.target.value)}
-        className="flex-1 px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-purple-400 focus:border-purple-400 transition placeholder:text-gray-700 placeholder:font-bold"
+        className="flex-1 px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-purple-400 focus:border-purple-400 transition bg-white text-gray-900 placeholder:text-gray-400 placeholder:font-normal"
         placeholder="年/月/日"
       />
       <span className="text-gray-500">至</span>
@@ -26,7 +26,7 @@ export default function PartnerFilter({ onFilter }: { onFilter: (start: string, 
         type="date"
         value={endDate}
         onChange={e => setEndDate(e.target.value)}
-        className="flex-1 px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-purple-400 focus:border-purple-400 transition placeholder:text-gray-700 placeholder:font-bold"
+        className="flex-1 px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-purple-400 focus:border-purple-400 transition bg-white text-gray-900 placeholder:text-gray-400 placeholder:font-normal"
         placeholder="年/月/日"
       />
       <button
