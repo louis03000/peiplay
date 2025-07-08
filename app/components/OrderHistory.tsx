@@ -93,13 +93,10 @@ export default function OrderHistory() {
                     {order.booking?.schedule?.partner?.name || '未知夥伴'}
                   </td>
                   <td className="py-4 px-6">
-                    {order.booking?.schedule?.date
-                      ? new Date(order.booking.schedule.date).toLocaleDateString('zh-TW')
-                      : '-'
-                    }
-                    {' '}
-                    {order.booking?.schedule?.startTime?.slice(0, 5)}-
-                    {order.booking?.schedule?.endTime?.slice(0, 5)}
+                    {order.booking?.schedule?.date && order.booking?.schedule?.startTime && order.booking?.schedule?.endTime
+                      ? `${new Date(order.booking.schedule.date).getFullYear()}/${(new Date(order.booking.schedule.date).getMonth()+1).toString().padStart(2,'0')}/${new Date(order.booking.schedule.date).getDate().toString().padStart(2,'0')} ` +
+                        `${order.booking.schedule.startTime.slice(0,5)} - ${order.booking.schedule.endTime.slice(0,5)}`
+                      : '-'}
                   </td>
                 </tr>
               ))}
