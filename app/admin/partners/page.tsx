@@ -60,7 +60,6 @@ export default function AdminPartnersPage() {
 
   if (status === "loading" || loading) return <div>載入中...</div>;
   if (error) return <div className="text-red-500">{error}</div>;
-  if (!partners.length) return <div>目前沒有待審核的申請</div>;
 
   return (
     <div className="max-w-3xl mx-auto py-8">
@@ -75,30 +74,33 @@ export default function AdminPartnersPage() {
           匯出消費紀錄 Excel
         </button>
       </div>
-      <div className="space-y-6">
-        {partners.map((p) => (
-          <div key={p.id} className="border rounded p-4 flex flex-col md:flex-row md:items-center md:justify-between">
-            <div>
-              <div className="font-semibold">{p.name}</div>
-              <div className="text-sm text-gray-400">Email: {p.user.email}</div>
-              <div className="text-sm">電話: {p.phone}</div>
-              <div className="text-sm">生日: {p.birthday?.slice(0, 10)}</div>
-              <div className="text-sm">偏好遊戲: {p.games.join(", ")}</div>
-              <div className="text-sm">半小時收費: {p.halfHourlyRate}</div>
+      {!partners.length
+        ? <div>目前沒有待審核的申請</div>
+        : <div className="space-y-6">
+          {partners.map((p) => (
+            <div key={p.id} className="border rounded p-4 flex flex-col md:flex-row md:items-center md:justify-between">
+              <div>
+                <div className="font-semibold">{p.name}</div>
+                <div className="text-sm text-gray-400">Email: {p.user.email}</div>
+                <div className="text-sm">電話: {p.phone}</div>
+                <div className="text-sm">生日: {p.birthday?.slice(0, 10)}</div>
+                <div className="text-sm">偏好遊戲: {p.games.join(", ")}</div>
+                <div className="text-sm">半小時收費: {p.halfHourlyRate}</div>
+              </div>
+              <div className="flex gap-2 mt-4 md:mt-0">
+                <button
+                  className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+                  onClick={() => handleReview(p.id, "APPROVED")}
+                >通過</button>
+                <button
+                  className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+                  onClick={() => handleReview(p.id, "REJECTED")}
+                >拒絕</button>
+              </div>
             </div>
-            <div className="flex gap-2 mt-4 md:mt-0">
-              <button
-                className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
-                onClick={() => handleReview(p.id, "APPROVED")}
-              >通過</button>
-              <button
-                className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
-                onClick={() => handleReview(p.id, "REJECTED")}
-              >拒絕</button>
-            </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      }
     </div>
   );
 } 
