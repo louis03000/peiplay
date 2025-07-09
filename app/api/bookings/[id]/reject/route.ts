@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { BookingStatus } from '@prisma/client';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,13 +19,11 @@ export async function POST(
     if (!bookingId) {
       return NextResponse.json({ error: '預約 ID 是必需的' }, { status: 400 });
     }
-    
     // 取得拒絕原因
     const { reason } = await request.json();
     if (!reason || reason.trim() === '') {
       return NextResponse.json({ error: '拒絕原因是必需的' }, { status: 400 });
     }
-    
     // 查找預約並檢查權限
     const booking = await prisma.booking.findUnique({
       where: { id: bookingId },
@@ -49,7 +48,7 @@ export async function POST(
     const result = await prisma.$transaction(async (tx) => {
       const updatedBooking = await tx.booking.update({
         where: { id: bookingId },
-        data: { status: 'REJECTED' as any }
+        data: { status: BookingStatus.REJECTED }
       });
       await tx.schedule.update({
         where: { id: booking.scheduleId },
@@ -57,18 +56,14 @@ export async function POST(
       });
       return updatedBooking;
     });
-    
     // 發送 Discord 通知給顧客
     try {
       const customerDiscord = booking.customer.user.discord;
       const partnerDiscord = booking.schedule.partner.user.discord;
-      
       if (customerDiscord && partnerDiscord) {
         const startTime = new Date(booking.schedule.startTime);
         const endTime = new Date(booking.schedule.endTime);
         const minutes = Math.round((endTime.getTime() - startTime.getTime()) / (1000 * 60));
-        
-        // 發送拒絕通知
         await fetch('http://localhost:5001/reject', {
           method: 'POST',
           headers: {
@@ -86,16 +81,14 @@ export async function POST(
       }
     } catch (discordError) {
       console.error('Discord notification failed:', discordError);
-      // Discord 通知失敗不影響拒絕操作
     }
-    
     return NextResponse.json({ 
       success: true, 
       booking: result,
       reason: reason 
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('拒絕預約時發生錯誤:', error);
-    return NextResponse.json({ error: '拒絕預約失敗，請稍後再試' }, { status: 500 });
+    return NextResponse.json({ error: error?.message ? String(error.message) : String(error) }, { status: 500 });
   }
 } 
