@@ -118,6 +118,7 @@ export default function MyBookings() {
     const statusMap: { [key: string]: string } = {
       'PENDING': '待確認',
       'CONFIRMED': '已確認',
+      'REJECTED': '已拒絕',
       'CANCELLED': '已取消',
       'COMPLETED': '已完成'
     }
@@ -234,6 +235,7 @@ export default function MyBookings() {
                     <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                       b.status === 'CONFIRMED' ? 'bg-green-600 text-white' :
                       b.status === 'PENDING' ? 'bg-yellow-600 text-white' :
+                      b.status === 'REJECTED' ? 'bg-red-500 text-white' :
                       b.status === 'CANCELLED' ? 'bg-red-600 text-white' :
                       b.status === 'COMPLETED' ? 'bg-blue-600 text-white' :
                       'bg-gray-600 text-white'

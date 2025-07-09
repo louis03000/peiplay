@@ -148,6 +148,7 @@ export default function BookingsPage() {
     const statusMap: { [key: string]: string } = {
       'PENDING': '待確認',
       'CONFIRMED': '已確認',
+      'REJECTED': '已拒絕',
       'CANCELLED': '已取消',
       'COMPLETED': '已完成'
     }
@@ -261,7 +262,7 @@ export default function BookingsPage() {
                 <th className="py-3 px-6">服務時段</th>
                 <th className="py-3 px-6">預約狀態</th>
                 <th className="py-3 px-6">建立時間</th>
-                {tab === 'me' && <th className="py-3 px-6">操作</th>}
+                {(tab === 'me' || tab === 'partner') && <th className="py-3 px-6">操作</th>}
               </tr>
             </thead>
             <tbody>
@@ -294,6 +295,7 @@ export default function BookingsPage() {
                     <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                       booking.status === 'CONFIRMED' ? 'bg-green-600 text-white' :
                       booking.status === 'PENDING' ? 'bg-yellow-600 text-white' :
+                      booking.status === 'REJECTED' ? 'bg-red-500 text-white' :
                       booking.status === 'CANCELLED' ? 'bg-red-600 text-white' :
                       booking.status === 'COMPLETED' ? 'bg-blue-600 text-white' :
                       'bg-gray-600 text-white'
@@ -323,6 +325,63 @@ export default function BookingsPage() {
                         >
                           {cancellingBooking === booking.id ? '取消中...' : '取消預約'}
                         </button>
+                      )}
+                    </td>
+                  )}
+                  {tab === 'partner' && (
+                    <td className="py-4 px-6">
+                      {booking.status === 'PENDING' && (
+                        <div className="flex gap-2">
+                          <button
+                            className="px-3 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 transition-colors"
+                            onClick={async () => {
+                              if (!confirm('確定要同意這個預約嗎？')) return;
+                              const res = await fetch(`/api/bookings/${booking.id}/accept`, { method: 'POST' });
+                              const data = await res.json();
+                              if (res.ok) {
+                                alert('已同意預約！');
+                                setLoading(true);
+                                setError(null);
+                                fetch('/api/bookings/partner')
+                                  .then(res => res.json())
+                                  .then(data => setBookings(data.bookings || []))
+                                  .catch(err => setError('載入失敗'))
+                                  .finally(() => setLoading(false));
+                              } else {
+                                alert(data.error || '同意預約失敗');
+                              }
+                            }}
+                          >同意</button>
+                          <button
+                            className="px-3 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700 transition-colors"
+                            onClick={async () => {
+                              const reason = prompt('請輸入拒絕原因：');
+                              if (!reason || reason.trim() === '') {
+                                alert('拒絕原因是必需的');
+                                return;
+                              }
+                              if (!confirm('確定要拒絕這個預約嗎？')) return;
+                              const res = await fetch(`/api/bookings/${booking.id}/reject`, { 
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ reason: reason.trim() })
+                              });
+                              const data = await res.json();
+                              if (res.ok) {
+                                alert('已拒絕預約！');
+                                setLoading(true);
+                                setError(null);
+                                fetch('/api/bookings/partner')
+                                  .then(res => res.json())
+                                  .then(data => setBookings(data.bookings || []))
+                                  .catch(err => setError('載入失敗'))
+                                  .finally(() => setLoading(false));
+                              } else {
+                                alert(data.error || '拒絕預約失敗');
+                              }
+                            }}
+                          >拒絕</button>
+                        </div>
                       )}
                     </td>
                   )}

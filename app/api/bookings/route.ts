@@ -51,11 +51,12 @@ export async function POST(request: Request) {
       }
 
       // 2. Create bookings for each selected time slot.
+      // 將 status: 'CONFIRMED' 改為 status: 'PENDING'
       const createdBookings = await tx.booking.createMany({
         data: scheduleIds.map(scheduleId => ({
           customerId: customer.id,
           scheduleId: scheduleId,
-          status: 'CONFIRMED',
+          status: 'PENDING' as any,
         })),
       });
 

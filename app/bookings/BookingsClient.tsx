@@ -7,6 +7,7 @@ const STATUS_OPTIONS = [
   { value: "", label: "全部狀態" },
   { value: "PENDING", label: "待確認" },
   { value: "CONFIRMED", label: "已確認" },
+  { value: "REJECTED", label: "已拒絕" },
   { value: "CANCELLED", label: "已取消" },
   { value: "COMPLETED", label: "已完成" },
 ];
