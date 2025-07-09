@@ -65,6 +65,16 @@ export default function AdminPartnersPage() {
   return (
     <div className="max-w-3xl mx-auto py-8">
       <h1 className="text-2xl font-bold mb-6">夥伴申請審核</h1>
+      <div className="mb-6 flex justify-end">
+        <button
+          className="px-6 py-2 rounded bg-gradient-to-r from-green-500 to-blue-500 text-white font-bold shadow hover:scale-105 transition-transform"
+          onClick={() => {
+            window.open('/api/orders/export?export=excel', '_blank');
+          }}
+        >
+          匯出消費紀錄 Excel
+        </button>
+      </div>
       <div className="space-y-6">
         {partners.map((p) => (
           <div key={p.id} className="border rounded p-4 flex flex-col md:flex-row md:items-center md:justify-between">
