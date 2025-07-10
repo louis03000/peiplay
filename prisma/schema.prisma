@@ -105,6 +105,7 @@ model Booking {
   scheduleId  String      @unique
   schedule    Schedule    @relation(fields: [scheduleId], references: [id])
   status      BookingStatus @default(PENDING)
+  rejectReason String?
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
   reminderSent Boolean   @default(false)

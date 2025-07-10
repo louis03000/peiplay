@@ -21,6 +21,7 @@ interface Booking {
     id: string
     reviewerId: string
   }>
+  rejectReason?: string; // Added for rejected bookings
 }
 
 export default function MyBookings() {
@@ -256,7 +257,10 @@ export default function MyBookings() {
                           評價
                         </button>
                       )}
-                      {canCancel(b) && (
+                      {b.status === 'REJECTED' && b.rejectReason && (
+                        <div className="text-xs text-red-400">拒絕原因：{b.rejectReason}</div>
+                      )}
+                      {canCancel(b) && b.status !== 'REJECTED' && (
                         <button
                           onClick={() => handleCancelBooking(b.id)}
                           disabled={cancellingBooking === b.id}

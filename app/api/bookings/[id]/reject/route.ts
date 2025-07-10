@@ -48,7 +48,7 @@ export async function POST(
     const result = await prisma.$transaction(async (tx) => {
       const updatedBooking = await tx.booking.update({
         where: { id: bookingId },
-        data: { status: BookingStatus.REJECTED }
+        data: { status: 'REJECTED' as any, rejectReason: reason }
       });
       await tx.schedule.update({
         where: { id: booking.scheduleId },
