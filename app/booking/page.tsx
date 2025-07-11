@@ -98,7 +98,11 @@ export default function BookingWizard() {
   const availableDates = useMemo(() => {
     if (!selectedPartner) return []
     const dateSet = new Set<string>()
+    const now = new Date(); // 新增：取得現在時間
     selectedPartner.schedules.forEach(s => {
+      // 僅加入有可預約且未過期時段的日期
+      if (!s.isAvailable) return;
+      if (new Date(s.startTime) <= now) return;
       const d = new Date(s.date)
       const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`
       dateSet.add(key)
