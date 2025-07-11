@@ -73,9 +73,11 @@ export default function BookingWizard() {
 
   // 搜尋過濾 - 使用 useMemo 優化
   const filteredPartners = useMemo(() => {
+    const now = new Date();
     return partners.filter(p =>
       (p.name.includes(search) || (p.games && p.games.some(s => s.includes(search))))
-      // 這裡如需只看現在有空可再加條件
+      // 新增條件：至少有一個可預約且未過期的時段
+      && p.schedules.some(s => s.isAvailable && new Date(s.startTime) > now)
     )
   }, [partners, search])
 
