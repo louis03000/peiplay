@@ -114,10 +114,13 @@ export default function BookingWizard() {
   const availableTimeSlots = useMemo(() => {
     if (!selectedPartner || !selectedDate) return []
     const seenTimeSlots = new Set<string>()
+    const now = new Date(); // 新增：取得現在時間
     const uniqueSchedules = selectedPartner.schedules.filter(schedule => {
       if (!schedule.isAvailable) return false;
       const scheduleDate = new Date(schedule.date)
       if (!isSameDay(scheduleDate, selectedDate)) return false;
+      // 新增：排除已過去的時段
+      if (new Date(schedule.startTime) <= now) return false;
       const timeSlotIdentifier = `${schedule.startTime}-${schedule.endTime}`
       if (seenTimeSlots.has(timeSlotIdentifier)) {
         return false
