@@ -30,28 +30,31 @@ export async function POST(request: Request) {
   }
 
   try {
+    // 1. 先查詢所有 schedule 狀態
+    const schedules = await prisma.schedule.findMany({
+      where: { id: { in: scheduleIds } },
+    });
+
+    const unavailableSchedules = schedules.filter(s => !s.isAvailable);
+    if (unavailableSchedules.length > 0) {
+      return NextResponse.json({
+        error: `時段已被預約，請重新選擇。`,
+        conflictIds: unavailableSchedules.map(s => s.id),
+      }, { status: 409 });
+    }
+
+    if (schedules.length !== scheduleIds.length) {
+      const foundIds = schedules.map(s => s.id);
+      const notFoundIds = scheduleIds.filter(id => !foundIds.includes(id));
+      return NextResponse.json({
+        error: `部分時段不存在，請重新整理。`,
+        notFoundIds,
+      }, { status: 400 });
+    }
+
+    // 2. 進入 transaction 建立預約
     const result = await prisma.$transaction(async (tx) => {
-      // 1. Lock the schedules to prevent race conditions and check availability.
-      // Note: `forUpdate` is a Prisma preview feature for PostgreSQL.
-      const schedules = await tx.schedule.findMany({
-        where: {
-          id: { in: scheduleIds },
-        },
-      });
-
-      const unavailableSchedules = schedules.filter(s => !s.isAvailable);
-      if (unavailableSchedules.length > 0) {
-        throw new Error(`Time slots ${unavailableSchedules.map(s => s.id).join(', ')} are already booked. Please refresh and try again.`);
-      }
-      
-      if (schedules.length !== scheduleIds.length) {
-        const foundIds = schedules.map(s => s.id);
-        const notFoundIds = scheduleIds.filter(id => !foundIds.includes(id));
-        throw new Error(`Schedule IDs not found: ${notFoundIds.join(', ')}.`);
-      }
-
-      // 2. Create bookings for each selected time slot.
-      // 將 status: 'CONFIRMED' 改為 status: 'PENDING'
+      // 2-1. 建立預約
       const createdBookings = await tx.booking.createMany({
         data: scheduleIds.map(scheduleId => ({
           customerId: customer.id,
@@ -60,7 +63,7 @@ export async function POST(request: Request) {
         })),
       });
 
-      // 3. Mark the schedules as unavailable.
+      // 2-2. 標記時段為不可預約
       await tx.schedule.updateMany({
         where: {
           id: { in: scheduleIds },
@@ -70,8 +73,7 @@ export async function POST(request: Request) {
         },
       });
 
-      // 取得預約者與夥伴的 Discord 名稱，並通知 Discord Bot
-      // 只處理單一時段預約（如需多時段可改為 for 迴圈）
+      // 2-3. Discord 通知（僅單一時段）
       if (Array.isArray(scheduleIds) && scheduleIds.length === 1) {
         const schedule = await prisma.schedule.findUnique({
           where: { id: scheduleIds[0] },
