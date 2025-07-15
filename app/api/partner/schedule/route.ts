@@ -95,26 +95,31 @@ async function handleBatchCreate(schedules: any[], userId: string) {
   }
 }
 
-export async function GET() {
-  const session = await getServerSession(authOptions)
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: '未登入' }, { status: 401 })
+export async function GET(request: Request) {
+  try {
+    const session = await getServerSession(authOptions)
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: '未登入' }, { status: 401 })
+    }
+    const partner = await prisma.partner.findUnique({ where: { userId: session.user.id } })
+    if (!partner) return NextResponse.json({ error: '不是夥伴' }, { status: 403 })
+    const schedules = await prisma.schedule.findMany({
+      where: { partnerId: partner.id },
+      orderBy: { date: 'asc' },
+      include: {
+        bookings: true,
+      },
+    })
+    // 加上 booked 屬性
+    const result = schedules.map(s => ({
+      ...s,
+      booked: s.bookings.some(b => b.status === 'CONFIRMED' || b.status === 'PENDING'),
+    }))
+    return NextResponse.json(result)
+  } catch (err) {
+    console.error('GET /api/partner/schedule error:', err);
+    return NextResponse.json({ error: (err instanceof Error ? err.message : 'Internal Server Error') }, { status: 500 });
   }
-  const partner = await prisma.partner.findUnique({ where: { userId: session.user.id } })
-  if (!partner) return NextResponse.json({ error: '不是夥伴' }, { status: 403 })
-  const schedules = await prisma.schedule.findMany({
-    where: { partnerId: partner.id },
-    orderBy: { date: 'asc' },
-    include: {
-      bookings: true,
-    },
-  })
-  // 加上 booked 屬性
-  const result = schedules.map(s => ({
-    ...s,
-    booked: s.bookings.some(b => b.status === 'CONFIRMED' || b.status === 'PENDING'),
-  }))
-  return NextResponse.json(result)
 }
 
 export async function DELETE(request: Request) {

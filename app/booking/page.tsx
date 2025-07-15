@@ -23,6 +23,7 @@ export type Partner = {
   coverImage?: string;
   schedules: { id: string; date: string; startTime: string; endTime: string, isAvailable: boolean }[];
   isAvailableNow: boolean;
+  isRankBooster: boolean;
 };
 
 // 工具函式：判斷兩個日期是否同一天（本地時區）
@@ -72,11 +73,22 @@ export default function BookingWizard() {
   }, [onlyAvailable, onlyRankBooster])
 
   // 搜尋過濾 - 使用 useMemo 優化
-  const filteredPartners = useMemo(() => {
-    return partners.filter(p =>
-      p.name.includes(search) || (p.games && p.games.some(s => s.includes(search)))
-    )
-  }, [partners, search])
+  const filteredPartners: Partner[] = useMemo(() => {
+    return partners.filter(p => {
+      const matchSearch = p.name.includes(search) || (p.games && p.games.some(s => s.includes(search)));
+      const hasFutureSchedule = p.schedules && p.schedules.some(s => s.isAvailable && new Date(s.startTime) > new Date());
+      if (onlyAvailable && onlyRankBooster) {
+        return matchSearch && p.isAvailableNow && p.isRankBooster;
+      } else if (onlyAvailable) {
+        return matchSearch && p.isAvailableNow;
+      } else if (onlyRankBooster) {
+        return matchSearch && p.isRankBooster;
+      } else {
+        // 預設：有新增時段且有開啟「現在有空」或「上分高手」
+        return matchSearch && hasFutureSchedule && (p.isAvailableNow || p.isRankBooster);
+      }
+    });
+  }, [partners, search, onlyAvailable, onlyRankBooster]);
 
   // 處理馬上預約
   const handleInstantBook = useCallback((p: typeof partners[0]) => {
