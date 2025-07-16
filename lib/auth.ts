@@ -86,6 +86,8 @@ export const authOptions: NextAuthOptions = {
 
       // 確保 User 記錄存在
       let dbUser = await prisma.user.findUnique({ where: { id: userId } });
+      let isNewUser = false;
+      
       if (!dbUser) {
         // 如果 User 不存在，創建一個
         dbUser = await prisma.user.create({
@@ -99,6 +101,8 @@ export const authOptions: NextAuthOptions = {
             birthday: new Date('2000-01-01'),
           },
         });
+        isNewUser = true;
+        console.log('新用戶已創建:', dbUser.id);
       }
 
       // 如果是 line 登入，先查 lineId 對應的 customer
@@ -134,6 +138,17 @@ export const authOptions: NextAuthOptions = {
       }
 
       return true;
+    },
+    async redirect({ url, baseUrl }) {
+      console.log('Redirect callback:', { url, baseUrl });
+      
+      // 如果 URL 包含 signin，且是 LINE 登入，跳轉到 onboarding
+      if (url.includes('signin') && url.includes('line')) {
+        return `${baseUrl}/onboarding`;
+      }
+      
+      // 其他情況保持原來的行為
+      return url.startsWith(baseUrl) ? url : baseUrl;
     },
   },
   pages: {
