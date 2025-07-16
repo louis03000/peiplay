@@ -84,6 +84,23 @@ export const authOptions: NextAuthOptions = {
       let userId = user.id;
       let lineId = account?.provider === 'line' ? profile?.sub : null;
 
+      // 確保 User 記錄存在
+      let dbUser = await prisma.user.findUnique({ where: { id: userId } });
+      if (!dbUser) {
+        // 如果 User 不存在，創建一個
+        dbUser = await prisma.user.create({
+          data: {
+            id: userId,
+            email: user.email || `line_${lineId}@example.com`,
+            password: '', // LINE 用戶不需要密碼
+            name: user.name || 'New User',
+            role: 'CUSTOMER',
+            phone: '',
+            birthday: new Date('2000-01-01'),
+          },
+        });
+      }
+
       // 如果是 line 登入，先查 lineId 對應的 customer
       let existCustomer = null;
       if (lineId) {
@@ -99,22 +116,22 @@ export const authOptions: NextAuthOptions = {
       }
 
       // 沒有才建立
-        if (!existCustomer) {
-          await prisma.customer.create({
-            data: {
+      if (!existCustomer) {
+        await prisma.customer.create({
+          data: {
             userId,
             name: user.name || 'New User',
-              phone: '',
-              birthday: new Date('2000-01-01'),
-              lineId,
-            },
-          });
+            phone: '',
+            birthday: new Date('2000-01-01'),
+            lineId,
+          },
+        });
       } else if (lineId && !existCustomer.lineId) {
         await prisma.customer.update({
           where: { userId },
           data: { lineId }
         });
-        }
+      }
 
       return true;
     },
