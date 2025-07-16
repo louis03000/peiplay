@@ -54,7 +54,7 @@ export default function BookingWizard() {
       .then(res => {
         if (!res.ok) {
           // If response is not OK (e.g., 401 Unauthorized), return empty array
-          return [];
+          return []; 
         }
         return res.json();
       })
@@ -150,9 +150,9 @@ export default function BookingWizard() {
     if (!selectedPartner || selectedTimes.length === 0) return;
 
     try {
-      const res = await fetch('/api/bookings', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+    const res = await fetch('/api/bookings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ scheduleIds: selectedTimes }),
       });
 
@@ -246,13 +246,13 @@ export default function BookingWizard() {
                 />
                 只看上分高手
               </label>
-              <input
+                        <input
                 className="flex-1 px-4 py-2 rounded-full bg-gray-900/80 text-white border border-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-400 placeholder-gray-400"
                 placeholder="搜尋夥伴姓名或專長..."
                 value={search}
                 onChange={e => setSearch(e.target.value)}
               />
-            </div>
+                      </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {filteredPartners.length === 0 && <div className="col-span-2 text-gray-400 text-center">查無夥伴</div>}
               {filteredPartners.map(p => (
@@ -275,8 +275,8 @@ export default function BookingWizard() {
                   </div>
                 </div>
               ))}
-            </div>
-          </div>
+                      </div>
+                    </div>
         )}
         {/* 只看現在有空時，跳過步驟 1、2 */}
         {onlyAvailable && step === 3 && selectedPartner && (
@@ -320,19 +320,19 @@ export default function BookingWizard() {
             <div className="text-lg text-white/90 mb-4">（2）選擇日期</div>
             <div className="flex flex-wrap gap-2 justify-center">
               {availableDates.map(ts => {
-                const d = new Date(ts);
-                const label = `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
-                const isSelected = selectedDate && d.getTime() === selectedDate.getTime();
-                return (
-                  <button
-                    key={ts}
-                    className={`px-4 py-2 rounded ${isSelected ? 'bg-indigo-500 text-white' : 'bg-white/20 text-white'}`}
+                  const d = new Date(ts);
+                  const label = `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+                  const isSelected = selectedDate && d.getTime() === selectedDate.getTime();
+                  return (
+                    <button
+                      key={ts}
+                      className={`px-4 py-2 rounded ${isSelected ? 'bg-indigo-500 text-white' : 'bg-white/20 text-white'}`}
                     onClick={() => handleDateSelect(d)}
-                  >
-                    {label}
-                  </button>
-                );
-              })}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
               {availableDates.length === 0 && (
                 <div className="text-gray-400">目前沒有可預約日期</div>
               )}
