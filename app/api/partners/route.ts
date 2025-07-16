@@ -37,13 +37,13 @@ export async function GET(request: Request) {
     } else {
       where.OR = [
         {
-          schedules: {
-            some: {
-              date: scheduleDateFilter,
-              isAvailable: true,
-            },
+        schedules: {
+          some: {
+            date: scheduleDateFilter,
+            isAvailable: true,
           },
         },
+      },
         { isAvailableNow: true },
       ];
     }

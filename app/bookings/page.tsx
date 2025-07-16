@@ -99,7 +99,7 @@ export default function BookingsPage() {
       }
     } catch (error) {
       alert('取消預約時發生錯誤，請稍後再試');
-    } finally {
+        } finally {
       setCancellingBooking(null);
     }
   };

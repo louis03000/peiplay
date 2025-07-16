@@ -145,11 +145,11 @@ export default function PartnersPage() {
           <div className="text-center text-lg text-gray-500 py-12">載入中...</div>
         ) : (
           showCards && (
-            <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
-              {partners.map(partner => (
-                <PartnerCard key={partner.id} partner={partner} onQuickBook={handleQuickBook} />
-              ))}
-            </div>
+          <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
+            {partners.map(partner => (
+              <PartnerCard key={partner.id} partner={partner} onQuickBook={handleQuickBook} />
+            ))}
+          </div>
           )
         )}
       </div>
