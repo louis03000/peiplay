@@ -51,19 +51,27 @@ export default function OnboardingPage() {
         }),
       });
       
+      console.log('API 回應狀態:', res.status);
+      
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        setError(err?.error || '補資料失敗，請重試');
-        console.error('補資料失敗', err);
+        console.error('API 錯誤:', err);
+        setError(err?.error || `補資料失敗 (${res.status})`);
         return;
       }
       
+      const result = await res.json();
+      console.log('API 成功回應:', result);
+      
       await update(); // 強制刷新 session
-      router.replace('/'); // 直接跳轉首頁
+      console.log('Session 已更新，準備跳轉...');
+      
+      // 強制跳轉到首頁
+      window.location.href = '/';
       
     } catch (error) {
+      console.error('補資料失敗:', error);
       setError('補資料失敗，請重試');
-      console.error('補資料失敗', error);
     }
   };
 
