@@ -1,6 +1,6 @@
 import { AuthOptions } from 'next-auth'
 import LineProvider from 'next-auth/providers/line'
-import { prisma } from '@/app/lib/prisma'
+import { prisma } from '@/lib/prisma'
 import type { UserRole } from '@prisma/client'
 
 export const authOptions: AuthOptions = {
