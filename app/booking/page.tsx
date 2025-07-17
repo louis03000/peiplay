@@ -84,8 +84,8 @@ export default function BookingWizard() {
       } else if (onlyRankBooster) {
         return matchSearch && p.isRankBooster;
       } else {
-        // 預設：有新增時段且有開啟「現在有空」或「上分高手」
-        return matchSearch && hasFutureSchedule && (p.isAvailableNow || p.isRankBooster);
+        // 修改：有未來可用時段就顯示，不需要強制開啟「現在有空」或「上分高手」
+        return matchSearch && hasFutureSchedule;
       }
     });
   }, [partners, search, onlyAvailable, onlyRankBooster]);
