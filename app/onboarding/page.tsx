@@ -66,8 +66,8 @@ export default function OnboardingPage() {
       await update(); // 強制刷新 session
       console.log('Session 已更新，準備跳轉...');
       
-      // 強制跳轉到首頁
-      window.location.href = '/';
+      // 使用 router.replace 而不是 window.location.href
+      router.replace('/');
       
     } catch (error) {
       console.error('補資料失敗:', error);

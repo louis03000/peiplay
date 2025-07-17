@@ -14,15 +14,28 @@ export default function Home() {
       const checkUserProfile = async () => {
         try {
           const res = await fetch('/api/user/profile')
+          console.log('檢查用戶資料，回應狀態:', res.status)
+          
           if (res.ok) {
             const data = await res.json()
             const user = data.user
+            console.log('用戶資料:', user)
+            
+            // 檢查是否有電話和生日
+            const hasPhone = user.phone && user.phone.trim() !== ''
+            const hasBirthday = user.birthday && user.birthday !== '2000-01-01'
+            
+            console.log('檢查結果:', { hasPhone, hasBirthday, phone: user.phone, birthday: user.birthday })
             
             // 如果用戶沒有電話或生日，視為新用戶
-            if (!user.phone || !user.birthday) {
+            if (!hasPhone || !hasBirthday) {
               console.log('新用戶，跳轉到 onboarding')
               router.push('/onboarding')
+            } else {
+              console.log('用戶資料完整，不需要跳轉')
             }
+          } else {
+            console.error('獲取用戶資料失敗:', res.status)
           }
         } catch (error) {
           console.error('檢查用戶資料失敗:', error)
