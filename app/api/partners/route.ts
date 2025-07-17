@@ -27,7 +27,7 @@ export async function GET(request: Request) {
       gte: todayZero,
     };
 
-    // 修正：availableNow=true 時只回傳 isAvailableNow: true 的夥伴
+    // 修改查詢邏輯：有未來可用時段的夥伴就能顯示
     let where: any = { status: 'APPROVED' };
     if (rankBooster === 'true') {
       where.isRankBooster = true;
@@ -35,17 +35,15 @@ export async function GET(request: Request) {
     if (availableNow === 'true') {
       where.isAvailableNow = true;
     } else {
-      where.OR = [
-        {
-        schedules: {
-          some: {
-            date: scheduleDateFilter,
-            isAvailable: true,
+      // 修改：只要有任何未來可用時段就顯示，不需要強制開啟「現在有空」
+      where.schedules = {
+        some: {
+          date: {
+            gte: now, // 從現在開始的時段
           },
+          isAvailable: true,
         },
-      },
-        { isAvailableNow: true },
-      ];
+      };
     }
 
     const partners = await prisma.partner.findMany({
