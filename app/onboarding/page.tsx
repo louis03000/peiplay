@@ -20,6 +20,7 @@ export default function OnboardingPage() {
   const { data: session, update } = useSession();
   const router = useRouter();
   const [error, setError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const { register, handleSubmit, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: {
@@ -31,6 +32,12 @@ export default function OnboardingPage() {
   });
 
   const onSubmit = async (data: FormData) => {
+    if (isSubmitting) {
+      console.log('正在提交中，忽略重複提交');
+      return;
+    }
+    
+    setIsSubmitting(true);
     setError('');
     
     // 強制 birthday 格式為 YYYY-MM-DD
@@ -66,10 +73,9 @@ export default function OnboardingPage() {
       await update(); // 強制刷新 session
       console.log('Session 已更新，準備跳轉...');
       
-      // 強制跳轉到首頁
-      setTimeout(() => {
-        window.location.href = '/';
-      }, 1000);
+      // 立即跳轉到首頁
+      console.log('開始跳轉到首頁...');
+      window.location.href = '/';
       
     } catch (error) {
       console.error('補資料失敗:', error);
@@ -104,7 +110,13 @@ export default function OnboardingPage() {
             <input type="text" {...register('discord')} className="w-full border border-gray-300 rounded px-2 py-1 bg-white text-gray-900 placeholder-gray-400" />
             {errors.discord && <div className="text-red-600 text-sm">{errors.discord.message}</div>}
           </div>
-          <button type="submit" className="w-full bg-indigo-600 text-white py-2 rounded">送出</button>
+          <button 
+            type="submit" 
+            className="w-full bg-indigo-600 text-white py-2 rounded disabled:bg-gray-400"
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? '送出中...' : '送出'}
+          </button>
         </form>
       </div>
     </div>
