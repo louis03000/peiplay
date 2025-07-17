@@ -11,6 +11,12 @@ export default function Home() {
   useEffect(() => {
     // 如果用戶已登入但沒有完整資料，跳轉到 onboarding
     if (status === 'authenticated' && session?.user?.id) {
+      // 檢查當前是否在 onboarding 頁面
+      if (window.location.pathname === '/onboarding') {
+        console.log('當前在 onboarding 頁面，跳過檢查')
+        return
+      }
+      
       const checkUserProfile = async () => {
         try {
           const res = await fetch('/api/user/profile')
