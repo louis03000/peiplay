@@ -38,7 +38,8 @@ export default function Home() {
               console.log('新用戶，跳轉到 onboarding')
               router.push('/onboarding')
             } else {
-              console.log('用戶資料完整，不需要跳轉')
+              console.log('用戶資料完整，停留在首頁')
+              // 用戶資料完整，不需要做任何跳轉，就停留在首頁
             }
           } else {
             console.error('獲取用戶資料失敗:', res.status)
