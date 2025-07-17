@@ -461,7 +461,7 @@ export default function PartnerSchedulePage() {
               }))}
               startAccessor="start"
               endAccessor="end"
-              style={{ height: 400 }}
+              style={{ height: 600, overflow: 'auto' }}
               selectable
               onSelectSlot={handleSelectSlot}
               onSelectEvent={handleSelectEvent}
@@ -470,8 +470,8 @@ export default function PartnerSchedulePage() {
               views={['week']}
               step={30}
               timeslots={1}
-              min={new Date(0, 0, 0, 11, 0, 0)}
-              max={new Date(0, 0, 0, 17, 0, 0)}
+              min={new Date(0, 0, 0, 9, 0, 0)}
+              max={new Date(0, 0, 0, 22, 0, 0)}
               eventPropGetter={(event) => ({
                 style: {
                   backgroundColor: '#4F46E5',
