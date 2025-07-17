@@ -171,7 +171,9 @@ export default function MyBookings() {
 
   // 先合併，再排序，再分頁
   const merged = mergeBookings(bookings);
-  const sortedMerged = merged.sort((a, b) => new Date(b.schedule.startTime).getTime() - new Date(a.schedule.startTime).getTime());
+  // 只顯示已完成的預約
+  const completedBookings = merged.filter(booking => booking.status === 'COMPLETED');
+  const sortedMerged = completedBookings.sort((a, b) => new Date(b.schedule.startTime).getTime() - new Date(a.schedule.startTime).getTime());
   const pagedBookings = sortedMerged.slice((currentPage - 1) * pageSize, currentPage * pageSize);
   const totalPages = Math.ceil(sortedMerged.length / pageSize);
 
@@ -181,7 +183,7 @@ export default function MyBookings() {
       <div className="mb-6">
         <h2 className="text-xl font-bold mb-2 text-white">預約紀錄</h2>
         <p className="text-gray-300 text-sm">
-          顯示您作為顧客，主動預約的消費記錄
+          顯示您作為顧客，已完成且夥伴已確認的預約記錄
         </p>
       </div>
 
