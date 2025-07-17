@@ -21,6 +21,7 @@ export type Partner = {
   games: string[];
   halfHourlyRate: number;
   coverImage?: string;
+  images?: string[]; // 新增多張圖片支援
   schedules: { id: string; date: string; startTime: string; endTime: string, isAvailable: boolean }[];
   isAvailableNow: boolean;
   isRankBooster: boolean;

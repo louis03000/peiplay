@@ -54,6 +54,7 @@ export async function GET(request: Request) {
         games: true,
         halfHourlyRate: true,
         coverImage: true,
+        images: true, // 新增多張圖片
         isAvailableNow: true,
         isRankBooster: true,
         rankBoosterNote: true,

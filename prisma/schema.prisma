@@ -52,6 +52,7 @@ model Partner {
   birthday    DateTime
   phone       String
   coverImage  String
+  images      String[]    @default([]) // 新增多張圖片支援
   games       String[]
   halfHourlyRate  Float
   schedules   Schedule[]

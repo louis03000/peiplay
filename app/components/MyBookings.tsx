@@ -183,7 +183,7 @@ export default function MyBookings() {
       <div className="mb-6">
         <h2 className="text-xl font-bold mb-2 text-white">預約紀錄</h2>
         <p className="text-gray-300 text-sm">
-          顯示您作為顧客，已完成且夥伴已確認的預約記錄
+          顯示您作為顧客，夥伴已確認且已完成的預約記錄
         </p>
       </div>
 

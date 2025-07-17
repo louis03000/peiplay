@@ -12,6 +12,7 @@ interface Partner {
   games: string[];
   halfHourlyRate: number;
   coverImage?: string;
+  images?: string[]; // 新增多張圖片支援
   schedules: { date: string; startTime: string; endTime: string }[];
   isAvailableNow: boolean;
   isRankBooster?: boolean;
@@ -35,12 +36,13 @@ async function fetchPartners(startDate?: string, endDate?: string) {
   const res = await fetch(`/api/partners?${params.toString()}`)
   if (!res.ok) throw new Error('獲取夥伴失敗')
   const data = await res.json()
-  return (data as Array<{ id: string; name: string; games: string[]; halfHourlyRate: number; coverImage?: string; isAvailableNow: boolean; isRankBooster?: boolean; rankBoosterNote?: string; rankBoosterRank?: string; customerMessage?: string; schedules?: unknown[] }>).map((p) => ({
+  return (data as Array<{ id: string; name: string; games: string[]; halfHourlyRate: number; coverImage?: string; images?: string[]; isAvailableNow: boolean; isRankBooster?: boolean; rankBoosterNote?: string; rankBoosterRank?: string; customerMessage?: string; schedules?: unknown[] }>).map((p) => ({
     id: p.id,
     name: p.name,
     games: p.games,
     halfHourlyRate: p.halfHourlyRate,
     coverImage: p.coverImage,
+    images: p.images, // 新增多張圖片
     isAvailableNow: p.isAvailableNow,
     isRankBooster: p.isRankBooster,
     rankBoosterNote: p.rankBoosterNote,

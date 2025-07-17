@@ -2,7 +2,7 @@
 
 import Image from 'next/image'
 import { useState } from 'react'
-import { FaBolt } from 'react-icons/fa'
+import { FaBolt, FaChevronLeft, FaChevronRight } from 'react-icons/fa'
 
 interface Partner {
   id: string;
@@ -10,6 +10,7 @@ interface Partner {
   games: string[];
   halfHourlyRate: number;
   coverImage?: string;
+  images?: string[]; // 新增多張圖片支援
   schedules: Array<{
     date: string;
     startTime: string;
@@ -34,6 +35,31 @@ const isCloudinaryUrl = (url?: string) =>
 const PartnerCard: React.FC<PartnerCardProps> = ({ partner, onQuickBook, flipped = false }) => {
   const nextSchedule = partner.schedules?.[0]
   const [flippedState, setFlipped] = useState(flipped)
+  const [currentImageIndex, setCurrentImageIndex] = useState(0)
+
+  // 處理圖片陣列，如果沒有多張圖片就使用 coverImage
+  const images = partner.images && partner.images.length > 0 
+    ? partner.images 
+    : partner.coverImage 
+      ? [partner.coverImage] 
+      : ['/images/placeholder.svg']
+
+  const currentImage = images[currentImageIndex]
+
+  const nextImage = () => {
+    setCurrentImageIndex((prev) => (prev + 1) % images.length)
+  }
+
+  const prevImage = () => {
+    setCurrentImageIndex((prev) => (prev - 1 + images.length) % images.length)
+  }
+
+  const handleImageClick = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (images.length > 1) {
+      nextImage()
+    }
+  }
 
   return (
     <div
@@ -56,13 +82,57 @@ const PartnerCard: React.FC<PartnerCardProps> = ({ partner, onQuickBook, flipped
           style={{ backfaceVisibility: 'hidden' }}
         >
           {/* 封面照全覆蓋+資訊 */}
-        <Image
-            src={isCloudinaryUrl(partner.coverImage) ? partner.coverImage! : '/images/placeholder.svg'}
-          alt={partner.name}
-          fill
-          className="object-cover"
-            style={{ objectPosition: 'top center', zIndex: 0 }}
-          />
+          <div className="relative w-full h-full">
+            <Image
+              src={isCloudinaryUrl(currentImage) ? currentImage : currentImage}
+              alt={partner.name}
+              fill
+              className="object-cover cursor-pointer"
+              style={{ objectPosition: 'top center', zIndex: 0 }}
+              onClick={handleImageClick}
+            />
+            
+            {/* 圖片導航指示器 */}
+            {images.length > 1 && (
+              <div className="absolute top-2 right-2 flex gap-1">
+                {images.map((_, index) => (
+                  <div
+                    key={index}
+                    className={`w-2 h-2 rounded-full ${
+                      index === currentImageIndex 
+                        ? 'bg-white shadow-lg' 
+                        : 'bg-white/50'
+                    }`}
+                  />
+                ))}
+              </div>
+            )}
+
+            {/* 左右滑動按鈕 */}
+            {images.length > 1 && (
+              <>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    prevImage()
+                  }}
+                  className="absolute left-2 top-1/2 transform -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white rounded-full p-1 transition-colors z-20"
+                >
+                  <FaChevronLeft size={12} />
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    nextImage()
+                  }}
+                  className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white rounded-full p-1 transition-colors z-20"
+                >
+                  <FaChevronRight size={12} />
+                </button>
+              </>
+            )}
+          </div>
+
           <div className="absolute inset-0 flex flex-col justify-end z-10">
             {/* 上方標籤 */}
             <div className="absolute top-2 left-2 flex gap-2">
@@ -75,21 +145,21 @@ const PartnerCard: React.FC<PartnerCardProps> = ({ partner, onQuickBook, flipped
               {partner.isRankBooster && (
                 <span className="inline-block bg-gradient-to-r from-yellow-400 via-orange-400 to-orange-500 text-white text-xs font-bold px-2 py-1 rounded-full shadow ml-1">上分高手</span>
               )}
-      </div>
+            </div>
             {/* 下方漸層遮罩+資訊 */}
             <div className="w-full pt-12 pb-3 px-3 bg-gradient-to-t from-black/80 via-black/40 to-transparent">
               <h3 className="text-lg font-bold text-white mb-1 truncate drop-shadow">{partner.name}</h3>
               <div className="flex flex-wrap gap-1 mb-1">
-          {partner.games?.map((game: string) => (
+                {partner.games?.map((game: string) => (
                   <span key={game} className="inline-block bg-purple-200/80 text-purple-800 px-2 py-0.5 rounded-full text-xs font-semibold drop-shadow">
-              {game}
-            </span>
-          ))}
-        </div>
+                    {game}
+                  </span>
+                ))}
+              </div>
               <div className="flex items-center gap-1 mt-1">
                 <span className="text-cyan-200 font-bold text-base drop-shadow">${partner.halfHourlyRate}</span>
                 <span className="text-xs text-gray-100/80">/半小時</span>
-      </div>
+              </div>
             </div>
           </div>
         </div>
@@ -99,7 +169,7 @@ const PartnerCard: React.FC<PartnerCardProps> = ({ partner, onQuickBook, flipped
           style={{ backfaceVisibility: 'hidden' }}
         >
           <div className="w-20 h-20 rounded-xl overflow-hidden border-4 border-blue-200 mb-2">
-            <Image src={isCloudinaryUrl(partner.coverImage) ? partner.coverImage! : '/images/placeholder.svg'} alt={partner.name} width={80} height={80} className="object-cover w-full h-full" />
+            <Image src={isCloudinaryUrl(currentImage) ? currentImage : currentImage} alt={partner.name} width={80} height={80} className="object-cover w-full h-full" />
           </div>
           <div className="font-bold text-base text-blue-900 dark:text-blue-100 mb-1">{partner.name}</div>
           <div className="w-full max-w-[180px] mx-auto bg-blue-50 dark:bg-blue-900/30 rounded-xl border border-blue-200 dark:border-blue-700 shadow-inner p-2 text-center mb-2">

@@ -1,6 +1,6 @@
 'use client'
 import { useState, useCallback, useMemo, useEffect } from 'react'
-import { Calendar, dateFnsLocalizer, SlotInfo, Event, ToolbarProps } from 'react-big-calendar'
+import { Calendar, dateFnsLocalizer, SlotInfo } from 'react-big-calendar'
 import format from 'date-fns/format'
 import parse from 'date-fns/parse'
 import startOfWeek from 'date-fns/startOfWeek'
@@ -36,6 +36,11 @@ function CustomToolbar(toolbar: import('react-big-calendar').ToolbarProps<{ titl
   )
 }
 
+interface PartnerImage {
+  url: string;
+  publicId: string;
+}
+
 export default function PartnerSchedulePage() {
   // 假設預設為沒空
   const [isAvailableNow, setIsAvailableNow] = useState(false)
@@ -50,8 +55,13 @@ export default function PartnerSchedulePage() {
   const [rankBoosterRank, setRankBoosterRank] = useState('')
   const [rankBoosterMsg, setRankBoosterMsg] = useState('')
 
+  // 圖片上傳相關狀態
+  const [images, setImages] = useState<PartnerImage[]>([])
+  const [uploadingImage, setUploadingImage] = useState(false)
+  const [deletingImage, setDeletingImage] = useState<string | null>(null)
+
   // 幫助函式：判斷兩個時段是否相同
-  const isSameSlot = useCallback((a: { start: Date; end: Date }, b: { start: Date; end: Date }) => {
+  const isSameSlot = useCallback((a: {start: Date, end: Date}, b: {start: Date, end: Date}) => {
     return a.start.getTime() === b.start.getTime() && a.end.getTime() === b.end.getTime();
   }, [])
 
@@ -62,6 +72,21 @@ export default function PartnerSchedulePage() {
       .then(data => {
         setAllSlots(data)
       })
+  }, [])
+
+  // 載入夥伴圖片
+  useEffect(() => {
+    fetch('/api/partner/images')
+      .then(res => res.json())
+      .then(data => {
+        if (data.images) {
+          setImages(data.images.map((url: string) => ({
+            url,
+            publicId: url.split('/').pop()?.split('.')[0] || ''
+          })))
+        }
+      })
+      .catch(err => console.error('載入圖片失敗:', err))
   }, [])
 
   // 初始化 isAvailableNow 狀態
@@ -98,86 +123,97 @@ export default function PartnerSchedulePage() {
   }, [allSlots, isSameSlot])
 
   // 點選 event（已選時段）時可取消
-  const handleSelectEvent = useCallback((event: { start: Date; end: Date }) => {
-    setEvents(prev => prev.filter(e => !isSameSlot(e, event)))
+  const handleSelectEvent = useCallback((event: any) => {
+    setSelectedSlots(prev => prev.filter(e => !isSameSlot(e, { start: event.start, end: event.end })));
   }, [isSameSlot])
 
-  // 儲存所有時段到後端（批量處理）
-  const handleSave = useCallback(async () => {
-    if (isSaving) return;
-    setIsSaving(true)
-    setSaveMsg('')
-    setSaveResult(null)
+  // 圖片上傳處理
+  const handleImageUpload = async (file: File) => {
+    if (uploadingImage) return;
+    
+    setUploadingImage(true);
     try {
-      const uniqueEvents = selectedSlots.filter((e, i, arr) => arr.findIndex(x => isSameSlot(x, e)) === i);
-      if (uniqueEvents.length === 0) {
-        setSaveMsg('沒有可儲存的時段')
-        return
+      // 創建 FormData
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('upload_preset', 'spjt8xnd'); // 你的 Cloudinary preset
+      formData.append('cloud_name', 'dbhlwvrch'); // 你的 Cloudinary cloud name
+
+      // 上傳到 Cloudinary
+      const response = await fetch(`https://api.cloudinary.com/v1_1/dbhlwvrch/image/upload`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error('圖片上傳失敗');
       }
-      // 分類：已儲存（要刪除）與未儲存（要新增）
-      const toDelete = uniqueEvents.filter(e => {
-        const slot = allSlots.find(s => new Date(s.startTime).getTime() === e.start.getTime() && new Date(s.endTime).getTime() === e.end.getTime());
-        return slot && !slot.booked;
-      })
-      const toAdd = uniqueEvents.filter(e => {
-        const slot = allSlots.find(s => new Date(s.startTime).getTime() === e.start.getTime() && new Date(s.endTime).getTime() === e.end.getTime());
-        return !slot;
-      })
-      let addMsg = '', delMsg = '';
-      // 刪除
-      if (toDelete.length > 0) {
-        const delRes = await fetch('/api/partner/schedule', {
-          method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(toDelete.map(e => ({ date: e.start, startTime: e.start, endTime: e.end })))
-        })
-        const delResult = await delRes.json()
-        if (delRes.ok && delResult.success) {
-          delMsg = `成功刪除 ${delResult.count} 筆時段。`
-        } else {
-          delMsg = delResult.error || '刪除時段失敗';
-        }
+
+      const result = await response.json();
+      
+      // 儲存到資料庫
+      const saveResponse = await fetch('/api/partner/images', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imageUrl: result.secure_url }),
+      });
+
+      if (!saveResponse.ok) {
+        throw new Error('儲存圖片失敗');
       }
-      // 新增
-      if (toAdd.length > 0) {
-        const addRes = await fetch('/api/partner/schedule', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(toAdd.map(e => ({ date: e.start, startTime: e.start, endTime: e.end })))
-        })
-        const addResult = await addRes.json()
-        if (addRes.ok && addResult.success) {
-          addMsg = `成功新增 ${addResult.count} 筆時段。`
-        } else {
-          addMsg = addResult.error || '新增時段失敗';
-        }
-      }
-      if (!addMsg && !delMsg) setSaveMsg('沒有可儲存/刪除的時段')
-      else setSaveMsg([addMsg, delMsg].filter(Boolean).join(' '))
-      // 重新載入
-      fetch('/api/partner/schedule').then(res => res.json()).then(data => setAllSlots(data))
-      setSelectedSlots([])
+
+      // 更新本地狀態
+      setImages(prev => [...prev, {
+        url: result.secure_url,
+        publicId: result.public_id
+      }]);
+
     } catch (error) {
-      setSaveMsg('儲存/刪除失敗，請重試')
+      console.error('上傳圖片失敗:', error);
+      alert('圖片上傳失敗，請重試');
     } finally {
-      setIsSaving(false)
+      setUploadingImage(false);
     }
-  }, [selectedSlots, isSaving, isSameSlot, allSlots])
+  };
 
-  // eventPropGetter 根據是否被選中改變底色
-  const eventPropGetter = useCallback((event: { start: Date; end: Date }) => {
-    const isSelected = events.some(e => isSameSlot(e, event));
-    return {
-      style: {
-        backgroundColor: isSelected ? '#4F46E5' : '#a5b4fc', // 選中主色，未選淡色
-        color: '#fff',
-        borderRadius: 8,
-        border: isSelected ? '2px solid #6366f1' : '2px solid #a5b4fc',
-        fontWeight: 'bold',
-        fontSize: 16,
-        boxShadow: isSelected ? '0 2px 8px #6366f133' : 'none',
-        zIndex: isSelected ? 2 : 1,
+  // 刪除圖片
+  const handleDeleteImage = async (imageUrl: string) => {
+    if (deletingImage) return;
+    
+    setDeletingImage(imageUrl);
+    try {
+      const response = await fetch('/api/partner/images', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imageUrl }),
+      });
+
+      if (!response.ok) {
+        throw new Error('刪除圖片失敗');
       }
-    }
-  }, [events, isSameSlot])
 
-  // SlotWrapper 根據 slot 狀態渲染
+      // 更新本地狀態
+      setImages(prev => prev.filter(img => img.url !== imageUrl));
+
+    } catch (error) {
+      console.error('刪除圖片失敗:', error);
+      alert('刪除圖片失敗，請重試');
+    } finally {
+      setDeletingImage(null);
+    }
+  };
+
+  // 處理檔案選擇
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      handleImageUpload(file);
+    }
+    // 清空 input 值，允許重複選擇同一檔案
+    event.target.value = '';
+  };
+
+  // 自訂 slot wrapper，讓空格可點擊
   const CustomSlotWrapper = useCallback((props: any) => {
     const slotStart: Date = props.value as Date;
     const slotEnd = new Date(slotStart.getTime() + 30 * 60 * 1000);
@@ -302,7 +338,7 @@ export default function PartnerSchedulePage() {
               <span className="sr-only">現在有空</span>
               <span
                 className={`${isAvailableNow ? 'translate-x-6' : 'translate-x-1'} inline-block h-4 w-4 transform rounded-full bg-white transition-transform`}
-            />
+              />
             </Switch>
             <div className="flex flex-col items-start">
               <span className="text-indigo-300 font-medium">現在有空</span>
@@ -314,7 +350,7 @@ export default function PartnerSchedulePage() {
             <Switch
               checked={isRankBooster}
               onChange={handleToggleRankBooster}
-              className={`${isRankBooster ? 'bg-yellow-400' : 'bg-gray-400'} relative inline-flex h-6 w-11 items-center rounded-full transition-colors`}
+              className={`${isRankBooster ? 'bg-yellow-500' : 'bg-gray-400'} relative inline-flex h-6 w-11 items-center rounded-full transition-colors`}
             >
               <span className="sr-only">我是上分高手</span>
               <span
@@ -322,91 +358,188 @@ export default function PartnerSchedulePage() {
               />
             </Switch>
             <div className="flex flex-col items-start">
-              <span className="text-yellow-300 font-medium flex items-center gap-1"><FaCrown className="inline text-yellow-400"/>我是上分高手</span>
-              <span className={`text-sm font-bold ${isRankBooster ? 'text-yellow-400' : 'text-gray-400'} mt-1`}>{isRankBooster ? '顧客可搜尋上分高手' : '不顯示於上分高手列表'}</span>
+              <span className="text-indigo-300 font-medium">我是上分高手</span>
+              <span className={`text-sm font-bold ${isRankBooster ? 'text-yellow-400' : 'text-gray-400'} mt-1`}>{isRankBooster ? '顧客可搜尋上分高手' : '顧客搜尋不到你'}</span>
             </div>
           </div>
         </div>
 
-        {isRankBooster && (
-          <div className="w-full max-w-2xl mx-auto bg-white/80 rounded-xl shadow-lg p-6 mb-8 border border-yellow-200">
-            <div className="flex items-center gap-2 mb-4">
-              <FaCrown className="text-2xl text-yellow-400"/>
-              <span className="text-lg font-bold text-yellow-700">上分高手專屬資料</span>
-            </div>
-            <div className="mb-4">
-              <label className="block text-gray-700 font-semibold mb-1">強項（可多行描述）</label>
-              <textarea
-                className="w-full rounded-lg border border-yellow-300 p-3 text-gray-800 focus:outline-none focus:ring-2 focus:ring-yellow-400 bg-yellow-50 min-h-[64px] resize-none shadow-sm"
-                value={rankBoosterNote}
-                onChange={e => setRankBoosterNote(e.target.value)}
-                placeholder="請輸入你的遊戲強項、擅長角色、服務特色等..."
-              />
-            </div>
-            <div className="mb-4">
-              <label className="block text-gray-700 font-semibold mb-1">目前段位</label>
+        {/* 圖片上傳區塊 */}
+        <div className="mb-8 p-6 bg-white/5 rounded-xl border border-white/10">
+          <h3 className="text-lg font-bold mb-4 text-center">個人圖片管理</h3>
+          <p className="text-center text-gray-300 mb-4">上傳多張圖片，讓顧客更了解你</p>
+          
+          {/* 圖片上傳 */}
+          <div className="flex justify-center mb-4">
+            <label className="cursor-pointer bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-lg transition-colors">
+              {uploadingImage ? '上傳中...' : '選擇圖片上傳'}
               <input
-                className="w-full rounded-lg border border-yellow-300 p-3 text-gray-800 focus:outline-none focus:ring-2 focus:ring-yellow-400 bg-yellow-50 shadow-sm"
-                value={rankBoosterRank}
-                onChange={e => setRankBoosterRank(e.target.value)}
-                placeholder="例：英雄聯盟 S13 大師、傳說對決 S30 王者..."
+                type="file"
+                accept="image/*"
+                onChange={handleFileSelect}
+                className="hidden"
+                disabled={uploadingImage}
               />
+            </label>
+          </div>
+
+          {/* 圖片預覽 */}
+          {images.length > 0 && (
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              {images.map((image, index) => (
+                <div key={index} className="relative group">
+                  <img
+                    src={image.url}
+                    alt={`圖片 ${index + 1}`}
+                    className="w-full h-32 object-cover rounded-lg"
+                  />
+                  <button
+                    onClick={() => handleDeleteImage(image.url)}
+                    disabled={deletingImage === image.url}
+                    className="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
+                    {deletingImage === image.url ? '...' : '×'}
+                  </button>
+                </div>
+              ))}
             </div>
-            <button
-              className="w-full py-2 rounded-lg bg-gradient-to-r from-yellow-400 to-yellow-300 text-yellow-900 font-bold text-lg hover:from-yellow-500 hover:to-yellow-400 transition-all duration-300 shadow-md"
-              onClick={handleSaveRankBooster}
-            >
-              儲存上分高手資料
-            </button>
-            {rankBoosterMsg && <p className="text-center text-green-600 font-bold mt-2">{rankBoosterMsg}</p>}
+          )}
+        </div>
+
+        {/* 上分高手專屬資料 */}
+        {isRankBooster && (
+          <div className="mb-8 p-6 bg-yellow-500/10 rounded-xl border border-yellow-500/20">
+            <div className="flex items-center gap-2 mb-4">
+              <FaCrown className="text-yellow-400 text-xl" />
+              <h3 className="text-lg font-bold text-yellow-400">上分高手專屬資料</h3>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-yellow-300 font-medium mb-2">強項 (可多行描述)</label>
+                <textarea
+                  value={rankBoosterNote}
+                  onChange={(e) => setRankBoosterNote(e.target.value)}
+                  placeholder="請輸入你的遊戲強項、擅長角色、服務特色等..."
+                  className="w-full p-3 bg-yellow-500/20 border border-yellow-500/30 rounded-lg text-white placeholder-yellow-300/50 focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                  rows={3}
+                />
+              </div>
+              <div>
+                <label className="block text-yellow-300 font-medium mb-2">目前段位</label>
+                <input
+                  type="text"
+                  value={rankBoosterRank}
+                  onChange={(e) => setRankBoosterRank(e.target.value)}
+                  placeholder="例:英雄聯盟S13大師、傳說對決 S30王者..."
+                  className="w-full p-3 bg-yellow-500/20 border border-yellow-500/30 rounded-lg text-white placeholder-yellow-300/50 focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                />
+              </div>
+              <div className="flex justify-center">
+                <button
+                  onClick={handleSaveRankBooster}
+                  className="bg-yellow-500 hover:bg-yellow-600 text-white px-6 py-2 rounded-lg font-medium transition-colors"
+                >
+                  儲存上分高手資料
+                </button>
+              </div>
+              {rankBoosterMsg && (
+                <div className="text-center text-yellow-400 font-medium">{rankBoosterMsg}</div>
+              )}
+            </div>
           </div>
         )}
 
-        <div className="bg-white rounded-lg shadow-lg p-4 overflow-x-auto">
-          <div style={{ minWidth: '800px' }}> {/*
-            Ensures the calendar has enough space on smaller screens when scrolling
-          */}
+        {/* 時段管理 */}
+        <div className="mb-8">
+          <div className="bg-white rounded-lg p-4 shadow-lg">
             <Calendar
               localizer={localizer}
-              events={[]}
+              events={selectedSlots.map(slot => ({
+                title: `${slot.start.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })} - ${slot.end.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}`,
+                start: slot.start,
+                end: slot.end
+              }))}
               startAccessor="start"
               endAccessor="end"
-              defaultView="week"
-              views={['week']}
+              style={{ height: 400 }}
               selectable
-              step={30}
-              timeslots={1}
-              min={new Date(2023, 0, 1, 0, 0)}
-              max={new Date(2023, 0, 1, 23, 30)}
-              style={{ height: 600 }}
               onSelectSlot={handleSelectSlot}
               onSelectEvent={handleSelectEvent}
-              messages={{ week: '週', day: '日', today: '今天', previous: '', next: '下週' }}
               components={calendarComponents}
+              defaultView="week"
+              views={['week']}
+              step={30}
+              timeslots={1}
+              min={new Date(0, 0, 0, 11, 0, 0)}
+              max={new Date(0, 0, 0, 17, 0, 0)}
+              eventPropGetter={(event) => ({
+                style: {
+                  backgroundColor: '#4F46E5',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '4px',
+                  padding: '2px 4px',
+                  fontSize: '12px'
+                }
+              })}
             />
           </div>
         </div>
-        
-        <button
-          className="mt-8 w-full py-3 rounded-lg bg-gradient-to-r from-indigo-500 to-purple-500 text-white font-bold text-lg hover:from-indigo-600 hover:to-purple-600 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
-          onClick={handleSave}
-          disabled={selectedSlots.length === 0 || isSaving}
-        >
-          {isSaving ? '儲存中...' : '儲存時段'}
-        </button>
-        {saveMsg && <p className="text-center text-green-400 font-bold mt-4">{saveMsg}</p>}
-        {saveResult && (
-          <div className="mt-4 bg-gray-800 rounded-lg p-4 text-sm">
-            <div className="mb-2 font-bold">儲存結果：</div>
-            {saveResult.map((r: {time: string, status: string, reason: string}, i: number) => (
-              <div key={i} className={r.status === '成功' ? 'text-green-400' : 'text-red-400'}>
-                {r.time}：{r.status}{r.reason && `（${r.reason}）`}
-              </div>
-            ))}
-          </div>
-        )}
-        <p className="text-gray-400 text-center mt-4 text-sm">點選格子可切換可預約時段，儲存後顧客就能預約你！</p>
+
+        {/* 儲存按鈕 */}
+        <div className="text-center">
+          <button
+            onClick={async () => {
+              if (selectedSlots.length === 0) {
+                alert('請先選擇時段');
+                return;
+              }
+              setIsSaving(true);
+              setSaveMsg('');
+              try {
+                const schedules = selectedSlots.map(slot => ({
+                  date: slot.start.toISOString().split('T')[0],
+                  startTime: slot.start.toISOString(),
+                  endTime: slot.end.toISOString()
+                }));
+                const res = await fetch('/api/partner/schedule', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify(schedules)
+                });
+                if (res.ok) {
+                  setSaveMsg('時段儲存成功！');
+                  setSelectedSlots([]);
+                  // 重新載入時段
+                  fetch('/api/partner/schedule')
+                    .then(res => res.json())
+                    .then(data => setAllSlots(data));
+                } else {
+                  const error = await res.json();
+                  setSaveMsg(`儲存失敗: ${error.error}`);
+                }
+              } catch (error) {
+                setSaveMsg('儲存失敗，請重試');
+              } finally {
+                setIsSaving(false);
+              }
+            }}
+            disabled={isSaving || selectedSlots.length === 0}
+            className="bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 text-white px-8 py-3 rounded-lg font-medium transition-colors"
+          >
+            {isSaving ? '儲存中...' : '儲存時段'}
+          </button>
+          {saveMsg && (
+            <div className={`mt-4 text-center font-medium ${saveMsg.includes('成功') ? 'text-green-400' : 'text-red-400'}`}>
+              {saveMsg}
+            </div>
+          )}
+        </div>
+
+        <div className="text-center text-gray-400 mt-4">
+          點選格子可切換可預約時段，儲存後顧客就能預約你！
+        </div>
       </div>
     </div>
-  )
+  );
 }
