@@ -1,6 +1,38 @@
 'use client'
 
+import { useSession } from 'next-auth/react'
+import { useRouter } from 'next/navigation'
+import { useEffect } from 'react'
+
 export default function Home() {
+  const { data: session, status } = useSession()
+  const router = useRouter()
+
+  useEffect(() => {
+    // 如果用戶已登入但沒有完整資料，跳轉到 onboarding
+    if (status === 'authenticated' && session?.user?.id) {
+      const checkUserProfile = async () => {
+        try {
+          const res = await fetch('/api/user/profile')
+          if (res.ok) {
+            const data = await res.json()
+            const user = data.user
+            
+            // 如果用戶沒有電話或生日，視為新用戶
+            if (!user.phone || !user.birthday) {
+              console.log('新用戶，跳轉到 onboarding')
+              router.push('/onboarding')
+            }
+          }
+        } catch (error) {
+          console.error('檢查用戶資料失敗:', error)
+        }
+      }
+      
+      checkUserProfile()
+    }
+  }, [session, status, router])
+
   return (
     <div className="flex flex-col min-h-screen bg-gradient-to-br from-[#23243a] via-[#2d2e4a] to-[#1a1b2b]">
       <main className="flex-1 flex flex-col items-center justify-center">

@@ -4,6 +4,7 @@ import { UserRole } from '@prisma/client'
 import CredentialsProvider from "next-auth/providers/credentials";
 import { compare } from "bcryptjs";
 import LineProvider from 'next-auth/providers/line'
+import { getServerSession } from 'next-auth/next'
 
 declare module 'next-auth' {
   interface User {
@@ -142,9 +143,9 @@ export const authOptions: NextAuthOptions = {
     async redirect({ url, baseUrl }) {
       console.log('Redirect callback:', { url, baseUrl });
       
-      // 如果 URL 包含 signin，且是 LINE 登入，跳轉到 onboarding
-      if (url.includes('signin') && url.includes('line')) {
-        return `${baseUrl}/onboarding`;
+      // 如果是 signin 成功，跳轉到首頁，讓前端處理 onboarding
+      if (url.includes('signin')) {
+        return `${baseUrl}/`;
       }
       
       // 其他情況保持原來的行為
