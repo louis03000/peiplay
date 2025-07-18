@@ -70,6 +70,13 @@ export default function PartnerSchedulePage() {
   const today = new Date()
   const nextWeek = new Date(today)
   nextWeek.setDate(today.getDate() + 7)
+  
+  // 創建未來7天的日期陣列
+  const futureDates = Array.from({ length: 7 }, (_, i) => {
+    const date = new Date(today)
+    date.setDate(today.getDate() + i)
+    return date
+  })
 
   // 幫助函式：判斷兩個時段是否相同
   const isSameSlot = useCallback((a: {start: Date, end: Date}, b: {start: Date, end: Date}) => {
@@ -463,38 +470,59 @@ export default function PartnerSchedulePage() {
         {/* 時段管理 */}
         <div className="mb-8">
           <div className="bg-white rounded-lg p-4 shadow-lg" style={{ height: 'auto', minHeight: '800px' }}>
-            <Calendar
-              localizer={localizer}
-              events={selectedSlots.map(slot => ({
-                title: `${slot.start.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })} - ${slot.end.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}`,
-                start: slot.start,
-                end: slot.end
-              }))}
-              startAccessor="start"
-              endAccessor="end"
-              style={{ height: 'auto', minHeight: 800, maxHeight: 'none' }}
-              selectable
-              onSelectSlot={handleSelectSlot}
-              onSelectEvent={handleSelectEvent}
-              components={calendarComponents}
-              defaultView="week"
-              views={['week']}
-              step={30}
-              timeslots={1}
-              min={new Date(0, 0, 0, 8, 0, 0)}
-              max={new Date(0, 0, 0, 23, 0, 0)}
-              date={today}
-              eventPropGetter={(event) => ({
-                style: {
-                  backgroundColor: '#4F46E5',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '4px',
-                  padding: '2px 4px',
-                  fontSize: '12px'
-                }
-              })}
-            />
+            {/* 自訂未來7天 Calendar */}
+            <div className="mb-4">
+              <div className="flex gap-2 mb-2">
+                <button type="button" className="rbc-btn">今天</button>
+                <button type="button" className="rbc-btn">下週</button>
+                <span className="ml-4 font-bold text-lg text-gray-700">
+                  {`${today.toLocaleDateString('zh-TW', { month: 'long', day: 'numeric' })} - ${nextWeek.toLocaleDateString('zh-TW', { month: 'long', day: 'numeric' })}`}
+                </span>
+              </div>
+              
+              {/* 日期標題 */}
+              <div className="grid grid-cols-7 gap-1 mb-2">
+                {futureDates.map((date, index) => (
+                  <div key={index} className="text-center font-bold text-gray-700 p-2">
+                    {`${date.getDate()} ${['日', '一', '二', '三', '四', '五', '六'][date.getDay()]}`}
+                  </div>
+                ))}
+              </div>
+              
+              {/* 時段網格 */}
+              <div className="grid grid-cols-7 gap-1" style={{ height: '600px', overflowY: 'auto' }}>
+                {futureDates.map((date, dateIndex) => (
+                  <div key={dateIndex} className="border border-gray-200">
+                    {Array.from({ length: 48 }, (_, timeIndex) => {
+                      const hour = Math.floor(timeIndex / 2)
+                      const minute = (timeIndex % 2) * 30
+                      const timeSlot = new Date(date)
+                      timeSlot.setHours(hour, minute, 0, 0)
+                      const nextTimeSlot = new Date(timeSlot)
+                      nextTimeSlot.setMinutes(nextTimeSlot.getMinutes() + 30)
+                      
+                      const isSelected = selectedSlots.some(slot => 
+                        isSameSlot(slot, { start: timeSlot, end: nextTimeSlot })
+                      )
+                      
+                      return (
+                        <div
+                          key={timeIndex}
+                          className={`h-8 border-b border-gray-100 cursor-pointer hover:bg-blue-50 ${
+                            isSelected ? 'bg-indigo-500 text-white' : 'bg-white'
+                          }`}
+                          onClick={() => handleSelectSlot({ start: timeSlot, end: nextTimeSlot } as any)}
+                        >
+                          <div className="text-xs p-1">
+                            {timeSlot.getHours().toString().padStart(2, '0')}:{timeSlot.getMinutes().toString().padStart(2, '0')}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
 
