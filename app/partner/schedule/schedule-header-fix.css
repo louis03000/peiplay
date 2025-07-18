@@ -69,4 +69,22 @@
 .rbc-time-view {
   padding-top: 10px !important;
   padding-bottom: 10px !important;
+}
+
+/* 確保時段內容可見 */
+.rbc-time-slot {
+  display: block !important;
+  visibility: visible !important;
+}
+
+/* 確保時間標籤可見 */
+.rbc-time-gutter .rbc-label {
+  display: block !important;
+  visibility: visible !important;
+}
+
+/* 確保時段網格可見 */
+.rbc-time-content {
+  display: block !important;
+  visibility: visible !important;
 } 
