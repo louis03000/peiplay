@@ -451,7 +451,7 @@ export default function PartnerSchedulePage() {
 
         {/* 時段管理 */}
         <div className="mb-8">
-          <div className="bg-white rounded-lg p-4 shadow-lg">
+          <div className="bg-white rounded-lg p-4 shadow-lg" style={{ height: 'auto', minHeight: '800px' }}>
             <Calendar
               localizer={localizer}
               events={selectedSlots.map(slot => ({
@@ -461,7 +461,7 @@ export default function PartnerSchedulePage() {
               }))}
               startAccessor="start"
               endAccessor="end"
-              style={{ height: 600, overflow: 'auto' }}
+              style={{ height: 'auto', minHeight: 800, maxHeight: 'none' }}
               selectable
               onSelectSlot={handleSelectSlot}
               onSelectEvent={handleSelectEvent}

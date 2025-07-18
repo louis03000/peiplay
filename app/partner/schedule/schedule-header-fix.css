@@ -9,13 +9,15 @@
 
 /* 改善滾動區域 */
 .rbc-time-view {
-  overflow: auto !important;
+  overflow: visible !important;
   max-height: none !important;
+  height: auto !important;
 }
 
 .rbc-time-content {
-  overflow: auto !important;
+  overflow: visible !important;
   max-height: none !important;
+  height: auto !important;
 }
 
 /* 確保時段格子可以正常滾動 */
@@ -26,10 +28,28 @@
 /* 改善整體容器 */
 .rbc-calendar {
   overflow: visible !important;
+  height: auto !important;
+  max-height: none !important;
 }
 
 /* 確保內容區域可以滾動 */
 .rbc-time-view .rbc-time-content {
-  overflow-y: auto !important;
+  overflow-y: visible !important;
   overflow-x: hidden !important;
+  height: auto !important;
+}
+
+/* 移除所有高度限制 */
+.rbc-time-view,
+.rbc-time-content,
+.rbc-calendar {
+  height: auto !important;
+  max-height: none !important;
+  overflow: visible !important;
+}
+
+/* 確保時段容器可以完全展開 */
+.rbc-time-slot {
+  height: auto !important;
+  min-height: 30px !important;
 } 

@@ -78,6 +78,7 @@ export default function BookingWizard() {
     return partners.filter(p => {
       const matchSearch = p.name.includes(search) || (p.games && p.games.some(s => s.includes(search)));
       const hasFutureSchedule = p.schedules && p.schedules.some(s => s.isAvailable && new Date(s.startTime) > new Date());
+      
       if (onlyAvailable && onlyRankBooster) {
         return matchSearch && p.isAvailableNow && p.isRankBooster;
       } else if (onlyAvailable) {
@@ -85,8 +86,8 @@ export default function BookingWizard() {
       } else if (onlyRankBooster) {
         return matchSearch && p.isRankBooster;
       } else {
-        // 修改：有未來可用時段就顯示，不需要強制開啟「現在有空」或「上分高手」
-        return matchSearch && hasFutureSchedule;
+        // 修改：只有開啟「現在有空」或有「排名提升」的夥伴才會顯示
+        return matchSearch && (p.isAvailableNow || p.isRankBooster);
       }
     });
   }, [partners, search, onlyAvailable, onlyRankBooster]);
