@@ -123,13 +123,14 @@ export default function PartnerSchedulePage() {
       })
   }, [])
 
-  // 點選空格時新增/移除可用時段（僅可選未 booked/saved 的 slot）
+  // 點選空格時新增/移除可用時段
   const handleSelectSlot = useCallback((slotInfo: SlotInfo) => {
     const slotStart = slotInfo.start;
     const slotEnd = slotInfo.end;
-    // 檢查是否已被預約或已儲存
+    // 檢查是否已被預約
     const slot = allSlots.find(s => new Date(s.startTime).getTime() === slotStart.getTime() && new Date(s.endTime).getTime() === slotEnd.getTime())
-    if (slot && (slot.booked || slot.saved)) return;
+    if (slot && slot.booked) return; // 只有已預約的不能點選
+    
     setSelectedSlots(prev => {
       const exists = prev.some(e => isSameSlot(e, { start: slotStart, end: slotEnd }));
       if (exists) {
@@ -521,20 +522,56 @@ export default function PartnerSchedulePage() {
                         const nextTimeSlot = new Date(timeSlot)
                         nextTimeSlot.setMinutes(nextTimeSlot.getMinutes() + 30)
                         
+                        // 檢查是否已被預約或已儲存
+                        const slot = allSlots.find(s => 
+                          new Date(s.startTime).getTime() === timeSlot.getTime() && 
+                          new Date(s.endTime).getTime() === nextTimeSlot.getTime()
+                        )
+                        const isBooked = slot?.booked
+                        const isSaved = !!slot
                         const isSelected = selectedSlots.some(slot => 
                           isSameSlot(slot, { start: timeSlot, end: nextTimeSlot })
                         )
                         
+                        // 判斷背景色和樣式
+                        let bgClass = 'bg-white'
+                        let textClass = 'text-gray-700'
+                        let cursorClass = 'cursor-pointer'
+                        let content = ''
+                        
+                        if (isBooked) {
+                          bgClass = 'bg-gray-300'
+                          textClass = 'text-gray-500'
+                          cursorClass = 'cursor-not-allowed'
+                          content = '🔒'
+                        } else if (isSaved && isSelected) {
+                          bgClass = 'bg-red-500'
+                          textClass = 'text-white'
+                          cursorClass = 'cursor-pointer'
+                          content = '🗑️'
+                        } else if (isSaved) {
+                          bgClass = 'bg-gray-200'
+                          textClass = 'text-gray-600'
+                          cursorClass = 'cursor-pointer'
+                          content = '✓'
+                        } else if (isSelected) {
+                          bgClass = 'bg-indigo-500'
+                          textClass = 'text-white'
+                          cursorClass = 'cursor-pointer'
+                          content = '✓'
+                        }
+                        
                         return (
                           <div
                             key={timeIndex}
-                            className={`h-8 border-b border-gray-100 cursor-pointer hover:bg-blue-50 transition-colors ${
-                              isSelected ? 'bg-indigo-500 text-white' : 'bg-white'
-                            }`}
-                            onClick={() => handleSelectSlot({ start: timeSlot, end: nextTimeSlot } as any)}
+                            className={`h-8 border-b border-gray-100 ${cursorClass} hover:bg-blue-50 transition-colors ${bgClass} ${textClass}`}
+                            onClick={() => {
+                              if (isBooked) return; // 已預約的不能點選
+                              handleSelectSlot({ start: timeSlot, end: nextTimeSlot } as any)
+                            }}
                           >
-                            <div className="text-xs p-1">
-                              {isSelected ? '✓' : ''}
+                            <div className="text-xs p-1 flex items-center justify-center">
+                              {content}
                             </div>
                           </div>
                         )
@@ -547,7 +584,30 @@ export default function PartnerSchedulePage() {
             
             {/* 說明文字 */}
             <div className="mt-4 text-center text-gray-600 text-sm">
-              點擊時段可選擇/取消，選中的時段會以紫色顯示
+              <div className="mb-2">時段狀態說明：</div>
+              <div className="flex justify-center gap-4 text-xs">
+                <div className="flex items-center gap-1">
+                  <div className="w-4 h-4 bg-white border border-gray-300"></div>
+                  <span>空白：可選擇</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <div className="w-4 h-4 bg-indigo-500"></div>
+                  <span>紫色：已選擇</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <div className="w-4 h-4 bg-gray-200"></div>
+                  <span>灰色：已儲存</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <div className="w-4 h-4 bg-red-500"></div>
+                  <span>紅色：將刪除</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <div className="w-4 h-4 bg-gray-300"></div>
+                  <span>深灰：已預約</span>
+                </div>
+              </div>
+              <div className="mt-2">點擊已儲存的時段（灰色）可標記為刪除（紅色），再點擊空白時段可新增</div>
             </div>
           </div>
         </div>
@@ -563,29 +623,77 @@ export default function PartnerSchedulePage() {
               setIsSaving(true);
               setSaveMsg('');
               try {
-                const schedules = selectedSlots.map(slot => ({
-                  date: slot.start.toISOString().split('T')[0],
-                  startTime: slot.start.toISOString(),
-                  endTime: slot.end.toISOString()
-                }));
-                const res = await fetch('/api/partner/schedule', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify(schedules)
+                // 分離新增和刪除的時段
+                const newSlots = selectedSlots.filter(slot => {
+                  const existingSlot = allSlots.find(s => 
+                    new Date(s.startTime).getTime() === slot.start.getTime() && 
+                    new Date(s.endTime).getTime() === slot.end.getTime()
+                  );
+                  return !existingSlot; // 不存在的就是新增的
                 });
-                if (res.ok) {
-                  setSaveMsg('時段儲存成功！');
-                  setSelectedSlots([]);
-                  // 重新載入時段
-                  fetch('/api/partner/schedule')
-                    .then(res => res.json())
-                    .then(data => setAllSlots(data));
-                } else {
-                  const error = await res.json();
-                  setSaveMsg(`儲存失敗: ${error.error}`);
+                
+                const deleteSlots = selectedSlots.filter(slot => {
+                  const existingSlot = allSlots.find(s => 
+                    new Date(s.startTime).getTime() === slot.start.getTime() && 
+                    new Date(s.endTime).getTime() === slot.end.getTime()
+                  );
+                  return !!existingSlot; // 存在的就是要刪除的
+                });
+
+                let successMsg = '';
+                
+                // 處理新增時段
+                if (newSlots.length > 0) {
+                  const schedules = newSlots.map(slot => ({
+                    date: slot.start.toISOString().split('T')[0],
+                    startTime: slot.start.toISOString(),
+                    endTime: slot.end.toISOString()
+                  }));
+                  const addRes = await fetch('/api/partner/schedule', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(schedules)
+                  });
+                  if (addRes.ok) {
+                    successMsg += `新增 ${newSlots.length} 個時段成功！`;
+                  } else {
+                    const error = await addRes.json();
+                    setSaveMsg(`新增失敗: ${error.error}`);
+                    setIsSaving(false);
+                    return;
+                  }
                 }
+
+                // 處理刪除時段
+                if (deleteSlots.length > 0) {
+                  const schedules = deleteSlots.map(slot => ({
+                    date: slot.start.toISOString().split('T')[0],
+                    startTime: slot.start.toISOString(),
+                    endTime: slot.end.toISOString()
+                  }));
+                  const deleteRes = await fetch('/api/partner/schedule', {
+                    method: 'DELETE',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(schedules)
+                  });
+                  if (deleteRes.ok) {
+                    successMsg += deleteSlots.length > 0 ? ` 刪除 ${deleteSlots.length} 個時段成功！` : '';
+                  } else {
+                    const error = await deleteRes.json();
+                    setSaveMsg(`刪除失敗: ${error.error}`);
+                    setIsSaving(false);
+                    return;
+                  }
+                }
+
+                setSaveMsg(successMsg || '操作成功！');
+                setSelectedSlots([]);
+                // 重新載入時段
+                fetch('/api/partner/schedule')
+                  .then(res => res.json())
+                  .then(data => setAllSlots(data));
               } catch (error) {
-                setSaveMsg('儲存失敗，請重試');
+                setSaveMsg('操作失敗，請重試');
               } finally {
                 setIsSaving(false);
               }
@@ -593,7 +701,7 @@ export default function PartnerSchedulePage() {
             disabled={isSaving || selectedSlots.length === 0}
             className="bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 text-white px-8 py-3 rounded-lg font-medium transition-colors"
           >
-            {isSaving ? '儲存中...' : '儲存時段'}
+            {isSaving ? '儲存中...' : '儲存變更'}
           </button>
           {saveMsg && (
             <div className={`mt-4 text-center font-medium ${saveMsg.includes('成功') ? 'text-green-400' : 'text-red-400'}`}>
