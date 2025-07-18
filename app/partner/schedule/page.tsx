@@ -27,11 +27,17 @@ const localizer = dateFnsLocalizer({
 
 // 自訂 Toolbar 只顯示『今天』和『下週』
 function CustomToolbar(toolbar: import('react-big-calendar').ToolbarProps<{ title: string; start: Date; end: Date }, object>) {
+  const today = new Date()
+  const nextWeek = new Date(today)
+  nextWeek.setDate(today.getDate() + 7)
+  
   return (
     <div className="rbc-toolbar flex gap-2 mb-2">
       <button type="button" onClick={() => toolbar.onNavigate('TODAY')} className="rbc-btn">今天</button>
       <button type="button" onClick={() => toolbar.onNavigate('NEXT')} className="rbc-btn">下週</button>
-      <span className="ml-4 font-bold text-lg text-gray-700">{toolbar.label}</span>
+      <span className="ml-4 font-bold text-lg text-gray-700">
+        {`${today.toLocaleDateString('zh-TW', { month: 'long', day: 'numeric' })} - ${nextWeek.toLocaleDateString('zh-TW', { month: 'long', day: 'numeric' })}`}
+      </span>
     </div>
   )
 }
@@ -59,6 +65,11 @@ export default function PartnerSchedulePage() {
   const [images, setImages] = useState<PartnerImage[]>([])
   const [uploadingImage, setUploadingImage] = useState(false)
   const [deletingImage, setDeletingImage] = useState<string | null>(null)
+
+  // 計算未來7天的日期範圍
+  const today = new Date()
+  const nextWeek = new Date(today)
+  nextWeek.setDate(today.getDate() + 7)
 
   // 幫助函式：判斷兩個時段是否相同
   const isSameSlot = useCallback((a: {start: Date, end: Date}, b: {start: Date, end: Date}) => {
@@ -470,8 +481,9 @@ export default function PartnerSchedulePage() {
               views={['week']}
               step={30}
               timeslots={1}
-              min={new Date(0, 0, 0, 9, 0, 0)}
-              max={new Date(0, 0, 0, 22, 0, 0)}
+              min={new Date(0, 0, 0, 8, 0, 0)}
+              max={new Date(0, 0, 0, 23, 0, 0)}
+              date={today}
               eventPropGetter={(event) => ({
                 style: {
                   backgroundColor: '#4F46E5',

@@ -52,4 +52,21 @@
 .rbc-time-slot {
   height: auto !important;
   min-height: 30px !important;
+}
+
+/* 確保時間軸完整顯示 */
+.rbc-time-gutter {
+  height: auto !important;
+  min-height: 30px !important;
+}
+
+/* 確保所有時段都能顯示 */
+.rbc-time-view .rbc-time-content {
+  padding-bottom: 20px !important;
+}
+
+/* 確保最上面和最下面的時段都能顯示 */
+.rbc-time-view {
+  padding-top: 10px !important;
+  padding-bottom: 10px !important;
 } 
