@@ -2,7 +2,8 @@
 
 import Image from 'next/image'
 import { useState } from 'react'
-import { FaBolt, FaChevronLeft, FaChevronRight } from 'react-icons/fa'
+import { FaBolt, FaChevronLeft, FaChevronRight, FaArrowRight } from 'react-icons/fa'
+import { useRouter } from 'next/navigation'
 
 interface Partner {
   id: string;
@@ -36,6 +37,7 @@ const PartnerCard: React.FC<PartnerCardProps> = ({ partner, onQuickBook, flipped
   const nextSchedule = partner.schedules?.[0]
   const [flippedState, setFlipped] = useState(flipped)
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
+  const router = useRouter()
 
   // 處理圖片陣列，如果沒有多張圖片就使用 coverImage
   const images = partner.images && partner.images.length > 0 
@@ -61,10 +63,16 @@ const PartnerCard: React.FC<PartnerCardProps> = ({ partner, onQuickBook, flipped
     }
   }
 
+  const handleNextStep = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    // 跳轉到預約頁面，並傳遞夥伴ID
+    router.push(`/booking?partnerId=${partner.id}`)
+  }
+
   return (
     <div
-      className="perspective w-56 h-64 max-w-full mx-auto rounded-2xl shadow-xl bg-white dark:bg-slate-900 border border-gray-200 dark:border-gray-700 overflow-hidden flex flex-col hover:shadow-2xl transition-shadow relative cursor-pointer"
-      style={{ width: 224, height: 256 }}
+      className="perspective w-56 h-72 max-w-full mx-auto rounded-2xl shadow-xl bg-white dark:bg-slate-900 border border-gray-200 dark:border-gray-700 overflow-hidden flex flex-col hover:shadow-2xl transition-shadow relative cursor-pointer"
+      style={{ width: 224, height: 288 }}
       onClick={() => setFlipped(!flippedState)}
     >
       <div
@@ -181,6 +189,18 @@ const PartnerCard: React.FC<PartnerCardProps> = ({ partner, onQuickBook, flipped
           <div className="text-xs text-blue-400">（點擊卡片任意處返回）</div>
         </div>
       </div>
+      
+      {/* 下一步按鈕 */}
+      <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-white via-white/95 to-transparent">
+        <button
+          onClick={handleNextStep}
+          className="w-full bg-gradient-to-r from-purple-500 to-indigo-500 text-white font-semibold py-2 px-4 rounded-lg shadow-lg hover:scale-105 transition-transform flex items-center justify-center gap-2"
+        >
+          <span>下一步</span>
+          <FaArrowRight size={14} />
+        </button>
+      </div>
+      
       {/* 3D 翻轉效果 CSS */}
       <style>{`
         .perspective { perspective: 1200px; }
