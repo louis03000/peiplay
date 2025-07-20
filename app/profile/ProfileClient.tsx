@@ -18,6 +18,7 @@ export default function ProfileClient() {
   const [error, setError] = useState('');
   const [editMode, setEditMode] = useState(false);
   const [customGame, setCustomGame] = useState('');
+  const [isPartner, setIsPartner] = useState(false);
   
   // 註銷帳號相關狀態
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -66,6 +67,8 @@ export default function ProfileClient() {
             games: data.user.partner?.games || [],
             halfHourlyRate: data.user.partner?.halfHourlyRate,
           });
+          // 檢查是否為夥伴
+          setIsPartner(!!data.user.partner);
         }
       } catch {
         // ignore
@@ -205,18 +208,20 @@ export default function ProfileClient() {
                 <div><span className="block text-gray-300 mb-1">生日</span><span className="text-white font-medium">{form.birthday ? (typeof form.birthday === 'string' ? form.birthday : new Date(form.birthday).toLocaleDateString()) : '-'}</span></div>
                 <div><span className="block text-gray-300 mb-1">Discord 名稱</span><span className="text-white font-medium">{form.discord || '-'}</span></div>
               </div>
-              {form.halfHourlyRate !== undefined && (
+              {isPartner && form.halfHourlyRate !== undefined && (
                 <div className="mt-6">
                   <div className="text-gray-300 mb-1 font-semibold">每半小時收費</div>
                   <span className="text-white font-medium">{`$${form.halfHourlyRate}`}</span>
                 </div>
               )}
-              <div className="mt-6">
-                <div className="text-gray-300 mb-1 font-semibold">留言板（顧客預約時會看到）</div>
-                <div className="bg-gray-900/80 rounded p-3 text-white min-h-[40px] border border-gray-700 text-sm">
-                  {form.customerMessage ? form.customerMessage : <span className="text-gray-500">（尚未填寫留言）</span>}
+              {isPartner && (
+                <div className="mt-6">
+                  <div className="text-gray-300 mb-1 font-semibold">留言板（顧客預約時會看到）</div>
+                  <div className="bg-gray-900/80 rounded p-3 text-white min-h-[40px] border border-gray-700 text-sm">
+                    {form.customerMessage ? form.customerMessage : <span className="text-gray-500">（尚未填寫留言）</span>}
+                  </div>
                 </div>
-              </div>
+              )}
               <button className="w-full py-3 rounded-lg bg-indigo-500 text-white font-bold text-lg mt-6 hover:bg-indigo-600 transition" onClick={() => setEditMode(true)}>
                 修改個人資料
               </button>
@@ -329,62 +334,66 @@ export default function ProfileClient() {
                   />
                 </div>
               )}
-              <div className="mt-6">
-                <label className="block text-gray-300 mb-1 font-semibold">擅長遊戲（最多 10 個，每個限 50 字）</label>
-                <div className="flex flex-wrap gap-2 mb-2">
-                  {ALL_GAMES.map(game => (
-                    <button
-                      type="button"
-                      key={game}
-                      className={`px-3 py-1 rounded-full border text-xs font-semibold mr-2 mb-2 ${form.games.includes(game) ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-gray-900 text-gray-300 border-gray-700'}`}
-                      onClick={() => handleGameChange(game)}
-                      disabled={form.games.length >= MAX_GAMES && !form.games.includes(game)}
-                    >
-                      {game}
-                    </button>
-                  ))}
-                </div>
-                <div className="flex gap-2 mb-2">
-                  <input
-                    type="text"
-                    value={customGame}
-                    onChange={e => setCustomGame(e.target.value.slice(0, 50))}
-                    className="flex-1 px-3 py-1 rounded bg-gray-900 text-white border border-gray-700 focus:border-indigo-500 focus:outline-none text-xs"
-                    placeholder="自訂遊戲名稱（限 50 字）"
-                    maxLength={50}
-                    disabled={form.games.length >= MAX_GAMES}
-                  />
-                  <button
-                    type="button"
-                    className="px-3 py-1 rounded bg-indigo-500 text-white text-xs font-semibold"
-                    onClick={handleAddCustomGame}
-                    disabled={!customGame.trim() || form.games.length >= MAX_GAMES}
-                  >新增</button>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {form.games.map(game => (
-                    <span key={game} className="bg-indigo-600 text-white px-3 py-1 rounded-full text-xs font-semibold flex items-center mr-2 mb-2">
-                      {game}
-                      <button type="button" className="ml-2 text-white hover:text-red-300" onClick={() => handleRemoveGame(game)}>&times;</button>
-                    </span>
-                  ))}
-                </div>
-                <div className="text-right text-xs text-gray-400 mt-1">{form.games.length}/10</div>
-              </div>
-              <div className="mt-6">
-                <label className="block text-gray-300 mb-1 font-semibold">留言板（顧客預約時會看到，限 50 字）</label>
-                <textarea
-                  name="customerMessage"
-                  value={form.customerMessage}
-                  onChange={e => {
-                    if (e.target.value.length <= 50) handleChange(e)
-                  }}
-                  maxLength={50}
-                  className="w-full rounded bg-gray-900 text-white border border-gray-700 focus:border-indigo-500 focus:outline-none p-3 min-h-[40px] text-sm"
-                  placeholder="請輸入想對顧客說的話...（限 50 字）"
-                />
-                <div className="text-right text-xs text-gray-400 mt-1">{form.customerMessage.length}/50</div>
-              </div>
+              {isPartner && (
+                <>
+                  <div className="mt-6">
+                    <label className="block text-gray-300 mb-1 font-semibold">擅長遊戲（最多 10 個，每個限 50 字）</label>
+                    <div className="flex flex-wrap gap-2 mb-2">
+                      {ALL_GAMES.map(game => (
+                        <button
+                          type="button"
+                          key={game}
+                          className={`px-3 py-1 rounded-full border text-xs font-semibold mr-2 mb-2 ${form.games.includes(game) ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-gray-900 text-gray-300 border-gray-700'}`}
+                          onClick={() => handleGameChange(game)}
+                          disabled={form.games.length >= MAX_GAMES && !form.games.includes(game)}
+                        >
+                          {game}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="flex gap-2 mb-2">
+                      <input
+                        type="text"
+                        value={customGame}
+                        onChange={e => setCustomGame(e.target.value.slice(0, 50))}
+                        className="flex-1 px-3 py-1 rounded bg-gray-900 text-white border border-gray-700 focus:border-indigo-500 focus:outline-none text-xs"
+                        placeholder="自訂遊戲名稱（限 50 字）"
+                        maxLength={50}
+                        disabled={form.games.length >= MAX_GAMES}
+                      />
+                      <button
+                        type="button"
+                        className="px-3 py-1 rounded bg-indigo-500 text-white text-xs font-semibold"
+                        onClick={handleAddCustomGame}
+                        disabled={!customGame.trim() || form.games.length >= MAX_GAMES}
+                      >新增</button>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {form.games.map(game => (
+                        <span key={game} className="bg-indigo-600 text-white px-3 py-1 rounded-full text-xs font-semibold flex items-center mr-2 mb-2">
+                          {game}
+                          <button type="button" className="ml-2 text-white hover:text-red-300" onClick={() => handleRemoveGame(game)}>&times;</button>
+                        </span>
+                      ))}
+                    </div>
+                    <div className="text-right text-xs text-gray-400 mt-1">{form.games.length}/10</div>
+                  </div>
+                  <div className="mt-6">
+                    <label className="block text-gray-300 mb-1 font-semibold">留言板（顧客預約時會看到，限 50 字）</label>
+                    <textarea
+                      name="customerMessage"
+                      value={form.customerMessage}
+                      onChange={e => {
+                        if (e.target.value.length <= 50) handleChange(e)
+                      }}
+                      maxLength={50}
+                      className="w-full rounded bg-gray-900 text-white border border-gray-700 focus:border-indigo-500 focus:outline-none p-3 min-h-[40px] text-sm"
+                      placeholder="請輸入想對顧客說的話...（限 50 字）"
+                    />
+                    <div className="text-right text-xs text-gray-400 mt-1">{form.customerMessage.length}/50</div>
+                  </div>
+                </>
+              )}
               {success && <div className="text-green-400 mb-4 text-center">{success}</div>}
               {error && <div className="text-red-400 mb-4 text-center">{error}</div>}
               <div className="flex gap-3 mt-6">
