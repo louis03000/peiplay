@@ -29,10 +29,11 @@ interface Customer {
   userId?: string;
 }
 
-async function fetchPartners(startDate?: string, endDate?: string) {
+async function fetchPartners(startDate?: string, endDate?: string, game?: string) {
   const params = new URLSearchParams()
   if (startDate) params.append('startDate', startDate)
   if (endDate) params.append('endDate', endDate)
+  if (game) params.append('game', game)
   const res = await fetch(`/api/partners?${params.toString()}`)
   if (!res.ok) throw new Error('獲取夥伴失敗')
   const data = await res.json()
@@ -94,10 +95,10 @@ export default function PartnersPage() {
   const session = sessionData.data;
   const status = sessionData.status;
 
-  const handleFilter = async (start: string, end: string) => {
+  const handleFilter = async (start: string, end: string, game?: string) => {
     setLoading(true)
     try {
-      const data = await fetchPartners(start, end)
+      const data = await fetchPartners(start, end, game)
       setPartners(data)
       setShowCards(true)
     } catch {

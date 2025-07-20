@@ -17,6 +17,8 @@ export async function GET(request: Request) {
     const endDate = url.searchParams.get("endDate");
     const availableNow = url.searchParams.get("availableNow");
     const rankBooster = url.searchParams.get("rankBooster");
+    const game = url.searchParams.get("game");
+    
     // 計算今天0點
     const now = new Date();
     const todayZero = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
@@ -70,7 +72,18 @@ export async function GET(request: Request) {
     });
 
     // 過濾掉沒有時段的夥伴
-    const partnersWithSchedules = partners.filter(partner => partner.schedules.length > 0);
+    let partnersWithSchedules = partners.filter(partner => partner.schedules.length > 0);
+    
+    // 遊戲搜尋篩選（不區分大小寫）
+    if (game && game.trim()) {
+      const searchTerm = game.trim().toLowerCase();
+      partnersWithSchedules = partnersWithSchedules.filter(partner => {
+        const games = (partner as any).games as string[];
+        return games.some(gameName => 
+          gameName.toLowerCase().includes(searchTerm)
+        );
+      });
+    }
     
     return NextResponse.json(partnersWithSchedules);
   } catch (error) {
