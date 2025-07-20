@@ -95,7 +95,7 @@ export async function POST() {
           'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=400&fit=crop',
           'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=400&fit=crop'
         ],
-        games: ['英雄聯盟', '傳說對決', '王者榮耀'],
+        games: ['英雄聯盟', '傳說對決'],
         halfHourlyRate: 500,
         isAvailableNow: true,
         isRankBooster: true,
