@@ -5,6 +5,8 @@ import { useSession } from 'next-auth/react'
 import PartnerHero from '../../components/PartnerHero'
 import PartnerFilter from '../../components/PartnerFilter'
 import PartnerCard from '../../components/PartnerCard'
+import { useRouter } from 'next/navigation'
+import { FaArrowRight } from 'react-icons/fa'
 
 interface Partner {
   id: string;
@@ -94,6 +96,7 @@ export default function PartnersPage() {
   const sessionData = typeof window !== "undefined" ? useSession() : { data: undefined, status: "unauthenticated" };
   const session = sessionData.data;
   const status = sessionData.status;
+  const router = useRouter()
 
   const handleFilter = async (start: string, end: string, game?: string) => {
     setLoading(true)
@@ -117,6 +120,10 @@ export default function PartnersPage() {
     } catch (err) {
       setMessage((err instanceof Error ? err.message : '預約失敗'))
     }
+  }
+
+  const handleNextStep = (partnerId: string) => {
+    router.push(`/booking?partnerId=${partnerId}`)
   }
 
   useEffect(() => {
@@ -150,7 +157,12 @@ export default function PartnersPage() {
           showCards && (
           <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
             {partners.map(partner => (
-              <PartnerCard key={partner.id} partner={partner} onQuickBook={handleQuickBook} />
+              <PartnerCard 
+                key={partner.id} 
+                partner={partner} 
+                onQuickBook={handleQuickBook} 
+                showNextStep={true}
+              />
             ))}
           </div>
           )
