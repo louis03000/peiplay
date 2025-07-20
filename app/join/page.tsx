@@ -34,6 +34,8 @@ export default function JoinPage() {
   const router = useRouter()
   const sessionData = useSession();
   const session = sessionData?.data;
+  const [userData, setUserData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
   const {
     register,
@@ -51,6 +53,27 @@ export default function JoinPage() {
   const [selectedGames, setSelectedGames] = useState<string[]>([])
   const [customGame, setCustomGame] = useState('')
 
+  // 載入用戶資料
+  useEffect(() => {
+    if (session?.user?.id) {
+      fetch('/api/user/profile')
+        .then(res => res.json())
+        .then(data => {
+          if (data.user) {
+            setUserData(data.user);
+            // 自動填入用戶資料
+            setValue('name', data.user.name || '');
+            setValue('birthday', data.user.birthday ? data.user.birthday.slice(0, 10) : '');
+            setValue('phone', data.user.phone || '');
+          }
+          setLoading(false);
+        })
+        .catch(() => {
+          setLoading(false);
+        });
+    }
+  }, [session, setValue]);
+
   useEffect(() => {
     setValue('games', selectedGames, { shouldValidate: true });
   }, [selectedGames, setValue]);
@@ -62,6 +85,16 @@ export default function JoinPage() {
           <h2 className="text-2xl font-bold mb-4 text-gray-800">請先登入</h2>
           <p className="mb-4 text-gray-600">登入後才能申請成為遊戲夥伴</p>
           <a href="/auth/login" className="inline-block px-6 py-3 bg-indigo-600 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-700 transition-colors">前往登入</a>
+        </div>
+      </div>
+    )
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center">
+        <div className="bg-white p-8 rounded-lg shadow-lg text-center">
+          <h2 className="text-2xl font-bold mb-4 text-gray-800">載入中...</h2>
         </div>
       </div>
     )
@@ -162,68 +195,31 @@ export default function JoinPage() {
               )}
               
               <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-                <div>
-                  <label
-                    htmlFor="name"
-                    className="block text-sm font-medium text-gray-700"
-                  >
-                    姓名
-                  </label>
-                  <div className="mt-1">
-                    <input
-                      type="text"
-                      {...register('name')}
-                      className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md text-black"
-                    />
-                    {errors.name && (
-                      <p className="mt-2 text-sm text-red-600">
-                        {errors.name.message}
-                      </p>
-                    )}
+                {/* 顯示用戶基本資料（唯讀） */}
+                {userData && (
+                  <div className="bg-gray-50 p-4 rounded-lg mb-6">
+                    <h3 className="text-lg font-medium text-gray-900 mb-4">您的個人資料</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">姓名</label>
+                        <div className="mt-1 text-sm text-gray-900">{userData.name}</div>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">生日</label>
+                        <div className="mt-1 text-sm text-gray-900">{userData.birthday ? userData.birthday.slice(0, 10) : '-'}</div>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">電話</label>
+                        <div className="mt-1 text-sm text-gray-900">{userData.phone || '-'}</div>
+                      </div>
+                    </div>
                   </div>
-                </div>
+                )}
 
-                <div>
-                  <label
-                    htmlFor="birthday"
-                    className="block text-sm font-medium text-gray-700"
-                  >
-                    生日
-                  </label>
-                  <div className="mt-1">
-                    <input
-                      type="date"
-                      {...register('birthday')}
-                      className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md text-black"
-                    />
-                    {errors.birthday && (
-                      <p className="mt-2 text-sm text-red-600">
-                        {errors.birthday.message}
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                <div>
-                  <label
-                    htmlFor="phone"
-                    className="block text-sm font-medium text-gray-700"
-                  >
-                    電話
-                  </label>
-                  <div className="mt-1">
-                    <input
-                      type="tel"
-                      {...register('phone')}
-                      className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md text-black"
-                    />
-                    {errors.phone && (
-                      <p className="mt-2 text-sm text-red-600">
-                        {errors.phone.message}
-                      </p>
-                    )}
-                  </div>
-                </div>
+                {/* 隱藏的欄位，用於表單驗證 */}
+                <input type="hidden" {...register('name')} value={userData?.name || ''} />
+                <input type="hidden" {...register('birthday')} value={userData?.birthday ? userData.birthday.slice(0, 10) : ''} />
+                <input type="hidden" {...register('phone')} value={userData?.phone || ''} />
 
                 <div>
                   <label
