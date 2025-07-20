@@ -76,7 +76,7 @@ export async function POST() {
       data: {
         email: 'partner@example.com',
         password: partnerPassword,
-        name: '專業陪玩師',
+        name: '專業遊戲夥伴',
         role: 'PARTNER',
         phone: '0934567890',
         birthday: new Date('1992-01-01'),
@@ -87,7 +87,7 @@ export async function POST() {
     const partner = await prisma.partner.create({
       data: {
         userId: partnerUser.id,
-        name: '專業陪玩師',
+        name: '專業遊戲夥伴',
         birthday: new Date('1992-01-01'),
         phone: '0934567890',
         coverImage: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=400&fit=crop',
@@ -100,7 +100,7 @@ export async function POST() {
         isAvailableNow: true,
         isRankBooster: true,
         status: 'APPROVED',
-        customerMessage: '專業陪玩，讓您享受遊戲樂趣！',
+        customerMessage: '專業遊戲夥伴，讓您享受遊戲樂趣！',
       },
     })
 

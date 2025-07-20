@@ -181,7 +181,7 @@ export default function JoinPage() {
             加入我們的遊戲夥伴
           </h1>
           <p className="mt-3 text-xl text-gray-500">
-            填寫以下資料，開始您的陪玩之旅
+            填寫以下資料，開始您的遊戲夥伴之旅
           </p>
         </div>
 

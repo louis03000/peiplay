@@ -8,7 +8,7 @@ import Providers from './providers'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: "陪玩預約系統",
+  title: "遊戲夥伴預約系統",
   description: "找到最適合您的遊戲夥伴，享受愉快的遊戲時光",
 };
 

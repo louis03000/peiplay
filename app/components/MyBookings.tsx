@@ -22,6 +22,10 @@ interface Booking {
     reviewerId: string
   }>
   rejectReason?: string; // Added for rejected bookings
+  customer?: { // Added for customer name
+    id: string;
+    name: string;
+  };
 }
 
 export default function MyBookings() {
@@ -38,7 +42,15 @@ export default function MyBookings() {
   const fetchBookings = async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/bookings");
+      // 根據用戶角色使用不同的 API
+      let url = '/api/bookings';
+      if (session?.user?.role === 'CUSTOMER') {
+        url = '/api/bookings/me';
+      } else if (session?.user?.role === 'PARTNER') {
+        url = '/api/bookings/partner';
+      }
+      
+      const res = await fetch(url);
       if (!res.ok) throw new Error('無法載入預約資料');
       const data = await res.json();
       setBookings(data.bookings || []);
@@ -181,7 +193,10 @@ export default function MyBookings() {
       <div className="mb-6">
         <h2 className="text-xl font-bold mb-2 text-white">預約紀錄</h2>
         <p className="text-gray-300 text-sm">
-          顯示您的所有預約記錄，包括待確認、已確認、已完成等狀態
+          {session?.user?.role === 'CUSTOMER' 
+            ? '顯示您作為顧客的預約記錄，包括待確認、已確認、已完成等狀態'
+            : '顯示您作為夥伴的預約記錄，包括待確認、已確認、已完成等狀態'
+          }
         </p>
       </div>
 
@@ -208,7 +223,9 @@ export default function MyBookings() {
               <tr>
                 <th scope="col" className="py-3 px-6">預約日期</th>
                 <th scope="col" className="py-3 px-6">服務時段</th>
-                <th scope="col" className="py-3 px-6">夥伴姓名</th>
+                <th scope="col" className="py-3 px-6">
+                  {session?.user?.role === 'CUSTOMER' ? '夥伴姓名' : '顧客姓名'}
+                </th>
                 <th scope="col" className="py-3 px-6">預約狀態</th>
                 <th scope="col" className="py-3 px-6">操作</th>
               </tr>
@@ -230,7 +247,10 @@ export default function MyBookings() {
                     }
                   </td>
                   <td className="py-4 px-6 font-medium">
-                    {b.schedule?.partner?.name || '未知夥伴'}
+                    {session?.user?.role === 'CUSTOMER' 
+                      ? (b.schedule?.partner?.name || '未知夥伴')
+                      : (b.customer?.name || '未知顧客')
+                    }
                   </td>
                   <td className="py-4 px-6">
                     <span className={`px-2 py-1 rounded-full text-xs font-medium ${

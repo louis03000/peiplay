@@ -17,7 +17,7 @@ export default function Navigation() {
           <div className="flex">
             <div className="flex-shrink-0 flex items-center">
               <Link href="/" className="text-xl font-bold text-indigo-600">
-                陪玩預約系統
+                遊戲夥伴預約系統
               </Link>
             </div>
             <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
