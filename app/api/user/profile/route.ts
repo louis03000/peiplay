@@ -54,7 +54,7 @@ export async function PATCH(request: Request) {
 
     // 如果有 customerMessage 或 games 並且有 partner 身分則一併更新
     let updatedPartner = null;
-    if (typeof customerMessage === 'string' || Array.isArray(games) || typeof data.halfHourlyRate === 'number') {
+    if (typeof customerMessage === 'string' || Array.isArray(games) || typeof data.halfHourlyRate === 'number' || name) {
       // 先查 partner
       const partner = await prisma.partner.findUnique({ where: { userId: existingUser.id } });
       if (partner) {
@@ -62,6 +62,7 @@ export async function PATCH(request: Request) {
         if (typeof customerMessage === 'string') partnerUpdateData.customerMessage = customerMessage;
         if (Array.isArray(games)) partnerUpdateData.games = games;
         if (typeof data.halfHourlyRate === 'number') partnerUpdateData.halfHourlyRate = data.halfHourlyRate;
+        if (name) partnerUpdateData.name = name; // 同步更新夥伴表的姓名
         if (Object.keys(partnerUpdateData).length > 0) {
           updatedPartner = await prisma.partner.update({
             where: { userId: existingUser.id },

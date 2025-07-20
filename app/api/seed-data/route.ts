@@ -76,7 +76,7 @@ export async function POST() {
       data: {
         email: 'partner@example.com',
         password: partnerPassword,
-        name: '夥伴用戶',
+        name: '專業陪玩師',
         role: 'PARTNER',
         phone: '0934567890',
         birthday: new Date('1992-01-01'),
