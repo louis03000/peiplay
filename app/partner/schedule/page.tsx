@@ -127,6 +127,11 @@ export default function PartnerSchedulePage() {
   const handleSelectSlot = useCallback((slotInfo: SlotInfo) => {
     const slotStart = slotInfo.start;
     const slotEnd = slotInfo.end;
+    
+    // 檢查時間是否已經過去
+    const now = new Date()
+    if (slotStart <= now) return; // 已過去的時間不能選擇
+    
     // 檢查是否已被預約
     const slot = allSlots.find(s => new Date(s.startTime).getTime() === slotStart.getTime() && new Date(s.endTime).getTime() === slotEnd.getTime())
     if (slot && slot.booked) return; // 只有已預約的不能點選
@@ -522,6 +527,10 @@ export default function PartnerSchedulePage() {
                         const nextTimeSlot = new Date(timeSlot)
                         nextTimeSlot.setMinutes(nextTimeSlot.getMinutes() + 30)
                         
+                        // 檢查時間是否已經過去
+                        const now = new Date()
+                        const isPast = timeSlot <= now
+                        
                         // 檢查是否已被預約或已儲存
                         const slot = allSlots.find(s => 
                           new Date(s.startTime).getTime() === timeSlot.getTime() && 
@@ -539,7 +548,12 @@ export default function PartnerSchedulePage() {
                         let cursorClass = 'cursor-pointer'
                         let content = ''
                         
-                        if (isBooked) {
+                        if (isPast) {
+                          bgClass = 'bg-gray-100'
+                          textClass = 'text-gray-400'
+                          cursorClass = 'cursor-not-allowed'
+                          content = '⏰'
+                        } else if (isBooked) {
                           bgClass = 'bg-gray-300'
                           textClass = 'text-gray-500'
                           cursorClass = 'cursor-not-allowed'
@@ -566,7 +580,7 @@ export default function PartnerSchedulePage() {
                             key={timeIndex}
                             className={`h-8 border-b border-gray-100 ${cursorClass} hover:bg-blue-50 transition-colors ${bgClass} ${textClass}`}
                             onClick={() => {
-                              if (isBooked) return; // 已預約的不能點選
+                              if (isPast || isBooked) return; // 已過去或已預約的不能點選
                               handleSelectSlot({ start: timeSlot, end: nextTimeSlot } as any)
                             }}
                           >
@@ -606,8 +620,12 @@ export default function PartnerSchedulePage() {
                   <div className="w-4 h-4 bg-gray-300"></div>
                   <span>深灰：已預約</span>
                 </div>
+                <div className="flex items-center gap-1">
+                  <div className="w-4 h-4 bg-gray-100"></div>
+                  <span>淺灰：已過去</span>
+                </div>
               </div>
-              <div className="mt-2">點擊已儲存的時段（灰色）可標記為刪除（紅色），再點擊空白時段可新增</div>
+              <div className="mt-2">點擊已儲存的時段（灰色）可標記為刪除（紅色），再點擊空白時段可新增。已過去的時間無法選擇。</div>
             </div>
           </div>
         </div>

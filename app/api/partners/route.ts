@@ -27,21 +27,16 @@ export async function GET(request: Request) {
       gte: todayZero,
     };
 
-    // 修改查詢邏輯：只有開啟「現在有空」或有「排名提升」的夥伴才會顯示
+    // 修改查詢邏輯：顯示所有有時段的夥伴，開關只是額外篩選
     let where: any = { status: 'APPROVED' };
     
+    // 如果有特定篩選條件，則套用篩選
     if (rankBooster === 'true') {
       where.isRankBooster = true;
     }
     
     if (availableNow === 'true') {
       where.isAvailableNow = true;
-    } else {
-      // 如果沒有特別篩選，只顯示有「現在有空」或「排名提升」的夥伴
-      where.OR = [
-        { isAvailableNow: true },
-        { isRankBooster: true }
-      ];
     }
 
     const partners = await prisma.partner.findMany({
@@ -73,7 +68,11 @@ export async function GET(request: Request) {
       } as any,
       orderBy: { createdAt: 'desc' },
     });
-    return NextResponse.json(partners);
+
+    // 過濾掉沒有時段的夥伴
+    const partnersWithSchedules = partners.filter(partner => partner.schedules.length > 0);
+    
+    return NextResponse.json(partnersWithSchedules);
   } catch (error) {
     console.error("Error fetching partners:", error);
     return NextResponse.json({ error: "Error fetching partners" }, { status: 500 });

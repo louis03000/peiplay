@@ -79,15 +79,19 @@ export default function BookingWizard() {
       const matchSearch = p.name.includes(search) || (p.games && p.games.some(s => s.includes(search)));
       const hasFutureSchedule = p.schedules && p.schedules.some(s => s.isAvailable && new Date(s.startTime) > new Date());
       
+      // 基本條件：有搜尋匹配且有未來時段
+      if (!matchSearch || !hasFutureSchedule) return false;
+      
+      // 額外篩選條件
       if (onlyAvailable && onlyRankBooster) {
-        return matchSearch && p.isAvailableNow && p.isRankBooster;
+        return p.isAvailableNow && p.isRankBooster;
       } else if (onlyAvailable) {
-        return matchSearch && p.isAvailableNow;
+        return p.isAvailableNow;
       } else if (onlyRankBooster) {
-        return matchSearch && p.isRankBooster;
+        return p.isRankBooster;
       } else {
-        // 修改：只有開啟「現在有空」或有「排名提升」的夥伴才會顯示
-        return matchSearch && (p.isAvailableNow || p.isRankBooster);
+        // 沒有額外篩選時，顯示所有有未來時段的夥伴
+        return true;
       }
     });
   }, [partners, search, onlyAvailable, onlyRankBooster]);
