@@ -434,13 +434,13 @@ export default function ProfileClient() {
             }
           </p>
           
-      <div className="space-y-8">
-        <section>
-          <MyBookings />
-        </section>
-        <section>
-          <OrderHistory />
-        </section>
+          <div className="space-y-8">
+            <section>
+              <MyBookings />
+            </section>
+            <section>
+              <OrderHistory />
+            </section>
           </div>
         </div>
       </div>
