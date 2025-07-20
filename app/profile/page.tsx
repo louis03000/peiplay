@@ -2,7 +2,7 @@
 
 import { useSession } from 'next-auth/react';
 import { redirect } from 'next/navigation';
-import ProfileClientSimple from './ProfileClientSimple';
+import ProfileClientMinimal from './ProfileClientMinimal';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
@@ -43,5 +43,5 @@ export default function ProfilePage() {
     );
   }
 
-  return <ProfileClientSimple />;
+  return <ProfileClientMinimal />;
 } 

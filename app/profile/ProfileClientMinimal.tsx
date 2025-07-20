@@ -2,15 +2,9 @@
 import { useSession } from 'next-auth/react'
 import { useState, useEffect } from 'react'
 
-export default function ProfileClientSimple() {
+export default function ProfileClientMinimal() {
   const { data: session, status } = useSession();
   const [mounted, setMounted] = useState(false);
-  const [form, setForm] = useState({
-    name: '',
-    phone: '',
-    birthday: '',
-    discord: ''
-  });
 
   useEffect(() => {
     setMounted(true);
@@ -26,30 +20,6 @@ export default function ProfileClientSimple() {
       </div>
     );
   }
-
-  // 初始載入 user 資料
-  useEffect(() => {
-    if (!session) return;
-
-    const fetchProfile = async () => {
-      try {
-        const res = await fetch('/api/user/profile');
-        const data = await res.json();
-        if (res.ok && data.user) {
-          setForm({
-            name: data.user.name || '',
-            phone: data.user.phone || '',
-            birthday: data.user.birthday ? data.user.birthday.slice(0, 10) : '',
-            discord: data.user.discord || '',
-          });
-        }
-      } catch (error) {
-        console.error('載入個人資料失敗:', error);
-      }
-    };
-
-    fetchProfile();
-  }, [session]);
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -74,10 +44,10 @@ export default function ProfileClientSimple() {
           
           <div className="bg-gray-800/60 p-6 rounded-lg">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div><span className="block text-gray-300 mb-1">姓名</span><span className="text-white font-medium">{form.name}</span></div>
-              <div><span className="block text-gray-300 mb-1">電話</span><span className="text-white font-medium">{form.phone || '-'}</span></div>
-              <div><span className="block text-gray-300 mb-1">生日</span><span className="text-white font-medium">{form.birthday || '-'}</span></div>
-              <div><span className="block text-gray-300 mb-1">Discord 名稱</span><span className="text-white font-medium">{form.discord || '-'}</span></div>
+              <div><span className="block text-gray-300 mb-1">姓名</span><span className="text-white font-medium">{session?.user?.name || '-'}</span></div>
+              <div><span className="block text-gray-300 mb-1">信箱</span><span className="text-white font-medium">{session?.user?.email || '-'}</span></div>
+              <div><span className="block text-gray-300 mb-1">角色</span><span className="text-white font-medium">{session?.user?.role || '-'}</span></div>
+              <div><span className="block text-gray-300 mb-1">狀態</span><span className="text-white font-medium">{status}</span></div>
             </div>
             <button className="w-full py-3 rounded-lg bg-indigo-500 text-white font-bold text-lg mt-6 hover:bg-indigo-600 transition">
               修改個人資料
