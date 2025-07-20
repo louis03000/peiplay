@@ -155,7 +155,7 @@ export default function ProfileClient() {
     setError('');
     
     try {
-      const res = await fetch('/api/user/delete-account', {
+      const res = await fetch('/api/user/delete-account-simple', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ confirmationCode })

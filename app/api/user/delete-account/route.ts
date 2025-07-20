@@ -109,8 +109,14 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('註銷帳號時發生錯誤:', error);
+    console.error('錯誤詳情:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+      name: error instanceof Error ? error.name : 'Unknown'
+    });
     return NextResponse.json({ 
-      error: '註銷帳號時發生錯誤，請稍後再試' 
+      error: '註銷帳號時發生錯誤，請稍後再試',
+      details: error instanceof Error ? error.message : 'Unknown error'
     }, { status: 500 });
   }
 } 
