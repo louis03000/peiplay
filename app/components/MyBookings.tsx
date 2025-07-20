@@ -35,19 +35,19 @@ export default function MyBookings() {
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 10;
 
-  const fetchBookings = () => {
+  const fetchBookings = async () => {
     setLoading(true);
-    fetch("/api/bookings")
-      .then(res => {
-        if (!res.ok) throw new Error('無法載入預約資料');
-        return res.json();
-      })
-      .then(data => {
-        setBookings(data.bookings || []);
-        setError(null);
-      })
-      .catch(err => setError(err.message))
-      .finally(() => setLoading(false));
+    try {
+      const res = await fetch("/api/bookings");
+      if (!res.ok) throw new Error('無法載入預約資料');
+      const data = await res.json();
+      setBookings(data.bookings || []);
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '載入失敗');
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {

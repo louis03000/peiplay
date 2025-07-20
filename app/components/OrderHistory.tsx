@@ -21,18 +21,22 @@ export default function OrderHistory() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    setLoading(true)
-    fetch("/api/orders")
-      .then(res => {
+    const fetchOrders = async () => {
+      setLoading(true)
+      try {
+        const res = await fetch("/api/orders")
         if (!res.ok) throw new Error('無法載入訂單資料')
-        return res.json()
-      })
-      .then(data => {
+        const data = await res.json()
         setOrders(data.orders || [])
         setError(null)
-      })
-      .catch(err => setError(err.message))
-      .finally(() => setLoading(false))
+      } catch (err) {
+        setError(err instanceof Error ? err.message : '載入失敗')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchOrders()
   }, [])
 
   return (

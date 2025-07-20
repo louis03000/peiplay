@@ -11,7 +11,7 @@ const ALL_GAMES = [
 const MAX_GAMES = 10;
 
 export default function ProfileClient() {
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
   const [form, setForm] = useState<{ name: string; phone: string; birthday: string; discord: string; customerMessage: string; games: string[]; halfHourlyRate?: number }>({ name: '', phone: '', birthday: '', discord: '', customerMessage: '', games: [], halfHourlyRate: undefined });
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState('');
@@ -32,6 +32,17 @@ export default function ProfileClient() {
   useEffect(() => {
     setMounted(true);
   }, []);
+  
+  // 如果還在載入或未掛載，顯示載入狀態
+  if (status === 'loading' || !mounted) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="text-center">
+          <div className="text-white text-lg">載入中...</div>
+        </div>
+      </div>
+    );
+  }
   
   // 暫時使用硬編碼的中文，避免 SSR 問題
   const t = (key: string, params?: any) => {
