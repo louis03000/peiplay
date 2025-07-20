@@ -3,11 +3,12 @@ import { useState, useEffect } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 
-export default function PartnerSchedulePage() {
+export default function PartnerSchedulePageSimple() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     setMounted(true);
@@ -106,4 +107,4 @@ export default function PartnerSchedulePage() {
       </div>
     </div>
   )
-}
+} 
