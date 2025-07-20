@@ -198,13 +198,13 @@ const PartnerCard: React.FC<PartnerCardProps> = ({ partner, onQuickBook, flipped
       
       {/* 下一步按鈕 - 只在 showNextStep 為 true 時顯示 */}
       {showNextStep && (
-        <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-white via-white/95 to-transparent">
+        <div className="absolute bottom-0 left-0 right-0 p-2 bg-gradient-to-t from-white via-white/95 to-transparent">
           <button
             onClick={handleNextStep}
-            className="w-full bg-gradient-to-r from-purple-500 to-indigo-500 text-white font-semibold py-2 px-4 rounded-lg shadow-lg hover:scale-105 transition-transform flex items-center justify-center gap-2"
+            className="w-full max-w-[180px] mx-auto bg-gradient-to-r from-purple-500 to-indigo-500 text-white font-semibold py-1.5 px-3 rounded-lg shadow-lg hover:scale-105 transition-transform flex items-center justify-center gap-1 text-sm"
           >
             <span>下一步</span>
-            <FaArrowRight size={14} />
+            <FaArrowRight size={12} />
           </button>
         </div>
       )}

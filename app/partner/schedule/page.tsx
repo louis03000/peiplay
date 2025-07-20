@@ -8,6 +8,7 @@ export default function PartnerSchedulePage() {
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [hasPartner, setHasPartner] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -19,13 +20,28 @@ export default function PartnerSchedulePage() {
       return;
     }
 
-    if (mounted && session?.user?.role !== 'PARTNER') {
-      router.replace('/profile');
-      return;
-    }
-
-    if (mounted && session) {
-      setLoading(false);
+    // 檢查是否有夥伴資料，而不是檢查用戶角色
+    if (mounted && session?.user?.id) {
+      fetch('/api/partners/self')
+        .then(res => {
+          if (!res.ok) {
+            throw new Error('Failed to fetch partner status');
+          }
+          return res.json();
+        })
+        .then(data => {
+          if (data && data.partner) {
+            setHasPartner(true);
+            setLoading(false);
+          } else {
+            // 沒有夥伴資料，重定向到個人資料頁面
+            router.replace('/profile');
+          }
+        })
+        .catch(() => {
+          // 錯誤時重定向到個人資料頁面
+          router.replace('/profile');
+        });
     }
   }, [mounted, status, session, router]);
 
@@ -51,8 +67,8 @@ export default function PartnerSchedulePage() {
     );
   }
 
-  // 如果不是夥伴，顯示載入狀態（會自動跳轉到個人資料頁面）
-  if (session.user?.role !== 'PARTNER') {
+  // 如果沒有夥伴資料，顯示載入狀態（會自動跳轉到個人資料頁面）
+  if (!hasPartner) {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="text-center">
