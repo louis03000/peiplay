@@ -2,7 +2,7 @@
 
 import { useSession } from 'next-auth/react';
 import { redirect } from 'next/navigation';
-import ProfileClientFixed from './ProfileClientFixed';
+import ProfileClientStable from './ProfileClientStable';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
@@ -43,5 +43,5 @@ export default function ProfilePage() {
     );
   }
 
-  return <ProfileClientFixed />;
+  return <ProfileClientStable />;
 } 
