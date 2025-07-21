@@ -20,11 +20,10 @@ export default function PartnerSchedulePage() {
   const [hasPartner, setHasPartner] = useState(false);
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [selectedSchedules, setSelectedSchedules] = useState<string[]>([]);
-  const [showAddForm, setShowAddForm] = useState(false);
-  const [newSchedule, setNewSchedule] = useState({
-    date: '',
-    startTime: '',
-    endTime: ''
+  const [currentView, setCurrentView] = useState<'today' | 'nextWeek'>('today');
+  const [dateRange, setDateRange] = useState<{ start: Date; end: Date }>({
+    start: new Date(),
+    end: new Date(Date.now() + 6 * 24 * 60 * 60 * 1000)
   });
 
   useEffect(() => {
@@ -75,29 +74,6 @@ export default function PartnerSchedulePage() {
     }
   };
 
-  const handleAddSchedule = async () => {
-    try {
-      const response = await fetch('/api/partner/schedule', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(newSchedule),
-      });
-
-      if (response.ok) {
-        setNewSchedule({ date: '', startTime: '', endTime: '' });
-        setShowAddForm(false);
-        fetchSchedules();
-      } else {
-        const error = await response.json();
-        alert(error.error || '新增時段失敗');
-      }
-    } catch (error) {
-      alert('新增時段失敗');
-    }
-  };
-
   const handleDeleteSchedules = async () => {
     if (selectedSchedules.length === 0) {
       alert('請選擇要刪除的時段');
@@ -145,6 +121,54 @@ export default function PartnerSchedulePage() {
     );
   };
 
+  const handleViewChange = (view: 'today' | 'nextWeek') => {
+    setCurrentView(view);
+    const today = new Date();
+    if (view === 'today') {
+      setDateRange({
+        start: today,
+        end: new Date(today.getTime() + 6 * 24 * 60 * 60 * 1000)
+      });
+    } else {
+      const nextWeek = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
+      setDateRange({
+        start: nextWeek,
+        end: new Date(nextWeek.getTime() + 6 * 24 * 60 * 60 * 1000)
+      });
+    }
+  };
+
+  // 生成時間軸（30分鐘間隔）
+  const timeSlots = Array.from({ length: 48 }, (_, i) => {
+    const hour = Math.floor(i / 2);
+    const minute = (i % 2) * 30;
+    return `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+  });
+
+  // 生成日期軸
+  const dateSlots = Array.from({ length: 7 }, (_, i) => {
+    const date = new Date(dateRange.start);
+    date.setDate(date.getDate() + i);
+    return date;
+  });
+
+  // 獲取指定日期和時間的時段
+  const getScheduleAtTime = (date: Date, timeSlot: string) => {
+    const dateStr = date.toISOString().split('T')[0];
+    const timeDate = new Date(`${dateStr}T${timeSlot}:00`);
+    const endTime = new Date(timeDate.getTime() + 30 * 60 * 1000);
+    
+    return schedules.find(schedule => {
+      const scheduleDate = new Date(schedule.date);
+      const scheduleStart = new Date(schedule.startTime);
+      const scheduleEnd = new Date(schedule.endTime);
+      
+      return scheduleDate.toDateString() === date.toDateString() &&
+             scheduleStart <= timeDate &&
+             scheduleEnd > timeDate;
+    });
+  };
+
   // 如果還在載入或未掛載，顯示載入狀態
   if (status === 'loading' || !mounted || loading) {
     return (
@@ -182,141 +206,125 @@ export default function PartnerSchedulePage() {
     <div className="container mx-auto px-4 py-8">
       {/* 頁面標題 */}
       <div className="text-center mb-8">
-        <h1 className="text-3xl font-bold text-white mb-2">夥伴時段管理</h1>
-        <p className="text-gray-300">
-          管理您的服務時段和可用性設定
-        </p>
+        <h1 className="text-3xl font-bold text-white mb-2">未來7天時段管理</h1>
       </div>
 
       {/* 主要內容區塊 */}
-      <div className="max-w-6xl mx-auto">
-        <div className="bg-gradient-to-r from-blue-900/20 to-purple-900/20 border border-blue-500/30 rounded-lg p-6 mb-6">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-xl font-bold text-white flex items-center">
-              <span className="mr-2">📅</span>
-              時段管理
-            </h2>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setShowAddForm(true)}
-                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition"
-              >
-                新增時段
-              </button>
-              {selectedSchedules.length > 0 && (
-                <button
-                  onClick={handleDeleteSchedules}
-                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition"
-                >
-                  刪除選中 ({selectedSchedules.length})
-                </button>
-              )}
+      <div className="max-w-7xl mx-auto">
+        <div className="bg-white rounded-lg shadow-lg overflow-hidden">
+          {/* 標題和按鈕區域 */}
+          <div className="p-6 border-b border-gray-200">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-4">
+                <h2 className="text-xl font-bold text-gray-800">未來7天時段管理</h2>
+                <div className="flex space-x-2">
+                  <button
+                    onClick={() => handleViewChange('today')}
+                    className={`px-4 py-2 rounded text-sm font-medium transition ${
+                      currentView === 'today'
+                        ? 'bg-gray-600 text-white'
+                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    }`}
+                  >
+                    今天
+                  </button>
+                  <button
+                    onClick={() => handleViewChange('nextWeek')}
+                    className={`px-4 py-2 rounded text-sm font-medium transition ${
+                      currentView === 'nextWeek'
+                        ? 'bg-gray-600 text-white'
+                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    }`}
+                  >
+                    下週
+                  </button>
+                </div>
+              </div>
+              <div className="text-sm text-gray-600">
+                {dateRange.start.toLocaleDateString('zh-TW', { month: 'numeric', day: 'numeric' })} - {dateRange.end.toLocaleDateString('zh-TW', { month: 'numeric', day: 'numeric' })}
+              </div>
             </div>
           </div>
 
-          {/* 新增時段表單 */}
-          {showAddForm && (
-            <div className="bg-gray-800/60 p-6 rounded-lg mb-6">
-              <h3 className="text-lg font-bold text-white mb-4">新增時段</h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <input
-                  type="date"
-                  value={newSchedule.date}
-                  onChange={(e) => setNewSchedule({...newSchedule, date: e.target.value})}
-                  className="px-3 py-2 bg-gray-700 text-white rounded border border-gray-600"
-                  placeholder="選擇日期"
-                />
-                <input
-                  type="time"
-                  value={newSchedule.startTime}
-                  onChange={(e) => setNewSchedule({...newSchedule, startTime: e.target.value})}
-                  className="px-3 py-2 bg-gray-700 text-white rounded border border-gray-600"
-                  placeholder="開始時間"
-                />
-                <input
-                  type="time"
-                  value={newSchedule.endTime}
-                  onChange={(e) => setNewSchedule({...newSchedule, endTime: e.target.value})}
-                  className="px-3 py-2 bg-gray-700 text-white rounded border border-gray-600"
-                  placeholder="結束時間"
-                />
-              </div>
-              <div className="flex gap-2 mt-4">
-                <button
-                  onClick={handleAddSchedule}
-                  className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition"
-                >
-                  確認新增
-                </button>
-                <button
-                  onClick={() => setShowAddForm(false)}
-                  className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 transition"
-                >
-                  取消
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* 時段列表 */}
-          <div className="bg-gray-800/60 p-6 rounded-lg">
-            {schedules.length === 0 ? (
-              <div className="text-center py-8">
-                <div className="text-gray-400 text-4xl mb-3">📅</div>
-                <p className="text-gray-300 text-lg mb-2">目前沒有任何時段</p>
-                <p className="text-gray-400 text-sm">點擊「新增時段」開始設定您的服務時間</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {schedules.map((schedule) => (
-                  <div
-                    key={schedule.id}
-                    className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
-                      selectedSchedules.includes(schedule.id)
-                        ? 'border-blue-500 bg-blue-900/20'
-                        : schedule.booked
-                        ? 'border-yellow-500 bg-yellow-900/20'
-                        : 'border-gray-600 bg-gray-700/50 hover:border-gray-500'
-                    }`}
-                    onClick={() => !schedule.booked && handleScheduleSelect(schedule.id)}
-                  >
-                    <div className="flex items-center justify-between mb-2">
-                      <input
-                        type="checkbox"
-                        checked={selectedSchedules.includes(schedule.id)}
-                        onChange={() => !schedule.booked && handleScheduleSelect(schedule.id)}
-                        disabled={schedule.booked}
-                        className="w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded"
-                      />
-                      <span className={`px-2 py-1 rounded text-xs font-medium ${
-                        schedule.booked 
-                          ? 'bg-yellow-600 text-white' 
-                          : 'bg-green-600 text-white'
-                      }`}>
-                        {schedule.booked ? '已預約' : '可預約'}
-                      </span>
-                    </div>
-                    <div className="text-white">
-                      <div className="font-semibold">
-                        {new Date(schedule.date).toLocaleDateString('zh-TW')}
-                      </div>
-                      <div className="text-sm text-gray-300">
-                        {new Date(schedule.startTime).toLocaleTimeString([], { 
-                          hour: '2-digit', 
-                          minute: '2-digit', 
-                          hour12: false 
-                        })} - {new Date(schedule.endTime).toLocaleTimeString([], { 
-                          hour: '2-digit', 
-                          minute: '2-digit', 
-                          hour12: false 
-                        })}
-                      </div>
+          {/* 日曆網格 */}
+          <div className="overflow-x-auto">
+            <div className="min-w-max">
+              {/* 日期標題行 */}
+              <div className="flex border-b border-gray-200">
+                <div className="w-20 bg-gray-50 border-r border-gray-200"></div>
+                {dateSlots.map((date, index) => (
+                  <div key={index} className="w-32 bg-gray-50 border-r border-gray-200 p-2 text-center">
+                    <div className="text-sm font-medium text-gray-800">
+                      {date.getDate()} {['日', '一', '二', '三', '四', '五', '六'][date.getDay()]}
                     </div>
                   </div>
                 ))}
               </div>
-            )}
+
+              {/* 時間軸和時段網格 */}
+              <div className="flex">
+                {/* 時間軸 */}
+                <div className="w-20 border-r border-gray-200">
+                  {timeSlots.map((time, index) => (
+                    <div key={index} className="h-8 border-b border-gray-100 flex items-center justify-center">
+                      <span className="text-xs text-gray-500">{time}</span>
+                    </div>
+                  ))}
+                </div>
+
+                {/* 時段網格 */}
+                {dateSlots.map((date, dateIndex) => (
+                  <div key={dateIndex} className="w-32 border-r border-gray-200">
+                    {timeSlots.map((time, timeIndex) => {
+                      const schedule = getScheduleAtTime(date, time);
+                      return (
+                        <div
+                          key={timeIndex}
+                          className={`h-8 border-b border-gray-100 cursor-pointer transition-colors ${
+                            schedule
+                              ? schedule.booked
+                                ? 'bg-yellow-200 hover:bg-yellow-300'
+                                : 'bg-green-200 hover:bg-green-300'
+                              : 'hover:bg-gray-50'
+                          }`}
+                          onClick={() => schedule && !schedule.booked && handleScheduleSelect(schedule.id)}
+                        >
+                          {schedule && (
+                            <div className="w-full h-full flex items-center justify-center">
+                              <input
+                                type="checkbox"
+                                checked={selectedSchedules.includes(schedule.id)}
+                                onChange={() => !schedule.booked && handleScheduleSelect(schedule.id)}
+                                disabled={schedule.booked}
+                                className="w-3 h-3 text-blue-600"
+                              />
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
+
+          {/* 操作按鈕 */}
+          {selectedSchedules.length > 0 && (
+            <div className="p-4 border-t border-gray-200 bg-gray-50">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-600">
+                  已選擇 {selectedSchedules.length} 個時段
+                </span>
+                <button
+                  onClick={handleDeleteSchedules}
+                  className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition"
+                >
+                  刪除選中時段
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
