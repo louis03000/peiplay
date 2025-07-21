@@ -121,6 +121,74 @@ export default function PartnerSchedulePage() {
     );
   };
 
+  const handleTimeSlotClick = async (date: Date, timeSlot: string) => {
+    const now = new Date();
+    const timeDate = new Date(`${date.toISOString().split('T')[0]}T${timeSlot}:00`);
+    
+    // 檢查是否為過去的時間
+    if (timeDate <= now) {
+      alert('無法為過去的時間新增時段');
+      return;
+    }
+
+    const schedule = getScheduleAtTime(date, timeSlot);
+    
+    if (schedule) {
+      // 如果時段已存在且未被預約，則刪除
+      if (!schedule.booked) {
+        try {
+          const response = await fetch('/api/partner/schedule', {
+            method: 'DELETE',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify([{
+              date: schedule.date,
+              startTime: schedule.startTime,
+              endTime: schedule.endTime
+            }]),
+          });
+
+          if (response.ok) {
+            fetchSchedules();
+          } else {
+            const error = await response.json();
+            alert(error.error || '刪除時段失敗');
+          }
+        } catch (error) {
+          alert('刪除時段失敗');
+        }
+      } else {
+        alert('已預約的時段無法刪除');
+      }
+    } else {
+      // 如果時段不存在，則新增
+      const endTime = new Date(timeDate.getTime() + 30 * 60 * 1000);
+      try {
+        const response = await fetch('/api/partner/schedule', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            date: date.toISOString().split('T')[0],
+            startTime: timeDate.toISOString(),
+            endTime: endTime.toISOString()
+          }),
+        });
+
+        if (response.ok) {
+          fetchSchedules();
+        } else {
+          const error = await response.json();
+          alert(error.error || '新增時段失敗');
+        }
+      } catch (error) {
+        alert('新增時段失敗');
+      }
+    }
+  };
+
   const handleViewChange = (view: 'today' | 'nextWeek') => {
     setCurrentView(view);
     const today = new Date();
@@ -167,6 +235,32 @@ export default function PartnerSchedulePage() {
              scheduleStart <= timeDate &&
              scheduleEnd > timeDate;
     });
+  };
+
+  // 獲取時段狀態和樣式
+  const getTimeSlotStyle = (date: Date, timeSlot: string) => {
+    const now = new Date();
+    const timeDate = new Date(`${date.toISOString().split('T')[0]}T${timeSlot}:00`);
+    
+    // 過去的時間
+    if (timeDate <= now) {
+      return 'bg-gray-100 cursor-not-allowed';
+    }
+    
+    const schedule = getScheduleAtTime(date, timeSlot);
+    
+    if (schedule) {
+      if (schedule.booked) {
+        // 已預約的時段 - 黃色
+        return 'bg-yellow-200 hover:bg-yellow-300 cursor-not-allowed';
+      } else {
+        // 已儲存但未預約的時段 - 淺灰色，點擊刪除
+        return 'bg-gray-300 hover:bg-red-200 cursor-pointer';
+      }
+    } else {
+      // 未儲存的時段 - 白色，點擊新增
+      return 'bg-white hover:bg-green-200 cursor-pointer';
+    }
   };
 
   // 如果還在載入或未掛載，顯示載入狀態
@@ -277,27 +371,28 @@ export default function PartnerSchedulePage() {
                   <div key={dateIndex} className="w-32 border-r border-gray-200">
                     {timeSlots.map((time, timeIndex) => {
                       const schedule = getScheduleAtTime(date, time);
+                      const now = new Date();
+                      const timeDate = new Date(`${date.toISOString().split('T')[0]}T${time}:00`);
+                      const isPastTime = timeDate <= now;
+                      
                       return (
                         <div
                           key={timeIndex}
-                          className={`h-8 border-b border-gray-100 cursor-pointer transition-colors ${
-                            schedule
-                              ? schedule.booked
-                                ? 'bg-yellow-200 hover:bg-yellow-300'
-                                : 'bg-green-200 hover:bg-green-300'
-                              : 'hover:bg-gray-50'
-                          }`}
-                          onClick={() => schedule && !schedule.booked && handleScheduleSelect(schedule.id)}
+                          className={`h-8 border-b border-gray-100 transition-colors ${getTimeSlotStyle(date, time)}`}
+                          onClick={() => !isPastTime && handleTimeSlotClick(date, time)}
+                          title={
+                            isPastTime 
+                              ? '過去的時間無法新增時段'
+                              : schedule
+                                ? schedule.booked
+                                  ? '已預約的時段'
+                                  : '點擊刪除此時段'
+                                : '點擊新增時段'
+                          }
                         >
-                          {schedule && (
+                          {schedule && !schedule.booked && (
                             <div className="w-full h-full flex items-center justify-center">
-                              <input
-                                type="checkbox"
-                                checked={selectedSchedules.includes(schedule.id)}
-                                onChange={() => !schedule.booked && handleScheduleSelect(schedule.id)}
-                                disabled={schedule.booked}
-                                className="w-3 h-3 text-blue-600"
-                              />
+                              <div className="w-2 h-2 bg-gray-600 rounded-full"></div>
                             </div>
                           )}
                         </div>
@@ -309,22 +404,27 @@ export default function PartnerSchedulePage() {
             </div>
           </div>
 
-          {/* 操作按鈕 */}
-          {selectedSchedules.length > 0 && (
-            <div className="p-4 border-t border-gray-200 bg-gray-50">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600">
-                  已選擇 {selectedSchedules.length} 個時段
-                </span>
-                <button
-                  onClick={handleDeleteSchedules}
-                  className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition"
-                >
-                  刪除選中時段
-                </button>
+          {/* 圖例說明 */}
+          <div className="p-4 border-t border-gray-200 bg-gray-50">
+            <div className="flex items-center space-x-6 text-sm">
+              <div className="flex items-center space-x-2">
+                <div className="w-4 h-4 bg-white border border-gray-300"></div>
+                <span className="text-gray-600">未設定時段</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <div className="w-4 h-4 bg-gray-300"></div>
+                <span className="text-gray-600">已儲存時段</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <div className="w-4 h-4 bg-yellow-200"></div>
+                <span className="text-gray-600">已預約時段</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <div className="w-4 h-4 bg-gray-100"></div>
+                <span className="text-gray-600">過去時間</span>
               </div>
             </div>
-          )}
+          </div>
         </div>
       </div>
     </div>
