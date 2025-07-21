@@ -265,8 +265,8 @@ export default function PartnerSchedulePage() {
       <div className="text-center mb-8">
         <h1 className="text-3xl font-bold text-white mb-2">未來7天時段管理</h1>
       </div>
-      <div className="max-w-7xl mx-auto">
-        <div className="bg-white rounded-lg shadow-lg overflow-hidden">
+      <div className="max-w-6xl mx-auto">
+        <div className="bg-white rounded-lg shadow-lg overflow-x-auto">
           <div className="p-6 border-b border-gray-200">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-4">
@@ -287,20 +287,20 @@ export default function PartnerSchedulePage() {
               </div>
             </div>
           </div>
-          <div className="overflow-x-auto">
-            <div className="min-w-max">
+          <div className="w-full overflow-x-auto">
+            <div className="min-w-full">
               <div className="flex border-b border-gray-200">
-                <div className="w-20 bg-gray-50 border-r border-gray-200"></div>
+                <div className="w-20 bg-gray-50 border-r border-gray-200 sticky left-0 z-10"></div>
                 {dateSlots.map((date, index) => (
-                  <div key={index} className="w-32 bg-gray-50 border-r border-gray-200 p-2 text-center">
-                    <div className="text-sm font-medium text-gray-800">
+                  <div key={index} className="flex-1 min-w-0 w-[110px] bg-gray-50 border-r border-gray-200 p-2 text-center">
+                    <div className="text-sm font-medium text-gray-800 truncate">
                       {date.getDate()} {['日', '一', '二', '三', '四', '五', '六'][date.getDay()]}
                     </div>
                   </div>
                 ))}
               </div>
               <div className="flex">
-                <div className="w-20 border-r border-gray-200">
+                <div className="w-20 border-r border-gray-200 sticky left-0 z-10 bg-white">
                   {timeSlots.map((time, index) => (
                     <div key={index} className="h-8 border-b border-gray-100 flex items-center justify-center">
                       <span className="text-xs text-gray-500">{time}</span>
@@ -308,7 +308,7 @@ export default function PartnerSchedulePage() {
                   ))}
                 </div>
                 {dateSlots.map((date, dateIndex) => (
-                  <div key={dateIndex} className="w-32 border-r border-gray-200">
+                  <div key={dateIndex} className="flex-1 min-w-0 w-[110px] border-r border-gray-200">
                     {timeSlots.map((time, timeIndex) => {
                       const state = getCellState(date, time);
                       return (
