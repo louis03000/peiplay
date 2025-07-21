@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
+import { Switch } from '@headlessui/react';
 
 interface Schedule {
   id: string
@@ -30,6 +31,7 @@ export default function PartnerSchedulePage() {
   });
   const [saving, setSaving] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [partnerStatus, setPartnerStatus] = useState<{ isAvailableNow: boolean, isRankBooster: boolean } | null>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -50,6 +52,10 @@ export default function PartnerSchedulePage() {
           if (data && data.partner) {
             setHasPartner(true);
             setLoading(false);
+            setPartnerStatus({
+              isAvailableNow: !!data.partner.isAvailableNow,
+              isRankBooster: !!data.partner.isRankBooster
+            });
             fetchSchedules();
           } else {
             router.replace('/profile');
@@ -216,6 +222,15 @@ export default function PartnerSchedulePage() {
     setSaving(false);
   };
 
+  const handleToggle = async (field: 'isAvailableNow' | 'isRankBooster', value: boolean) => {
+    setPartnerStatus(prev => prev ? { ...prev, [field]: value } : prev);
+    await fetch('/api/partners/self', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ [field]: value })
+    });
+  };
+
   const getCellStyle = (state: CellState) => {
     switch (state) {
       case 'empty': return 'bg-white hover:bg-green-100 cursor-pointer';
@@ -282,8 +297,36 @@ export default function PartnerSchedulePage() {
                   >下週</button>
                 </div>
               </div>
-              <div className="text-sm text-gray-600">
-                {dateRange.start.toLocaleDateString('zh-TW', { month: 'numeric', day: 'numeric' })} - {dateRange.end.toLocaleDateString('zh-TW', { month: 'numeric', day: 'numeric' })}
+              <div className="flex items-center gap-6">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-gray-700">現在有空</span>
+                  <Switch
+                    checked={!!partnerStatus?.isAvailableNow}
+                    onChange={v => handleToggle('isAvailableNow', v)}
+                    className={`${partnerStatus?.isAvailableNow ? 'bg-green-500' : 'bg-gray-300'} relative inline-flex h-6 w-11 items-center rounded-full transition-colors`}
+                  >
+                    <span className="sr-only">現在有空</span>
+                    <span
+                      className={`${partnerStatus?.isAvailableNow ? 'translate-x-6' : 'translate-x-1'} inline-block h-4 w-4 transform rounded-full bg-white transition-transform`}
+                    />
+                  </Switch>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-gray-700">我是上分高手</span>
+                  <Switch
+                    checked={!!partnerStatus?.isRankBooster}
+                    onChange={v => handleToggle('isRankBooster', v)}
+                    className={`${partnerStatus?.isRankBooster ? 'bg-indigo-500' : 'bg-gray-300'} relative inline-flex h-6 w-11 items-center rounded-full transition-colors`}
+                  >
+                    <span className="sr-only">我是上分高手</span>
+                    <span
+                      className={`${partnerStatus?.isRankBooster ? 'translate-x-6' : 'translate-x-1'} inline-block h-4 w-4 transform rounded-full bg-white transition-transform`}
+                    />
+                  </Switch>
+                </div>
+                <div className="text-sm text-gray-600">
+                  {dateRange.start.toLocaleDateString('zh-TW', { month: 'numeric', day: 'numeric' })} - {dateRange.end.toLocaleDateString('zh-TW', { month: 'numeric', day: 'numeric' })}
+                </div>
               </div>
             </div>
           </div>

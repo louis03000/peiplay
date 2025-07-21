@@ -42,15 +42,13 @@ export default function MyBookings() {
   const fetchBookings = async () => {
     setLoading(true);
     try {
-      // 根據用戶角色使用不同的 API
       let url = '/api/bookings';
       if (session?.user?.role === 'CUSTOMER') {
         url = '/api/bookings/me';
       } else if (session?.user?.role === 'PARTNER') {
         url = '/api/bookings/partner';
       }
-      
-      const res = await fetch(url);
+      const res = await fetch(url, { cache: 'no-store' });
       if (!res.ok) {
         if (res.status === 401) {
           throw new Error('請重新登入以查看預約資料');
@@ -58,12 +56,15 @@ export default function MyBookings() {
         throw new Error('無法載入預約資料');
       }
       const data = await res.json();
-      setBookings(data.bookings || []);
+      // 只有資料真的變動時才 setState
+      if (JSON.stringify(data.bookings || []) !== JSON.stringify(bookings)) {
+        setBookings(data.bookings || []);
+      }
       setError(null);
     } catch (err) {
       console.error('Fetch bookings error:', err);
       setError(err instanceof Error ? err.message : '載入失敗');
-      setBookings([]); // 確保設置空陣列
+      setBookings([]);
     } finally {
       setLoading(false);
     }
@@ -73,7 +74,9 @@ export default function MyBookings() {
     if (session) {
       fetchBookings();
     }
-  }, [session])
+    // 只在 session 變動時 fetch
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session]);
 
   const handleReviewSuccess = () => {
     setShowReviewForm(false)
@@ -331,9 +334,9 @@ export default function MyBookings() {
       </div>
 
       {/* 統計資訊 */}
-      {bookings.length > 0 && (
+      {sortedMerged.length > 0 && (
         <div className="mt-4 text-right text-gray-400 text-sm">
-          共 {bookings.length} 筆預約記錄
+          共 {sortedMerged.length} 筆預約記錄
         </div>
       )}
 
