@@ -94,8 +94,8 @@ export async function POST(request: Request) {
               'Authorization': 'Bearer 你的密鑰'
             },
             body: JSON.stringify({
-              user1_id: user1.discord,
-              user2_id: user2.discord,
+              user1_id: encodeURIComponent(user1.discord),
+              user2_id: encodeURIComponent(user2.discord),
               minutes
             })
           });
