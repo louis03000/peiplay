@@ -12,6 +12,8 @@ interface Schedule {
   booked: boolean
 }
 
+type CellState = 'empty' | 'toAdd' | 'saved' | 'toDelete' | 'booked' | 'past';
+
 export default function PartnerSchedulePage() {
   const { data: session, status } = useSession();
   const router = useRouter();
@@ -19,12 +21,14 @@ export default function PartnerSchedulePage() {
   const [loading, setLoading] = useState(true);
   const [hasPartner, setHasPartner] = useState(false);
   const [schedules, setSchedules] = useState<Schedule[]>([]);
-  const [selectedSchedules, setSelectedSchedules] = useState<string[]>([]);
+  const [pendingAdd, setPendingAdd] = useState<{[key: string]: boolean}>({});
+  const [pendingDelete, setPendingDelete] = useState<{[key: string]: boolean}>({});
   const [currentView, setCurrentView] = useState<'today' | 'nextWeek'>('today');
   const [dateRange, setDateRange] = useState<{ start: Date; end: Date }>({
     start: new Date(),
     end: new Date(Date.now() + 6 * 24 * 60 * 60 * 1000)
   });
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -35,14 +39,10 @@ export default function PartnerSchedulePage() {
       router.replace('/auth/login');
       return;
     }
-
-    // 檢查是否有夥伴資料，而不是檢查用戶角色
     if (mounted && session?.user?.id) {
       fetch('/api/partners/self')
         .then(res => {
-          if (!res.ok) {
-            throw new Error('Failed to fetch partner status');
-          }
+          if (!res.ok) throw new Error('Failed to fetch partner status');
           return res.json();
         })
         .then(data => {
@@ -51,14 +51,10 @@ export default function PartnerSchedulePage() {
             setLoading(false);
             fetchSchedules();
           } else {
-            // 沒有夥伴資料，重定向到個人資料頁面
             router.replace('/profile');
           }
         })
-        .catch(() => {
-          // 錯誤時重定向到個人資料頁面
-          router.replace('/profile');
-        });
+        .catch(() => router.replace('/profile'));
     }
   }, [mounted, status, session, router]);
 
@@ -68,124 +64,11 @@ export default function PartnerSchedulePage() {
       if (response.ok) {
         const data = await response.json();
         setSchedules(data);
+        setPendingAdd({});
+        setPendingDelete({});
       }
     } catch (error) {
       console.error('Error fetching schedules:', error);
-    }
-  };
-
-  const handleDeleteSchedules = async () => {
-    if (selectedSchedules.length === 0) {
-      alert('請選擇要刪除的時段');
-      return;
-    }
-
-    if (!confirm('確定要刪除選中的時段嗎？')) {
-      return;
-    }
-
-    try {
-      const schedulesToDelete = schedules
-        .filter(s => selectedSchedules.includes(s.id))
-        .map(s => ({
-          date: s.date,
-          startTime: s.startTime,
-          endTime: s.endTime
-        }));
-
-      const response = await fetch('/api/partner/schedule', {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(schedulesToDelete),
-      });
-
-      if (response.ok) {
-        setSelectedSchedules([]);
-        fetchSchedules();
-      } else {
-        const error = await response.json();
-        alert(error.error || '刪除時段失敗');
-      }
-    } catch (error) {
-      alert('刪除時段失敗');
-    }
-  };
-
-  const handleScheduleSelect = (scheduleId: string) => {
-    setSelectedSchedules(prev => 
-      prev.includes(scheduleId) 
-        ? prev.filter(id => id !== scheduleId)
-        : [...prev, scheduleId]
-    );
-  };
-
-  const handleTimeSlotClick = async (date: Date, timeSlot: string) => {
-    const now = new Date();
-    const timeDate = new Date(`${date.toISOString().split('T')[0]}T${timeSlot}:00`);
-    
-    // 檢查是否為過去的時間
-    if (timeDate <= now) {
-      alert('無法為過去的時間新增時段');
-      return;
-    }
-
-    const schedule = getScheduleAtTime(date, timeSlot);
-    
-    if (schedule) {
-      // 如果時段已存在且未被預約，則刪除
-      if (!schedule.booked) {
-        try {
-          const response = await fetch('/api/partner/schedule', {
-            method: 'DELETE',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify([{
-              date: schedule.date,
-              startTime: schedule.startTime,
-              endTime: schedule.endTime
-            }]),
-          });
-
-          if (response.ok) {
-            fetchSchedules();
-          } else {
-            const error = await response.json();
-            alert(error.error || '刪除時段失敗');
-          }
-        } catch (error) {
-          alert('刪除時段失敗');
-        }
-      } else {
-        alert('已預約的時段無法刪除');
-      }
-    } else {
-      // 如果時段不存在，則新增
-      const endTime = new Date(timeDate.getTime() + 30 * 60 * 1000);
-      try {
-        const response = await fetch('/api/partner/schedule', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            date: date.toISOString().split('T')[0],
-            startTime: timeDate.toISOString(),
-            endTime: endTime.toISOString()
-          }),
-        });
-
-        if (response.ok) {
-          fetchSchedules();
-        } else {
-          const error = await response.json();
-          alert(error.error || '新增時段失敗');
-        }
-      } catch (error) {
-        alert('新增時段失敗');
-      }
     }
   };
 
@@ -224,42 +107,122 @@ export default function PartnerSchedulePage() {
   const getScheduleAtTime = (date: Date, timeSlot: string) => {
     const dateStr = date.toISOString().split('T')[0];
     const timeDate = new Date(`${dateStr}T${timeSlot}:00`);
-    const endTime = new Date(timeDate.getTime() + 30 * 60 * 1000);
-    
     return schedules.find(schedule => {
       const scheduleDate = new Date(schedule.date);
       const scheduleStart = new Date(schedule.startTime);
       const scheduleEnd = new Date(schedule.endTime);
-      
       return scheduleDate.toDateString() === date.toDateString() &&
              scheduleStart <= timeDate &&
              scheduleEnd > timeDate;
     });
   };
 
-  // 獲取時段狀態和樣式
-  const getTimeSlotStyle = (date: Date, timeSlot: string) => {
+  // 決定每個 cell 的狀態
+  const getCellState = (date: Date, timeSlot: string): CellState => {
     const now = new Date();
     const timeDate = new Date(`${date.toISOString().split('T')[0]}T${timeSlot}:00`);
-    
-    // 過去的時間
-    if (timeDate <= now) {
-      return 'bg-gray-100 cursor-not-allowed';
-    }
-    
+    if (timeDate <= now) return 'past';
+    const key = `${date.toISOString().split('T')[0]}_${timeSlot}`;
     const schedule = getScheduleAtTime(date, timeSlot);
-    
     if (schedule) {
-      if (schedule.booked) {
-        // 已預約的時段 - 黃色
-        return 'bg-yellow-200 hover:bg-yellow-300 cursor-not-allowed';
+      if (schedule.booked) return 'booked';
+      if (pendingDelete[schedule.id]) return 'toDelete';
+      return 'saved';
+    } else {
+      if (pendingAdd[key]) return 'toAdd';
+      return 'empty';
+    }
+  };
+
+  // 點擊 cell 的行為
+  const handleCellClick = (date: Date, timeSlot: string) => {
+    const now = new Date();
+    const timeDate = new Date(`${date.toISOString().split('T')[0]}T${timeSlot}:00`);
+    if (timeDate <= now) return;
+    const key = `${date.toISOString().split('T')[0]}_${timeSlot}`;
+    const schedule = getScheduleAtTime(date, timeSlot);
+    if (schedule) {
+      if (schedule.booked) return;
+      if (pendingDelete[schedule.id]) {
+        // 再點一次取消刪除
+        setPendingDelete(prev => {
+          const copy = { ...prev };
+          delete copy[schedule.id];
+          return copy;
+        });
       } else {
-        // 已儲存但未預約的時段 - 淺灰色，點擊刪除
-        return 'bg-gray-300 hover:bg-red-200 cursor-pointer';
+        // 標記為待刪除
+        setPendingDelete(prev => ({ ...prev, [schedule.id]: true }));
       }
     } else {
-      // 未儲存的時段 - 白色，點擊新增
-      return 'bg-white hover:bg-green-200 cursor-pointer';
+      if (pendingAdd[key]) {
+        // 再點一次取消新增
+        setPendingAdd(prev => {
+          const copy = { ...prev };
+          delete copy[key];
+          return copy;
+        });
+      } else {
+        // 標記為待新增
+        setPendingAdd(prev => ({ ...prev, [key]: true }));
+      }
+    }
+  };
+
+  // 儲存所有變更
+  const handleSave = async () => {
+    setSaving(true);
+    // 新增
+    const addList = Object.keys(pendingAdd).map(key => {
+      const [dateStr, timeSlot] = key.split('_');
+      const startTime = new Date(`${dateStr}T${timeSlot}:00`);
+      const endTime = new Date(startTime.getTime() + 30 * 60 * 1000);
+      return {
+        date: dateStr,
+        startTime: startTime.toISOString(),
+        endTime: endTime.toISOString()
+      };
+    });
+    // 刪除
+    const deleteList = Object.keys(pendingDelete).map(id => {
+      const schedule = schedules.find(s => s.id === id);
+      return schedule ? {
+        date: schedule.date,
+        startTime: schedule.startTime,
+        endTime: schedule.endTime
+      } : null;
+    }).filter(Boolean);
+    try {
+      if (addList.length > 0) {
+        await fetch('/api/partner/schedule', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(addList.length === 1 ? addList[0] : addList)
+        });
+      }
+      if (deleteList.length > 0) {
+        await fetch('/api/partner/schedule', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(deleteList)
+        });
+      }
+      await fetchSchedules();
+    } catch (e) {
+      alert('儲存失敗，請重試');
+    }
+    setSaving(false);
+  };
+
+  // 樣式
+  const getCellStyle = (state: CellState) => {
+    switch (state) {
+      case 'empty': return 'bg-white hover:bg-green-100 cursor-pointer';
+      case 'toAdd': return 'bg-green-300 border-2 border-green-600 cursor-pointer';
+      case 'saved': return 'bg-gray-300 cursor-pointer';
+      case 'toDelete': return 'bg-red-300 border-2 border-red-600 cursor-pointer';
+      case 'booked': return 'bg-yellow-200 cursor-not-allowed';
+      case 'past': return 'bg-gray-100 cursor-not-allowed';
     }
   };
 
@@ -273,8 +236,6 @@ export default function PartnerSchedulePage() {
       </div>
     );
   }
-
-  // 如果未登入，顯示載入狀態（會自動跳轉到登入頁面）
   if (!session) {
     return (
       <div className="container mx-auto px-4 py-8">
@@ -284,8 +245,6 @@ export default function PartnerSchedulePage() {
       </div>
     );
   }
-
-  // 如果沒有夥伴資料，顯示載入狀態（會自動跳轉到個人資料頁面）
   if (!hasPartner) {
     return (
       <div className="container mx-auto px-4 py-8">
@@ -298,15 +257,11 @@ export default function PartnerSchedulePage() {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      {/* 頁面標題 */}
       <div className="text-center mb-8">
         <h1 className="text-3xl font-bold text-white mb-2">未來7天時段管理</h1>
       </div>
-
-      {/* 主要內容區塊 */}
       <div className="max-w-7xl mx-auto">
         <div className="bg-white rounded-lg shadow-lg overflow-hidden">
-          {/* 標題和按鈕區域 */}
           <div className="p-6 border-b border-gray-200">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-4">
@@ -314,24 +269,12 @@ export default function PartnerSchedulePage() {
                 <div className="flex space-x-2">
                   <button
                     onClick={() => handleViewChange('today')}
-                    className={`px-4 py-2 rounded text-sm font-medium transition ${
-                      currentView === 'today'
-                        ? 'bg-gray-600 text-white'
-                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                    }`}
-                  >
-                    今天
-                  </button>
+                    className={`px-4 py-2 rounded text-sm font-medium transition ${currentView === 'today' ? 'bg-gray-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+                  >今天</button>
                   <button
                     onClick={() => handleViewChange('nextWeek')}
-                    className={`px-4 py-2 rounded text-sm font-medium transition ${
-                      currentView === 'nextWeek'
-                        ? 'bg-gray-600 text-white'
-                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                    }`}
-                  >
-                    下週
-                  </button>
+                    className={`px-4 py-2 rounded text-sm font-medium transition ${currentView === 'nextWeek' ? 'bg-gray-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+                  >下週</button>
                 </div>
               </div>
               <div className="text-sm text-gray-600">
@@ -339,11 +282,8 @@ export default function PartnerSchedulePage() {
               </div>
             </div>
           </div>
-
-          {/* 日曆網格 */}
           <div className="overflow-x-auto">
             <div className="min-w-max">
-              {/* 日期標題行 */}
               <div className="flex border-b border-gray-200">
                 <div className="w-20 bg-gray-50 border-r border-gray-200"></div>
                 {dateSlots.map((date, index) => (
@@ -354,10 +294,7 @@ export default function PartnerSchedulePage() {
                   </div>
                 ))}
               </div>
-
-              {/* 時間軸和時段網格 */}
               <div className="flex">
-                {/* 時間軸 */}
                 <div className="w-20 border-r border-gray-200">
                   {timeSlots.map((time, index) => (
                     <div key={index} className="h-8 border-b border-gray-100 flex items-center justify-center">
@@ -365,37 +302,24 @@ export default function PartnerSchedulePage() {
                     </div>
                   ))}
                 </div>
-
-                {/* 時段網格 */}
                 {dateSlots.map((date, dateIndex) => (
                   <div key={dateIndex} className="w-32 border-r border-gray-200">
                     {timeSlots.map((time, timeIndex) => {
-                      const schedule = getScheduleAtTime(date, time);
-                      const now = new Date();
-                      const timeDate = new Date(`${date.toISOString().split('T')[0]}T${time}:00`);
-                      const isPastTime = timeDate <= now;
-                      
+                      const state = getCellState(date, time);
                       return (
                         <div
                           key={timeIndex}
-                          className={`h-8 border-b border-gray-100 transition-colors ${getTimeSlotStyle(date, time)}`}
-                          onClick={() => !isPastTime && handleTimeSlotClick(date, time)}
+                          className={`h-8 border-b border-gray-100 transition-colors ${getCellStyle(state)}`}
+                          onClick={() => ['empty', 'toAdd', 'saved', 'toDelete'].includes(state) && handleCellClick(date, time)}
                           title={
-                            isPastTime 
-                              ? '過去的時間無法新增時段'
-                              : schedule
-                                ? schedule.booked
-                                  ? '已預約的時段'
-                                  : '點擊刪除此時段'
-                                : '點擊新增時段'
+                            state === 'past' ? '過去的時間無法操作' :
+                            state === 'empty' ? '點擊新增時段' :
+                            state === 'toAdd' ? '點擊取消新增' :
+                            state === 'saved' ? '點擊標記刪除' :
+                            state === 'toDelete' ? '點擊取消刪除' :
+                            state === 'booked' ? '已預約的時段無法操作' : ''
                           }
-                        >
-                          {schedule && !schedule.booked && (
-                            <div className="w-full h-full flex items-center justify-center">
-                              <div className="w-2 h-2 bg-gray-600 rounded-full"></div>
-                            </div>
-                          )}
-                        </div>
+                        />
                       );
                     })}
                   </div>
@@ -403,17 +327,23 @@ export default function PartnerSchedulePage() {
               </div>
             </div>
           </div>
-
-          {/* 圖例說明 */}
-          <div className="p-4 border-t border-gray-200 bg-gray-50">
+          <div className="flex items-center justify-between p-4 border-t border-gray-200 bg-gray-50">
             <div className="flex items-center space-x-6 text-sm">
               <div className="flex items-center space-x-2">
                 <div className="w-4 h-4 bg-white border border-gray-300"></div>
                 <span className="text-gray-600">未設定時段</span>
               </div>
               <div className="flex items-center space-x-2">
+                <div className="w-4 h-4 bg-green-300 border-2 border-green-600"></div>
+                <span className="text-gray-600">待儲存時段</span>
+              </div>
+              <div className="flex items-center space-x-2">
                 <div className="w-4 h-4 bg-gray-300"></div>
                 <span className="text-gray-600">已儲存時段</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <div className="w-4 h-4 bg-red-300 border-2 border-red-600"></div>
+                <span className="text-gray-600">待刪除時段</span>
               </div>
               <div className="flex items-center space-x-2">
                 <div className="w-4 h-4 bg-yellow-200"></div>
@@ -424,9 +354,16 @@ export default function PartnerSchedulePage() {
                 <span className="text-gray-600">過去時間</span>
               </div>
             </div>
+            <button
+              className={`px-6 py-2 rounded-lg font-bold text-white transition ${saving ? 'bg-gray-400' : 'bg-indigo-600 hover:bg-indigo-700'}`}
+              onClick={handleSave}
+              disabled={saving || (Object.keys(pendingAdd).length === 0 && Object.keys(pendingDelete).length === 0)}
+            >
+              {saving ? '儲存中...' : '儲存時段'}
+            </button>
           </div>
         </div>
       </div>
     </div>
-  )
+  );
 }
