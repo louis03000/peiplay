@@ -110,26 +110,34 @@ export default function PartnerSchedulePage() {
     return date;
   });
 
-  // 獲取指定日期和時間的時段
+  // 取得 yyyy-mm-dd（本地時區）
+  function getLocalDateString(date: Date) {
+    return `${date.getFullYear()}-${(date.getMonth()+1).toString().padStart(2,'0')}-${date.getDate().toString().padStart(2,'0')}`;
+  }
+
+  // 獲取指定日期和時間的時段（本地時區比對）
   const getScheduleAtTime = (date: Date, timeSlot: string) => {
-    const dateStr = date.toISOString().split('T')[0];
-    const timeDate = new Date(`${dateStr}T${timeSlot}:00`);
+    const dateStr = getLocalDateString(date);
+    const [hour, minute] = timeSlot.split(':');
+    const slotStart = new Date(date);
+    slotStart.setHours(Number(hour), Number(minute), 0, 0);
+    const slotStartTime = slotStart.getTime();
     return schedules.find(schedule => {
       const scheduleDate = new Date(schedule.date);
       const scheduleStart = new Date(schedule.startTime);
-      const scheduleEnd = new Date(schedule.endTime);
-      return scheduleDate.toDateString() === date.toDateString() &&
-             scheduleStart <= timeDate &&
-             scheduleEnd > timeDate;
+      return getLocalDateString(scheduleDate) === dateStr &&
+        scheduleStart.getTime() === slotStartTime;
     });
   };
 
-  // 決定每個 cell 的狀態
+  // 決定每個 cell 的狀態（本地時區比對）
   const getCellState = (date: Date, timeSlot: string): CellState => {
     const now = new Date();
-    const timeDate = new Date(`${date.toISOString().split('T')[0]}T${timeSlot}:00`);
-    if (timeDate <= now) return 'past';
-    const key = `${date.toISOString().split('T')[0]}_${timeSlot}`;
+    const [hour, minute] = timeSlot.split(':');
+    const timeDate = new Date(date);
+    timeDate.setHours(Number(hour), Number(minute), 0, 0);
+    if (timeDate.getTime() <= now.getTime()) return 'past';
+    const key = `${getLocalDateString(date)}_${timeSlot}`;
     const schedule = getScheduleAtTime(date, timeSlot);
     if (schedule) {
       if (schedule.booked) return 'booked';
@@ -144,9 +152,11 @@ export default function PartnerSchedulePage() {
   // 點擊 cell 的行為
   const handleCellClick = (date: Date, timeSlot: string) => {
     const now = new Date();
-    const timeDate = new Date(`${date.toISOString().split('T')[0]}T${timeSlot}:00`);
-    if (timeDate <= now) return;
-    const key = `${date.toISOString().split('T')[0]}_${timeSlot}`;
+    const [hour, minute] = timeSlot.split(':');
+    const timeDate = new Date(date);
+    timeDate.setHours(Number(hour), Number(minute), 0, 0);
+    if (timeDate.getTime() <= now.getTime()) return;
+    const key = `${getLocalDateString(date)}_${timeSlot}`;
     const schedule = getScheduleAtTime(date, timeSlot);
     if (schedule) {
       if (schedule.booked) return;
@@ -177,7 +187,9 @@ export default function PartnerSchedulePage() {
     setSaving(true);
     const addList = Object.keys(pendingAdd).map(key => {
       const [dateStr, timeSlot] = key.split('_');
-      const startTime = new Date(`${dateStr}T${timeSlot}:00`);
+      const [hour, minute] = timeSlot.split(':');
+      const startTime = new Date(dateStr);
+      startTime.setHours(Number(hour), Number(minute), 0, 0);
       const endTime = new Date(startTime.getTime() + 30 * 60 * 1000);
       return {
         date: dateStr,
