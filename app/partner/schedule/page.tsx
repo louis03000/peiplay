@@ -211,9 +211,9 @@ export default function PartnerSchedulePage() {
       // 立即清空 pending 狀態，提升體感速度
       setPendingAdd({});
       setPendingDelete({});
+      await fetchSchedules(); // 先 fetch 最新資料再顯示成功提示
       setShowSuccess(true);
       setTimeout(() => setShowSuccess(false), 2000);
-      await fetchSchedules();
       // 可選：自動滾到頂部
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (e) {
