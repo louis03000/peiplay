@@ -341,7 +341,14 @@ function BookingWizardContent() {
               <ul>
                 {selectedTimes.map(timeId => {
                   const schedule = selectedPartner.schedules.find(s => s.id === timeId);
-                  return <li key={timeId}>{selectedDate?.toLocaleDateString()} {schedule?.startTime.slice(11,16)} - {schedule?.endTime.slice(11,16)}</li>
+                  if (!schedule) return null;
+                  // 取得本地日期字串
+                  const start = new Date(schedule.startTime);
+                  const end = new Date(schedule.endTime);
+                  const dateLabel = `${start.getFullYear()}/${(start.getMonth()+1).toString().padStart(2,'0')}/${start.getDate().toString().padStart(2,'0')}`;
+                  const startLabel = start.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+                  const endLabel = end.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+                  return <li key={timeId}>{dateLabel} {startLabel} - {endLabel}</li>
                 })}
               </ul>
             </div>
