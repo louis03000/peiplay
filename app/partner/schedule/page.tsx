@@ -29,6 +29,7 @@ export default function PartnerSchedulePage() {
     end: new Date(Date.now() + 6 * 24 * 60 * 60 * 1000)
   });
   const [saving, setSaving] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -144,26 +145,22 @@ export default function PartnerSchedulePage() {
     if (schedule) {
       if (schedule.booked) return;
       if (pendingDelete[schedule.id]) {
-        // 再點一次取消刪除
         setPendingDelete(prev => {
           const copy = { ...prev };
           delete copy[schedule.id];
           return copy;
         });
       } else {
-        // 標記為待刪除
         setPendingDelete(prev => ({ ...prev, [schedule.id]: true }));
       }
     } else {
       if (pendingAdd[key]) {
-        // 再點一次取消新增
         setPendingAdd(prev => {
           const copy = { ...prev };
           delete copy[key];
           return copy;
         });
       } else {
-        // 標記為待新增
         setPendingAdd(prev => ({ ...prev, [key]: true }));
       }
     }
@@ -172,7 +169,6 @@ export default function PartnerSchedulePage() {
   // 儲存所有變更
   const handleSave = async () => {
     setSaving(true);
-    // 新增
     const addList = Object.keys(pendingAdd).map(key => {
       const [dateStr, timeSlot] = key.split('_');
       const startTime = new Date(`${dateStr}T${timeSlot}:00`);
@@ -183,7 +179,6 @@ export default function PartnerSchedulePage() {
         endTime: endTime.toISOString()
       };
     });
-    // 刪除
     const deleteList = Object.keys(pendingDelete).map(id => {
       const schedule = schedules.find(s => s.id === id);
       return schedule ? {
@@ -207,14 +202,20 @@ export default function PartnerSchedulePage() {
           body: JSON.stringify(deleteList)
         });
       }
+      // 立即清空 pending 狀態，提升體感速度
+      setPendingAdd({});
+      setPendingDelete({});
+      setShowSuccess(true);
+      setTimeout(() => setShowSuccess(false), 2000);
       await fetchSchedules();
+      // 可選：自動滾到頂部
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (e) {
       alert('儲存失敗，請重試');
     }
     setSaving(false);
   };
 
-  // 樣式
   const getCellStyle = (state: CellState) => {
     switch (state) {
       case 'empty': return 'bg-white hover:bg-green-100 cursor-pointer';
@@ -226,7 +227,6 @@ export default function PartnerSchedulePage() {
     }
   };
 
-  // 如果還在載入或未掛載，顯示載入狀態
   if (status === 'loading' || !mounted || loading) {
     return (
       <div className="container mx-auto px-4 py-8">
@@ -257,6 +257,11 @@ export default function PartnerSchedulePage() {
 
   return (
     <div className="container mx-auto px-4 py-8">
+      {showSuccess && (
+        <div className="fixed top-6 left-1/2 transform -translate-x-1/2 z-50 bg-green-600 text-white px-6 py-3 rounded-lg shadow-lg font-bold text-lg animate-fade-in-out">
+          儲存成功
+        </div>
+      )}
       <div className="text-center mb-8">
         <h1 className="text-3xl font-bold text-white mb-2">未來7天時段管理</h1>
       </div>
@@ -367,3 +372,15 @@ export default function PartnerSchedulePage() {
     </div>
   );
 }
+
+// 動畫樣式
+// 在 global.css 或此檔案最下方加上：
+// .animate-fade-in-out {
+//   animation: fadeInOut 2s;
+// }
+// @keyframes fadeInOut {
+//   0% { opacity: 0; }
+//   10% { opacity: 1; }
+//   90% { opacity: 1; }
+//   100% { opacity: 0; }
+// }
