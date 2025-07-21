@@ -35,7 +35,6 @@ export async function GET() {
     const bookings = await prisma.booking.findMany({
       where: {
         customerId: customer.id,
-        schedule: { startTime: { gt: now } },
       },
       include: {
         schedule: { include: { partner: { select: { name: true } } } },

@@ -115,6 +115,13 @@ export async function GET(request: Request) {
       ...s,
       booked: s.bookings.some(b => b.status === 'CONFIRMED' || b.status === 'PENDING'),
     }))
+    // 新增 debug log
+    console.log('[GET /api/partner/schedule]', {
+      userId: session.user.id,
+      partnerId: partner.id,
+      schedulesLength: schedules.length,
+      schedules: schedules.map(s => ({ id: s.id, date: s.date, startTime: s.startTime, endTime: s.endTime }))
+    })
     return NextResponse.json(result)
   } catch (err) {
     console.error('GET /api/partner/schedule error:', err);
