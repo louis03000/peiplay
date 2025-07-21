@@ -74,6 +74,7 @@ export async function POST(request: Request) {
       });
 
       // 2-3. Discord 通知（僅單一時段）
+      /*
       if (Array.isArray(scheduleIds) && scheduleIds.length === 1) {
         const schedule = await prisma.schedule.findUnique({
           where: { id: scheduleIds[0] },
@@ -101,6 +102,7 @@ export async function POST(request: Request) {
           });
         }
       }
+      */
 
       return createdBookings;
     });
