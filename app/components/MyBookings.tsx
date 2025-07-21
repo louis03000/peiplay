@@ -51,12 +51,19 @@ export default function MyBookings() {
       }
       
       const res = await fetch(url);
-      if (!res.ok) throw new Error('無法載入預約資料');
+      if (!res.ok) {
+        if (res.status === 401) {
+          throw new Error('請重新登入以查看預約資料');
+        }
+        throw new Error('無法載入預約資料');
+      }
       const data = await res.json();
       setBookings(data.bookings || []);
       setError(null);
     } catch (err) {
+      console.error('Fetch bookings error:', err);
       setError(err instanceof Error ? err.message : '載入失敗');
+      setBookings([]); // 確保設置空陣列
     } finally {
       setLoading(false);
     }
@@ -148,7 +155,9 @@ export default function MyBookings() {
     const sorted = [...bookings].sort((a, b) => {
       const t1 = new Date(a.schedule.startTime).getTime();
       const t2 = new Date(b.schedule.startTime).getTime();
-      if (a.schedule.partner.name !== b.schedule.partner.name) return a.schedule.partner.name.localeCompare(b.schedule.partner.name);
+      const partnerNameA = a.schedule.partner?.name || '';
+      const partnerNameB = b.schedule.partner?.name || '';
+      if (partnerNameA !== partnerNameB) return partnerNameA.localeCompare(partnerNameB);
       if (a.status !== b.status) return a.status.localeCompare(b.status);
       return t1 - t2;
     });
@@ -161,7 +170,7 @@ export default function MyBookings() {
       let mergedEndTime = curr.schedule.endTime;
       while (
         j < sorted.length &&
-        curr.schedule.partner.name === sorted[j].schedule.partner.name &&
+        (curr.schedule.partner?.name || '') === (sorted[j].schedule.partner?.name || '') &&
         curr.status === sorted[j].status &&
         new Date(mergedEndTime).getTime() === new Date(sorted[j].schedule.startTime).getTime()
       ) {

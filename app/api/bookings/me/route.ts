@@ -10,15 +10,27 @@ export async function GET() {
     const session = await getServerSession(authOptions);
     let role = session?.user?.role;
     let userId = session?.user?.id;
-    if (!role && userId) {
+    
+    if (!userId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // 如果沒有角色信息，從數據庫查詢
+    if (!role) {
       const user = await prisma.user.findUnique({ where: { id: userId } });
       role = user?.role;
     }
-    if (!userId || role !== 'CUSTOMER') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    // 檢查是否有 customer 資料，而不是嚴格檢查角色
+    const customer = await prisma.customer.findUnique({ 
+      where: { userId }, 
+      select: { id: true } 
+    });
+    
+    if (!customer) {
+      return NextResponse.json({ bookings: [] });
     }
-    const customer = await prisma.customer.findUnique({ where: { userId }, select: { id: true } });
-    if (!customer) return NextResponse.json({ bookings: [] });
+
     const now = new Date();
     const bookings = await prisma.booking.findMany({
       where: {
