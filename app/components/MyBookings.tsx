@@ -193,8 +193,16 @@ export default function MyBookings() {
     return merged;
   }
 
-  // 先合併，再排序，再分頁 - 顯示所有預約，不只是已完成的
-  const merged = mergeBookings(bookings);
+  // 過濾：只顯示未完成且未過期的預約
+  const now = new Date();
+  const activeBookings = bookings.filter(b => {
+    const start = new Date(b.schedule.startTime);
+    // 狀態為 PENDING 或 CONFIRMED，且開始時間在未來
+    return (b.status === 'PENDING' || b.status === 'CONFIRMED') && start.getTime() > now.getTime();
+  });
+
+  // 合併、排序、分頁都用 activeBookings
+  const merged = mergeBookings(activeBookings);
   const sortedMerged = merged.sort((a, b) => new Date(b.schedule.startTime).getTime() - new Date(a.schedule.startTime).getTime());
   const pagedBookings = sortedMerged.slice((currentPage - 1) * pageSize, currentPage * pageSize);
   const totalPages = Math.ceil(sortedMerged.length / pageSize);
