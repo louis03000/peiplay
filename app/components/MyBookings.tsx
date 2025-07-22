@@ -28,7 +28,11 @@ interface Booking {
   };
 }
 
-export default function MyBookings() {
+interface MyBookingsProps {
+  showCompletedOnly?: boolean;
+}
+
+export default function MyBookings({ showCompletedOnly }: MyBookingsProps) {
   const { data: session } = useSession();
   const [bookings, setBookings] = useState<Booking[]>([])
   const [loading, setLoading] = useState(true);
@@ -193,16 +197,24 @@ export default function MyBookings() {
     return merged;
   }
 
-  // 過濾：只顯示未完成且未過期的預約
+  // 過濾：只顯示未完成且未過期的預約，或只顯示已完成/已過去的預約
   const now = new Date();
-  const activeBookings = bookings.filter(b => {
-    const start = new Date(b.schedule.startTime);
-    // 狀態為 PENDING 或 CONFIRMED，且開始時間在未來
-    return (b.status === 'PENDING' || b.status === 'CONFIRMED') && start.getTime() > now.getTime();
-  });
-
-  // 合併、排序、分頁都用 activeBookings
-  const merged = mergeBookings(activeBookings);
+  let filteredBookings = bookings;
+  if (showCompletedOnly) {
+    filteredBookings = bookings.filter(b => {
+      const end = new Date(b.schedule.endTime);
+      // 狀態為 COMPLETED 或已過去
+      return b.status === 'COMPLETED' || end.getTime() <= now.getTime();
+    });
+  } else {
+    filteredBookings = bookings.filter(b => {
+      const start = new Date(b.schedule.startTime);
+      // 狀態為 PENDING 或 CONFIRMED，且開始時間在未來
+      return (b.status === 'PENDING' || b.status === 'CONFIRMED') && start.getTime() > now.getTime();
+    });
+  }
+  // 合併、排序、分頁都用 filteredBookings
+  const merged = mergeBookings(filteredBookings);
   const sortedMerged = merged.sort((a, b) => new Date(b.schedule.startTime).getTime() - new Date(a.schedule.startTime).getTime());
   const pagedBookings = sortedMerged.slice((currentPage - 1) * pageSize, currentPage * pageSize);
   const totalPages = Math.ceil(sortedMerged.length / pageSize);

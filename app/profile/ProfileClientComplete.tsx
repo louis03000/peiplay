@@ -487,7 +487,7 @@ export default function ProfileClientComplete() {
           
           <div className="space-y-8">
             <section>
-              <MyBookings />
+              <MyBookings showCompletedOnly />
             </section>
             <section>
               <OrderHistory />
