@@ -31,10 +31,25 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '用戶不存在' }, { status: 404 });
     }
 
-    // 直接刪除用戶（會自動處理關聯資料）
-    await prisma.user.delete({
-      where: { id: user.id }
-    });
+    // 先刪除所有關聯資料
+    try {
+      // 刪除 Customer 及其 Booking、Order
+      await prisma.booking.deleteMany({ where: { customer: { userId: user.id } } });
+      await prisma.order.deleteMany({ where: { customer: { userId: user.id } } });
+      await prisma.customer.deleteMany({ where: { userId: user.id } });
+      // 刪除 Partner 及其 Schedule
+      const partner = await prisma.partner.findUnique({ where: { userId: user.id } });
+      if (partner) {
+        await prisma.schedule.deleteMany({ where: { partnerId: partner.id } });
+        await prisma.partner.deleteMany({ where: { userId: user.id } });
+      }
+    } catch (relErr) {
+      console.error('刪除關聯資料時發生錯誤:', relErr);
+      return NextResponse.json({ error: '刪除關聯資料失敗', details: relErr instanceof Error ? relErr.message : String(relErr) }, { status: 500 });
+    }
+
+    // 最後刪除用戶
+    await prisma.user.delete({ where: { id: user.id } });
 
     return NextResponse.json({ 
       success: true, 
