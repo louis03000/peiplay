@@ -156,8 +156,17 @@ export default function BookingsPage() {
   }
 
   // 分頁資料
-  const pagedBookings = mergeBookings(bookings).slice((currentPage - 1) * pageSize, currentPage * pageSize);
-  const totalPages = Math.ceil(mergeBookings(bookings).length / pageSize);
+  let filteredBookings = bookings;
+  if (tab === 'me') {
+    const now = new Date();
+    filteredBookings = bookings.filter(b => {
+      const start = new Date(b.schedule.startTime);
+      // 狀態為 PENDING 或 CONFIRMED，且開始時間在未來
+      return (b.status === 'PENDING' || b.status === 'CONFIRMED') && start.getTime() > now.getTime();
+    });
+  }
+  const pagedBookings = mergeBookings(filteredBookings).slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  const totalPages = Math.ceil(mergeBookings(filteredBookings).length / pageSize);
 
   if (status === 'loading') {
     return <div className="text-center p-8 text-white">載入中...</div>
