@@ -1,5 +1,5 @@
 'use client'
-import { useSession } from 'next-auth/react'
+import { useSession, signOut } from 'next-auth/react'
 import { useState, useEffect } from 'react'
 import MyBookings from '@/app/components/MyBookings'
 import OrderHistory from '@/app/components/OrderHistory'
@@ -46,6 +46,10 @@ export default function ProfileClientComplete() {
     const loadUserData = async () => {
       try {
         const res = await fetch('/api/user/profile');
+        if (res.status === 401) {
+          await signOut({ callbackUrl: '/' });
+          return;
+        }
         const data = await res.json();
         if (res.ok && data.user) {
           setUserData(data.user);

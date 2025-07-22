@@ -102,7 +102,7 @@ export async function GET(request: Request) {
       },
     });
     if (!user) {
-      return NextResponse.json({ error: '找不到使用者' }, { status: 404 });
+      return NextResponse.json({ error: '請重新登入' }, { status: 401 });
     }
     return NextResponse.json({ user });
   } catch (error: any) {
