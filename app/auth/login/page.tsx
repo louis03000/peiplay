@@ -32,7 +32,11 @@ export default function LoginPage() {
     });
     console.log('signIn result', res);
     if (res?.error) {
-      setErrorMsg(res.error === 'CredentialsSignin' ? '帳號或密碼錯誤' : res.error);
+      if (res.error === '尚未註冊，請先註冊') {
+        setErrorMsg('尚未註冊，請先註冊');
+      } else {
+        setErrorMsg(res.error === 'CredentialsSignin' ? '帳號或密碼錯誤' : res.error);
+      }
     } else if (res?.ok) {
       window.location.href = "/";
     }
