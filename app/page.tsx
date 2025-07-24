@@ -63,12 +63,12 @@ export default function Home() {
         <div className="max-w-4xl mx-auto px-4">
           <h3 className="text-lg font-bold mb-3">聯絡我們</h3>
           <div className="flex flex-wrap gap-6 text-sm">
-            <div>綠界科技股份有限公司</div>
-            <div>客服信箱：test@ecpay.com.tw</div>
-            <div>客服電話：02-2655-0115</div>
+            <div>客服Line：@484mkuzi</div>
+            <div>客服信箱：peiplay987@gmail.com</div>
+            <div>客服電話：0953868520</div>
             <div>客服時間：週一～週日 24 小時</div>
           </div>
-          <div className="text-xs text-gray-400 mt-2">本頁面僅為範例，實際聯絡資訊請依註冊綠界會員時填寫為準。</div>
+          <div className="text-xs text-gray-400 mt-2">需要幫助請聯絡我們，我們將竭誠為您服務。</div>
         </div>
       </footer>
     </div>
