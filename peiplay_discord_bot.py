@@ -34,6 +34,21 @@ pending_ratings = {}
 ANIMALS = ["🦊 狐狸", "🐱 貓咪", "🐶 小狗", "🐻 熊熊", "🐼 貓熊", "🐯 老虎", "🦁 獅子", "🐸 青蛙", "🐵 猴子"]
 TW_TZ = timezone(timedelta(hours=8))
 
+# --- 成員搜尋函數 ---
+def find_member_by_name(guild, name):
+    """不區分大小寫搜尋成員"""
+    name_lower = name.lower()
+    print(f"搜尋名稱: {name} (轉小寫: {name_lower})")
+    
+    for member in guild.members:
+        print(f"檢查成員: {member.name} (小寫: {member.name.lower()})")
+        if member.name.lower() == name_lower:
+            print(f"找到匹配: {member.name}")
+            return member
+    
+    print(f"未找到匹配的成員: {name}")
+    return None
+
 # --- PeiPlay API 整合 ---
 class PeiPlayAPI:
     def __init__(self, base_url: str):
@@ -291,9 +306,21 @@ async def createvc(interaction: discord.Interaction, members: str, minutes: int,
         await interaction.followup.send("❗ 時間格式錯誤，請使用 HH:MM 24 小時制。")
         return
 
-    mentioned = [m for m in interaction.guild.members if f"<@{m.id}>" in members]
+    # 解析成員名稱（假設格式是 "name1,name2" 或 "name1 name2"）
+    member_names = [name.strip() for name in members.replace(',', ' ').split() if name.strip()]
+
+    # 使用新的搜尋函數
+    mentioned = []
+    for name in member_names:
+        member = find_member_by_name(interaction.guild, name)
+        if member:
+            mentioned.append(member)
+        else:
+            await interaction.followup.send(f"❗ 找不到成員：{name}")
+            return
+
     if not mentioned:
-        await interaction.followup.send("❗請標註至少一位成員。")
+        await interaction.followup.send("❗ 請提供至少一位有效的成員名稱。")
         return
 
     animal = random.choice(ANIMALS)
