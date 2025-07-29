@@ -62,6 +62,7 @@ export default function Navbar() {
         <div className="flex gap-4 sm:gap-8 items-center text-white">
           <Link href="/booking" className="hover:text-purple-300 transition-colors">預約</Link>
           <Link href="/partners" className="hover:text-purple-300 transition-colors">搜尋</Link>
+          <Link href="/ranking" className="hover:text-purple-300 transition-colors">排行榜</Link>
           {!isPartner && <Link href="/join" className="hover:text-purple-300 transition-colors">加入我們</Link>}
           
           <div className="relative" ref={menuRef}>
