@@ -71,8 +71,12 @@ export async function GET(request: Request) {
       orderBy: { createdAt: 'desc' },
     });
 
-    // 過濾掉沒有時段的夥伴
-    let partnersWithSchedules = partners.filter(partner => partner.schedules.length > 0);
+    // 過濾掉沒有時段的夥伴，但如果有篩選條件則保留所有符合條件的夥伴
+    let partnersWithSchedules = partners;
+    if (!rankBooster && !availableNow) {
+      // 只有在沒有篩選條件時才過濾掉沒有時段的夥伴
+      partnersWithSchedules = partners.filter(partner => partner.schedules.length > 0);
+    }
     
     // 遊戲搜尋篩選（不區分大小寫）
     if (game && game.trim()) {

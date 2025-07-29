@@ -89,9 +89,12 @@ function BookingWizardContent() {
   const filteredPartners: Partner[] = useMemo(() => {
     return partners.filter(p => {
       const matchSearch = p.name.includes(search) || (p.games && p.games.some(s => s.includes(search)));
-      const hasFutureSchedule = p.schedules && p.schedules.some(s => s.isAvailable && new Date(s.startTime) > new Date());
       
-      if (!matchSearch || !hasFutureSchedule) return false;
+      // 移除對未來時段的強制要求，讓篩選功能能正常工作
+      // const hasFutureSchedule = p.schedules && p.schedules.some(s => s.isAvailable && new Date(s.startTime) > new Date());
+      // if (!matchSearch || !hasFutureSchedule) return false;
+      
+      if (!matchSearch) return false;
       
       if (onlyAvailable && onlyRankBooster) {
         return p.isAvailableNow && p.isRankBooster;
