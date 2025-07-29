@@ -7,10 +7,14 @@ import os
 import sys
 import subprocess
 from pathlib import Path
+from dotenv import load_dotenv
 
 def check_environment():
     """檢查環境設定"""
     print("🔍 檢查 Discord Bot 環境設定...")
+    
+    # 載入 .env 檔案
+    load_dotenv()
     
     # 檢查 .env 檔案
     env_file = Path(".env")
@@ -24,7 +28,7 @@ def check_environment():
         "DISCORD_BOT_TOKEN",
         "DISCORD_GUILD_ID", 
         "ADMIN_CHANNEL_ID",
-        "DATABASE_URL"
+        "POSTGRES_CONN"
     ]
     
     missing_vars = []
