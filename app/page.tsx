@@ -55,14 +55,14 @@ export default function Home() {
 
   return (
     <div className="flex flex-col min-h-screen bg-gradient-to-br from-[#23243a] via-[#2d2e4a] to-[#1a1b2b]">
-      <main className="flex-1 flex flex-col items-center justify-center">
-        <h1 className="text-4xl md:text-5xl font-bold mb-4 text-white text-center">PeiPlay 預約平台</h1>
-        <p className="text-lg md:text-2xl text-gray-300 mb-8 text-center">專為顧客與夥伴打造的預約與管理系統。</p>
+      <main className="flex-1 flex flex-col items-center justify-center px-4">
+        <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-4 text-white text-center">PeiPlay 預約平台</h1>
+        <p className="text-base md:text-lg lg:text-2xl text-gray-300 mb-8 text-center">專為顧客與夥伴打造的預約與管理系統。</p>
       </main>
       <footer className="w-full bg-gray-900 text-white py-6 mt-16">
         <div className="max-w-4xl mx-auto px-4">
-          <h3 className="text-lg font-bold mb-3">聯絡我們</h3>
-          <div className="flex flex-wrap gap-6 text-sm">
+          <h3 className="text-base md:text-lg font-bold mb-3">聯絡我們</h3>
+          <div className="flex flex-col sm:flex-row flex-wrap gap-2 sm:gap-6 text-xs sm:text-sm">
             <div>客服Line：@484mkuzi</div>
             <div>客服信箱：peiplay987@gmail.com</div>
             <div>客服電話：0953868520</div>
