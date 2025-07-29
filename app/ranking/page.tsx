@@ -191,7 +191,7 @@ export default function RankingPage() {
         {/* 完整排行榜列表 */}
         <div className="bg-white rounded-lg shadow-lg overflow-hidden">
           <div className="px-6 py-4 bg-gradient-to-r from-blue-600 to-indigo-600">
-            <h3 className="text-xl font-bold text-white">達人 TOP 100 排行榜</h3>
+            <h3 className="text-xl font-bold text-white">夥伴 TOP 100 排行</h3>
           </div>
           
           <div className="divide-y divide-gray-200">

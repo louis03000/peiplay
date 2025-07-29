@@ -58,28 +58,6 @@ export default function Home() {
       <main className="flex-1 flex flex-col items-center justify-center">
         <h1 className="text-4xl md:text-5xl font-bold mb-4 text-white text-center">PeiPlay 預約平台</h1>
         <p className="text-lg md:text-2xl text-gray-300 mb-8 text-center">專為顧客與夥伴打造的預約與管理系統。</p>
-        
-        {/* 快速功能連結 */}
-        <div className="flex flex-wrap justify-center gap-4 mb-8">
-          <a 
-            href="/booking" 
-            className="px-6 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg hover:from-purple-700 hover:to-indigo-700 transition-all duration-200 font-semibold"
-          >
-            立即預約
-          </a>
-          <a 
-            href="/ranking" 
-            className="px-6 py-3 bg-gradient-to-r from-yellow-500 to-orange-500 text-white rounded-lg hover:from-yellow-600 hover:to-orange-600 transition-all duration-200 font-semibold"
-          >
-            🏆 查看排行榜
-          </a>
-          <a 
-            href="/partners" 
-            className="px-6 py-3 bg-gradient-to-r from-green-500 to-teal-500 text-white rounded-lg hover:from-green-600 hover:to-teal-600 transition-all duration-200 font-semibold"
-          >
-            搜尋夥伴
-          </a>
-        </div>
       </main>
       <footer className="w-full bg-gray-900 text-white py-6 mt-16">
         <div className="max-w-4xl mx-auto px-4">

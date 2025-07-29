@@ -20,7 +20,8 @@ export async function GET(request: Request) {
           where: {
             bookings: {
               some: {
-                status: 'COMPLETED' // 只計算已完成的預約
+                // 暫時只統計已確認的預約，等金流通過後改為需要付款完成
+                status: 'CONFIRMED'
               }
             }
           },
@@ -28,11 +29,13 @@ export async function GET(request: Request) {
             startTime: true,
             endTime: true,
             bookings: {
+              // 暫時只統計已確認的預約，等金流通過後改為需要付款完成
               where: {
-                status: 'COMPLETED'
+                status: 'CONFIRMED'
               },
               select: {
-                id: true
+                id: true,
+                status: true
               }
             }
           }
