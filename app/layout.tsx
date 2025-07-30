@@ -1,10 +1,9 @@
 import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
-import { SessionProvider } from '@/app/providers'
-import Navbar from '@/components/Navbar'
+import Providers from '@/app/providers'
+import ClientNavbar from '@/app/components/ClientNavbar'
 import Footer from '@/components/Footer'
-import { PerformanceMonitor } from '@/components/PerformanceMonitor'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -21,24 +20,15 @@ export default function RootLayout({
   return (
     <html lang="zh-TW">
       <body className={inter.className}>
-        <SessionProvider>
-          <PerformanceMonitor 
-            enabled={process.env.NODE_ENV === 'development'}
-            onMetricsUpdate={(metrics) => {
-              // 在開發環境中監控效能
-              if (process.env.NODE_ENV === 'development' && metrics.fps < 30) {
-                console.warn('效能警告: FPS 過低', metrics)
-              }
-            }}
-          />
+        <Providers>
           <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
-            <Navbar />
+            <ClientNavbar />
             <main className="flex-1">
               {children}
             </main>
             <Footer />
           </div>
-        </SessionProvider>
+        </Providers>
       </body>
     </html>
   )
