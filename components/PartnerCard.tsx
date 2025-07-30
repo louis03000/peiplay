@@ -1,220 +1,176 @@
 'use client'
 
+import { useState, useCallback } from 'react'
 import Image from 'next/image'
-import { useState } from 'react'
-import { FaBolt, FaChevronLeft, FaChevronRight, FaArrowRight } from 'react-icons/fa'
-import { useRouter } from 'next/navigation'
+import { FaBolt, FaCrown, FaMedal, FaTrophy } from 'react-icons/fa'
 
 interface Partner {
-  id: string;
-  name: string;
-  games: string[];
-  halfHourlyRate: number;
-  coverImage?: string;
-  images?: string[]; // 新增多張圖片支援
-  schedules: Array<{
-    date: string;
-    startTime: string;
-    endTime: string;
-  }>;
-  isAvailableNow: boolean;
-  isRankBooster?: boolean;
-  rankBoosterNote?: string;
-  rankBoosterRank?: string;
-  customerMessage?: string;
+  id: string
+  name: string
+  games: string[]
+  halfHourlyRate: number
+  coverImage?: string
+  images?: string[]
+  schedules: { id: string; date: string; startTime: string; endTime: string, isAvailable: boolean }[]
+  isAvailableNow: boolean
+  isRankBooster: boolean
 }
 
 interface PartnerCardProps {
-  partner: Partner;
-  onQuickBook?: (partner: Partner, schedule: Partner['schedules'][0]) => void;
-  flipped?: boolean;
-  showNextStep?: boolean; // 新增控制是否顯示下一步按鈕的 prop
+  partner: Partner
+  onQuickBook?: (partnerId: string) => void
+  showNextStep?: boolean
+  flipped?: boolean
 }
 
-const isCloudinaryUrl = (url?: string) =>
-  !!url && url.startsWith('https://res.cloudinary.com/');
-
-const PartnerCard: React.FC<PartnerCardProps> = ({ partner, onQuickBook, flipped = false, showNextStep = false }) => {
-  const nextSchedule = partner.schedules?.[0]
-  const [flippedState, setFlipped] = useState(flipped)
+export default function PartnerCard({ partner, onQuickBook, showNextStep = false, flipped = false }: PartnerCardProps) {
+  const [imageError, setImageError] = useState(false)
+  const [imageLoaded, setImageLoaded] = useState(false)
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
-  const router = useRouter()
 
-  // 處理圖片陣列，如果沒有多張圖片就使用 coverImage
-  const images = partner.images && partner.images.length > 0 
-    ? partner.images 
-    : partner.coverImage 
-      ? [partner.coverImage] 
-      : ['/images/placeholder.svg']
+  const handleImageError = useCallback(() => {
+    setImageError(true)
+  }, [])
 
-  const currentImage = images[currentImageIndex]
+  const handleImageLoad = useCallback(() => {
+    setImageLoaded(true)
+  }, [])
 
-  const nextImage = () => {
-    setCurrentImageIndex((prev) => (prev + 1) % images.length)
-  }
-
-  const prevImage = () => {
-    setCurrentImageIndex((prev) => (prev - 1 + images.length) % images.length)
-  }
-
-  const handleImageClick = (e: React.MouseEvent) => {
-    e.stopPropagation()
-    if (images.length > 1) {
-      nextImage()
+  const handleNextImage = useCallback(() => {
+    if (partner.images && partner.images.length > 1) {
+      setCurrentImageIndex((prev) => (prev + 1) % partner.images!.length)
     }
-  }
+  }, [partner.images])
 
-  const handleNextStep = (e: React.MouseEvent) => {
-    e.stopPropagation()
-    // 跳轉到預約頁面，並傳遞夥伴ID
-    router.push(`/booking?partnerId=${partner.id}`)
-  }
+  const handlePrevImage = useCallback(() => {
+    if (partner.images && partner.images.length > 1) {
+      setCurrentImageIndex((prev) => (prev - 1 + partner.images!.length) % partner.images!.length)
+    }
+  }, [partner.images])
+
+  const currentImage = partner.images && partner.images.length > 0 
+    ? partner.images[currentImageIndex] 
+    : partner.coverImage
 
   return (
-    <div
-      className={`perspective w-56 max-w-full mx-auto rounded-2xl shadow-xl bg-white dark:bg-slate-900 border border-gray-200 dark:border-gray-700 overflow-hidden flex flex-col hover:shadow-2xl transition-shadow relative cursor-pointer ${
-        showNextStep ? 'h-72' : 'h-64'
-      }`}
-      style={{ 
-        width: 224, 
-        height: showNextStep ? 288 : 256 
-      }}
-      onClick={() => setFlipped(!flippedState)}
-    >
-      <div
-        className="relative w-full h-full transition-transform duration-500"
-        style={{
-          width: 224,
-          height: showNextStep ? 256 : 256,
-          transformStyle: 'preserve-3d',
-          transform: flippedState ? 'rotateY(180deg)' : 'none'
-        }}
-      >
-        {/* 正面 */}
-        <div
-          className="absolute w-full h-full top-0 left-0 z-10"
-          style={{ backfaceVisibility: 'hidden' }}
-        >
-          {/* 封面照全覆蓋+資訊 */}
-          <div className="relative w-full h-full">
-            <Image
-              src={isCloudinaryUrl(currentImage) ? currentImage : currentImage}
-              alt={partner.name}
-              fill
-              className="object-cover cursor-pointer"
-              style={{ objectPosition: 'top center', zIndex: 0 }}
-              onClick={handleImageClick}
-            />
-            
-            {/* 圖片導航指示器 */}
-            {images.length > 1 && (
-              <div className="absolute top-2 right-2 flex gap-1">
-                {images.map((_, index) => (
-                  <div
-                    key={index}
-                    className={`w-2 h-2 rounded-full ${
-                      index === currentImageIndex 
-                        ? 'bg-white shadow-lg' 
-                        : 'bg-white/50'
-                    }`}
-                  />
-                ))}
-              </div>
-            )}
-
-            {/* 左右滑動按鈕 */}
-            {images.length > 1 && (
-              <>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    prevImage()
-                  }}
-                  className="absolute left-2 top-1/2 transform -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white rounded-full p-1 transition-colors z-20"
-                >
-                  <FaChevronLeft size={12} />
-                </button>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    nextImage()
-                  }}
-                  className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white rounded-full p-1 transition-colors z-20"
-                >
-                  <FaChevronRight size={12} />
-                </button>
-              </>
-            )}
+    <div className={`relative bg-white rounded-2xl shadow-lg overflow-hidden transition-all duration-300 ${
+      flipped ? 'ring-4 ring-indigo-400 shadow-2xl' : 'hover:shadow-xl'
+    }`}>
+      {/* 圖片區域 */}
+      <div className="relative h-48 bg-gradient-to-br from-purple-100 to-indigo-100">
+        {currentImage && !imageError ? (
+          <Image
+            src={currentImage}
+            alt={partner.name}
+            fill
+            className={`object-cover transition-opacity duration-300 ${
+              imageLoaded ? 'opacity-100' : 'opacity-0'
+            }`}
+            onLoad={handleImageLoad}
+            onError={handleImageError}
+            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+            priority={false}
+            loading="lazy"
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-purple-200 to-indigo-200">
+            <span className="text-4xl font-bold text-purple-600">{partner.name[0]}</span>
           </div>
-
-          <div className="absolute inset-0 flex flex-col justify-end z-10">
-            {/* 上方標籤 */}
-            <div className="absolute top-2 left-2 flex gap-2">
-              {partner.isAvailableNow && (
-                <span className="flex items-center gap-1 px-2 h-6 rounded-full bg-green-500 text-white text-xs font-bold shadow-lg animate-pulse">
-                  <FaBolt className="text-yellow-200 text-base" />
-                  <span>現在有空</span>
-                </span>
-              )}
-              {partner.isRankBooster && (
-                <span className="inline-block bg-gradient-to-r from-yellow-400 via-orange-400 to-orange-500 text-white text-xs font-bold px-2 py-1 rounded-full shadow ml-1">上分高手</span>
-              )}
+        )}
+        
+        {/* 狀態標籤 */}
+        <div className="absolute top-3 left-3 flex flex-col gap-2">
+          {partner.isAvailableNow && (
+            <div className="flex items-center gap-1 px-2 py-1 bg-green-500 text-white text-xs font-bold rounded-full shadow-lg">
+              <FaBolt className="text-yellow-200" />
+              <span className="hidden sm:inline">現在有空</span>
+              <span className="sm:hidden">有空</span>
             </div>
-            {/* 下方漸層遮罩+資訊 */}
-            <div className="w-full pt-12 pb-3 px-3 bg-gradient-to-t from-black/80 via-black/40 to-transparent">
-              <h3 className="text-lg font-bold text-white mb-1 truncate drop-shadow">{partner.name}</h3>
-              <div className="flex flex-wrap gap-1 mb-1">
-                {partner.games?.map((game: string) => (
-                  <span key={game} className="inline-block bg-purple-200/80 text-purple-800 px-2 py-0.5 rounded-full text-xs font-semibold drop-shadow">
-                    {game}
-                  </span>
-                ))}
-              </div>
-              <div className="flex items-center gap-1 mt-1">
-                <span className="text-cyan-200 font-bold text-base drop-shadow">${partner.halfHourlyRate}</span>
-                <span className="text-xs text-gray-100/80">/半小時</span>
-              </div>
+          )}
+          {partner.isRankBooster && (
+            <div className="flex items-center gap-1 px-2 py-1 bg-gradient-to-r from-yellow-400 via-orange-400 to-orange-500 text-white text-xs font-bold rounded-full shadow-lg">
+              <FaCrown className="text-yellow-200" />
+              <span className="hidden sm:inline">上分高手</span>
+              <span className="sm:hidden">高手</span>
             </div>
-          </div>
+          )}
         </div>
-        {/* 背面 */}
-        <div
-          className="absolute w-full h-full top-0 left-0 z-20 bg-white/90 dark:bg-slate-900/90 flex flex-col items-center justify-center px-4 py-6 rounded-2xl border border-gray-200 dark:border-gray-700 [transform:rotateY(180deg)]"
-          style={{ backfaceVisibility: 'hidden' }}
-        >
-          <div className="w-20 h-20 rounded-xl overflow-hidden border-4 border-blue-200 mb-2">
-            <Image src={isCloudinaryUrl(currentImage) ? currentImage : currentImage} alt={partner.name} width={80} height={80} className="object-cover w-full h-full" />
+
+        {/* 多圖片導航 */}
+        {partner.images && partner.images.length > 1 && (
+          <div className="absolute bottom-3 right-3 flex gap-1">
+            <button
+              onClick={handlePrevImage}
+              className="w-6 h-6 bg-black/50 text-white rounded-full flex items-center justify-center text-xs hover:bg-black/70 transition-colors"
+            >
+              ‹
+            </button>
+            <button
+              onClick={handleNextImage}
+              className="w-6 h-6 bg-black/50 text-white rounded-full flex items-center justify-center text-xs hover:bg-black/70 transition-colors"
+            >
+              ›
+            </button>
           </div>
-          <div className="font-bold text-base text-blue-900 dark:text-blue-100 mb-1">{partner.name}</div>
-          <div className="w-full max-w-[180px] mx-auto bg-blue-50 dark:bg-blue-900/30 rounded-xl border border-blue-200 dark:border-blue-700 shadow-inner p-2 text-center mb-2">
-            <div className="text-blue-800 dark:text-blue-200 font-semibold mb-1">留言板</div>
-            <div className="text-blue-900 dark:text-blue-100 text-xs min-h-[24px]">
-              {partner.customerMessage ? partner.customerMessage : <span className="text-gray-400">（尚未填寫留言）</span>}
-            </div>
-          </div>
-          <div className="text-xs text-blue-400">（點擊卡片任意處返回）</div>
-        </div>
+        )}
       </div>
-      
-      {/* 下一步按鈕 - 只在 showNextStep 為 true 時顯示 */}
-      {showNextStep && (
-        <div className="absolute bottom-0 left-0 right-0 p-2 bg-gradient-to-t from-white via-white/95 to-transparent">
-          <button
-            onClick={handleNextStep}
-            className="w-full max-w-[180px] mx-auto bg-gradient-to-r from-purple-500 to-indigo-500 text-white font-semibold py-1.5 px-3 rounded-lg shadow-lg hover:scale-105 transition-transform flex items-center justify-center gap-1 text-sm"
-          >
-            <span>下一步</span>
-            <FaArrowRight size={12} />
-          </button>
+
+      {/* 內容區域 */}
+      <div className="p-4">
+        <div className="flex items-start justify-between mb-3">
+          <div className="flex-1 min-w-0">
+            <h3 className="font-bold text-gray-800 text-lg mb-1 truncate">{partner.name}</h3>
+            <div className="flex flex-wrap gap-1 mb-2">
+              {partner.games.slice(0, 3).map((game) => (
+                <span
+                  key={game}
+                  className="inline-block bg-purple-100 text-purple-800 px-2 py-1 rounded-full text-xs font-semibold"
+                >
+                  {game}
+                </span>
+              ))}
+              {partner.games.length > 3 && (
+                <span className="text-xs text-gray-500">+{partner.games.length - 3}</span>
+              )}
+            </div>
+          </div>
         </div>
-      )}
-      
-      {/* 3D 翻轉效果 CSS */}
-      <style>{`
-        .perspective { perspective: 1200px; }
-      `}</style>
+
+        <div className="flex items-center justify-between">
+          <div className="text-lg font-bold text-purple-600">
+            ${partner.halfHourlyRate}/半小時
+          </div>
+          
+          {showNextStep && onQuickBook && (
+            <button
+              onClick={() => onQuickBook(partner.id)}
+              className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-semibold text-sm"
+            >
+              立即預約
+            </button>
+          )}
+        </div>
+
+        {/* 時段資訊 */}
+        {partner.schedules && partner.schedules.length > 0 && (
+          <div className="mt-3 pt-3 border-t border-gray-100">
+            <div className="text-xs text-gray-600 mb-1">可預約時段：</div>
+            <div className="flex flex-wrap gap-1">
+              {partner.schedules.slice(0, 3).map((schedule, index) => (
+                <span
+                  key={index}
+                  className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded"
+                >
+                  {new Date(schedule.date).toLocaleDateString()} {new Date(schedule.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </span>
+              ))}
+              {partner.schedules.length > 3 && (
+                <span className="text-xs text-gray-500">+{partner.schedules.length - 3} 更多</span>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   )
-}
-
-export default PartnerCard 
+} 

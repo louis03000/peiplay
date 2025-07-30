@@ -1,139 +1,132 @@
 'use client'
-export const dynamic = 'force-dynamic'
-import { useEffect, useState } from 'react'
-import { useSession } from 'next-auth/react'
-import PartnerHero from '../../components/PartnerHero'
-import PartnerFilter from '../../components/PartnerFilter'
-import PartnerCard from '../../components/PartnerCard'
-import { useRouter } from 'next/navigation'
-import { FaArrowRight } from 'react-icons/fa'
 
-interface Partner {
+import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useSession } from 'next-auth/react'
+import PartnerCard from '@/components/PartnerCard'
+import PartnerHero from '@/components/PartnerHero'
+import PartnerFilter from '@/components/PartnerFilter'
+import { useRouter } from 'next/navigation'
+
+// 防抖 Hook
+function useDebounce<T>(value: T, delay: number): T {
+  const [debouncedValue, setDebouncedValue] = useState<T>(value)
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value)
+    }, delay)
+
+    return () => {
+      clearTimeout(handler)
+    }
+  }, [value, delay])
+
+  return debouncedValue
+}
+
+export type Partner = {
   id: string;
   name: string;
   games: string[];
   halfHourlyRate: number;
   coverImage?: string;
-  images?: string[]; // 新增多張圖片支援
-  schedules: { date: string; startTime: string; endTime: string }[];
+  images?: string[];
+  schedules: { id: string; date: string; startTime: string; endTime: string, isAvailable: boolean }[];
   isAvailableNow: boolean;
-  isRankBooster?: boolean;
-  rankBoosterNote?: string;
-  rankBoosterRank?: string;
-  customerMessage?: string;
-}
-
-interface Customer {
-  name?: string;
-  birthday?: string;
-  phone?: string;
-  email?: string;
-  userId?: string;
-}
-
-async function fetchPartners(startDate?: string, endDate?: string, game?: string) {
-  const params = new URLSearchParams()
-  if (startDate) params.append('startDate', startDate)
-  if (endDate) params.append('endDate', endDate)
-  if (game) params.append('game', game)
-  const res = await fetch(`/api/partners?${params.toString()}`)
-  if (!res.ok) throw new Error('獲取夥伴失敗')
-  const data = await res.json()
-  return (data as Array<{ id: string; name: string; games: string[]; halfHourlyRate: number; coverImage?: string; images?: string[]; isAvailableNow: boolean; isRankBooster?: boolean; rankBoosterNote?: string; rankBoosterRank?: string; customerMessage?: string; schedules?: unknown[] }>).map((p) => ({
-    id: p.id,
-    name: p.name,
-    games: p.games,
-    halfHourlyRate: p.halfHourlyRate,
-    coverImage: p.coverImage,
-    images: p.images, // 新增多張圖片
-    isAvailableNow: p.isAvailableNow,
-    isRankBooster: p.isRankBooster,
-    rankBoosterNote: p.rankBoosterNote,
-    rankBoosterRank: p.rankBoosterRank,
-    customerMessage: p.customerMessage,
-    schedules: (p.schedules || []).map((s) => ({
-      date: (s as { date: string }).date,
-      startTime: (s as { startTime: string }).startTime,
-      endTime: (s as { endTime: string }).endTime
-    }))
-  }))
-}
-
-async function fetchCustomerProfile() {
-  const res = await fetch('/api/customer/me')
-  if (!res.ok) return null
-  return await res.json()
-}
-
-async function quickBook(partner: Partner, schedule: { date: string; startTime: string; endTime: string }, customer: Customer) {
-  const res = await fetch('/api/bookings', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      partnerId: partner.id,
-      date: schedule.date,
-      startTime: schedule.startTime,
-      duration: 1,
-      name: customer?.name || '即時用戶',
-      birthday: customer?.birthday || '2000-01-01',
-      phone: customer?.phone || '0912345678',
-      email: customer?.email || `quick${Date.now()}@test.com`,
-      password: customer ? undefined : 'quickbook123',
-      userId: customer?.userId,
-    }),
-  })
-  const data = await res.json()
-  if (!res.ok) throw new Error(data.error || '預約失敗')
-  return data
-}
+  isRankBooster: boolean;
+};
 
 export default function PartnersPage() {
   const [partners, setPartners] = useState<Partner[]>([])
-  const [loading, setLoading] = useState(false)
-  const [message, setMessage] = useState<string | null>(null)
-  const [customer, setCustomer] = useState<Customer | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [showCards, setShowCards] = useState(false)
-  const sessionData = typeof window !== "undefined" ? useSession() : { data: undefined, status: "unauthenticated" };
-  const session = sessionData.data;
-  const status = sessionData.status;
+  const [message, setMessage] = useState<string | null>(null)
+  const [searchTerm, setSearchTerm] = useState('')
+  const [filterOptions, setFilterOptions] = useState({
+    availableNow: false,
+    rankBooster: false,
+    game: '',
+    priceRange: ''
+  })
+  
+  const { data: session } = useSession()
   const router = useRouter()
+  
+  // 防抖搜尋
+  const debouncedSearchTerm = useDebounce(searchTerm, 300)
+  const debouncedFilterOptions = useDebounce(filterOptions, 300)
 
-  const handleFilter = async (start: string, end: string, game?: string) => {
-    setLoading(true)
-    try {
-      const data = await fetchPartners(start, end, game)
-      setPartners(data)
-      setShowCards(true)
-    } catch {
-      setPartners([])
-      setShowCards(true)
-    }
-    setLoading(false)
-  }
-
-  const handleQuickBook = async (partner: Partner, schedule: { date: string; startTime: string; endTime: string }) => {
-    setMessage(null)
-    try {
-      await quickBook(partner, schedule, customer as Customer)
-      setMessage('預約成功！')
-      handleFilter('', '')
-    } catch (err) {
-      setMessage((err instanceof Error ? err.message : '預約失敗'))
-    }
-  }
-
-  const handleNextStep = (partnerId: string) => {
-    router.push(`/booking?partnerId=${partnerId}`)
-  }
-
+  // 獲取夥伴資料
   useEffect(() => {
-    // 預設不顯示卡片
-    setShowCards(false)
+    const fetchPartners = async () => {
+      setLoading(true)
+      setError(null)
+      
+      try {
+        const params = new URLSearchParams()
+        if (debouncedFilterOptions.availableNow) params.append('availableNow', 'true')
+        if (debouncedFilterOptions.rankBooster) params.append('rankBooster', 'true')
+        if (debouncedFilterOptions.game) params.append('game', debouncedFilterOptions.game)
+        if (debouncedFilterOptions.priceRange) params.append('priceRange', debouncedFilterOptions.priceRange)
+        
+        const url = `/api/partners${params.toString() ? `?${params.toString()}` : ''}`
+        const response = await fetch(url)
+        
+        if (!response.ok) {
+          throw new Error('Failed to fetch partners')
+        }
+        
+        const data = await response.json()
+        setPartners(Array.isArray(data) ? data : [])
+        setShowCards(true)
+      } catch (err) {
+        console.error('Error fetching partners:', err)
+        setError('載入夥伴資料時發生錯誤')
+        setPartners([])
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchPartners()
+  }, [debouncedFilterOptions])
+
+  // 過濾夥伴
+  const filteredPartners = useMemo(() => {
+    if (!debouncedSearchTerm) return partners
+    
+    return partners.filter(partner => 
+      partner.name.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+      partner.games.some(game => game.toLowerCase().includes(debouncedSearchTerm.toLowerCase()))
+    )
+  }, [partners, debouncedSearchTerm])
+
+  const handleFilter = useCallback((options: any) => {
+    setFilterOptions(options)
   }, [])
 
+  const handleQuickBook = useCallback((partnerId: string) => {
+    router.push(`/booking?partnerId=${partnerId}`)
+  }, [router])
+
+  // 檢查用戶是否為夥伴
+  const [customer, setCustomer] = useState<any>(null)
+  
   useEffect(() => {
     if (session?.user) {
-      fetchCustomerProfile().then(setCustomer)
+      fetch('/api/customer/me')
+        .then(res => res.json())
+        .then(data => {
+          if (data && data.id) {
+            setCustomer(data)
+          } else {
+            setCustomer(null)
+          }
+        })
+        .catch(() => {
+          setCustomer(null)
+        })
     } else {
       setCustomer(null)
     }
@@ -151,20 +144,60 @@ export default function PartnersPage() {
         {message && (
           <div className={`text-center py-3 mb-4 rounded-lg ${message.includes('成功') ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{message}</div>
         )}
+        
+        {/* 搜尋框 */}
+        <div className="mb-6">
+          <input
+            type="text"
+            placeholder="搜尋夥伴姓名或遊戲..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+          />
+        </div>
+        
         {loading ? (
-          <div className="text-center text-lg text-gray-500 py-12">載入中...</div>
+          <div className="flex flex-col items-center justify-center py-12">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500 mb-4"></div>
+            <p className="text-gray-500">載入夥伴資料中...</p>
+          </div>
+        ) : error ? (
+          <div className="text-center py-12">
+            <p className="text-red-500 mb-4">{error}</p>
+            <button 
+              onClick={() => window.location.reload()}
+              className="px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors"
+            >
+              重新載入
+            </button>
+          </div>
+        ) : filteredPartners.length === 0 ? (
+          <div className="text-center py-12">
+            <div className="text-gray-400 text-6xl mb-4">🔍</div>
+            <p className="text-gray-500 text-lg mb-2">
+              {searchTerm ? '搜尋無結果' : '目前沒有夥伴'}
+            </p>
+            {searchTerm && (
+              <button 
+                onClick={() => setSearchTerm('')}
+                className="text-purple-500 hover:text-purple-600 transition-colors"
+              >
+                清除搜尋
+              </button>
+            )}
+          </div>
         ) : (
           showCards && (
-          <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
-            {partners.map(partner => (
-              <PartnerCard 
-                key={partner.id} 
-                partner={partner} 
-                onQuickBook={handleQuickBook} 
-                showNextStep={true}
-              />
-            ))}
-          </div>
+            <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
+              {filteredPartners.map(partner => (
+                <PartnerCard 
+                  key={partner.id} 
+                  partner={partner} 
+                  onQuickBook={handleQuickBook} 
+                  showNextStep={true}
+                />
+              ))}
+            </div>
           )
         )}
       </div>

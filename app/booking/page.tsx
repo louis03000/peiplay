@@ -1,12 +1,29 @@
 'use client'
 export const dynamic = 'force-dynamic'
 
-import { useState, useEffect, useMemo, useCallback, Suspense } from 'react'
+import { useState, useEffect, useMemo, useCallback, Suspense, useRef } from 'react'
 import Image from 'next/image'
 import DatePicker from 'react-datepicker'
 import 'react-datepicker/dist/react-datepicker.css'
 import PartnerCard from '@/components/PartnerCard'
 import { useSearchParams } from 'next/navigation'
+
+// 防抖 Hook
+function useDebounce<T>(value: T, delay: number): T {
+  const [debouncedValue, setDebouncedValue] = useState<T>(value)
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value)
+    }, delay)
+
+    return () => {
+      clearTimeout(handler)
+    }
+  }, [value, delay])
+
+  return debouncedValue
+}
 
 const steps = [
   '選擇夥伴',
@@ -46,6 +63,11 @@ function BookingWizardContent() {
   const [instantBooking, setInstantBooking] = useState(false)
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
   const [selectedTimes, setSelectedTimes] = useState<string[]>([])
+  const [loading, setLoading] = useState(true)
+  const [isProcessing, setIsProcessing] = useState(false)
+  
+  // 防抖搜尋
+  const debouncedSearch = useDebounce(search, 300)
 
   // 處理 URL 參數
   useEffect(() => {
@@ -59,40 +81,44 @@ function BookingWizardContent() {
     }
   }, [searchParams, partners])
 
+  // 優化夥伴資料獲取
   useEffect(() => {
-    let url = '/api/partners';
-    const params = [];
-    if (onlyAvailable) params.push('availableNow=true');
-    if (onlyRankBooster) params.push('rankBooster=true');
-    if (params.length > 0) url += '?' + params.join('&');
-    fetch(url)
-      .then(res => {
+    const fetchPartners = async () => {
+      setLoading(true)
+      try {
+        let url = '/api/partners';
+        const params = [];
+        if (onlyAvailable) params.push('availableNow=true');
+        if (onlyRankBooster) params.push('rankBooster=true');
+        if (params.length > 0) url += '?' + params.join('&');
+        
+        const res = await fetch(url)
         if (!res.ok) {
-          return []; 
+          setPartners([])
+          return
         }
-        return res.json();
-      })
-      .then(data => {
+        
+        const data = await res.json()
         if (Array.isArray(data)) {
           setPartners(data)
         } else {
-          setPartners([]);
+          setPartners([])
         }
-      })
-      .catch(error => {
-        console.error("Failed to fetch partners:", error);
-        setPartners([]);
-      });
+      } catch (error) {
+        console.error("Failed to fetch partners:", error)
+        setPartners([])
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchPartners()
   }, [onlyAvailable, onlyRankBooster])
 
-  // 搜尋過濾 - 使用 useMemo 優化
+  // 搜尋過濾 - 使用 useMemo 優化，使用防抖搜尋
   const filteredPartners: Partner[] = useMemo(() => {
     return partners.filter(p => {
-      const matchSearch = p.name.includes(search) || (p.games && p.games.some(s => s.includes(search)));
-      
-      // 移除對未來時段的強制要求，讓篩選功能能正常工作
-      // const hasFutureSchedule = p.schedules && p.schedules.some(s => s.isAvailable && new Date(s.startTime) > new Date());
-      // if (!matchSearch || !hasFutureSchedule) return false;
+      const matchSearch = p.name.includes(debouncedSearch) || (p.games && p.games.some(s => s.includes(debouncedSearch)));
       
       if (!matchSearch) return false;
       
@@ -106,7 +132,7 @@ function BookingWizardContent() {
         return true;
       }
     });
-  }, [partners, search, onlyAvailable, onlyRankBooster]);
+  }, [partners, debouncedSearch, onlyAvailable, onlyRankBooster]);
 
   const handleTimeSelect = useCallback((timeId: string) => {
     setSelectedTimes(prev => 
@@ -155,8 +181,9 @@ function BookingWizardContent() {
   }, [selectedPartner, selectedDate])
 
   const handleCreateBooking = useCallback(async () => {
-    if (!selectedPartner || selectedTimes.length === 0) return;
+    if (!selectedPartner || selectedTimes.length === 0 || isProcessing) return;
 
+    setIsProcessing(true)
     try {
       const res = await fetch('/api/bookings', {
         method: 'POST',
@@ -172,8 +199,10 @@ function BookingWizardContent() {
       setStep(4);
     } catch (err) {
       alert(err instanceof Error ? err.message : '預約失敗，請重試');
+    } finally {
+      setIsProcessing(false)
     }
-  }, [selectedPartner, selectedTimes]);
+  }, [selectedPartner, selectedTimes, isProcessing]);
 
   const handlePartnerSelect = useCallback((partner: Partner) => {
     setSelectedPartner(partner)
@@ -266,34 +295,42 @@ function BookingWizardContent() {
               />
             </div>
             
-            {/* 夥伴卡片網格 - 改善手機版佈局 */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
-              {filteredPartners.length === 0 && (
-                <div className="col-span-1 sm:col-span-2 text-gray-400 text-center py-8">
-                  查無夥伴
-                </div>
-              )}
-              {filteredPartners.map(p => (
-                <div key={p.id} className="mb-4 relative group">
-                  <div
-                    className={`transition-all duration-200 rounded-2xl border-2 
-                      ${selectedPartner?.id === p.id 
-                        ? 'border-transparent ring-4 ring-indigo-400/60 ring-offset-2 shadow-2xl scale-105 bg-gradient-to-br from-indigo-900/40 to-purple-900/30' 
-                        : 'border-transparent hover:ring-2 hover:ring-indigo-300/40 hover:scale-102'} 
-                      cursor-pointer`}
-                    style={{ boxShadow: selectedPartner?.id === p.id ? '0 0 0 4px #818cf8, 0 8px 32px 0 rgba(55,48,163,0.15)' : undefined }}
-                    onClick={() => {
-                      setSelectedPartner(p);
-                    }}
-                  >
-                    <PartnerCard
-                      partner={p}
-                      flipped={selectedPartner?.id === p.id}
-                    />
+            {/* 載入狀態 */}
+            {loading ? (
+              <div className="flex flex-col items-center justify-center py-12">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500 mb-4"></div>
+                <p className="text-gray-400 text-sm">載入夥伴資料中...</p>
+              </div>
+            ) : (
+              /* 夥伴卡片網格 - 改善手機版佈局 */
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+                {filteredPartners.length === 0 && (
+                  <div className="col-span-1 sm:col-span-2 text-gray-400 text-center py-8">
+                    {search ? '搜尋無結果' : '查無夥伴'}
                   </div>
-                </div>
-              ))}
-            </div>
+                )}
+                {filteredPartners.map(p => (
+                  <div key={p.id} className="mb-4 relative group">
+                    <div
+                      className={`transition-all duration-200 rounded-2xl border-2 
+                        ${selectedPartner?.id === p.id 
+                          ? 'border-transparent ring-4 ring-indigo-400/60 ring-offset-2 shadow-2xl scale-105 bg-gradient-to-br from-indigo-900/40 to-purple-900/30' 
+                          : 'border-transparent hover:ring-2 hover:ring-indigo-300/40 hover:scale-102'} 
+                        cursor-pointer`}
+                      style={{ boxShadow: selectedPartner?.id === p.id ? '0 0 0 4px #818cf8, 0 8px 32px 0 rgba(55,48,163,0.15)' : undefined }}
+                      onClick={() => {
+                        setSelectedPartner(p);
+                      }}
+                    >
+                      <PartnerCard
+                        partner={p}
+                        flipped={selectedPartner?.id === p.id}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
         {!onlyAvailable && step === 1 && selectedPartner && (
@@ -371,10 +408,15 @@ function BookingWizardContent() {
               </ul>
             </div>
             <button
-              className="px-8 py-3 rounded-full bg-gradient-to-r from-green-400 to-cyan-500 text-white font-bold text-lg shadow-xl hover:from-green-500 hover:to-cyan-600 active:scale-95 transition"
+              className={`px-8 py-3 rounded-full text-white font-bold text-lg shadow-xl transition ${
+                isProcessing 
+                  ? 'bg-gray-500 cursor-not-allowed' 
+                  : 'bg-gradient-to-r from-green-400 to-cyan-500 hover:from-green-500 hover:to-cyan-600 active:scale-95'
+              }`}
               onClick={handleCreateBooking}
+              disabled={isProcessing}
             >
-              確認預約
+              {isProcessing ? '處理中...' : '確認預約'}
             </button>
           </div>
         )}
@@ -425,7 +467,11 @@ function BookingWizardContent() {
 
 export default function BookingWizard() {
   return (
-    <Suspense fallback={<div>Loading...</div>}>
+    <Suspense fallback={
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-500"></div>
+      </div>
+    }>
       <BookingWizardContent />
     </Suspense>
   );
