@@ -209,16 +209,19 @@ function BookingWizardContent() {
   return (
     <div className="max-w-2xl mx-auto mt-16 rounded-3xl p-0 shadow-2xl bg-gradient-to-br from-[#23243a]/80 via-[#2d2e4a]/70 to-[#1a1b2b]/80 backdrop-blur-lg border border-white/10 overflow-hidden">
       {/* 步驟指示器 */}
-      <div className="px-10 pt-10 pb-6 bg-gradient-to-r from-indigo-500/20 to-purple-500/10">
+      <div className="px-4 sm:px-10 pt-6 sm:pt-10 pb-4 sm:pb-6 bg-gradient-to-r from-indigo-500/20 to-purple-500/10">
         <div className="flex items-center justify-between relative">
-          <div className="absolute top-1/2 left-6 right-6 h-1 bg-gradient-to-r from-indigo-400/30 to-purple-400/30 -z-10 rounded-full" style={{transform:'translateY(-50%)'}} />
+          <div className="absolute top-1/2 left-4 sm:left-6 right-4 sm:right-6 h-1 bg-gradient-to-r from-indigo-400/30 to-purple-400/30 -z-10 rounded-full" style={{transform:'translateY(-50%)'}} />
           {steps.map((s, i) => (
             <div key={s} className="flex-1 flex flex-col items-center">
-              <div className={`w-8 h-8 flex items-center justify-center rounded-full border-2 transition-all duration-300
+              <div className={`w-6 h-6 sm:w-8 sm:h-8 flex items-center justify-center rounded-full border-2 transition-all duration-300 text-xs sm:text-sm
                 ${i < step ? 'bg-gradient-to-br from-indigo-400 to-purple-400 border-purple-400 text-white shadow-lg' :
                   i === step ? 'bg-gradient-to-br from-indigo-500 to-purple-500 border-indigo-400 text-white shadow-xl scale-110' :
                   'bg-gray-800 border-gray-600 text-gray-400'}`}>{i+1}</div>
-              <div className={`mt-2 text-xs ${i === step ? 'text-indigo-300 font-bold' : 'text-gray-400'}`}>{s}</div>
+              <div className={`mt-1 sm:mt-2 text-xs ${i === step ? 'text-indigo-300 font-bold' : 'text-gray-400'}`}>
+                <span className="hidden sm:inline">{s}</span>
+                <span className="sm:hidden">{s.split(' ')[1] || s}</span>
+              </div>
             </div>
           ))}
         </div>
@@ -227,37 +230,49 @@ function BookingWizardContent() {
       {/* 步驟內容 */}
       <div className="min-h-[200px] flex flex-col items-center justify-center px-10 py-12 transition-all duration-300 animate-fadein">
         {step === 0 && (
-          <div className="px-10 pb-10">
-            <div className="flex items-center gap-4 mb-6">
-              <label className="flex items-center gap-2 text-white text-sm select-none cursor-pointer">
-                <input
-                  id="only-available"
-                  type="checkbox"
-                  checked={onlyAvailable}
-                  onChange={e => setOnlyAvailable(e.target.checked)}
-                  className="accent-indigo-500 w-5 h-5"
-                />
-                只看現在有空
-              </label>
-              <label className="flex items-center gap-2 text-white text-sm select-none cursor-pointer">
-                <input
-                  id="only-rank-booster"
-                  type="checkbox"
-                  checked={onlyRankBooster}
-                  onChange={e => setOnlyRankBooster(e.target.checked)}
-                  className="accent-purple-500 w-5 h-5"
-                />
-                只看上分高手
-              </label>
+          <div className="px-4 sm:px-10 pb-10">
+            {/* 篩選器和搜尋 - 改為響應式橫向排列 */}
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 mb-6">
+              {/* 篩選器 - 手機上橫向排列 */}
+              <div className="flex gap-3 sm:gap-4 w-full sm:w-auto">
+                <label className="flex items-center gap-2 text-white text-sm select-none cursor-pointer">
+                  <input
+                    id="only-available"
+                    type="checkbox"
+                    checked={onlyAvailable}
+                    onChange={e => setOnlyAvailable(e.target.checked)}
+                    className="accent-indigo-500 w-4 h-4 sm:w-5 sm:h-5"
+                  />
+                  <span className="text-xs sm:text-sm">只看現在有空</span>
+                </label>
+                <label className="flex items-center gap-2 text-white text-sm select-none cursor-pointer">
+                  <input
+                    id="only-rank-booster"
+                    type="checkbox"
+                    checked={onlyRankBooster}
+                    onChange={e => setOnlyRankBooster(e.target.checked)}
+                    className="accent-purple-500 w-4 h-4 sm:w-5 sm:h-5"
+                  />
+                  <span className="text-xs sm:text-sm">只看上分高手</span>
+                </label>
+              </div>
+              
+              {/* 搜尋框 - 手機上獨占一行 */}
               <input
-                className="flex-1 px-4 py-2 rounded-full bg-gray-900/80 text-white border border-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-400 placeholder-gray-400"
+                className="w-full sm:flex-1 px-3 sm:px-4 py-2 rounded-full bg-gray-900/80 text-white border border-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-400 placeholder-gray-400 text-sm sm:text-base"
                 placeholder="搜尋夥伴姓名或專長..."
                 value={search}
                 onChange={e => setSearch(e.target.value)}
               />
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {filteredPartners.length === 0 && <div className="col-span-2 text-gray-400 text-center">查無夥伴</div>}
+            
+            {/* 夥伴卡片網格 - 改善手機版佈局 */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+              {filteredPartners.length === 0 && (
+                <div className="col-span-1 sm:col-span-2 text-gray-400 text-center py-8">
+                  查無夥伴
+                </div>
+              )}
               {filteredPartners.map(p => (
                 <div key={p.id} className="mb-4 relative group">
                   <div
@@ -378,11 +393,11 @@ function BookingWizardContent() {
       </div>
 
       {/* 導航按鈕 */}
-      {step < 4 && !onlyAvailable && (
-        <div className={`flex items-center px-10 pb-8 ${step > 0 ? 'justify-between' : 'justify-end'}`}>
+      {step < 4 && (
+        <div className={`flex items-center px-4 sm:px-10 pb-8 ${step > 0 ? 'justify-between' : 'justify-end'}`}>
           {step > 0 && (
             <button
-              className="px-6 py-2 rounded-full bg-gray-700/60 text-white/80 font-bold hover:bg-gray-600 active:scale-95 transition"
+              className="px-4 sm:px-6 py-2 rounded-full bg-gray-700/60 text-white/80 font-bold hover:bg-gray-600 active:scale-95 transition text-sm sm:text-base"
               onClick={handlePrevStep}
             >
               上一步
@@ -391,7 +406,7 @@ function BookingWizardContent() {
 
           {step < 3 && (
             <button
-              className="px-6 py-2 rounded-full bg-indigo-600 text-white font-bold shadow-lg hover:bg-indigo-700 active:scale-95 transition disabled:opacity-40"
+              className="px-4 sm:px-6 py-2 rounded-full bg-indigo-600 text-white font-bold shadow-lg hover:bg-indigo-700 active:scale-95 transition disabled:opacity-40 text-sm sm:text-base"
               onClick={handleNextStep}
               disabled={!canProceed}
             >
