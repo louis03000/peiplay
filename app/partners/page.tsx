@@ -34,81 +34,29 @@ export type Partner = {
   schedules: { id: string; date: string; startTime: string; endTime: string, isAvailable: boolean }[];
   isAvailableNow: boolean;
   isRankBooster: boolean;
+  customerMessage?: string;
 };
 
 export default function PartnersPage() {
-  const [partners, setPartners] = useState<Partner[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [showCards, setShowCards] = useState(false)
-  const [message, setMessage] = useState<string | null>(null)
-  const [searchTerm, setSearchTerm] = useState('')
+  const { data: session } = useSession();
+  const router = useRouter();
+  const [partners, setPartners] = useState<Partner[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [message, setMessage] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
   const [filterOptions, setFilterOptions] = useState({
     availableNow: false,
     rankBooster: false,
-    game: '',
-    priceRange: ''
-  })
-  
-  const { data: session } = useSession()
-  const router = useRouter()
-  
-  // 防抖搜尋
-  const debouncedSearchTerm = useDebounce(searchTerm, 300)
-  const debouncedFilterOptions = useDebounce(filterOptions, 300)
+    startDate: '',
+    endDate: ''
+  });
+  const [showCards, setShowCards] = useState(false);
+  const [flippedCards, setFlippedCards] = useState<Set<string>>(new Set());
 
-  // 獲取夥伴資料
-  useEffect(() => {
-    const fetchPartners = async () => {
-      setLoading(true)
-      setError(null)
-      
-      try {
-        const params = new URLSearchParams()
-        if (debouncedFilterOptions.availableNow) params.append('availableNow', 'true')
-        if (debouncedFilterOptions.rankBooster) params.append('rankBooster', 'true')
-        if (debouncedFilterOptions.game) params.append('game', debouncedFilterOptions.game)
-        if (debouncedFilterOptions.priceRange) params.append('priceRange', debouncedFilterOptions.priceRange)
-        
-        const url = `/api/partners${params.toString() ? `?${params.toString()}` : ''}`
-        const response = await fetch(url)
-        
-        if (!response.ok) {
-          throw new Error('Failed to fetch partners')
-        }
-        
-        const data = await response.json()
-        setPartners(Array.isArray(data) ? data : [])
-        setShowCards(true)
-      } catch (err) {
-        console.error('Error fetching partners:', err)
-        setError('載入夥伴資料時發生錯誤')
-        setPartners([])
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    fetchPartners()
-  }, [debouncedFilterOptions])
-
-  // 過濾夥伴
-  const filteredPartners = useMemo(() => {
-    if (!debouncedSearchTerm) return partners
-    
-    return partners.filter(partner => 
-      partner.name.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
-      partner.games.some(game => game.toLowerCase().includes(debouncedSearchTerm.toLowerCase()))
-    )
-  }, [partners, debouncedSearchTerm])
-
-  const handleFilter = useCallback((options: any) => {
-    setFilterOptions(options)
-  }, [])
-
-  const handleQuickBook = useCallback((partnerId: string) => {
-    router.push(`/booking?partnerId=${partnerId}`)
-  }, [router])
+  // 使用防抖的搜尋詞和篩選選項
+  const debouncedSearchTerm = useDebounce(searchTerm, 300);
+  const debouncedFilterOptions = useDebounce(filterOptions, 300);
 
   // 檢查用戶是否為夥伴
   const [customer, setCustomer] = useState<any>(null)
@@ -131,6 +79,79 @@ export default function PartnersPage() {
       setCustomer(null)
     }
   }, [session?.user])
+
+  // 處理翻面功能
+  const handleCardFlip = (partnerId: string) => {
+    setFlippedCards(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(partnerId)) {
+        newSet.delete(partnerId);
+      } else {
+        newSet.add(partnerId);
+      }
+      return newSet;
+    });
+  };
+
+  // 獲取夥伴資料
+  useEffect(() => {
+    const fetchPartners = async () => {
+      setLoading(true)
+      setError('')
+      
+      try {
+        const params = new URLSearchParams()
+        
+        if (debouncedFilterOptions.availableNow) {
+          params.append('availableNow', 'true')
+        }
+        if (debouncedFilterOptions.rankBooster) {
+          params.append('rankBooster', 'true')
+        }
+        if (debouncedFilterOptions.startDate) {
+          params.append('startDate', debouncedFilterOptions.startDate)
+        }
+        if (debouncedFilterOptions.endDate) {
+          params.append('endDate', debouncedFilterOptions.endDate)
+        }
+        
+        const response = await fetch(`/api/partners?${params.toString()}`)
+        if (!response.ok) {
+          throw new Error('Failed to fetch partners')
+        }
+        
+        const data = await response.json()
+        setPartners(data)
+        setShowCards(true)
+      } catch (err) {
+        setError('載入夥伴資料失敗')
+        console.error('Error fetching partners:', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchPartners()
+  }, [debouncedFilterOptions])
+
+  // 篩選夥伴
+  const filteredPartners = useMemo(() => {
+    if (!debouncedSearchTerm) return partners
+    
+    const searchLower = debouncedSearchTerm.toLowerCase()
+    return partners.filter(partner => 
+      partner.name.toLowerCase().includes(searchLower) ||
+      partner.games.some(game => game.toLowerCase().includes(searchLower))
+    )
+  }, [partners, debouncedSearchTerm])
+
+  const handleFilter = useCallback((options: any) => {
+    setFilterOptions(options)
+  }, [])
+
+  const handleQuickBook = useCallback((partnerId: string) => {
+    router.push(`/booking?partnerId=${partnerId}`)
+  }, [router])
 
   return (
     <div className="min-h-screen bg-white">
@@ -200,6 +221,8 @@ export default function PartnersPage() {
                     partner={partner} 
                     onQuickBook={handleQuickBook} 
                     showNextStep={true}
+                    flipped={flippedCards.has(partner.id)}
+                    onFlip={() => handleCardFlip(partner.id)}
                   />
                 ))}
               </div>

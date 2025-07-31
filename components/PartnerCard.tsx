@@ -14,6 +14,7 @@ interface Partner {
   schedules: { id: string; date: string; startTime: string; endTime: string, isAvailable: boolean }[]
   isAvailableNow: boolean
   isRankBooster: boolean
+  customerMessage?: string
 }
 
 interface PartnerCardProps {
@@ -21,9 +22,10 @@ interface PartnerCardProps {
   onQuickBook?: (partnerId: string) => void
   showNextStep?: boolean
   flipped?: boolean
+  onFlip?: () => void
 }
 
-export default function PartnerCard({ partner, onQuickBook, showNextStep = false, flipped = false }: PartnerCardProps) {
+export default function PartnerCard({ partner, onQuickBook, showNextStep = false, flipped = false, onFlip }: PartnerCardProps) {
   const [imageError, setImageError] = useState(false)
   const [imageLoaded, setImageLoaded] = useState(false)
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
@@ -52,22 +54,13 @@ export default function PartnerCard({ partner, onQuickBook, showNextStep = false
     ? partner.images[currentImageIndex] 
     : partner.coverImage
 
-  // 個性化語句（可以根據夥伴資料動態生成）
-  const getPersonalizedMessage = () => {
-    const messages = [
-      "我今天如果沒有打死你",
-      "老子就不叫吉伊卡哇",
-      "來吧，讓我們一起戰鬥！",
-      "準備好接受挑戰了嗎？",
-      "讓我們一起上分吧！"
-    ]
-    return messages[Math.abs(partner.name.length) % messages.length]
-  }
-
   return (
-    <div className={`relative bg-white rounded-2xl shadow-lg overflow-hidden transition-all duration-300 ${
-      flipped ? 'ring-4 ring-indigo-400 shadow-2xl' : 'hover:shadow-xl'
-    }`}>
+    <div 
+      className={`relative bg-white rounded-2xl shadow-lg overflow-hidden transition-all duration-300 border border-gray-200 cursor-pointer ${
+        flipped ? 'ring-4 ring-indigo-400 shadow-2xl' : 'hover:shadow-xl'
+      }`}
+      onClick={onFlip}
+    >
       {/* 上半部：白色背景，卡通角色區域 */}
       <div className="relative h-48 bg-white">
         {currentImage && !imageError ? (
@@ -86,43 +79,33 @@ export default function PartnerCard({ partner, onQuickBook, showNextStep = false
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center bg-white">
-            {/* 默認卡通角色 */}
+            {/* 默認卡通角色 - 更簡潔的設計 */}
             <div className="relative">
-              <div className="w-24 h-24 bg-white border-4 border-black rounded-full flex items-center justify-center">
-                <div className="w-16 h-16 bg-white border-2 border-black rounded-full flex items-center justify-center">
+              <div className="w-20 h-20 bg-white border-2 border-gray-300 rounded-full flex items-center justify-center">
+                <div className="w-16 h-16 bg-white border border-gray-300 rounded-full flex items-center justify-center">
                   <div className="flex flex-col items-center">
                     <div className="flex gap-1 mb-1">
-                      <div className="w-2 h-2 bg-black rounded-full"></div>
-                      <div className="w-2 h-2 bg-black rounded-full"></div>
+                      <div className="w-1.5 h-1.5 bg-gray-600 rounded-full"></div>
+                      <div className="w-1.5 h-1.5 bg-gray-600 rounded-full"></div>
                     </div>
-                    <div className="w-4 h-1 bg-black rounded-full"></div>
+                    <div className="w-3 h-0.5 bg-gray-600 rounded-full"></div>
                   </div>
                 </div>
               </div>
-              <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 w-6 h-2 bg-black rounded-full"></div>
             </div>
           </div>
         )}
         
-        {/* 個性化語句 */}
-        <div className="absolute bottom-2 left-2 right-2 text-center">
-          <p className="text-black text-sm font-medium">{getPersonalizedMessage()}</p>
-        </div>
-        
         {/* 狀態標籤 */}
         <div className="absolute top-3 left-3 flex flex-col gap-2">
           {partner.isAvailableNow && (
-            <div className="flex items-center gap-1 px-2 py-1 bg-green-500 text-white text-xs font-bold rounded-full shadow-lg">
-              <span className="text-yellow-200">⚡</span>
-              <span className="hidden sm:inline">現在有空</span>
-              <span className="sm:hidden">有空</span>
+            <div className="flex items-center gap-1 px-2 py-1 bg-green-400 text-white text-xs font-bold rounded-full shadow-sm">
+              <span className="text-xs">現在有空</span>
             </div>
           )}
           {partner.isRankBooster && (
-            <div className="flex items-center gap-1 px-2 py-1 bg-orange-500 text-white text-xs font-bold rounded-full shadow-lg">
-              <span className="text-yellow-200">👑</span>
-              <span className="hidden sm:inline">上分高手</span>
-              <span className="sm:hidden">高手</span>
+            <div className="flex items-center gap-1 px-2 py-1 bg-purple-400 text-white text-xs font-bold rounded-full shadow-sm">
+              <span className="text-xs">上分高手</span>
             </div>
           )}
         </div>
@@ -131,13 +114,19 @@ export default function PartnerCard({ partner, onQuickBook, showNextStep = false
         {partner.images && partner.images.length > 1 && (
           <div className="absolute bottom-3 right-3 flex gap-1">
             <button
-              onClick={handlePrevImage}
+              onClick={(e) => {
+                e.stopPropagation();
+                handlePrevImage();
+              }}
               className="w-6 h-6 bg-black/50 text-white rounded-full flex items-center justify-center text-xs hover:bg-black/70 transition-colors"
             >
               ‹
             </button>
             <button
-              onClick={handleNextImage}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleNextImage();
+              }}
               className="w-6 h-6 bg-black/50 text-white rounded-full flex items-center justify-center text-xs hover:bg-black/70 transition-colors"
             >
               ›
@@ -147,7 +136,7 @@ export default function PartnerCard({ partner, onQuickBook, showNextStep = false
       </div>
 
       {/* 下半部：深色背景區域 */}
-      <div className="bg-gradient-to-b from-gray-800 via-gray-900 to-black p-4 text-white">
+      <div className="bg-gradient-to-b from-gray-700 via-gray-800 to-black p-4 text-white">
         {/* 夥伴姓名 */}
         <div className="mb-2">
           <h3 className="font-bold text-white text-lg">{partner.name}</h3>
@@ -158,28 +147,25 @@ export default function PartnerCard({ partner, onQuickBook, showNextStep = false
           {partner.games.slice(0, 1).map((game) => (
             <span
               key={game}
-              className="inline-block bg-purple-600 text-white px-2 py-1 rounded-full text-xs font-semibold"
+              className="inline-block bg-purple-400 text-white px-2 py-1 rounded-full text-xs font-semibold"
             >
               {game}
             </span>
           ))}
         </div>
 
-        {/* 個性化語句（在深色區域重複顯示） */}
-        <div className="mb-2">
-          <p className="text-white text-sm">{getPersonalizedMessage()}</p>
-          <p className="text-white text-sm">老子就不叫吉伊卡哇</p>
-        </div>
-
         {/* 價格資訊 */}
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center justify-between">
           <div className="text-lg font-bold text-white">
             ${partner.halfHourlyRate}/半小時
           </div>
           
           {showNextStep && onQuickBook && (
             <button
-              onClick={() => onQuickBook(partner.id)}
+              onClick={(e) => {
+                e.stopPropagation();
+                onQuickBook(partner.id);
+              }}
               className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-semibold text-sm"
             >
               立即預約
@@ -189,13 +175,13 @@ export default function PartnerCard({ partner, onQuickBook, showNextStep = false
 
         {/* 時段資訊 */}
         {partner.schedules && partner.schedules.length > 0 && (
-          <div className="mt-3 pt-3 border-t border-gray-700">
+          <div className="mt-3 pt-3 border-t border-gray-600">
             <div className="text-xs text-gray-400 mb-1">可預約時段：</div>
             <div className="flex flex-wrap gap-1">
               {partner.schedules.slice(0, 2).map((schedule, index) => (
                 <span
                   key={index}
-                  className="text-xs bg-gray-700 text-gray-300 px-2 py-1 rounded"
+                  className="text-xs bg-gray-600 text-gray-300 px-2 py-1 rounded"
                 >
                   {new Date(schedule.date).toLocaleDateString()} {new Date(schedule.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 </span>
@@ -203,6 +189,16 @@ export default function PartnerCard({ partner, onQuickBook, showNextStep = false
               {partner.schedules.length > 2 && (
                 <span className="text-xs text-gray-500">+{partner.schedules.length - 2} 更多</span>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* 留言板內容（翻面後顯示） */}
+        {flipped && partner.customerMessage && (
+          <div className="mt-3 pt-3 border-t border-gray-600">
+            <div className="text-xs text-gray-400 mb-2">留言板：</div>
+            <div className="text-sm text-gray-300 bg-gray-800 p-3 rounded-lg">
+              {partner.customerMessage}
             </div>
           </div>
         )}
