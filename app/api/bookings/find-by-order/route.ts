@@ -19,8 +19,11 @@ export async function POST(request: NextRequest) {
         orderNumber: orderNumber
       },
       include: {
-        partner: true,
-        schedules: true
+        schedule: {
+          include: {
+            partner: true
+          }
+        }
       }
     })
 

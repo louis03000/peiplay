@@ -28,8 +28,11 @@ export async function PUT(
         ...(paymentError && { paymentError })
       },
       include: {
-        partner: true,
-        schedules: true
+        schedule: {
+          include: {
+            partner: true
+          }
+        }
       }
     })
 
