@@ -56,7 +56,7 @@ export default function PartnerCard({ partner, onQuickBook, showNextStep = false
     <div className={`relative bg-white rounded-2xl shadow-lg overflow-hidden transition-all duration-300 ${
       flipped ? 'ring-4 ring-indigo-400 shadow-2xl' : 'hover:shadow-xl'
     }`}>
-      {/* 圖片區域 */}
+      {/* 上半部：圖片區域 */}
       <div className="relative h-48 bg-gradient-to-br from-purple-100 to-indigo-100">
         {currentImage && !imageError ? (
           <Image
@@ -115,29 +115,31 @@ export default function PartnerCard({ partner, onQuickBook, showNextStep = false
         )}
       </div>
 
-      {/* 內容區域 */}
-      <div className="p-4">
-        <div className="flex items-start justify-between mb-3">
-          <div className="flex-1 min-w-0">
-            <h3 className="font-bold text-gray-800 text-lg mb-1 truncate">{partner.name}</h3>
-            <div className="flex flex-wrap gap-1 mb-2">
-              {partner.games.slice(0, 3).map((game) => (
-                <span
-                  key={game}
-                  className="inline-block bg-purple-100 text-purple-800 px-2 py-1 rounded-full text-xs font-semibold"
-                >
-                  {game}
-                </span>
-              ))}
-              {partner.games.length > 3 && (
-                <span className="text-xs text-gray-500">+{partner.games.length - 3}</span>
-              )}
-            </div>
-          </div>
+      {/* 下半部：深色漸層背景區域 */}
+      <div className="bg-gradient-to-b from-gray-800 via-gray-900 to-black p-4 text-white">
+        {/* 夥伴姓名 */}
+        <div className="mb-2">
+          <h3 className="font-bold text-white text-lg">{partner.name}</h3>
         </div>
 
+        {/* 遊戲標籤 */}
+        <div className="flex flex-wrap gap-1 mb-3">
+          {partner.games.slice(0, 2).map((game) => (
+            <span
+              key={game}
+              className="inline-block bg-purple-600 text-white px-2 py-1 rounded-full text-xs font-semibold"
+            >
+              {game}
+            </span>
+          ))}
+          {partner.games.length > 2 && (
+            <span className="text-xs text-gray-400">+{partner.games.length - 2}</span>
+          )}
+        </div>
+
+        {/* 價格資訊 */}
         <div className="flex items-center justify-between">
-          <div className="text-lg font-bold text-purple-600">
+          <div className="text-lg font-bold text-white">
             ${partner.halfHourlyRate}/半小時
           </div>
           
@@ -151,21 +153,21 @@ export default function PartnerCard({ partner, onQuickBook, showNextStep = false
           )}
         </div>
 
-        {/* 時段資訊 */}
+        {/* 時段資訊（可選顯示） */}
         {partner.schedules && partner.schedules.length > 0 && (
-          <div className="mt-3 pt-3 border-t border-gray-100">
-            <div className="text-xs text-gray-600 mb-1">可預約時段：</div>
+          <div className="mt-3 pt-3 border-t border-gray-700">
+            <div className="text-xs text-gray-400 mb-1">可預約時段：</div>
             <div className="flex flex-wrap gap-1">
-              {partner.schedules.slice(0, 3).map((schedule, index) => (
+              {partner.schedules.slice(0, 2).map((schedule, index) => (
                 <span
                   key={index}
-                  className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded"
+                  className="text-xs bg-gray-700 text-gray-300 px-2 py-1 rounded"
                 >
                   {new Date(schedule.date).toLocaleDateString()} {new Date(schedule.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 </span>
               ))}
-              {partner.schedules.length > 3 && (
-                <span className="text-xs text-gray-500">+{partner.schedules.length - 3} 更多</span>
+              {partner.schedules.length > 2 && (
+                <span className="text-xs text-gray-500">+{partner.schedules.length - 2} 更多</span>
               )}
             </div>
           </div>

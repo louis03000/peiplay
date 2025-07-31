@@ -30,6 +30,7 @@ const steps = [
   '選擇日期',
   '選擇時段',
   '確認預約',
+  '付款',
   '完成'
 ]
 
@@ -185,20 +186,73 @@ function BookingWizardContent() {
 
     setIsProcessing(true)
     try {
-      const res = await fetch('/api/bookings', {
+      // 1. 創建預約
+      const bookingRes = await fetch('/api/bookings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ scheduleIds: selectedTimes }),
       });
 
-      if (!res.ok) {
-        const errorData = await res.json();
+      if (!bookingRes.ok) {
+        const errorData = await bookingRes.json();
         throw new Error(errorData.error || '預約失敗，請重試');
       }
 
-      setStep(4);
+      const bookingData = await bookingRes.json();
+      const bookingId = bookingData.id;
+      const totalAmount = selectedTimes.length * selectedPartner.halfHourlyRate;
+
+      // 2. 創建付款請求
+      const paymentRes = await fetch('/api/payment/ecpay', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          bookingId: bookingId,
+          amount: totalAmount,
+          description: `${selectedPartner.name} - ${selectedTimes.length} 個時段`,
+          customerName: 'PeiPlay 用戶',
+          customerEmail: 'user@peiplay.com'
+        }),
+      });
+
+      if (!paymentRes.ok) {
+        const errorData = await paymentRes.json();
+        throw new Error(errorData.error || '付款建立失敗，請重試');
+      }
+
+      const paymentData = await paymentRes.json();
+
+      // 3. 跳轉到付款頁面
+      setStep(4); // 顯示付款跳轉頁面
+
+      // 4. 延遲後跳轉到綠界付款頁面
+      setTimeout(() => {
+        // 創建表單並提交到綠界
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = paymentData.paymentUrl;
+        form.target = '_blank';
+
+        // 添加所有參數
+        Object.entries(paymentData.params).forEach(([key, value]) => {
+          const input = document.createElement('input');
+          input.type = 'hidden';
+          input.name = key;
+          input.value = value as string;
+          form.appendChild(input);
+        });
+
+        document.body.appendChild(form);
+        form.submit();
+        document.body.removeChild(form);
+
+        // 跳轉到完成頁面
+        setStep(5);
+      }, 2000);
+
     } catch (err) {
       alert(err instanceof Error ? err.message : '預約失敗，請重試');
+      setStep(3); // 回到確認頁面
     } finally {
       setIsProcessing(false)
     }
@@ -407,6 +461,9 @@ function BookingWizardContent() {
                 })}
               </ul>
             </div>
+            <div className="text-white/90 text-lg font-bold">
+              總金額：${selectedTimes.length * selectedPartner.halfHourlyRate}
+            </div>
             <button
               className={`px-8 py-3 rounded-full text-white font-bold text-lg shadow-xl transition ${
                 isProcessing 
@@ -416,18 +473,33 @@ function BookingWizardContent() {
               onClick={handleCreateBooking}
               disabled={isProcessing}
             >
-              {isProcessing ? '處理中...' : '確認預約'}
+              {isProcessing ? '處理中...' : '確認預約並付款'}
             </button>
           </div>
         )}
         {step === 4 && (
           <div className="flex flex-col items-center text-center min-h-[200px] justify-center">
-            <div className="w-20 h-20 flex items-center justify-center rounded-full bg-gradient-to-br from-indigo-400 to-purple-400 mb-6">
+            <div className="w-20 h-20 flex items-center justify-center rounded-full bg-gradient-to-br from-yellow-400 to-orange-400 mb-6">
               <span className="text-4xl text-white">💳</span>
             </div>
-            <div className="text-2xl font-bold text-white mb-2">付款功能即將上線</div>
-            <div className="text-gray-300 mb-4">請稍候，預約尚未完成，付款功能將於近期開放。</div>
-            <button className="mt-4 px-6 py-2 rounded-full bg-indigo-500 text-white font-bold" onClick={() => setStep(0)}>
+            <div className="text-2xl font-bold text-white mb-2">正在跳轉到付款頁面</div>
+            <div className="text-gray-300 mb-4">請稍候，正在為您準備安全的付款環境...</div>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-yellow-400 mx-auto"></div>
+          </div>
+        )}
+        {step === 5 && (
+          <div className="flex flex-col items-center text-center min-h-[200px] justify-center">
+            <div className="w-20 h-20 flex items-center justify-center rounded-full bg-gradient-to-br from-green-400 to-cyan-400 mb-6">
+              <span className="text-4xl text-white">✅</span>
+            </div>
+            <div className="text-2xl font-bold text-white mb-2">預約完成！</div>
+            <div className="text-gray-300 mb-4">您的預約已成功建立，付款完成後即可開始遊戲。</div>
+            <div className="text-sm text-gray-400 mb-6">
+              <p>• 付款成功後，夥伴會收到通知</p>
+              <p>• 請在預約時間準時上線</p>
+              <p>• 如有問題請聯繫客服</p>
+            </div>
+            <button className="mt-4 px-6 py-2 rounded-full bg-indigo-500 text-white font-bold hover:bg-indigo-600 transition-colors" onClick={() => setStep(0)}>
               返回首頁
             </button>
           </div>
@@ -435,7 +507,7 @@ function BookingWizardContent() {
       </div>
 
       {/* 導航按鈕 */}
-      {step < 4 && (
+      {step < 6 && (
         <div className={`flex items-center px-4 sm:px-10 pb-8 ${step > 0 ? 'justify-between' : 'justify-end'}`}>
           {step > 0 && (
             <button

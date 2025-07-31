@@ -107,6 +107,9 @@ model Booking {
   schedule    Schedule    @relation(fields: [scheduleId], references: [id])
   status      BookingStatus @default(PENDING)
   rejectReason String?
+  orderNumber String?     // 綠界訂單編號
+  paymentInfo Json?       // 付款資訊
+  paymentError String?    // 付款錯誤訊息
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
   reminderSent Boolean   @default(false)
@@ -120,6 +123,7 @@ enum BookingStatus {
   REJECTED
   CANCELLED
   COMPLETED
+  PENDING_PAYMENT  // 等待付款
 }
 
 model Order {

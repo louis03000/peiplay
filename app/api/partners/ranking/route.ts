@@ -1,86 +1,72 @@
-import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { NextResponse } from 'next/server'
+import { prisma } from '@/lib/prisma'
 
-export async function GET(request: Request) {
+export async function GET() {
   try {
-    // 計算所有夥伴的預約總時長
-    const partnersWithTotalHours = await prisma.partner.findMany({
+    // 獲取所有已批准的夥伴
+    const partners = await prisma.partner.findMany({
       where: {
         status: 'APPROVED'
       },
-      select: {
-        id: true,
-        name: true,
-        coverImage: true,
-        games: true,
-        halfHourlyRate: true,
-        isAvailableNow: true,
-        isRankBooster: true,
+      include: {
         schedules: {
-          where: {
+          include: {
             bookings: {
-              some: {
-                // 暫時只統計已確認的預約，等金流通過後改為需要付款完成
-                status: 'CONFIRMED'
-              }
-            }
-          },
-          select: {
-            startTime: true,
-            endTime: true,
-            bookings: {
-              // 暫時只統計已確認的預約，等金流通過後改為需要付款完成
               where: {
-                status: 'CONFIRMED'
-              },
-              select: {
-                id: true,
-                status: true
+                status: {
+                  in: ['CONFIRMED', 'COMPLETED'] // 包含已確認和已完成的預約
+                }
               }
             }
           }
         }
       }
-    });
+    })
 
-    // 計算每個夥伴的總時長（分鐘）
-    const rankingData = partnersWithTotalHours.map(partner => {
-      let totalMinutes = 0;
-      
+    // 計算每個夥伴的總預約時長
+    const rankingData = partners.map(partner => {
+      let totalMinutes = 0
+
       partner.schedules.forEach(schedule => {
-        if (schedule.startTime && schedule.endTime) {
-          const start = new Date(schedule.startTime);
-          const end = new Date(schedule.endTime);
-          const durationMinutes = Math.round((end.getTime() - start.getTime()) / (1000 * 60));
-          totalMinutes += durationMinutes;
-        }
-      });
+        schedule.bookings.forEach(booking => {
+          // 只計算已確認和已完成的預約
+          if (booking.status === 'CONFIRMED' || booking.status === 'COMPLETED') {
+            const startTime = new Date(schedule.startTime)
+            const endTime = new Date(schedule.endTime)
+            const durationMinutes = (endTime.getTime() - startTime.getTime()) / (1000 * 60)
+            totalMinutes += durationMinutes
+          }
+        })
+      })
 
       return {
         id: partner.id,
         name: partner.name,
-        coverImage: partner.coverImage,
         games: partner.games,
-        halfHourlyRate: partner.halfHourlyRate,
+        totalMinutes: Math.round(totalMinutes),
+        coverImage: partner.coverImage,
         isAvailableNow: partner.isAvailableNow,
         isRankBooster: partner.isRankBooster,
-        totalMinutes: totalMinutes,
-        totalHours: Math.round(totalMinutes / 60 * 10) / 10 // 四捨五入到小數點後一位
-      };
-    });
+        rank: 0 // 稍後排序
+      }
+    })
 
-    // 按總時長排序（降序）
-    const sortedRanking = rankingData
-      .filter(partner => partner.totalMinutes > 0) // 只顯示有預約記錄的夥伴
+    // 按總時長排序並分配排名
+    const sortedData = rankingData
+      .filter(partner => partner.totalMinutes > 0) // 只顯示有預約的夥伴
       .sort((a, b) => b.totalMinutes - a.totalMinutes)
       .map((partner, index) => ({
         ...partner,
         rank: index + 1
-      }));
+      }))
 
-    return NextResponse.json(sortedRanking);
+    return NextResponse.json(sortedData)
+
   } catch (error) {
-    console.error("Error fetching ranking:", error);
-    return NextResponse.json({ error: "Error fetching ranking" }, { status: 500 });
+    console.error('Error fetching ranking data:', error)
+    return NextResponse.json(
+      { error: '獲取排行榜資料失敗' },
+      { status: 500 }
+    )
   }
 }
