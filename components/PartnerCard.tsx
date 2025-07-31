@@ -54,12 +54,19 @@ export default function PartnerCard({ partner, onQuickBook, showNextStep = false
     ? partner.images[currentImageIndex] 
     : partner.coverImage
 
+  const handleCardClick = useCallback(() => {
+    console.log('Card clicked for partner:', partner.name, 'flipped:', flipped)
+    if (onFlip) {
+      onFlip()
+    }
+  }, [partner.name, flipped, onFlip])
+
   return (
     <div 
       className={`relative bg-white rounded-2xl shadow-lg overflow-hidden transition-all duration-300 border border-gray-200 cursor-pointer ${
         flipped ? 'ring-4 ring-indigo-400 shadow-2xl' : 'hover:shadow-xl'
       }`}
-      onClick={onFlip}
+      onClick={handleCardClick}
     >
       {/* 上半部：白色背景，卡通角色區域 */}
       <div className="relative h-48 bg-white">
@@ -135,8 +142,8 @@ export default function PartnerCard({ partner, onQuickBook, showNextStep = false
         )}
       </div>
 
-      {/* 下半部：深色背景區域 */}
-      <div className="bg-gradient-to-b from-gray-700 via-gray-800 to-black p-4 text-white">
+      {/* 下半部：透明背景區域 */}
+      <div className="bg-transparent p-4 text-white">
         {/* 夥伴姓名 */}
         <div className="mb-2">
           <h3 className="font-bold text-white text-lg">{partner.name}</h3>
@@ -172,26 +179,6 @@ export default function PartnerCard({ partner, onQuickBook, showNextStep = false
             </button>
           )}
         </div>
-
-        {/* 時段資訊 */}
-        {partner.schedules && partner.schedules.length > 0 && (
-          <div className="mt-3 pt-3 border-t border-gray-600">
-            <div className="text-xs text-gray-400 mb-1">可預約時段：</div>
-            <div className="flex flex-wrap gap-1">
-              {partner.schedules.slice(0, 2).map((schedule, index) => (
-                <span
-                  key={index}
-                  className="text-xs bg-gray-600 text-gray-300 px-2 py-1 rounded"
-                >
-                  {new Date(schedule.date).toLocaleDateString()} {new Date(schedule.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                </span>
-              ))}
-              {partner.schedules.length > 2 && (
-                <span className="text-xs text-gray-500">+{partner.schedules.length - 2} 更多</span>
-              )}
-            </div>
-          </div>
-        )}
 
         {/* 留言板內容（翻面後顯示） */}
         {flipped && partner.customerMessage && (
