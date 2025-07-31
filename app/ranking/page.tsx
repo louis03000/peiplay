@@ -140,12 +140,11 @@ export default function RankingPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+    <div className="min-h-screen bg-[#0f172a]">
       <div className="container mx-auto px-4 py-8">
-        {/* 標題區域 */}
         <div className="text-center mb-8">
-          <h1 className="text-3xl md:text-4xl font-bold text-gray-800 mb-2">排行榜</h1>
-          <p className="text-sm md:text-base text-gray-600">根據預約總時長排序的夥伴排名</p>
+          <h1 className="text-3xl md:text-4xl font-bold text-white mb-4">夥伴 TOP 100 排行</h1>
+          <p className="text-gray-300 text-lg">根據預約總時長排序的夥伴排行榜</p>
         </div>
 
         {/* TOP 3 特殊展示區域 */}

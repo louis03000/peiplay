@@ -1,15 +1,14 @@
 import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
-import Providers from '@/app/providers'
-import ClientNavbar from '@/app/components/ClientNavbar'
-import Footer from '@/components/Footer'
+import Providers from './providers'
+import ClientNavbar from './components/ClientNavbar'
 
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
   title: 'PeiPlay - 遊戲夥伴預約平台',
-  description: '找到最適合的遊戲夥伴，享受更好的遊戲體驗',
+  description: '專為顧客與夥伴打造的預約與管理系統',
 }
 
 export default function RootLayout({
@@ -21,12 +20,9 @@ export default function RootLayout({
     <html lang="zh-TW">
       <body className={inter.className}>
         <Providers>
-          <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+          <div className="min-h-screen bg-[#0f172a]">
             <ClientNavbar />
-            <main className="flex-1">
-              {children}
-            </main>
-            <Footer />
+            {children}
           </div>
         </Providers>
       </body>

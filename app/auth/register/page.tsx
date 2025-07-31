@@ -103,89 +103,96 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="max-w-md mx-auto mt-16 bg-white/10 rounded-xl p-8 shadow-lg backdrop-blur">
-      <h2 className="text-2xl font-bold mb-6 text-center">註冊</h2>
-      {isSuccess ? null : (
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          {errorMsg && <div className="text-red-500 text-center mb-2">{errorMsg}</div>}
-          <input
-            className="w-full px-4 py-2 rounded bg-gray-900 text-white placeholder-gray-400 border border-gray-700"
-            placeholder="Email"
-            {...register('email')}
-          />
-          {errors.email && (
-            <p className="text-red-400 text-sm">{errors.email.message}</p>
+    <div className="flex flex-col items-center justify-center min-h-screen bg-[#0f172a]">
+      <div className="w-full max-w-md">
+        <div className="bg-[#1e293b] shadow-xl rounded-lg px-8 pt-6 pb-8 mb-4">
+          <div className="text-center mb-6">
+            <h2 className="text-2xl font-bold text-white mb-2">註冊 PeiPlay</h2>
+            <p className="text-gray-400">加入我們的遊戲夥伴社群</p>
+          </div>
+          {isSuccess ? null : (
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+              {errorMsg && <div className="text-red-500 text-center mb-2">{errorMsg}</div>}
+              <input
+                className="w-full px-4 py-2 rounded bg-gray-900 text-white placeholder-gray-400 border border-gray-700"
+                placeholder="Email"
+                {...register('email')}
+              />
+              {errors.email && (
+                <p className="text-red-400 text-sm">{errors.email.message}</p>
+              )}
+              <input
+                className="w-full px-4 py-2 rounded bg-gray-900 text-white placeholder-gray-400 border border-gray-700"
+                placeholder="密碼"
+                type="password"
+                {...register('password')}
+              />
+              {errors.password && (
+                <p className="text-red-400 text-sm">{errors.password.message}</p>
+              )}
+              <input
+                className="w-full px-4 py-2 rounded bg-gray-900 text-white placeholder-gray-400 border border-gray-700"
+                placeholder="確認密碼"
+                type="password"
+                {...register('confirmPassword')}
+              />
+              {errors.confirmPassword && (
+                <p className="text-red-400 text-sm">{errors.confirmPassword.message}</p>
+              )}
+              <input
+                className="w-full px-4 py-2 rounded bg-gray-900 text-white placeholder-gray-400 border border-gray-700"
+                placeholder="姓名"
+                {...register('name')}
+              />
+              {errors.name && (
+                <p className="text-red-400 text-sm">{errors.name.message}</p>
+              )}
+              <input
+                className="w-full px-4 py-2 rounded bg-gray-900 text-white placeholder-gray-400 border border-gray-700"
+                placeholder="電話"
+                {...register('phone')}
+              />
+              {errors.phone && (
+                <p className="text-red-400 text-sm">{errors.phone.message}</p>
+              )}
+              <input
+                className="w-full px-4 py-2 rounded bg-gray-900 text-white placeholder-gray-400 border border-gray-700"
+                placeholder="生日"
+                type="date"
+                {...register('birthday')}
+              />
+              {errors.birthday && (
+                <p className="text-red-400 text-sm">{errors.birthday.message}</p>
+              )}
+              <input
+                className="w-full px-4 py-2 rounded bg-gray-900 text-white placeholder-gray-400 border border-gray-700"
+                placeholder="Discord 名稱"
+                {...register('discord')}
+              />
+              {errors.discord && (
+                <p className="text-red-400 text-sm">{errors.discord.message}</p>
+              )}
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="w-full py-2 rounded bg-gradient-to-r from-indigo-500 to-purple-500 text-white font-bold"
+              >
+                {isLoading ? '註冊中...' : '註冊'}
+              </button>
+            </form>
           )}
-          <input
-            className="w-full px-4 py-2 rounded bg-gray-900 text-white placeholder-gray-400 border border-gray-700"
-            placeholder="密碼"
-            type="password"
-            {...register('password')}
-          />
-          {errors.password && (
-            <p className="text-red-400 text-sm">{errors.password.message}</p>
-          )}
-          <input
-            className="w-full px-4 py-2 rounded bg-gray-900 text-white placeholder-gray-400 border border-gray-700"
-            placeholder="確認密碼"
-            type="password"
-            {...register('confirmPassword')}
-          />
-          {errors.confirmPassword && (
-            <p className="text-red-400 text-sm">{errors.confirmPassword.message}</p>
-          )}
-          <input
-            className="w-full px-4 py-2 rounded bg-gray-900 text-white placeholder-gray-400 border border-gray-700"
-            placeholder="姓名"
-            {...register('name')}
-          />
-          {errors.name && (
-            <p className="text-red-400 text-sm">{errors.name.message}</p>
-          )}
-          <input
-            className="w-full px-4 py-2 rounded bg-gray-900 text-white placeholder-gray-400 border border-gray-700"
-            placeholder="電話"
-            {...register('phone')}
-          />
-          {errors.phone && (
-            <p className="text-red-400 text-sm">{errors.phone.message}</p>
-          )}
-          <input
-            className="w-full px-4 py-2 rounded bg-gray-900 text-white placeholder-gray-400 border border-gray-700"
-            placeholder="生日"
-            type="date"
-            {...register('birthday')}
-          />
-          {errors.birthday && (
-            <p className="text-red-400 text-sm">{errors.birthday.message}</p>
-          )}
-          <input
-            className="w-full px-4 py-2 rounded bg-gray-900 text-white placeholder-gray-400 border border-gray-700"
-            placeholder="Discord 名稱"
-            {...register('discord')}
-          />
-          {errors.discord && (
-            <p className="text-red-400 text-sm">{errors.discord.message}</p>
-          )}
-          <button
-            type="submit"
-            disabled={isLoading}
-            className="w-full py-2 rounded bg-gradient-to-r from-indigo-500 to-purple-500 text-white font-bold"
-          >
-            {isLoading ? '註冊中...' : '註冊'}
-          </button>
-        </form>
-      )}
-      <div className="text-center mt-4">
-        <p className="text-sm text-gray-300">
-          已經有帳號？{' '}
-          <Link
-            href="/auth/login"
-            className="font-medium text-indigo-400 hover:text-indigo-300"
-          >
-            立即登入
-          </Link>
-        </p>
+          <div className="text-center mt-4">
+            <p className="text-sm text-gray-300">
+              已經有帳號？{' '}
+              <Link
+                href="/auth/login"
+                className="font-medium text-indigo-400 hover:text-indigo-300"
+              >
+                立即登入
+              </Link>
+            </p>
+          </div>
+        </div>
       </div>
     </div>
   )

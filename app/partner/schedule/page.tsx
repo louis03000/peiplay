@@ -35,6 +35,21 @@ export default function PartnerSchedulePage() {
 
   useEffect(() => {
     setMounted(true);
+    
+    // 動畫樣式
+    const style = document.createElement('style');
+    style.textContent = `
+      .animate-fade-in-out {
+        animation: fadeInOut 2s;
+      }
+      @keyframes fadeInOut {
+        0% { opacity: 0; }
+        10% { opacity: 1; }
+        90% { opacity: 1; }
+        100% { opacity: 0; }
+      }
+    `;
+    document.head.appendChild(style);
   }, []);
 
   useEffect(() => {
@@ -247,7 +262,7 @@ export default function PartnerSchedulePage() {
     switch (state) {
       case 'empty': return 'bg-white hover:bg-green-100 cursor-pointer';
       case 'toAdd': return 'bg-green-300 border-2 border-green-600 cursor-pointer';
-      case 'saved': return 'bg-gray-300 cursor-pointer';
+      case 'saved': return 'bg-gray-600 cursor-pointer';
       case 'toDelete': return 'bg-red-300 border-2 border-red-600 cursor-pointer';
       case 'booked': return 'bg-yellow-200 cursor-not-allowed';
       case 'past': return 'bg-gray-100 cursor-not-allowed';
@@ -398,7 +413,7 @@ export default function PartnerSchedulePage() {
                 <span className="text-gray-600">待儲存時段</span>
               </div>
               <div className="flex items-center space-x-2">
-                <div className="w-4 h-4 bg-gray-300"></div>
+                <div className="w-4 h-4 bg-gray-600"></div>
                 <span className="text-gray-600">已儲存時段</span>
               </div>
               <div className="flex items-center space-x-2">
@@ -427,15 +442,3 @@ export default function PartnerSchedulePage() {
     </div>
   );
 }
-
-// 動畫樣式
-// 在 global.css 或此檔案最下方加上：
-// .animate-fade-in-out {
-//   animation: fadeInOut 2s;
-// }
-// @keyframes fadeInOut {
-//   0% { opacity: 0; }
-//   10% { opacity: 1; }
-//   90% { opacity: 1; }
-//   100% { opacity: 0; }
-// }

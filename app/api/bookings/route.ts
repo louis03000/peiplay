@@ -55,13 +55,17 @@ export async function POST(request: Request) {
     // 2. 進入 transaction 建立預約
     const result = await prisma.$transaction(async (tx) => {
       // 2-1. 建立預約
-      const createdBookings = await tx.booking.createMany({
-        data: scheduleIds.map(scheduleId => ({
-          customerId: customer.id,
-          scheduleId: scheduleId,
-          status: 'PENDING' as any,
-        })),
-      });
+      const createdBookings = await Promise.all(
+        scheduleIds.map(scheduleId => 
+          tx.booking.create({
+            data: {
+              customerId: customer.id,
+              scheduleId: scheduleId,
+              status: 'PENDING' as any,
+            },
+          })
+        )
+      );
 
       // 2-2. 標記時段為不可預約
       await tx.schedule.updateMany({
@@ -107,7 +111,7 @@ export async function POST(request: Request) {
       return createdBookings;
     });
 
-    return NextResponse.json(result);
+    return NextResponse.json(result[0]); // 返回第一個預約的 ID
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred during the booking process.';
     // Use 409 Conflict for booking clashes or other transaction failures.

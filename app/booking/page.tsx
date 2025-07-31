@@ -290,16 +290,16 @@ function BookingWizardContent() {
   }, [step, selectedPartner, selectedDate, selectedTimes])
 
   return (
-    <div className="max-w-2xl mx-auto mt-16 rounded-3xl p-0 shadow-2xl bg-gradient-to-br from-[#23243a]/80 via-[#2d2e4a]/70 to-[#1a1b2b]/80 backdrop-blur-lg border border-white/10 overflow-hidden">
+    <div className="max-w-2xl mx-auto mt-16 rounded-3xl p-0 shadow-2xl bg-[#1e293b]/80 backdrop-blur-lg border border-white/10 overflow-hidden">
       {/* 步驟指示器 */}
-      <div className="px-4 sm:px-10 pt-6 sm:pt-10 pb-4 sm:pb-6 bg-gradient-to-r from-indigo-500/20 to-purple-500/10">
+      <div className="px-4 sm:px-10 pt-6 sm:pt-10 pb-4 sm:pb-6 bg-[#334155]/20">
         <div className="flex items-center justify-between relative">
-          <div className="absolute top-1/2 left-4 sm:left-6 right-4 sm:right-6 h-1 bg-gradient-to-r from-indigo-400/30 to-purple-400/30 -z-10 rounded-full" style={{transform:'translateY(-50%)'}} />
+          <div className="absolute top-1/2 left-4 sm:left-6 right-4 sm:right-6 h-1 bg-[#475569]/30 -z-10 rounded-full" style={{transform:'translateY(-50%)'}} />
           {steps.map((s, i) => (
             <div key={s} className="flex-1 flex flex-col items-center">
               <div className={`w-6 h-6 sm:w-8 sm:h-8 flex items-center justify-center rounded-full border-2 transition-all duration-300 text-xs sm:text-sm
-                ${i < step ? 'bg-gradient-to-br from-indigo-400 to-purple-400 border-purple-400 text-white shadow-lg' :
-                  i === step ? 'bg-gradient-to-br from-indigo-500 to-purple-500 border-indigo-400 text-white shadow-xl scale-110' :
+                ${i < step ? 'bg-[#6366f1] border-[#6366f1] text-white shadow-lg' :
+                  i === step ? 'bg-[#8b5cf6] border-[#8b5cf6] text-white shadow-xl scale-110' :
                   'bg-gray-800 border-gray-600 text-gray-400'}`}>{i+1}</div>
               <div className={`mt-1 sm:mt-2 text-xs ${i === step ? 'text-indigo-300 font-bold' : 'text-gray-400'}`}>
                 <span className="hidden sm:inline">{s}</span>
@@ -368,7 +368,7 @@ function BookingWizardContent() {
                     <div
                       className={`transition-all duration-200 rounded-2xl border-2 
                         ${selectedPartner?.id === p.id 
-                          ? 'border-transparent ring-4 ring-indigo-400/60 ring-offset-2 shadow-2xl scale-105 bg-gradient-to-br from-indigo-900/40 to-purple-900/30' 
+                          ? 'border-transparent ring-4 ring-indigo-400/60 ring-offset-2 shadow-2xl scale-105 bg-[#1e293b]/40' 
                           : 'border-transparent hover:ring-2 hover:ring-indigo-300/40 hover:scale-102'} 
                         cursor-pointer`}
                       style={{ boxShadow: selectedPartner?.id === p.id ? '0 0 0 4px #818cf8, 0 8px 32px 0 rgba(55,48,163,0.15)' : undefined }}
@@ -468,7 +468,7 @@ function BookingWizardContent() {
               className={`px-8 py-3 rounded-full text-white font-bold text-lg shadow-xl transition ${
                 isProcessing 
                   ? 'bg-gray-500 cursor-not-allowed' 
-                  : 'bg-gradient-to-r from-green-400 to-cyan-500 hover:from-green-500 hover:to-cyan-600 active:scale-95'
+                  : 'bg-[#10b981] hover:bg-[#059669] active:scale-95'
               }`}
               onClick={handleCreateBooking}
               disabled={isProcessing}
@@ -479,7 +479,7 @@ function BookingWizardContent() {
         )}
         {step === 4 && (
           <div className="flex flex-col items-center text-center min-h-[200px] justify-center">
-            <div className="w-20 h-20 flex items-center justify-center rounded-full bg-gradient-to-br from-yellow-400 to-orange-400 mb-6">
+            <div className="w-20 h-20 flex items-center justify-center rounded-full bg-[#f59e0b] mb-6">
               <span className="text-4xl text-white">💳</span>
             </div>
             <div className="text-2xl font-bold text-white mb-2">正在跳轉到付款頁面</div>
@@ -489,7 +489,7 @@ function BookingWizardContent() {
         )}
         {step === 5 && (
           <div className="flex flex-col items-center text-center min-h-[200px] justify-center">
-            <div className="w-20 h-20 flex items-center justify-center rounded-full bg-gradient-to-br from-green-400 to-cyan-400 mb-6">
+            <div className="w-20 h-20 flex items-center justify-center rounded-full bg-[#10b981] mb-6">
               <span className="text-4xl text-white">✅</span>
             </div>
             <div className="text-2xl font-bold text-white mb-2">預約完成！</div>
