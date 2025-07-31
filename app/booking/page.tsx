@@ -290,7 +290,7 @@ function BookingWizardContent() {
   }, [step, selectedPartner, selectedDate, selectedTimes])
 
   return (
-    <div className="max-w-2xl mx-auto mt-16 rounded-3xl p-0 shadow-2xl bg-[#1e293b]/80 backdrop-blur-lg border border-white/10 overflow-hidden">
+    <div className="max-w-2xl mx-auto mt-36 rounded-3xl p-0 shadow-2xl bg-[#1e293b]/80 backdrop-blur-lg border border-white/10 overflow-hidden">
       {/* 步驟指示器 */}
       <div className="px-4 sm:px-10 pt-6 sm:pt-10 pb-4 sm:pb-6 bg-[#334155]/20">
         <div className="flex items-center justify-between relative">

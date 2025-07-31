@@ -298,7 +298,7 @@ export default function PartnerSchedulePage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="container mx-auto px-4 py-8 pt-20">
       {showSuccess && (
         <div className="fixed top-6 left-1/2 transform -translate-x-1/2 z-50 bg-green-600 text-white px-6 py-3 rounded-lg shadow-lg font-bold text-lg animate-fade-in-out">
           儲存成功
