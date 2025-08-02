@@ -233,21 +233,21 @@ export default function ProfileClientComplete() {
                 </div>
               </div>
               
-              {isPartner && userData.partner?.halfHourlyRate && (
-                <div className="mt-8 p-4 bg-gray-700/40 rounded-lg">
-                  <div className="text-gray-300 mb-2 text-sm font-medium">每半小時收費</div>
-                  <span className="text-white font-semibold text-lg">{`$${userData.partner.halfHourlyRate}`}</span>
-                </div>
-              )}
-              
-              {isPartner && (
-                <div className="mt-8 p-4 bg-gray-700/40 rounded-lg">
-                  <div className="text-gray-300 mb-2 text-sm font-medium">留言板（顧客預約時會看到）</div>
-                  <div className="bg-gray-900/80 rounded p-4 text-white min-h-[60px] border border-gray-700 text-base">
-                    {userData.partner?.customerMessage ? userData.partner.customerMessage : <span className="text-gray-500">（尚未填寫留言）</span>}
-                  </div>
-                </div>
-              )}
+                             {isPartner && userData.partner?.halfHourlyRate && (
+                 <div className="mt-8 p-4 bg-gray-700/40 rounded-lg">
+                   <div className="text-gray-300 mb-2 text-sm font-medium">每半小時收費</div>
+                   <span className="text-white font-semibold text-lg">{`$${userData.partner.halfHourlyRate}`}</span>
+                 </div>
+               )}
+               
+               {isPartner && (
+                 <div className="mt-8 p-4 bg-gray-700/40 rounded-lg">
+                   <div className="text-gray-300 mb-2 text-sm font-medium">留言板（顧客預約時會看到）</div>
+                   <div className="bg-gray-800 rounded p-4 text-white min-h-[60px] border border-gray-600 text-base">
+                     {userData.partner?.customerMessage ? userData.partner.customerMessage : <span className="text-gray-400">（尚未填寫留言）</span>}
+                   </div>
+                 </div>
+               )}
               
               <button 
                 className="w-full py-3 rounded-lg bg-indigo-500 text-white font-bold text-lg mt-6 hover:bg-indigo-600 transition" 
