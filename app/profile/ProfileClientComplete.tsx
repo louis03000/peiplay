@@ -438,9 +438,7 @@ export default function ProfileClientComplete() {
                 <textarea
                   name="customerMessage"
                   value={formData.customerMessage}
-                  onChange={e => {
-                    if (e.target.value.length <= 50) handleInputChange(e)
-                  }}
+                  onChange={handleInputChange}
                   maxLength={50}
                   className="w-full rounded bg-gray-900 text-white border border-gray-700 focus:border-indigo-500 focus:outline-none p-3 min-h-[40px] text-sm"
                   placeholder="請輸入想對顧客說的話...（限 50 字）"

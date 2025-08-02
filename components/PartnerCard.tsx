@@ -173,7 +173,6 @@ export default function PartnerCard({ partner, onQuickBook, showNextStep = false
             <div className="text-sky-300 font-semibold drop-shadow-lg">
               ${partner.halfHourlyRate}/半小時
             </div>
-            
             {showNextStep && onQuickBook && (
               <button
                 onClick={(e) => {
