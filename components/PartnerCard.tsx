@@ -141,6 +141,9 @@ export default function PartnerCard({ partner, onQuickBook, showNextStep = false
           </div>
         )}
 
+        {/* 往下漸層變黑效果 */}
+        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent h-32"></div>
+        
         {/* 資訊直接覆蓋在圖片上 - 完全透明背景 */}
         <div className="absolute bottom-0 left-0 right-0 p-4">
           {/* 夥伴姓名 */}
@@ -167,7 +170,7 @@ export default function PartnerCard({ partner, onQuickBook, showNextStep = false
 
           {/* 價格資訊和按鈕 */}
           <div className="flex items-center justify-between">
-            <div className="text-lg font-bold text-white drop-shadow-lg">
+            <div className="text-white drop-shadow-lg">
               ${partner.halfHourlyRate}/半小時
             </div>
             
