@@ -202,8 +202,8 @@ export default function ProfileClientComplete() {
       </div>
 
       {/* 個人資料區塊 */}
-      <div className="max-w-4xl mx-auto mb-12">
-        <div className="bg-gradient-to-r from-blue-900/20 to-purple-900/20 border border-blue-500/30 rounded-lg p-6 mb-6">
+      <div className="max-w-6xl mx-auto mb-12">
+        <div className="bg-gradient-to-r from-blue-900/20 to-purple-900/20 border border-blue-500/30 rounded-lg p-8 mb-6">
           <h2 className="text-xl font-bold text-white mb-2 flex items-center">
             <span className="mr-2">👤</span>
             個人資料
@@ -213,37 +213,37 @@ export default function ProfileClientComplete() {
           </p>
           
           {!editMode ? (
-            <div className="bg-gray-800/60 p-6 rounded-lg">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <span className="block text-gray-300 mb-1">姓名</span>
-                  <span className="text-white font-medium">{userData.name}</span>
+            <div className="bg-gray-800/60 p-8 rounded-lg">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="p-4 bg-gray-700/40 rounded-lg">
+                  <span className="block text-gray-300 mb-2 text-sm font-medium">姓名</span>
+                  <span className="text-white font-semibold text-lg">{userData.name}</span>
                 </div>
-                <div>
-                  <span className="block text-gray-300 mb-1">電話</span>
-                  <span className="text-white font-medium">{userData.phone || '-'}</span>
+                <div className="p-4 bg-gray-700/40 rounded-lg">
+                  <span className="block text-gray-300 mb-2 text-sm font-medium">電話</span>
+                  <span className="text-white font-semibold text-lg">{userData.phone || '-'}</span>
                 </div>
-                <div>
-                  <span className="block text-gray-300 mb-1">生日</span>
-                  <span className="text-white font-medium">{userData.birthday ? userData.birthday.slice(0, 10) : '-'}</span>
+                <div className="p-4 bg-gray-700/40 rounded-lg">
+                  <span className="block text-gray-300 mb-2 text-sm font-medium">生日</span>
+                  <span className="text-white font-semibold text-lg">{userData.birthday ? userData.birthday.slice(0, 10) : '-'}</span>
                 </div>
-                <div>
-                  <span className="block text-gray-300 mb-1">Discord 名稱</span>
-                  <span className="text-white font-medium">{userData.discord || '-'}</span>
+                <div className="p-4 bg-gray-700/40 rounded-lg">
+                  <span className="block text-gray-300 mb-2 text-sm font-medium">Discord 名稱</span>
+                  <span className="text-white font-semibold text-lg">{userData.discord || '-'}</span>
                 </div>
               </div>
               
               {isPartner && userData.partner?.halfHourlyRate && (
-                <div className="mt-6">
-                  <div className="text-gray-300 mb-1 font-semibold">每半小時收費</div>
-                  <span className="text-white font-medium">{`$${userData.partner.halfHourlyRate}`}</span>
+                <div className="mt-8 p-4 bg-gray-700/40 rounded-lg">
+                  <div className="text-gray-300 mb-2 text-sm font-medium">每半小時收費</div>
+                  <span className="text-white font-semibold text-lg">{`$${userData.partner.halfHourlyRate}`}</span>
                 </div>
               )}
               
               {isPartner && (
-                <div className="mt-6">
-                  <div className="text-gray-300 mb-1 font-semibold">留言板（顧客預約時會看到）</div>
-                  <div className="bg-gray-900/80 rounded p-3 text-white min-h-[40px] border border-gray-700 text-sm">
+                <div className="mt-8 p-4 bg-gray-700/40 rounded-lg">
+                  <div className="text-gray-300 mb-2 text-sm font-medium">留言板（顧客預約時會看到）</div>
+                  <div className="bg-gray-900/80 rounded p-4 text-white min-h-[60px] border border-gray-700 text-base">
                     {userData.partner?.customerMessage ? userData.partner.customerMessage : <span className="text-gray-500">（尚未填寫留言）</span>}
                   </div>
                 </div>
