@@ -176,7 +176,7 @@ export default function BookingsPage() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto mt-16 bg-white/10 rounded-xl p-8 shadow-lg backdrop-blur">
+    <div className="max-w-6xl mx-auto mt-16 pt-20 bg-white/10 rounded-xl p-8 shadow-lg backdrop-blur">
       {/* 頁面標題和說明 */}
       <div className="text-center mb-8">
         <h1 className="text-3xl font-bold text-white mb-4">預約管理</h1>

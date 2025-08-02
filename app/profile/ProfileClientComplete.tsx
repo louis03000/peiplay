@@ -189,7 +189,7 @@ export default function ProfileClientComplete() {
   const isPartner = !!userData.partner;
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="container mx-auto px-4 py-8 pt-20">
       {/* 頁面標題 */}
       <div className="text-center mb-8">
         <h1 className="text-3xl font-bold text-white mb-2">會員中心</h1>

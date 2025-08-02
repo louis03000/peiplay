@@ -64,6 +64,7 @@ function BookingWizardContent() {
   const [instantBooking, setInstantBooking] = useState(false)
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
   const [selectedTimes, setSelectedTimes] = useState<string[]>([])
+  const [selectedDuration, setSelectedDuration] = useState<number>(1) // 新增：預約時長（小時）
   const [loading, setLoading] = useState(true)
   const [isProcessing, setIsProcessing] = useState(false)
   
@@ -182,25 +183,64 @@ function BookingWizardContent() {
   }, [selectedPartner, selectedDate])
 
   const handleCreateBooking = useCallback(async () => {
-    if (!selectedPartner || selectedTimes.length === 0 || isProcessing) return;
+    if (!selectedPartner || isProcessing) return;
+
+    // 檢查是否有可用的時段
+    if (onlyAvailable) {
+      // 即時預約模式：使用預約時長
+      if (selectedDuration <= 0) {
+        alert('請選擇預約時長');
+        return;
+      }
+    } else {
+      // 正常模式：檢查選擇的時段
+      if (selectedTimes.length === 0) {
+        alert('請選擇預約時段');
+        return;
+      }
+    }
 
     setIsProcessing(true)
     try {
-      // 1. 創建預約
-      const bookingRes = await fetch('/api/bookings', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ scheduleIds: selectedTimes }),
-      });
+      let bookingData;
+      let totalAmount;
 
-      if (!bookingRes.ok) {
-        const errorData = await bookingRes.json();
-        throw new Error(errorData.error || '預約失敗，請重試');
+      if (onlyAvailable) {
+        // 即時預約模式：創建基於時長的預約
+        const bookingRes = await fetch('/api/bookings/instant', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            partnerId: selectedPartner.id,
+            duration: selectedDuration 
+          }),
+        });
+
+        if (!bookingRes.ok) {
+          const errorData = await bookingRes.json();
+          throw new Error(errorData.error || '預約失敗，請重試');
+        }
+
+        bookingData = await bookingRes.json();
+        totalAmount = selectedDuration * selectedPartner.halfHourlyRate * 2; // 每小時 = 2個半小時
+      } else {
+        // 正常模式：使用選擇的時段
+        const bookingRes = await fetch('/api/bookings', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ scheduleIds: selectedTimes }),
+        });
+
+        if (!bookingRes.ok) {
+          const errorData = await bookingRes.json();
+          throw new Error(errorData.error || '預約失敗，請重試');
+        }
+
+        bookingData = await bookingRes.json();
+        totalAmount = selectedTimes.length * selectedPartner.halfHourlyRate;
       }
 
-      const bookingData = await bookingRes.json();
       const bookingId = bookingData.id;
-      const totalAmount = selectedTimes.length * selectedPartner.halfHourlyRate;
 
       // 2. 創建付款請求
       const paymentRes = await fetch('/api/payment/ecpay', {
@@ -209,7 +249,9 @@ function BookingWizardContent() {
         body: JSON.stringify({
           bookingId: bookingId,
           amount: totalAmount,
-          description: `${selectedPartner.name} - ${selectedTimes.length} 個時段`,
+          description: onlyAvailable 
+            ? `${selectedPartner.name} - ${selectedDuration} 小時即時預約`
+            : `${selectedPartner.name} - ${selectedTimes.length} 個時段`,
           customerName: 'PeiPlay 用戶',
           customerEmail: 'user@peiplay.com'
         }),
@@ -256,14 +298,15 @@ function BookingWizardContent() {
     } finally {
       setIsProcessing(false)
     }
-  }, [selectedPartner, selectedTimes, isProcessing]);
+  }, [selectedPartner, selectedTimes, selectedDuration, onlyAvailable, isProcessing]);
 
   const handlePartnerSelect = useCallback((partner: Partner) => {
     setSelectedPartner(partner)
     setSelectedDate(null)
     setSelectedTimes([])
+    setSelectedDuration(1) // 重置預約時長
     if (onlyAvailable) {
-      setStep(3)
+      setStep(2) // 直接跳到選擇時長步驟
     }
   }, [onlyAvailable])
 
@@ -283,11 +326,11 @@ function BookingWizardContent() {
   const canProceed = useMemo(() => {
     switch (step) {
       case 0: return selectedPartner !== null
-      case 1: return selectedDate !== null
-      case 2: return selectedTimes.length > 0
+      case 1: return onlyAvailable ? true : selectedDate !== null
+      case 2: return onlyAvailable ? selectedDuration > 0 : selectedTimes.length > 0
       default: return true
     }
-  }, [step, selectedPartner, selectedDate, selectedTimes])
+  }, [step, selectedPartner, selectedDate, selectedTimes, selectedDuration, onlyAvailable])
 
   return (
     <div className="max-w-2xl mx-auto mt-36 rounded-3xl p-0 shadow-2xl bg-[#1e293b]/80 backdrop-blur-lg border border-white/10 overflow-hidden">
@@ -398,141 +441,174 @@ function BookingWizardContent() {
                   return (
                     <button
                       key={ts}
-                      className={`px-4 py-2 rounded ${isSelected ? 'bg-indigo-500 text-white' : 'bg-white/20 text-white'}`}
                       onClick={() => handleDateSelect(d)}
+                      className={`px-4 py-2 rounded-lg border-2 transition-all duration-200 text-sm font-medium
+                        ${isSelected 
+                          ? 'bg-indigo-500 border-indigo-400 text-white shadow-lg scale-105' 
+                          : 'bg-gray-800/50 border-gray-600 text-gray-300 hover:bg-gray-700/50 hover:border-gray-500'}`}
                     >
                       {label}
                     </button>
                   );
                 })}
-              {availableDates.length === 0 && (
-                <div className="text-gray-400">目前沒有可預約日期</div>
-              )}
+            </div>
+          </div>
+        )}
+        {onlyAvailable && step === 2 && selectedPartner && (
+          <div>
+            <div className="text-lg text-white/90 mb-4">（2）選擇預約時長</div>
+            <div className="text-sm text-gray-400 mb-6 text-center">
+              選擇您想要預約的時長，系統會自動安排最適合的時間
+            </div>
+            <div className="flex flex-wrap gap-3 justify-center">
+              {[1, 2, 3, 4, 5, 6].map(hours => (
+                <button
+                  key={hours}
+                  onClick={() => setSelectedDuration(hours)}
+                  className={`px-6 py-3 rounded-lg border-2 transition-all duration-200 text-sm font-medium
+                    ${selectedDuration === hours 
+                      ? 'bg-indigo-500 border-indigo-400 text-white shadow-lg scale-105' 
+                      : 'bg-gray-800/50 border-gray-600 text-gray-300 hover:bg-gray-700/50 hover:border-gray-500'}`}
+                >
+                  {hours} 小時
+                </button>
+              ))}
+            </div>
+            <div className="mt-4 text-center text-sm text-gray-400">
+              費用：${selectedDuration * selectedPartner.halfHourlyRate * 2} (${selectedPartner.halfHourlyRate}/半小時)
             </div>
           </div>
         )}
         {!onlyAvailable && step === 2 && selectedPartner && selectedDate && (
           <div>
             <div className="text-lg text-white/90 mb-4">（3）選擇時段</div>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2 justify-center">
               {availableTimeSlots.length === 0 ? (
-                <div className="text-gray-400">此日無可預約時段</div>
+                <div className="text-gray-400 text-center py-8">
+                  該日期沒有可預約的時段
+                </div>
               ) : (
-                availableTimeSlots.map(s => (
-                  <button
-                    key={s.id}
-                    className={`px-4 py-2 rounded ${selectedTimes.includes(s.id) ? 'bg-indigo-500 text-white' : 'bg-white/20 text-white'}`}
-                    onClick={() => handleTimeSelect(s.id)}
-                  >
-                    {new Date(s.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}~{new Date(s.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}
-                  </button>
-                ))
+                availableTimeSlots.map(schedule => {
+                  const startTime = new Date(schedule.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                  const endTime = new Date(schedule.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                  const isSelected = selectedTimes.includes(schedule.id);
+                  return (
+                    <button
+                      key={schedule.id}
+                      onClick={() => handleTimeSelect(schedule.id)}
+                      className={`px-4 py-2 rounded-lg border-2 transition-all duration-200 text-sm font-medium
+                        ${isSelected 
+                          ? 'bg-indigo-500 border-indigo-400 text-white shadow-lg scale-105' 
+                          : 'bg-gray-800/50 border-gray-600 text-gray-300 hover:bg-gray-700/50 hover:border-gray-500'}`}
+                    >
+                      {startTime} - {endTime}
+                    </button>
+                  );
+                })
               )}
             </div>
           </div>
         )}
-        {!onlyAvailable && step === 3 && selectedPartner && selectedDate && selectedTimes.length > 0 && (
-          <div className="flex flex-col items-center gap-4">
-            <div className="text-white/90 text-xl font-bold mb-4">預約確認</div>
-            <div className="flex items-center gap-4 bg-white/10 rounded-2xl p-6 border border-white/10">
-              <div className="w-16 h-16 rounded-full bg-gray-200 flex items-center justify-center text-3xl font-bold text-gray-400 overflow-hidden">
-                {selectedPartner.coverImage
-                  ? <img src={selectedPartner.coverImage} alt={selectedPartner.name} className="object-cover w-full h-full" />
-                  : selectedPartner.name[0]}
+        {step === 3 && selectedPartner && (
+          <div>
+            <div className="text-lg text-white/90 mb-4">（4）確認預約</div>
+            <div className="bg-gray-800/30 rounded-lg p-6 mb-6">
+              <div className="flex items-center gap-4 mb-4">
+                <div className="w-16 h-16 rounded-full bg-indigo-500 flex items-center justify-center text-white font-bold">
+                  {selectedPartner.name.charAt(0)}
+                </div>
+                <div>
+                  <h3 className="text-white font-semibold text-lg">{selectedPartner.name}</h3>
+                  <p className="text-gray-400 text-sm">{selectedPartner.games.join(', ')}</p>
+                </div>
               </div>
-              <div>
-                <div className="text-lg font-bold text-white">{selectedPartner.name}</div>
-                <div className="text-sm text-indigo-300">{selectedPartner.games.join('、')}</div>
+              
+              <div className="space-y-3">
+                {onlyAvailable ? (
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-300">預約時長：</span>
+                    <span className="text-white font-medium">{selectedDuration} 小時</span>
+                  </div>
+                ) : (
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-300">選擇日期：</span>
+                    <span className="text-white font-medium">
+                      {selectedDate ? `${selectedDate.getFullYear()}-${selectedDate.getMonth() + 1}-${selectedDate.getDate()}` : '未選擇'}
+                    </span>
+                  </div>
+                )}
+                
+                {!onlyAvailable && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-300">選擇時段：</span>
+                    <span className="text-white font-medium">{selectedTimes.length} 個時段</span>
+                  </div>
+                )}
+                
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-300">總費用：</span>
+                  <span className="text-white font-bold text-lg">
+                    ${onlyAvailable 
+                      ? selectedDuration * selectedPartner.halfHourlyRate * 2
+                      : selectedTimes.length * selectedPartner.halfHourlyRate
+                    }
+                  </span>
+                </div>
               </div>
             </div>
-            <div className="text-white/80">
-              預約時段：
-              <ul>
-                {selectedTimes.map(timeId => {
-                  const schedule = selectedPartner.schedules.find(s => s.id === timeId);
-                  if (!schedule) return null;
-                  // 取得本地日期字串
-                  const start = new Date(schedule.startTime);
-                  const end = new Date(schedule.endTime);
-                  const dateLabel = `${start.getFullYear()}/${(start.getMonth()+1).toString().padStart(2,'0')}/${start.getDate().toString().padStart(2,'0')}`;
-                  const startLabel = start.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
-                  const endLabel = end.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
-                  return <li key={timeId}>{dateLabel} {startLabel} - {endLabel}</li>
-                })}
-              </ul>
+            
+            <div className="flex gap-4 justify-center">
+              <button
+                onClick={handlePrevStep}
+                className="px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+              >
+                上一步
+              </button>
+              <button
+                onClick={handleCreateBooking}
+                disabled={isProcessing}
+                className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isProcessing ? '處理中...' : '確認預約並付款'}
+              </button>
             </div>
-            <div className="text-white/90 text-lg font-bold">
-              總金額：${selectedTimes.length * selectedPartner.halfHourlyRate}
-            </div>
-            <button
-              className={`px-8 py-3 rounded-full text-white font-bold text-lg shadow-xl transition ${
-                isProcessing 
-                  ? 'bg-gray-500 cursor-not-allowed' 
-                  : 'bg-[#10b981] hover:bg-[#059669] active:scale-95'
-              }`}
-              onClick={handleCreateBooking}
-              disabled={isProcessing}
-            >
-              {isProcessing ? '處理中...' : '確認預約並付款'}
-            </button>
           </div>
         )}
         {step === 4 && (
-          <div className="flex flex-col items-center text-center min-h-[200px] justify-center">
-            <div className="w-20 h-20 flex items-center justify-center rounded-full bg-[#f59e0b] mb-6">
-              <span className="text-4xl text-white">💳</span>
-            </div>
-            <div className="text-2xl font-bold text-white mb-2">正在跳轉到付款頁面</div>
-            <div className="text-gray-300 mb-4">請稍候，正在為您準備安全的付款環境...</div>
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-yellow-400 mx-auto"></div>
+          <div className="text-center">
+            <div className="text-lg text-white/90 mb-4">（5）跳轉付款</div>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-500 mx-auto mb-4"></div>
+            <p className="text-gray-400">正在跳轉到付款頁面...</p>
           </div>
         )}
         {step === 5 && (
-          <div className="flex flex-col items-center text-center min-h-[200px] justify-center">
-            <div className="w-20 h-20 flex items-center justify-center rounded-full bg-[#10b981] mb-6">
-              <span className="text-4xl text-white">✅</span>
-            </div>
-            <div className="text-2xl font-bold text-white mb-2">預約完成！</div>
-            <div className="text-gray-300 mb-4">您的預約已成功建立，付款完成後即可開始遊戲。</div>
-            <div className="text-sm text-gray-400 mb-6">
-              <p>• 付款成功後，夥伴會收到通知</p>
-              <p>• 請在預約時間準時上線</p>
-              <p>• 如有問題請聯繫客服</p>
-            </div>
-            <button className="mt-4 px-6 py-2 rounded-full bg-indigo-500 text-white font-bold hover:bg-indigo-600 transition-colors" onClick={() => setStep(0)}>
-              返回首頁
-            </button>
+          <div className="text-center">
+            <div className="text-lg text-white/90 mb-4">（6）完成</div>
+            <div className="text-6xl mb-4">✅</div>
+            <p className="text-gray-400">預約成功！請完成付款以確認預約。</p>
           </div>
         )}
       </div>
 
       {/* 導航按鈕 */}
-      {step < 6 && (
-        <div className={`flex items-center px-4 sm:px-10 pb-8 ${step > 0 ? 'justify-between' : 'justify-end'}`}>
-          {step > 0 && (
-            <button
-              className="px-4 sm:px-6 py-2 rounded-full bg-gray-700/60 text-white/80 font-bold hover:bg-gray-600 active:scale-95 transition text-sm sm:text-base"
-              onClick={handlePrevStep}
-            >
-              上一步
-            </button>
-          )}
-
-          {step < 3 && (
-            <button
-              className="px-4 sm:px-6 py-2 rounded-full bg-indigo-600 text-white font-bold shadow-lg hover:bg-indigo-700 active:scale-95 transition disabled:opacity-40 text-sm sm:text-base"
-              onClick={handleNextStep}
-              disabled={!canProceed}
-            >
-              下一步
-            </button>
-          )}
+      {step < 3 && (
+        <div className="px-10 pb-10 flex justify-between">
+          <button
+            onClick={handlePrevStep}
+            disabled={step === 0}
+            className="px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            上一步
+          </button>
+          <button
+            onClick={handleNextStep}
+            disabled={!canProceed}
+            className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            下一步
+          </button>
         </div>
       )}
-      <style jsx global>{`
-        @keyframes fadein { from { opacity: 0; transform: translateY(20px);} to { opacity: 1; transform: none; } }
-        .animate-fadein { animation: fadein 0.5s; }
-      `}</style>
     </div>
   )
 }
@@ -541,10 +617,10 @@ export default function BookingWizard() {
   return (
     <Suspense fallback={
       <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-500"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500"></div>
       </div>
     }>
       <BookingWizardContent />
     </Suspense>
-  );
+  )
 } 

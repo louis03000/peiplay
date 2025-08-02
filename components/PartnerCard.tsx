@@ -68,8 +68,8 @@ export default function PartnerCard({ partner, onQuickBook, showNextStep = false
       }`}
       onClick={handleCardClick}
     >
-      {/* 完整封面圖片區域 */}
-      <div className="relative h-48 bg-white">
+      {/* 完整封面圖片區域 - 增加高度 */}
+      <div className="relative h-64 bg-white">
         {currentImage && !imageError ? (
           <Image
             src={currentImage}
@@ -88,14 +88,14 @@ export default function PartnerCard({ partner, onQuickBook, showNextStep = false
           <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-purple-100 to-indigo-100">
             {/* 默認卡通角色 */}
             <div className="relative">
-              <div className="w-20 h-20 bg-white border-2 border-gray-300 rounded-full flex items-center justify-center shadow-lg">
-                <div className="w-16 h-16 bg-white border border-gray-300 rounded-full flex items-center justify-center">
+              <div className="w-24 h-24 bg-white border-2 border-gray-300 rounded-full flex items-center justify-center shadow-lg">
+                <div className="w-20 h-20 bg-white border border-gray-300 rounded-full flex items-center justify-center">
                   <div className="flex flex-col items-center">
                     <div className="flex gap-1 mb-1">
-                      <div className="w-1.5 h-1.5 bg-gray-600 rounded-full"></div>
-                      <div className="w-1.5 h-1.5 bg-gray-600 rounded-full"></div>
+                      <div className="w-2 h-2 bg-gray-600 rounded-full"></div>
+                      <div className="w-2 h-2 bg-gray-600 rounded-full"></div>
                     </div>
-                    <div className="w-3 h-0.5 bg-gray-600 rounded-full"></div>
+                    <div className="w-4 h-0.5 bg-gray-600 rounded-full"></div>
                   </div>
                 </div>
               </div>

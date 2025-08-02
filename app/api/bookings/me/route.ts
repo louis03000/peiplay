@@ -21,14 +21,29 @@ export async function GET() {
       role = user?.role;
     }
 
-    // 檢查是否有 customer 資料，而不是嚴格檢查角色
-    const customer = await prisma.customer.findUnique({ 
+    // 檢查是否有 customer 資料，如果沒有就自動建立
+    let customer = await prisma.customer.findUnique({ 
       where: { userId }, 
       select: { id: true } 
     });
-    
+
     if (!customer) {
-      return NextResponse.json({ bookings: [] });
+      // 取得 user 資料
+      const user = await prisma.user.findUnique({ where: { id: userId } });
+      if (!user || !user.name || !user.birthday || !user.phone) {
+        // 缺少必要欄位，無法自動建立
+        return NextResponse.json({ bookings: [] });
+      }
+      // 自動建立 customer
+      customer = await prisma.customer.create({
+        data: {
+          userId,
+          name: user.name,
+          birthday: user.birthday,
+          phone: user.phone,
+        },
+        select: { id: true }
+      });
     }
 
     const now = new Date();
