@@ -68,7 +68,7 @@ export default function PartnerCard({ partner, onQuickBook, showNextStep = false
       }`}
       onClick={handleCardClick}
     >
-      {/* 完整封面圖片區域 - 縮短高度 */}
+      {/* 完整封面圖片區域 */}
       <div className="relative h-48 bg-white">
         {currentImage && !imageError ? (
           <Image
@@ -140,42 +140,34 @@ export default function PartnerCard({ partner, onQuickBook, showNextStep = false
             </button>
           </div>
         )}
-      </div>
 
-      {/* 資訊區域 - 透明背景，顯示圖片底部 */}
-      <div className="relative bg-transparent p-4">
-        {/* 背景圖片延伸 */}
-        {currentImage && !imageError && (
-          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent"></div>
-        )}
-        
-        {/* 內容區域 */}
-        <div className="relative z-10">
+        {/* 資訊直接覆蓋在圖片上 - 完全透明背景 */}
+        <div className="absolute bottom-0 left-0 right-0 p-4">
           {/* 夥伴姓名 */}
           <div className="mb-2">
-            <h3 className="font-bold text-white text-lg">{partner.name}</h3>
+            <h3 className="font-bold text-white text-lg drop-shadow-lg">{partner.name}</h3>
           </div>
 
-          {/* 遊戲標籤 */}
+          {/* 遊戲標籤 - 每個遊戲獨立小方格 */}
           <div className="flex flex-wrap gap-2 mb-2">
-            {partner.games.slice(0, 2).map((game) => (
+            {partner.games.slice(0, 3).map((game) => (
               <span
                 key={game}
-                className="inline-block bg-white/20 backdrop-blur-sm text-white px-2 py-1 rounded-full text-xs font-medium border border-white/30"
+                className="inline-block bg-purple-400 text-white px-2 py-1 rounded text-xs font-medium shadow-sm"
               >
                 {game}
               </span>
             ))}
-            {partner.games.length > 2 && (
-              <span className="inline-block bg-white/20 backdrop-blur-sm text-white px-2 py-1 rounded-full text-xs font-medium border border-white/30">
-                +{partner.games.length - 2} 更多
+            {partner.games.length > 3 && (
+              <span className="inline-block bg-purple-400 text-white px-2 py-1 rounded text-xs font-medium shadow-sm">
+                +{partner.games.length - 3}
               </span>
             )}
           </div>
 
           {/* 價格資訊和按鈕 */}
           <div className="flex items-center justify-between">
-            <div className="text-lg font-bold text-white">
+            <div className="text-lg font-bold text-white drop-shadow-lg">
               ${partner.halfHourlyRate}/半小時
             </div>
             
@@ -185,7 +177,7 @@ export default function PartnerCard({ partner, onQuickBook, showNextStep = false
                   e.stopPropagation();
                   onQuickBook(partner.id);
                 }}
-                className="px-3 py-1 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-semibold text-xs"
+                className="px-3 py-1 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-semibold text-xs shadow-sm"
               >
                 下一步
               </button>
@@ -195,8 +187,8 @@ export default function PartnerCard({ partner, onQuickBook, showNextStep = false
           {/* 留言板內容（翻面後顯示） */}
           {flipped && partner.customerMessage && (
             <div className="mt-3 pt-3 border-t border-white/30">
-              <div className="text-xs text-white/80 mb-2">留言板：</div>
-              <div className="text-sm text-white bg-black/40 backdrop-blur-sm p-3 rounded-lg border border-white/20">
+              <div className="text-xs text-white/90 mb-2 drop-shadow-lg">留言板：</div>
+              <div className="text-sm text-white bg-black/60 backdrop-blur-sm p-3 rounded-lg border border-white/20 shadow-lg">
                 {partner.customerMessage}
               </div>
             </div>
