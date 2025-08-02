@@ -44,6 +44,7 @@ export type Partner = {
   schedules: { id: string; date: string; startTime: string; endTime: string, isAvailable: boolean }[];
   isAvailableNow: boolean;
   isRankBooster: boolean;
+  customerMessage?: string;
 };
 
 // 工具函式：判斷兩個日期是否同一天（本地時區）
@@ -67,9 +68,23 @@ function BookingWizardContent() {
   const [selectedDuration, setSelectedDuration] = useState<number>(1) // 新增：預約時長（小時）
   const [loading, setLoading] = useState(true)
   const [isProcessing, setIsProcessing] = useState(false)
+  const [flippedCards, setFlippedCards] = useState<Set<string>>(new Set())
   
   // 防抖搜尋
   const debouncedSearch = useDebounce(search, 300)
+
+  // 處理翻面功能
+  const handleCardFlip = (partnerId: string) => {
+    setFlippedCards(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(partnerId)) {
+        newSet.delete(partnerId);
+      } else {
+        newSet.add(partnerId);
+      }
+      return newSet;
+    });
+  };
 
   // 處理 URL 參數
   useEffect(() => {
@@ -421,7 +436,8 @@ function BookingWizardContent() {
                     >
                       <PartnerCard
                         partner={p}
-                        flipped={selectedPartner?.id === p.id}
+                        flipped={flippedCards.has(p.id)}
+                        onFlip={() => handleCardFlip(p.id)}
                       />
                     </div>
                   </div>

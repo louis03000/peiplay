@@ -55,7 +55,7 @@ export default function Home() {
 
   return (
     <div className="flex flex-col min-h-screen bg-[#0f172a]">
-      <main className="flex-1 flex flex-col items-center justify-center px-4 pt-20">
+      <main className="flex-1 flex flex-col items-center justify-center px-4 pt-32">
         <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-4 text-white text-center">PeiPlay 預約平台</h1>
         <p className="text-base md:text-lg lg:text-2xl text-gray-300 mb-8 text-center">專為顧客與夥伴打造的預約與管理系統。</p>
       </main>

@@ -189,7 +189,7 @@ export default function ProfileClientComplete() {
   const isPartner = !!userData.partner;
 
   return (
-    <div className="container mx-auto px-4 py-8 pt-20">
+    <div className="container mx-auto px-4 py-8 pt-32">
       {/* 頁面標題 */}
       <div className="text-center mb-8">
         <h1 className="text-3xl font-bold text-white mb-2">會員中心</h1>
@@ -240,14 +240,12 @@ export default function ProfileClientComplete() {
                  </div>
                )}
                
-               {isPartner && (
-                 <div className="mt-8 p-4 bg-green-600/20 rounded-lg border border-green-500/30">
-                   <div className="text-green-300 mb-2 text-sm font-medium">留言板（顧客預約時會看到）</div>
-                   <div className="bg-gray-900 rounded p-4 text-white min-h-[60px] border border-green-500/50 text-base">
-                     {userData.partner?.customerMessage ? userData.partner.customerMessage : <span className="text-gray-300">（尚未填寫留言）</span>}
-                   </div>
+               <div className="mt-8 p-4 bg-green-600/20 rounded-lg border border-green-500/30">
+                 <div className="text-green-300 mb-2 text-sm font-medium">留言板（顧客預約時會看到）</div>
+                 <div className="bg-gray-900 rounded p-4 text-white min-h-[60px] border border-green-500/50 text-base">
+                   {userData.partner?.customerMessage ? userData.partner.customerMessage : <span className="text-gray-300">（尚未填寫留言）</span>}
                  </div>
-               )}
+               </div>
               
               <button 
                 className="w-full py-3 rounded-lg bg-indigo-500 text-white font-bold text-lg mt-6 hover:bg-indigo-600 transition" 
@@ -391,65 +389,64 @@ export default function ProfileClientComplete() {
               )}
               
               {isPartner && (
-                <>
-                  <div className="mt-6">
-                    <label className="block text-gray-300 mb-1 font-semibold">擅長遊戲（最多 10 個，每個限 50 字）</label>
-                    <div className="flex flex-wrap gap-2 mb-2">
-                      {ALL_GAMES.map(game => (
-                        <button
-                          type="button"
-                          key={game}
-                          className={`px-3 py-1 rounded-full border text-xs font-semibold mr-2 mb-2 ${formData.games.includes(game) ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-gray-900 text-gray-300 border-gray-700'}`}
-                          onClick={() => handleGameChange(game)}
-                          disabled={formData.games.length >= MAX_GAMES && !formData.games.includes(game)}
-                        >
-                          {game}
-                        </button>
-                      ))}
-                    </div>
-                    <div className="flex gap-2 mb-2">
-                      <input
-                        type="text"
-                        value={customGame}
-                        onChange={e => setCustomGame(e.target.value.slice(0, 50))}
-                        className="flex-1 px-3 py-1 rounded bg-gray-900 text-white border border-gray-700 focus:border-indigo-500 focus:outline-none text-xs"
-                        placeholder="自訂遊戲名稱（限 50 字）"
-                        maxLength={50}
-                        disabled={formData.games.length >= MAX_GAMES}
-                      />
+                <div className="mt-6">
+                  <label className="block text-gray-300 mb-1 font-semibold">擅長遊戲（最多 10 個，每個限 50 字）</label>
+                  <div className="flex flex-wrap gap-2 mb-2">
+                    {ALL_GAMES.map(game => (
                       <button
                         type="button"
-                        className="px-3 py-1 rounded bg-indigo-500 text-white text-xs font-semibold"
-                        onClick={handleAddCustomGame}
-                        disabled={!customGame.trim() || formData.games.length >= MAX_GAMES}
-                      >新增</button>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      {formData.games.map(game => (
-                        <span key={game} className="bg-indigo-600 text-white px-3 py-1 rounded-full text-xs font-semibold flex items-center mr-2 mb-2">
-                          {game}
-                          <button type="button" className="ml-2 text-white hover:text-red-300" onClick={() => handleRemoveGame(game)}>&times;</button>
-                        </span>
-                      ))}
-                    </div>
-                    <div className="text-right text-xs text-gray-400 mt-1">{formData.games.length}/10</div>
+                        key={game}
+                        className={`px-3 py-1 rounded-full border text-xs font-semibold mr-2 mb-2 ${formData.games.includes(game) ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-gray-900 text-gray-300 border-gray-700'}`}
+                        onClick={() => handleGameChange(game)}
+                        disabled={formData.games.length >= MAX_GAMES && !formData.games.includes(game)}
+                      >
+                        {game}
+                      </button>
+                    ))}
                   </div>
-                  <div className="mt-6">
-                    <label className="block text-gray-300 mb-1 font-semibold">留言板（顧客預約時會看到，限 50 字）</label>
-                    <textarea
-                      name="customerMessage"
-                      value={formData.customerMessage}
-                      onChange={e => {
-                        if (e.target.value.length <= 50) handleInputChange(e)
-                      }}
+                  <div className="flex gap-2 mb-2">
+                    <input
+                      type="text"
+                      value={customGame}
+                      onChange={e => setCustomGame(e.target.value.slice(0, 50))}
+                      className="flex-1 px-3 py-1 rounded bg-gray-900 text-white border border-gray-700 focus:border-indigo-500 focus:outline-none text-xs"
+                      placeholder="自訂遊戲名稱（限 50 字）"
                       maxLength={50}
-                      className="w-full rounded bg-gray-900 text-white border border-gray-700 focus:border-indigo-500 focus:outline-none p-3 min-h-[40px] text-sm"
-                      placeholder="請輸入想對顧客說的話...（限 50 字）"
+                      disabled={formData.games.length >= MAX_GAMES}
                     />
-                    <div className="text-right text-xs text-gray-400 mt-1">{formData.customerMessage.length}/50</div>
+                    <button
+                      type="button"
+                      className="px-3 py-1 rounded bg-indigo-500 text-white text-xs font-semibold"
+                      onClick={handleAddCustomGame}
+                      disabled={!customGame.trim() || formData.games.length >= MAX_GAMES}
+                    >新增</button>
                   </div>
-                </>
+                  <div className="flex flex-wrap gap-2">
+                    {formData.games.map(game => (
+                      <span key={game} className="bg-indigo-600 text-white px-3 py-1 rounded-full text-xs font-semibold flex items-center mr-2 mb-2">
+                        {game}
+                        <button type="button" className="ml-2 text-white hover:text-red-300" onClick={() => handleRemoveGame(game)}>&times;</button>
+                      </span>
+                    ))}
+                  </div>
+                  <div className="text-right text-xs text-gray-400 mt-1">{formData.games.length}/10</div>
+                </div>
               )}
+              
+              <div className="mt-6">
+                <label className="block text-gray-300 mb-1 font-semibold">留言板（顧客預約時會看到，限 50 字）</label>
+                <textarea
+                  name="customerMessage"
+                  value={formData.customerMessage}
+                  onChange={e => {
+                    if (e.target.value.length <= 50) handleInputChange(e)
+                  }}
+                  maxLength={50}
+                  className="w-full rounded bg-gray-900 text-white border border-gray-700 focus:border-indigo-500 focus:outline-none p-3 min-h-[40px] text-sm"
+                  placeholder="請輸入想對顧客說的話...（限 50 字）"
+                />
+                <div className="text-right text-xs text-gray-400 mt-1">{formData.customerMessage.length}/50</div>
+              </div>
               
               {success && <div className="text-green-400 mb-4 text-center">{success}</div>}
               {error && <div className="text-red-400 mb-4 text-center">{error}</div>}

@@ -155,7 +155,7 @@ export default function PartnersPage() {
 
   return (
     <div className="min-h-screen bg-white">
-      <div className="container mx-auto px-4 py-8 pt-20">
+      <div className="container mx-auto px-4 py-8 pt-32">
         <div className="text-center mb-8">
           <h1 className="text-3xl md:text-4xl font-bold text-gray-800 mb-4">遊戲夥伴</h1>
           <p className="text-gray-600 text-lg">找到最適合的遊戲夥伴，享受更好的遊戲體驗</p>

@@ -62,7 +62,7 @@ export default function AdminPartnersPage() {
   if (error) return <div className="text-red-500">{error}</div>;
 
   return (
-    <div className="max-w-3xl mx-auto py-8 pt-20">
+    <div className="max-w-3xl mx-auto py-8 pt-32">
       <h1 className="text-2xl font-bold mb-6">夥伴申請審核</h1>
       <div className="mb-6 flex justify-end">
         <button

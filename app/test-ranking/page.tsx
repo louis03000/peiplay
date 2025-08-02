@@ -30,7 +30,7 @@ export default function TestRankingPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0f172a] pt-20">
+    <div className="min-h-screen bg-[#0f172a] pt-32">
       <div className="container mx-auto px-4 py-8">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-white mb-4">測試排行榜資料</h1>
