@@ -234,17 +234,17 @@ export default function ProfileClientComplete() {
               </div>
               
                              {isPartner && userData.partner?.halfHourlyRate && (
-                 <div className="mt-8 p-4 bg-gray-700/40 rounded-lg">
-                   <div className="text-gray-300 mb-2 text-sm font-medium">每半小時收費</div>
-                   <span className="text-white font-semibold text-lg">{`$${userData.partner.halfHourlyRate}`}</span>
+                 <div className="mt-8 p-4 bg-indigo-600/20 rounded-lg border border-indigo-500/30">
+                   <div className="text-indigo-300 mb-2 text-sm font-medium">每半小時收費</div>
+                   <span className="text-white font-bold text-xl">{`$${userData.partner.halfHourlyRate}`}</span>
                  </div>
                )}
                
                {isPartner && (
-                 <div className="mt-8 p-4 bg-gray-700/40 rounded-lg">
-                   <div className="text-gray-300 mb-2 text-sm font-medium">留言板（顧客預約時會看到）</div>
-                   <div className="bg-gray-800 rounded p-4 text-white min-h-[60px] border border-gray-600 text-base">
-                     {userData.partner?.customerMessage ? userData.partner.customerMessage : <span className="text-gray-400">（尚未填寫留言）</span>}
+                 <div className="mt-8 p-4 bg-green-600/20 rounded-lg border border-green-500/30">
+                   <div className="text-green-300 mb-2 text-sm font-medium">留言板（顧客預約時會看到）</div>
+                   <div className="bg-gray-900 rounded p-4 text-white min-h-[60px] border border-green-500/50 text-base">
+                     {userData.partner?.customerMessage ? userData.partner.customerMessage : <span className="text-gray-300">（尚未填寫留言）</span>}
                    </div>
                  </div>
                )}
