@@ -68,8 +68,8 @@ export default function PartnerCard({ partner, onQuickBook, showNextStep = false
       }`}
       onClick={handleCardClick}
     >
-      {/* 完整封面圖片區域 */}
-      <div className="relative h-64 bg-white">
+      {/* 完整封面圖片區域 - 縮短高度 */}
+      <div className="relative h-48 bg-white">
         {currentImage && !imageError ? (
           <Image
             src={currentImage}
@@ -88,14 +88,14 @@ export default function PartnerCard({ partner, onQuickBook, showNextStep = false
           <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-purple-100 to-indigo-100">
             {/* 默認卡通角色 */}
             <div className="relative">
-              <div className="w-24 h-24 bg-white border-2 border-gray-300 rounded-full flex items-center justify-center shadow-lg">
-                <div className="w-20 h-20 bg-white border border-gray-300 rounded-full flex items-center justify-center">
+              <div className="w-20 h-20 bg-white border-2 border-gray-300 rounded-full flex items-center justify-center shadow-lg">
+                <div className="w-16 h-16 bg-white border border-gray-300 rounded-full flex items-center justify-center">
                   <div className="flex flex-col items-center">
                     <div className="flex gap-1 mb-1">
-                      <div className="w-2 h-2 bg-gray-600 rounded-full"></div>
-                      <div className="w-2 h-2 bg-gray-600 rounded-full"></div>
+                      <div className="w-1.5 h-1.5 bg-gray-600 rounded-full"></div>
+                      <div className="w-1.5 h-1.5 bg-gray-600 rounded-full"></div>
                     </div>
-                    <div className="w-4 h-0.5 bg-gray-600 rounded-full"></div>
+                    <div className="w-3 h-0.5 bg-gray-600 rounded-full"></div>
                   </div>
                 </div>
               </div>
@@ -142,58 +142,66 @@ export default function PartnerCard({ partner, onQuickBook, showNextStep = false
         )}
       </div>
 
-      {/* 資訊區域 - 白色背景 */}
-      <div className="bg-white p-4">
-        {/* 夥伴姓名 */}
-        <div className="mb-3">
-          <h3 className="font-bold text-gray-800 text-lg">{partner.name}</h3>
-        </div>
-
-        {/* 遊戲標籤 */}
-        <div className="flex flex-wrap gap-2 mb-3">
-          {partner.games.slice(0, 3).map((game) => (
-            <span
-              key={game}
-              className="inline-block bg-purple-100 text-purple-700 px-3 py-1 rounded-full text-sm font-medium border border-purple-200"
-            >
-              {game}
-            </span>
-          ))}
-          {partner.games.length > 3 && (
-            <span className="inline-block bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-sm font-medium">
-              +{partner.games.length - 3} 更多
-            </span>
-          )}
-        </div>
-
-        {/* 價格資訊 */}
-        <div className="flex items-center justify-between">
-          <div className="text-lg font-bold text-gray-800">
-            ${partner.halfHourlyRate}/半小時
-          </div>
-          
-          {showNextStep && onQuickBook && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onQuickBook(partner.id);
-              }}
-              className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-semibold text-sm"
-            >
-              立即預約
-            </button>
-          )}
-        </div>
-
-        {/* 留言板內容（翻面後顯示） */}
-        {flipped && partner.customerMessage && (
-          <div className="mt-3 pt-3 border-t border-gray-200">
-            <div className="text-xs text-gray-500 mb-2">留言板：</div>
-            <div className="text-sm text-gray-700 bg-gray-50 p-3 rounded-lg border border-gray-200">
-              {partner.customerMessage}
-            </div>
-          </div>
+      {/* 資訊區域 - 透明背景，顯示圖片底部 */}
+      <div className="relative bg-transparent p-4">
+        {/* 背景圖片延伸 */}
+        {currentImage && !imageError && (
+          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent"></div>
         )}
+        
+        {/* 內容區域 */}
+        <div className="relative z-10">
+          {/* 夥伴姓名 */}
+          <div className="mb-2">
+            <h3 className="font-bold text-white text-lg">{partner.name}</h3>
+          </div>
+
+          {/* 遊戲標籤 */}
+          <div className="flex flex-wrap gap-2 mb-2">
+            {partner.games.slice(0, 2).map((game) => (
+              <span
+                key={game}
+                className="inline-block bg-white/20 backdrop-blur-sm text-white px-2 py-1 rounded-full text-xs font-medium border border-white/30"
+              >
+                {game}
+              </span>
+            ))}
+            {partner.games.length > 2 && (
+              <span className="inline-block bg-white/20 backdrop-blur-sm text-white px-2 py-1 rounded-full text-xs font-medium border border-white/30">
+                +{partner.games.length - 2} 更多
+              </span>
+            )}
+          </div>
+
+          {/* 價格資訊和按鈕 */}
+          <div className="flex items-center justify-between">
+            <div className="text-lg font-bold text-white">
+              ${partner.halfHourlyRate}/半小時
+            </div>
+            
+            {showNextStep && onQuickBook && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onQuickBook(partner.id);
+                }}
+                className="px-3 py-1 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-semibold text-xs"
+              >
+                下一步
+              </button>
+            )}
+          </div>
+
+          {/* 留言板內容（翻面後顯示） */}
+          {flipped && partner.customerMessage && (
+            <div className="mt-3 pt-3 border-t border-white/30">
+              <div className="text-xs text-white/80 mb-2">留言板：</div>
+              <div className="text-sm text-white bg-black/40 backdrop-blur-sm p-3 rounded-lg border border-white/20">
+                {partner.customerMessage}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   )
