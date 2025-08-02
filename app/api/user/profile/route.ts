@@ -11,7 +11,7 @@ export async function PATCH(request: Request) {
 
   try {
     const data = await request.json();
-    const { name, phone, birthday, discord, customerMessage, games } = data;
+    const { name, phone, birthday, discord, customerMessage, games, coverImage } = data;
 
     if (!name || !phone || !birthday) {
       return NextResponse.json({ error: '缺少必要欄位' }, { status: 400 });
@@ -54,7 +54,7 @@ export async function PATCH(request: Request) {
 
     // 處理 partner 相關資料更新
     let updatedPartner = null;
-    if (typeof customerMessage === 'string' || Array.isArray(games) || typeof data.halfHourlyRate === 'number' || name) {
+    if (typeof customerMessage === 'string' || Array.isArray(games) || typeof data.halfHourlyRate === 'number' || name || typeof coverImage === 'string') {
       // 先查 partner
       const partner = await prisma.partner.findUnique({ where: { userId: existingUser.id } });
       
@@ -65,22 +65,23 @@ export async function PATCH(request: Request) {
         if (Array.isArray(games)) partnerUpdateData.games = games;
         if (typeof data.halfHourlyRate === 'number') partnerUpdateData.halfHourlyRate = data.halfHourlyRate;
         if (name) partnerUpdateData.name = name; // 同步更新夥伴表的姓名
+        if (typeof coverImage === 'string') partnerUpdateData.coverImage = coverImage;
         if (Object.keys(partnerUpdateData).length > 0) {
           updatedPartner = await prisma.partner.update({
             where: { userId: existingUser.id },
             data: partnerUpdateData
           });
         }
-      } else if (typeof customerMessage === 'string' && customerMessage.trim()) {
-        // 如果用戶不是 partner 但有留言板內容，創建 partner 記錄
+      } else if ((typeof customerMessage === 'string' && customerMessage.trim()) || typeof coverImage === 'string') {
+        // 如果用戶不是 partner 但有留言板內容或封面照，創建 partner 記錄
         updatedPartner = await prisma.partner.create({
           data: {
             userId: existingUser.id,
             name: name,
             birthday: date, // 使用用戶的生日
             phone: phone, // 使用用戶的電話
-            coverImage: '', // 預設空字串
-            customerMessage: customerMessage,
+            coverImage: coverImage || '', // 使用上傳的封面照或預設空字串
+            customerMessage: customerMessage || '',
             games: [],
             halfHourlyRate: 0
           }

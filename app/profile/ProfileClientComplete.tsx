@@ -23,7 +23,8 @@ export default function ProfileClientComplete() {
     discord: '',
     customerMessage: '',
     games: [] as string[],
-    halfHourlyRate: undefined as number | undefined
+    halfHourlyRate: undefined as number | undefined,
+    coverImage: ''
   });
   const [success, setSuccess] = useState('');
   const [error, setError] = useState('');
@@ -61,6 +62,7 @@ export default function ProfileClientComplete() {
             customerMessage: data.user.partner?.customerMessage || '',
             games: data.user.partner?.games || [],
             halfHourlyRate: data.user.partner?.halfHourlyRate,
+            coverImage: data.user.partner?.coverImage || '',
           });
         }
       } catch (error) {
@@ -97,6 +99,49 @@ export default function ProfileClientComplete() {
 
   const handleRemoveGame = (game: string) => {
     setFormData(prev => ({ ...prev, games: prev.games.filter(g => g !== game) }));
+  };
+
+  // 處理封面照上傳
+  const handleCoverImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // 檢查檔案大小（限制為 5MB）
+    if (file.size > 5 * 1024 * 1024) {
+      setError('檔案大小不能超過 5MB');
+      return;
+    }
+
+    // 檢查檔案類型
+    if (!file.type.startsWith('image/')) {
+      setError('只能上傳圖片檔案');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!res.ok) {
+        throw new Error('上傳失敗');
+      }
+
+      const data = await res.json();
+      setFormData(prev => ({ ...prev, coverImage: data.url }));
+      setSuccess('封面照上傳成功！');
+    } catch (err) {
+      setError('封面照上傳失敗，請重試');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -432,6 +477,51 @@ export default function ProfileClientComplete() {
                   <div className="text-right text-xs text-gray-400 mt-1">{formData.games.length}/10</div>
                 </div>
               )}
+              
+              {/* 封面照上傳 */}
+              <div className="mt-6">
+                <label className="block text-gray-300 mb-1 font-semibold">封面照</label>
+                <div className="space-y-3">
+                  {/* 當前封面照預覽 */}
+                  {formData.coverImage && (
+                    <div className="relative">
+                      <img 
+                        src={formData.coverImage} 
+                        alt="封面照" 
+                        className="w-full h-32 object-cover rounded-lg border border-gray-600"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setFormData(prev => ({ ...prev, coverImage: '' }))}
+                        className="absolute top-2 right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-red-600 transition-colors"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  )}
+                  
+                  {/* 上傳按鈕 */}
+                  <div className="flex items-center gap-3">
+                    <label className="flex-1">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleCoverImageUpload}
+                        className="hidden"
+                        disabled={loading}
+                      />
+                      <div className="w-full px-4 py-3 border-2 border-dashed border-gray-600 rounded-lg text-center cursor-pointer hover:border-indigo-500 transition-colors">
+                        <div className="text-gray-300 text-sm">
+                          {formData.coverImage ? '更換封面照' : '選擇封面照'}
+                        </div>
+                        <div className="text-gray-500 text-xs mt-1">
+                          支援 JPG、PNG 格式，檔案大小不超過 5MB
+                        </div>
+                      </div>
+                    </label>
+                  </div>
+                </div>
+              </div>
               
               <div className="mt-6">
                 <label className="block text-gray-300 mb-1 font-semibold">留言板（顧客預約時會看到，限 50 字）</label>
