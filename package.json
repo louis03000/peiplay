@@ -7,7 +7,10 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "bot:install": "cd discord-bot && pip install -r requirements.txt",
+    "bot:start": "cd discord-bot && python bot.py",
+    "bot:dev": "cd discord-bot && python bot.py"
   },
   "dependencies": {
     "@headlessui/react": "^2.2.2",

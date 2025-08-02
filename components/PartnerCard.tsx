@@ -68,8 +68,8 @@ export default function PartnerCard({ partner, onQuickBook, showNextStep = false
       }`}
       onClick={handleCardClick}
     >
-      {/* 上半部：白色背景，卡通角色區域 */}
-      <div className="relative h-48 bg-white">
+      {/* 完整封面圖片區域 */}
+      <div className="relative h-64 bg-white">
         {currentImage && !imageError ? (
           <Image
             src={currentImage}
@@ -85,17 +85,17 @@ export default function PartnerCard({ partner, onQuickBook, showNextStep = false
             loading="lazy"
           />
         ) : (
-          <div className="w-full h-full flex items-center justify-center bg-white">
-            {/* 默認卡通角色 - 更簡潔的設計 */}
+          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-purple-100 to-indigo-100">
+            {/* 默認卡通角色 */}
             <div className="relative">
-              <div className="w-20 h-20 bg-white border-2 border-gray-300 rounded-full flex items-center justify-center">
-                <div className="w-16 h-16 bg-white border border-gray-300 rounded-full flex items-center justify-center">
+              <div className="w-24 h-24 bg-white border-2 border-gray-300 rounded-full flex items-center justify-center shadow-lg">
+                <div className="w-20 h-20 bg-white border border-gray-300 rounded-full flex items-center justify-center">
                   <div className="flex flex-col items-center">
                     <div className="flex gap-1 mb-1">
-                      <div className="w-1.5 h-1.5 bg-gray-600 rounded-full"></div>
-                      <div className="w-1.5 h-1.5 bg-gray-600 rounded-full"></div>
+                      <div className="w-2 h-2 bg-gray-600 rounded-full"></div>
+                      <div className="w-2 h-2 bg-gray-600 rounded-full"></div>
                     </div>
-                    <div className="w-3 h-0.5 bg-gray-600 rounded-full"></div>
+                    <div className="w-4 h-0.5 bg-gray-600 rounded-full"></div>
                   </div>
                 </div>
               </div>
@@ -106,13 +106,13 @@ export default function PartnerCard({ partner, onQuickBook, showNextStep = false
         {/* 狀態標籤 */}
         <div className="absolute top-3 left-3 flex flex-col gap-2">
           {partner.isAvailableNow && (
-            <div className="flex items-center gap-1 px-2 py-1 bg-green-400 text-white text-xs font-bold rounded-full shadow-sm">
-              <span className="text-xs">現在有空</span>
+            <div className="flex items-center gap-1 px-2 py-1 bg-green-500 text-white text-xs font-bold rounded-full shadow-sm">
+              <span className="text-xs">⚡ 現在有空</span>
             </div>
           )}
           {partner.isRankBooster && (
-            <div className="flex items-center gap-1 px-2 py-1 bg-purple-400 text-white text-xs font-bold rounded-full shadow-sm">
-              <span className="text-xs">上分高手</span>
+            <div className="flex items-center gap-1 px-2 py-1 bg-orange-500 text-white text-xs font-bold rounded-full shadow-sm">
+              <span className="text-xs">👑 上分高手</span>
             </div>
           )}
         </div>
@@ -142,28 +142,33 @@ export default function PartnerCard({ partner, onQuickBook, showNextStep = false
         )}
       </div>
 
-      {/* 下半部：透明背景區域 */}
-      <div className="bg-transparent p-4 text-white">
+      {/* 資訊區域 - 白色背景 */}
+      <div className="bg-white p-4">
         {/* 夥伴姓名 */}
-        <div className="mb-2">
-          <h3 className="font-bold text-white text-lg">{partner.name}</h3>
+        <div className="mb-3">
+          <h3 className="font-bold text-gray-800 text-lg">{partner.name}</h3>
         </div>
 
         {/* 遊戲標籤 */}
-        <div className="flex flex-wrap gap-1 mb-2">
-          {partner.games.slice(0, 1).map((game) => (
+        <div className="flex flex-wrap gap-2 mb-3">
+          {partner.games.slice(0, 3).map((game) => (
             <span
               key={game}
-              className="inline-block bg-purple-400 text-white px-2 py-1 rounded-full text-xs font-semibold"
+              className="inline-block bg-purple-100 text-purple-700 px-3 py-1 rounded-full text-sm font-medium border border-purple-200"
             >
               {game}
             </span>
           ))}
+          {partner.games.length > 3 && (
+            <span className="inline-block bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-sm font-medium">
+              +{partner.games.length - 3} 更多
+            </span>
+          )}
         </div>
 
         {/* 價格資訊 */}
         <div className="flex items-center justify-between">
-          <div className="text-lg font-bold text-white">
+          <div className="text-lg font-bold text-gray-800">
             ${partner.halfHourlyRate}/半小時
           </div>
           
@@ -182,9 +187,9 @@ export default function PartnerCard({ partner, onQuickBook, showNextStep = false
 
         {/* 留言板內容（翻面後顯示） */}
         {flipped && partner.customerMessage && (
-          <div className="mt-3 pt-3 border-t border-gray-600">
-            <div className="text-xs text-gray-400 mb-2">留言板：</div>
-            <div className="text-sm text-gray-300 bg-gray-800 p-3 rounded-lg">
+          <div className="mt-3 pt-3 border-t border-gray-200">
+            <div className="text-xs text-gray-500 mb-2">留言板：</div>
+            <div className="text-sm text-gray-700 bg-gray-50 p-3 rounded-lg border border-gray-200">
               {partner.customerMessage}
             </div>
           </div>

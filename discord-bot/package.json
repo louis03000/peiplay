@@ -1,0 +1,17 @@
+{
+  "name": "peiplay-discord-bot",
+  "version": "1.0.0",
+  "description": "PeiPlay Discord Bot for voice channel management",
+  "main": "bot.py",
+  "scripts": {
+    "start": "python bot.py",
+    "dev": "python bot.py",
+    "install-deps": "pip install -r requirements.txt"
+  },
+  "keywords": ["discord", "bot", "voice", "peiplay"],
+  "author": "PeiPlay Team",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  }
+} 
