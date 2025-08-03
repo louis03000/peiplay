@@ -31,8 +31,8 @@ export async function GET() {
       // 取得 user 資料
       const user = await prisma.user.findUnique({ where: { id: userId } });
       if (!user || !user.name || !user.birthday || !user.phone) {
-        // 缺少必要欄位，無法自動建立
-        return NextResponse.json({ bookings: [] });
+        // 缺少必要欄位，回傳明確錯誤
+        return NextResponse.json({ error: '請先到個人資料頁面補齊姓名、生日、電話，才能查詢預約紀錄' }, { status: 400 });
       }
       // 自動建立 customer
       customer = await prisma.customer.create({
