@@ -56,6 +56,9 @@ export default function JoinPage() {
   const [customGame, setCustomGame] = useState('')
   const [showGuidelines, setShowGuidelines] = useState(false)
   const [inviteCode, setInviteCode] = useState('')
+  const [guidelinesReadTime, setGuidelinesReadTime] = useState(0)
+  const [canAgree, setCanAgree] = useState(false)
+  const [countdown, setCountdown] = useState(0)
 
   // 載入用戶資料
   useEffect(() => {
@@ -81,6 +84,37 @@ export default function JoinPage() {
   useEffect(() => {
     setValue('games', selectedGames, { shouldValidate: true });
   }, [selectedGames, setValue]);
+
+  // 處理規範閱讀倒計時
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    
+    if (showGuidelines && countdown > 0) {
+      timer = setTimeout(() => {
+        setCountdown(countdown - 1);
+        if (countdown - 1 === 0) {
+          setCanAgree(true);
+        }
+      }, 1000);
+    }
+    
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
+  }, [showGuidelines, countdown]);
+
+  // 當用戶點擊查看規範時開始倒計時
+  const handleShowGuidelines = () => {
+    if (!showGuidelines) {
+      setShowGuidelines(true);
+      setCountdown(10);
+      setCanAgree(false);
+    } else {
+      setShowGuidelines(false);
+      setCountdown(0);
+      setCanAgree(false);
+    }
+  };
 
   if (!session?.user?.id) {
     return (
@@ -388,12 +422,23 @@ export default function JoinPage() {
                     <h3 className="text-lg font-medium text-blue-900">📘 Peiplay 夥伴使用規範</h3>
                     <button
                       type="button"
-                      onClick={() => setShowGuidelines(!showGuidelines)}
+                      onClick={handleShowGuidelines}
                       className="text-blue-600 hover:text-blue-800 text-sm font-medium"
                     >
                       {showGuidelines ? '收起規範' : '查看完整規範'}
                     </button>
                   </div>
+                  
+                  {showGuidelines && countdown > 0 && (
+                    <div className="mb-4 p-3 bg-yellow-100 border border-yellow-300 rounded-lg">
+                      <div className="flex items-center justify-center space-x-2">
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-yellow-600"></div>
+                        <span className="text-yellow-800 font-medium">
+                          請仔細閱讀規範，{countdown} 秒後才能同意
+                        </span>
+                      </div>
+                    </div>
+                  )}
                   
                   {showGuidelines && (
                     <div className="text-sm text-blue-800 space-y-4">
@@ -452,10 +497,19 @@ export default function JoinPage() {
                       type="checkbox"
                       id="agreeGuidelines"
                       required
-                      className="mr-2 accent-blue-500"
+                      disabled={!canAgree}
+                      className={`mr-2 accent-blue-500 ${!canAgree ? 'opacity-50 cursor-not-allowed' : ''}`}
                     />
-                    <label htmlFor="agreeGuidelines" className="text-sm text-blue-800">
+                    <label 
+                      htmlFor="agreeGuidelines" 
+                      className={`text-sm ${!canAgree ? 'text-gray-500' : 'text-blue-800'}`}
+                    >
                       我已詳閱並同意遵守 Peiplay 夥伴使用規範
+                      {!canAgree && showGuidelines && (
+                        <span className="ml-2 text-xs text-yellow-600">
+                          (請等待 {countdown} 秒)
+                        </span>
+                      )}
                     </label>
                     <a
                       href="/guidelines"
