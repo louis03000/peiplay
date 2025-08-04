@@ -55,8 +55,7 @@ export default function PartnerCard({ partner, onQuickBook, showNextStep = false
     : partner.coverImage
 
   const handleCardClick = useCallback((e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
+    // 移除 e.preventDefault() 和 e.stopPropagation()，讓事件可以冒泡
     if (onFlip) {
       onFlip();
     }
