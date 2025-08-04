@@ -49,9 +49,7 @@ export async function GET() {
           lte: reminderWindow.end,
         },
         bookings: {
-          some: {
-            status: 'CONFIRMED',
-          },
+          status: 'CONFIRMED',
         },
       },
       include: {
@@ -66,7 +64,7 @@ export async function GET() {
     // 過濾出需要提醒的時段
     const reminders = schedules
       .map((schedule): Reminder | null => {
-        const booking = schedule.bookings[0]
+        const booking = schedule.bookings
         if (!booking) return null
 
         const scheduleTime = new Date(

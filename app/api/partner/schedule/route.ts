@@ -113,7 +113,7 @@ export async function GET(request: Request) {
     // 加上 booked 屬性
     const result = schedules.map(s => ({
       ...s,
-      booked: s.bookings.some(b => b.status === 'CONFIRMED' || b.status === 'PENDING'),
+      booked: s.bookings ? (s.bookings.status === 'CONFIRMED' || s.bookings.status === 'PENDING') : false,
     }))
     // 新增 debug log
     console.log('[GET /api/partner/schedule]', {
@@ -152,7 +152,7 @@ export async function DELETE(request: Request) {
     },
     include: { bookings: true },
   })
-  const deletable = schedules.filter(s => !s.bookings.some(b => b.status === 'CONFIRMED' || b.status === 'PENDING'))
+  const deletable = schedules.filter(s => !s.bookings || (s.bookings.status !== 'CONFIRMED' && s.bookings.status !== 'PENDING'))
   const ids = deletable.map(s => s.id)
   if (ids.length === 0) {
     return NextResponse.json({ error: '沒有可刪除的時段（可能已被預約）' }, { status: 409 })

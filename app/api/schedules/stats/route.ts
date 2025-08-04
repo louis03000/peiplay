@@ -11,10 +11,10 @@ interface ScheduleWithBookings {
   date: Date
   startTime: Date
   endTime: Date
-  bookings: Array<{
+  bookings: {
     id: string
     status: string
-  }>
+  } | null
 }
 
 export async function GET(request: Request) {
@@ -60,7 +60,7 @@ export async function GET(request: Request) {
     // 計算使用率
     const totalSlots = schedules.length
     const bookedSlots = schedules.filter(
-      (schedule) => schedule.bookings.length > 0
+      (schedule) => schedule.bookings !== null
     ).length
     const utilizationRate = totalSlots > 0 ? (bookedSlots / totalSlots) * 100 : 0
 
@@ -90,7 +90,7 @@ export async function GET(request: Request) {
       )
       const weekTotalSlots = weekSchedules.length
       const weekBookedSlots = weekSchedules.filter(
-        (schedule) => schedule.bookings.length > 0
+        (schedule) => schedule.bookings !== null
       ).length
       const weekUtilizationRate =
         weekTotalSlots > 0 ? (weekBookedSlots / weekTotalSlots) * 100 : 0

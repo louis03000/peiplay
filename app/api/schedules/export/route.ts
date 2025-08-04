@@ -76,7 +76,7 @@ export async function GET(request: Request) {
       ]
 
       const rows = schedules.map((schedule) => {
-        const booking = schedule.bookings[0]
+        const booking = schedule.bookings
         return [
           format(new Date(schedule.date), 'yyyy年MM月dd日', { locale: zhTW }),
           new Date(schedule.startTime).toISOString(),

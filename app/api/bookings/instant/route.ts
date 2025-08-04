@@ -45,6 +45,9 @@ export async function POST(request: NextRequest) {
     const startTime = new Date(now.getTime() + 15 * 60 * 1000) // 15分鐘後開始
     const endTime = new Date(startTime.getTime() + duration * 60 * 60 * 1000) // 加上預約時長
 
+    // 計算金額
+    const totalAmount = duration * partner.halfHourlyRate * 2 // 每小時 = 2個半小時
+
     // 創建預約記錄
     const booking = await prisma.booking.create({
       data: {
@@ -52,6 +55,8 @@ export async function POST(request: NextRequest) {
         scheduleId: 'instant-booking', // 使用特殊標識符
         status: 'CONFIRMED',
         orderNumber: `INST-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        originalAmount: totalAmount,
+        finalAmount: totalAmount,
         paymentInfo: {
           type: 'instant',
           duration: duration,

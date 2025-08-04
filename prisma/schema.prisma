@@ -89,6 +89,9 @@ model Booking {
   customerId   String
   scheduleId   String        @unique
   status       BookingStatus @default(PENDING)
+  orderNumber  String?       // 訂單編號
+  paymentInfo  Json?         // 付款資訊
+  paymentError String?       // 付款錯誤訊息
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
   reminderSent Boolean       @default(false)

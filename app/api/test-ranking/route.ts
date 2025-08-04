@@ -94,6 +94,8 @@ export async function POST() {
           customerId: customer.id,
           scheduleId: morningSchedule.id,
           status: 'COMPLETED',
+          originalAmount: 3000, // 3小時 * 500元/半小時 * 2
+          finalAmount: 3000,
         },
       })
 
@@ -102,6 +104,8 @@ export async function POST() {
           customerId: customer.id,
           scheduleId: afternoonSchedule.id,
           status: 'COMPLETED',
+          originalAmount: 3000, // 3小時 * 500元/半小時 * 2
+          finalAmount: 3000,
         },
       })
     }
@@ -154,6 +158,8 @@ export async function POST() {
           customerId: customer.id,
           scheduleId: schedule.id,
           status: 'COMPLETED',
+          originalAmount: 1000, // 1小時 * 500元/半小時 * 2
+          finalAmount: 1000,
         },
       })
     }

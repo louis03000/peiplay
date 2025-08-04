@@ -62,6 +62,8 @@ export async function POST(request: Request) {
               customerId: customer.id,
               scheduleId: scheduleId,
               status: 'PENDING' as any,
+              originalAmount: 0, // 暫時設為 0，後續會更新
+              finalAmount: 0,    // 暫時設為 0，後續會更新
             },
           })
         )

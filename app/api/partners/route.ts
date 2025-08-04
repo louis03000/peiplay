@@ -89,9 +89,10 @@ export async function GET(request: Request) {
       if (!partner.user) return true;
       
       // 檢查是否被停權
-      if (partner.user.isSuspended) {
+      const user = partner.user as any;
+      if (user.isSuspended) {
         const now = new Date();
-        const endsAt = partner.user.suspensionEndsAt ? new Date(partner.user.suspensionEndsAt) : null;
+        const endsAt = user.suspensionEndsAt ? new Date(user.suspensionEndsAt) : null;
         
         // 如果停權時間還沒到，則過濾掉
         if (endsAt && endsAt > now) {
