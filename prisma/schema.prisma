@@ -1,9 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -14,28 +8,122 @@ datasource db {
 }
 
 model User {
-  id            String    @id @default(cuid())
-  email         String    @unique
-  password      String
-  name          String?
-  birthday      DateTime?
-  phone         String?
-  role          UserRole  @default(CUSTOMER)
-  discord       String?
-  customer      Customer?
-  partner       Partner?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  reviewsGiven   Review[] @relation("Reviewer")
-  reviewsReceived Review[] @relation("Reviewee")
-  
-  // 2FA fields
-  twoFactorSecret String?
-  isTwoFactorEnabled Boolean @default(false)
-  
-  // Rate limiting fields
-  loginAttempts Int @default(0)
-  lockUntil DateTime?
+  id                 String    @id @default(cuid())
+  email              String    @unique
+  password           String
+  name               String?
+  birthday           DateTime?
+  phone              String?
+  role               UserRole  @default(CUSTOMER)
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  isTwoFactorEnabled Boolean   @default(false)
+  lockUntil          DateTime?
+  loginAttempts      Int       @default(0)
+  twoFactorSecret    String?
+  discord            String?
+  // Suspension fields
+  isSuspended        Boolean   @default(false)
+  suspensionReason   String?
+  suspensionEndsAt   DateTime?
+  customer           Customer?
+  partner            Partner?
+  reviewsReceived    Review[]  @relation("Reviewee")
+  reviewsGiven       Review[]  @relation("Reviewer")
+}
+
+model Partner {
+  id              String        @id @default(cuid())
+  name            String
+  birthday        DateTime
+  phone           String
+  coverImage      String
+  games           String[]
+  bankAccount     String?
+  inviteCode      String?
+  invitedBy       String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  isAvailableNow  Boolean       @default(false)
+  userId          String        @unique
+  status          PartnerStatus @default(PENDING)
+  isRankBooster   Boolean       @default(false)
+  rankBoosterNote String?
+  rankBoosterRank String?
+  customerMessage String?
+  halfHourlyRate  Float
+  images          String[]      @default([])
+  user            User          @relation(fields: [userId], references: [id])
+  schedules       Schedule[]
+}
+
+model Customer {
+  id        String    @id @default(cuid())
+  name      String
+  birthday  DateTime
+  phone     String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  lineId    String?   @unique
+  userId    String    @unique
+  bookings  Booking[]
+  user      User      @relation(fields: [userId], references: [id])
+  orders    Order[]
+}
+
+model Schedule {
+  id          String   @id @default(cuid())
+  partnerId   String
+  date        DateTime
+  startTime   DateTime
+  endTime     DateTime
+  isAvailable Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  bookings    Booking?
+  partner     Partner  @relation(fields: [partnerId], references: [id])
+}
+
+model Booking {
+  id           String        @id @default(cuid())
+  customerId   String
+  scheduleId   String        @unique
+  status       BookingStatus @default(PENDING)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  reminderSent Boolean       @default(false)
+  rejectReason String?
+  promoCode    String?
+  discountAmount Float       @default(0)
+  originalAmount Float
+  finalAmount   Float
+  customer     Customer      @relation(fields: [customerId], references: [id])
+  schedule     Schedule      @relation(fields: [scheduleId], references: [id])
+  orders       Order[]
+  reviews      Review[]
+}
+
+model Order {
+  id         String   @id @default(cuid())
+  customerId String
+  bookingId  String
+  amount     Int
+  createdAt  DateTime @default(now())
+  booking    Booking  @relation(fields: [bookingId], references: [id])
+  customer   Customer @relation(fields: [customerId], references: [id])
+}
+
+model Review {
+  id         String   @id @default(cuid())
+  bookingId  String
+  reviewerId String
+  revieweeId String
+  rating     Int
+  comment    String?
+  createdAt  DateTime @default(now())
+  booking    Booking  @relation(fields: [bookingId], references: [id])
+  reviewee   User     @relation("Reviewee", fields: [revieweeId], references: [id])
+  reviewer   User     @relation("Reviewer", fields: [reviewerId], references: [id])
 }
 
 enum UserRole {
@@ -44,109 +132,36 @@ enum UserRole {
   ADMIN
 }
 
-model Partner {
-  id          String      @id @default(cuid())
-  userId      String      @unique
-  user        User        @relation(fields: [userId], references: [id])
-  name        String
-  birthday    DateTime
-  phone       String
-  coverImage  String
-  images      String[]    @default([]) // 新增多張圖片支援
-  games       String[]
-  halfHourlyRate  Float
-  schedules   Schedule[]
-  isAvailableNow Boolean  @default(false)
-  isRankBooster Boolean  @default(false)
-  rankBoosterNote String?
-  rankBoosterRank String?
-  customerMessage String?
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
-  status      PartnerStatus @default(PENDING)
-}
-
 enum PartnerStatus {
   PENDING
   APPROVED
   REJECTED
 }
 
-model Customer {
-  id          String      @id @default(cuid())
-  userId      String      @unique
-  user        User        @relation(fields: [userId], references: [id])
-  name        String
-  birthday    DateTime
-  phone       String
-  bookings    Booking[]
-  orders      Order[]
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
-  lineId      String?     @unique
-}
-
-model Schedule {
-  id          String      @id @default(cuid())
-  partnerId   String
-  partner     Partner     @relation(fields: [partnerId], references: [id])
-  date        DateTime
-  startTime   DateTime
-  endTime     DateTime
-  isAvailable Boolean     @default(true)
-  bookings    Booking[]
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
-}
-
-model Booking {
-  id          String      @id @default(cuid())
-  customerId  String
-  customer    Customer    @relation(fields: [customerId], references: [id])
-  scheduleId  String      @unique
-  schedule    Schedule    @relation(fields: [scheduleId], references: [id])
-  status      BookingStatus @default(PENDING)
-  rejectReason String?
-  orderNumber String?     // 綠界訂單編號
-  paymentInfo Json?       // 付款資訊
-  paymentError String?    // 付款錯誤訊息
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
-  reminderSent Boolean   @default(false)
-  orders      Order[]
-  reviews     Review[]
-}
-
 enum BookingStatus {
   PENDING
   CONFIRMED
-  REJECTED
   CANCELLED
   COMPLETED
-  PENDING_PAYMENT  // 等待付款
+  REJECTED
 }
 
-model Order {
-  id          String   @id @default(cuid())
-  customerId  String
-  bookingId   String
-  amount      Int
-  createdAt   DateTime @default(now())
-
-  customer    Customer @relation(fields: [customerId], references: [id])
-  booking     Booking  @relation(fields: [bookingId], references: [id])
+model PromoCode {
+  id          String        @id @default(cuid())
+  code        String        @unique
+  type        PromoCodeType
+  value       Float         // 折扣值或固定減免金額
+  maxUses     Int           @default(-1) // -1 表示無限制
+  usedCount   Int           @default(0)
+  validFrom   DateTime      @default(now())
+  validUntil  DateTime?
+  isActive    Boolean       @default(true)
+  description String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
 }
 
-model Review {
-  id          String   @id @default(cuid())
-  bookingId   String
-  reviewerId  String   // User id
-  revieweeId  String   // User id
-  rating      Int
-  comment     String?
-  createdAt   DateTime @default(now())
-
-  booking     Booking  @relation(fields: [bookingId], references: [id])
-  reviewer    User     @relation("Reviewer", fields: [reviewerId], references: [id])
-  reviewee    User     @relation("Reviewee", fields: [revieweeId], references: [id])
+enum PromoCodeType {
+  PERCENTAGE  // 百分比折扣
+  FIXED       // 固定金額減免
 }

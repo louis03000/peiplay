@@ -55,6 +55,12 @@ export async function GET(request: Request) {
         rankBoosterNote: true,
         rankBoosterRank: true,
         customerMessage: true,
+        user: {
+          select: {
+            isSuspended: true,
+            suspensionEndsAt: true
+          }
+        },
         schedules: {
           where: {
             date: scheduleDateFilter,
@@ -77,6 +83,24 @@ export async function GET(request: Request) {
       // 只有在沒有篩選條件時才過濾掉沒有時段的夥伴
       partnersWithSchedules = partners.filter(partner => partner.schedules.length > 0);
     }
+
+    // 過濾掉被停權的夥伴
+    partnersWithSchedules = partnersWithSchedules.filter(partner => {
+      if (!partner.user) return true;
+      
+      // 檢查是否被停權
+      if (partner.user.isSuspended) {
+        const now = new Date();
+        const endsAt = partner.user.suspensionEndsAt ? new Date(partner.user.suspensionEndsAt) : null;
+        
+        // 如果停權時間還沒到，則過濾掉
+        if (endsAt && endsAt > now) {
+          return false;
+        }
+      }
+      
+      return true;
+    });
     
     // 遊戲搜尋篩選（不區分大小寫）
     if (game && game.trim()) {
@@ -109,7 +133,7 @@ export async function POST(request: Request) {
     }
     data = await request.json()
     // 驗證必填欄位（移除 userId）
-    const requiredFields = ['name', 'birthday', 'phone', 'halfHourlyRate', 'games', 'coverImage']
+    const requiredFields = ['name', 'birthday', 'phone', 'halfHourlyRate', 'games', 'coverImage', 'bankAccount']
     for (const field of requiredFields) {
       if (!data[field]) {
         return NextResponse.json(
@@ -143,6 +167,7 @@ export async function POST(request: Request) {
         halfHourlyRate: data.halfHourlyRate,
         games: data.games,
         coverImage: data.coverImage,
+        bankAccount: data.bankAccount,
       },
     })
     return NextResponse.json(partner)

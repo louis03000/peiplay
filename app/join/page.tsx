@@ -18,6 +18,8 @@ const partnerSchema = z.object({
   halfHourlyRate: z.number().min(1, '請設定每半小時收費'),
   games: z.array(z.string()).min(1, '請至少選擇一個遊戲').max(MAX_GAMES, '最多 10 個遊戲'),
   coverImage: z.string().min(1, '請上傳封面照片'),
+  bankAccount: z.string().min(1, '請填寫銀行帳戶資訊'),
+  inviteCode: z.string().optional(),
 })
 
 type PartnerFormData = z.infer<typeof partnerSchema>
@@ -52,6 +54,8 @@ export default function JoinPage() {
   const [error, setError] = useState<string>('')
   const [selectedGames, setSelectedGames] = useState<string[]>([])
   const [customGame, setCustomGame] = useState('')
+  const [showGuidelines, setShowGuidelines] = useState(false)
+  const [inviteCode, setInviteCode] = useState('')
 
   // 載入用戶資料
   useEffect(() => {
@@ -120,6 +124,8 @@ export default function JoinPage() {
           coverImage: coverImageUrl,
           games,
           halfHourlyRate: data.halfHourlyRate,
+          bankAccount: data.bankAccount,
+          inviteCode: inviteCode.trim() || undefined,
         }),
       })
       const text = await response.text();
@@ -330,6 +336,134 @@ export default function JoinPage() {
                         {errors.coverImage.message}
                       </p>
                     )}
+                  </div>
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="bankAccount"
+                    className="block text-sm font-medium text-gray-700"
+                  >
+                    銀行帳戶資訊
+                  </label>
+                  <div className="mt-1">
+                    <input
+                      type="text"
+                      {...register('bankAccount')}
+                      placeholder="請填寫銀行代碼、帳號、戶名（例：123-4567890123456 王小明）"
+                      className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md text-black"
+                    />
+                    {errors.bankAccount && (
+                      <p className="mt-2 text-sm text-red-600">
+                        {errors.bankAccount.message}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="inviteCode"
+                    className="block text-sm font-medium text-gray-700"
+                  >
+                    邀請碼（選填）
+                  </label>
+                  <div className="mt-1">
+                    <input
+                      type="text"
+                      value={inviteCode}
+                      onChange={(e) => setInviteCode(e.target.value)}
+                      placeholder="輸入朋友的邀請碼獲得優惠"
+                      className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md text-black"
+                    />
+                    <p className="mt-1 text-xs text-gray-500">
+                      邀請碼可以獲得額外優惠，讓朋友邀請你加入吧！
+                    </p>
+                  </div>
+                </div>
+
+                {/* 夥伴規範 */}
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-medium text-blue-900">📘 Peiplay 夥伴使用規範</h3>
+                    <button
+                      type="button"
+                      onClick={() => setShowGuidelines(!showGuidelines)}
+                      className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                    >
+                      {showGuidelines ? '收起規範' : '查看完整規範'}
+                    </button>
+                  </div>
+                  
+                  {showGuidelines && (
+                    <div className="text-sm text-blue-800 space-y-4">
+                      <div>
+                        <h4 className="font-semibold mb-2">✅ 一、基本行為規範</h4>
+                        <ul className="list-disc list-inside space-y-1 ml-4">
+                          <li>不得提供任何超出平台列明之服務項目</li>
+                          <li>不得引導客戶至平台以外進行交易或私下聯絡</li>
+                          <li>不得散播不實言論或抹平台形象</li>
+                          <li>不得擅自承諾或提供非平台允許之優惠、時數或贈品</li>
+                          <li>不得冒用他人身份或使用虛假資料註冊</li>
+                          <li>不得與顧客發展曖昧、親密或私密性質之互動</li>
+                        </ul>
+                      </div>
+                      
+                      <div>
+                        <h4 className="font-semibold mb-2">🔧 二、接單與服務規範</h4>
+                        <ul className="list-disc list-inside space-y-1 ml-4">
+                          <li>接單後需準時上線，遲到超過 10 分鐘視為違規一次</li>
+                          <li>無正當理由連續缺席 2 次以上，平台將自動暫停接單權限</li>
+                          <li>如需請假或暫停服務，請於預約時間前 3 小時通知平台與顧客</li>
+                          <li>服務時須保持禮貌、耐心、專業，不得與顧客爭執或情緒失控</li>
+                          <li>服務中不得從事長時間靜音、無回應或離席等行為</li>
+                        </ul>
+                      </div>
+                      
+                      <div>
+                        <h4 className="font-semibold mb-2">🔒 三、資訊與隱私規範</h4>
+                        <ul className="list-disc list-inside space-y-1 ml-4">
+                          <li>不得洩露顧客個資（如姓名、照片、聯絡方式等）</li>
+                          <li>平台提供的帳號、後台資訊不得外流或借用他人使用</li>
+                          <li>不得擅自拍攝、錄音、錄影或截圖顧客對話內容公開分享</li>
+                        </ul>
+                      </div>
+                      
+                      <div>
+                        <h4 className="font-semibold mb-2">🚨 四、違規處理與懲處機制</h4>
+                        <ul className="list-disc list-inside space-y-1 ml-4">
+                          <li>輕度：口頭或書面警告一次</li>
+                          <li>中度：暫停接單 7 天，需教育後復權</li>
+                          <li>嚴重：永久停權，無法再登錄或重新註冊</li>
+                        </ul>
+                      </div>
+                      
+                      <div className="bg-yellow-50 border border-yellow-200 rounded p-3">
+                        <p className="text-yellow-800 text-xs">
+                          📌 提醒：此規範目的為維護所有誠實、認真服務的夥伴，也保護顧客不受傷害。
+                          若有疑慮、申訴或建議，歡迎聯繫管理團隊。
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                  
+                  <div className="flex items-center mt-4">
+                    <input
+                      type="checkbox"
+                      id="agreeGuidelines"
+                      required
+                      className="mr-2 accent-blue-500"
+                    />
+                    <label htmlFor="agreeGuidelines" className="text-sm text-blue-800">
+                      我已詳閱並同意遵守 Peiplay 夥伴使用規範
+                    </label>
+                    <a
+                      href="/guidelines"
+                      target="_blank"
+                      className="ml-2 text-xs text-blue-600 hover:text-blue-800 underline"
+                    >
+                      查看完整規範
+                    </a>
                   </div>
                 </div>
 

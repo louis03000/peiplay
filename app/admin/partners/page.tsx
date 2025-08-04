@@ -63,7 +63,23 @@ export default function AdminPartnersPage() {
 
   return (
     <div className="max-w-3xl mx-auto py-8 pt-32">
-      <h1 className="text-2xl font-bold mb-6">夥伴申請審核</h1>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold">夥伴申請審核</h1>
+        <div className="flex gap-2">
+          <a
+            href="/admin/promo-codes"
+            className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 transition-colors"
+          >
+            優惠碼管理
+          </a>
+          <a
+            href="/admin/users"
+            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+          >
+            用戶管理
+          </a>
+        </div>
+      </div>
       <div className="mb-6 flex justify-end">
         <button
           className="px-6 py-2 rounded bg-gradient-to-r from-green-500 to-blue-500 text-white font-bold shadow hover:scale-105 transition-transform"

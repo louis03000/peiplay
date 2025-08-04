@@ -69,6 +69,10 @@ function BookingWizardContent() {
   const [loading, setLoading] = useState(true)
   const [isProcessing, setIsProcessing] = useState(false)
   const [flippedCards, setFlippedCards] = useState<Set<string>>(new Set())
+  const [promoCode, setPromoCode] = useState('')
+  const [promoCodeResult, setPromoCodeResult] = useState<any>(null)
+  const [promoCodeError, setPromoCodeError] = useState('')
+  const [isValidatingPromoCode, setIsValidatingPromoCode] = useState(false)
   
   // 防抖搜尋
   const debouncedSearch = useDebounce(search, 300)
@@ -84,6 +88,41 @@ function BookingWizardContent() {
       }
       return newSet;
     });
+  };
+
+  // 驗證優惠碼
+  const validatePromoCode = async () => {
+    if (!promoCode.trim() || !selectedPartner) return;
+
+    setIsValidatingPromoCode(true);
+    setPromoCodeError('');
+
+    try {
+      const originalAmount = onlyAvailable 
+        ? selectedDuration * selectedPartner.halfHourlyRate * 2
+        : selectedTimes.length * selectedPartner.halfHourlyRate;
+
+      const res = await fetch('/api/promo-codes/validate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: promoCode.trim(), amount: originalAmount })
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        setPromoCodeResult(data);
+        setPromoCodeError('');
+      } else {
+        setPromoCodeError(data.error || '優惠碼驗證失敗');
+        setPromoCodeResult(null);
+      }
+    } catch (error) {
+      setPromoCodeError('優惠碼驗證失敗');
+      setPromoCodeResult(null);
+    } finally {
+      setIsValidatingPromoCode(false);
+    }
   };
 
   // 處理 URL 參數
@@ -569,6 +608,44 @@ function BookingWizardContent() {
                       : selectedTimes.length * selectedPartner.halfHourlyRate
                     }
                   </span>
+                </div>
+
+                {/* 優惠碼輸入 */}
+                <div className="border-t border-gray-600 pt-4 mt-4">
+                  <div className="flex gap-2 mb-2">
+                    <input
+                      type="text"
+                      value={promoCode}
+                      onChange={(e) => setPromoCode(e.target.value)}
+                      placeholder="輸入優惠碼"
+                      className="flex-1 px-3 py-2 bg-gray-700 text-white rounded border border-gray-600 focus:border-indigo-500 focus:outline-none"
+                    />
+                    <button
+                      onClick={validatePromoCode}
+                      disabled={!promoCode.trim() || isValidatingPromoCode}
+                      className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isValidatingPromoCode ? '驗證中...' : '驗證'}
+                    </button>
+                  </div>
+                  
+                  {promoCodeError && (
+                    <p className="text-red-400 text-sm">{promoCodeError}</p>
+                  )}
+                  
+                  {promoCodeResult && (
+                    <div className="bg-green-900/30 border border-green-500 rounded p-3">
+                      <p className="text-green-400 text-sm font-medium">
+                        ✅ 優惠碼已應用：{promoCodeResult.promoCode.code}
+                      </p>
+                      <p className="text-green-300 text-xs">
+                        折扣：-${promoCodeResult.discountAmount}
+                      </p>
+                      <p className="text-white text-sm font-bold">
+                        最終費用：${promoCodeResult.finalAmount}
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
