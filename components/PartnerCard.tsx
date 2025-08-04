@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from 'react'
 import Image from 'next/image'
-import { FaBolt, FaCrown, FaMedal, FaTrophy, FaComments, FaHeart, FaStar } from 'react-icons/fa'
+import { FaBolt, FaCrown, FaMedal, FaTrophy, FaComments, FaHeart, FaStar, FaQuoteLeft, FaQuoteRight } from 'react-icons/fa'
 
 interface Partner {
   id: string
@@ -193,65 +193,91 @@ export default function PartnerCard({ partner, onQuickBook, showNextStep = false
           </div>
         </div>
       ) : (
-        <div className="relative h-64 bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900 flex flex-col justify-center items-center overflow-hidden">
-          {/* 背景裝飾元素 */}
-          <div className="absolute inset-0 opacity-10">
-            <div className="absolute top-4 left-4 w-8 h-8 border-2 border-white/30 rounded-full"></div>
-            <div className="absolute top-8 right-8 w-4 h-4 bg-white/20 rounded-full"></div>
-            <div className="absolute bottom-6 left-8 w-6 h-6 border border-white/20 rounded-full"></div>
-            <div className="absolute bottom-4 right-4 w-3 h-3 bg-white/30 rounded-full"></div>
+        <div className="relative h-64 bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex flex-col justify-center items-center overflow-hidden">
+          {/* 高級背景裝飾 */}
+          <div className="absolute inset-0">
+            {/* 網格背景 */}
+            <div className="absolute inset-0 opacity-5">
+              <div className="w-full h-full" style={{
+                backgroundImage: `radial-gradient(circle at 25% 25%, rgba(255,255,255,0.1) 1px, transparent 1px),
+                                radial-gradient(circle at 75% 75%, rgba(255,255,255,0.1) 1px, transparent 1px)`,
+                backgroundSize: '20px 20px'
+              }}></div>
+            </div>
+            
+            {/* 光暈效果 */}
+            <div className="absolute top-1/4 left-1/4 w-32 h-32 bg-purple-500/20 rounded-full blur-3xl"></div>
+            <div className="absolute bottom-1/4 right-1/4 w-24 h-24 bg-pink-500/20 rounded-full blur-2xl"></div>
+            
+            {/* 裝飾性線條 */}
+            <div className="absolute top-8 left-8 w-16 h-px bg-gradient-to-r from-transparent via-white/30 to-transparent"></div>
+            <div className="absolute bottom-8 right-8 w-16 h-px bg-gradient-to-r from-transparent via-white/30 to-transparent"></div>
           </div>
           
-          {/* 留言板內容（僅翻面時顯示） */}
+          {/* 留言板內容 */}
           {partner.customerMessage ? (
             <div className="w-full px-6 relative z-10">
               {/* 標題區域 */}
-              <div className="flex items-center justify-center mb-4">
-                <div className="flex items-center gap-2 bg-white/10 backdrop-blur-sm px-4 py-2 rounded-full border border-white/20">
-                  <FaComments className="text-white/80 text-sm" />
-                  <span className="text-white/90 text-sm font-medium">留言板</span>
+              <div className="flex items-center justify-center mb-6">
+                <div className="flex items-center gap-3 bg-white/5 backdrop-blur-sm px-6 py-3 rounded-full border border-white/10 shadow-lg">
+                  <div className="w-8 h-8 bg-gradient-to-br from-purple-400 to-pink-400 rounded-full flex items-center justify-center">
+                    <FaComments className="text-white text-sm" />
+                  </div>
+                  <span className="text-white/90 text-sm font-semibold tracking-wide">MESSAGE BOARD</span>
                 </div>
               </div>
               
               {/* 主要留言內容 */}
               <div className="relative">
-                {/* 裝飾性引號 */}
-                <div className="absolute -top-2 -left-2 text-white/20 text-2xl">"</div>
-                <div className="absolute -bottom-2 -right-2 text-white/20 text-2xl">"</div>
+                {/* 引號裝飾 */}
+                <div className="absolute -top-3 -left-3 text-purple-300/30 text-3xl">
+                  <FaQuoteLeft />
+                </div>
+                <div className="absolute -bottom-3 -right-3 text-purple-300/30 text-3xl">
+                  <FaQuoteRight />
+                </div>
                 
                 {/* 留言卡片 */}
-                <div className="bg-white/15 backdrop-blur-md p-4 rounded-xl border border-white/25 shadow-2xl relative overflow-hidden">
-                  {/* 漸層背景效果 */}
-                  <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-white/5"></div>
+                <div className="relative bg-white/8 backdrop-blur-md p-6 rounded-2xl border border-white/15 shadow-2xl overflow-hidden">
+                  {/* 內部光暈 */}
+                  <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 to-pink-500/10"></div>
                   
                   {/* 內容 */}
                   <div className="relative z-10">
-                    <p className="text-white text-sm leading-relaxed font-medium">
+                    <p className="text-white/95 text-sm leading-relaxed font-medium tracking-wide">
                       {partner.customerMessage}
                     </p>
                   </div>
                   
                   {/* 底部裝飾 */}
-                  <div className="absolute bottom-2 right-2 flex gap-1">
-                    <FaHeart className="text-pink-300 text-xs" />
-                    <FaStar className="text-yellow-300 text-xs" />
+                  <div className="absolute bottom-3 right-3 flex gap-2">
+                    <div className="w-2 h-2 bg-gradient-to-r from-pink-400 to-purple-400 rounded-full animate-pulse"></div>
+                    <div className="w-2 h-2 bg-gradient-to-r from-purple-400 to-blue-400 rounded-full animate-pulse" style={{animationDelay: '0.5s'}}></div>
                   </div>
                 </div>
               </div>
               
               {/* 底部提示 */}
-              <div className="text-center mt-3">
-                <p className="text-white/60 text-xs">點擊卡片返回正面</p>
+              <div className="text-center mt-4">
+                <div className="inline-flex items-center gap-2 bg-white/5 backdrop-blur-sm px-4 py-2 rounded-full border border-white/10">
+                  <div className="w-1 h-1 bg-white/60 rounded-full"></div>
+                  <p className="text-white/50 text-xs tracking-wide">CLICK TO RETURN</p>
+                  <div className="w-1 h-1 bg-white/60 rounded-full"></div>
+                </div>
               </div>
             </div>
           ) : (
-            <div className="text-center">
-              <div className="mb-4">
-                <FaComments className="text-white/40 text-4xl mx-auto mb-2" />
-                <p className="text-white/60 text-sm">暫無留言</p>
+            <div className="text-center relative z-10">
+              <div className="mb-6">
+                <div className="w-16 h-16 bg-gradient-to-br from-purple-400 to-pink-400 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
+                  <FaComments className="text-white text-xl" />
+                </div>
+                <p className="text-white/60 text-sm tracking-wide">NO MESSAGE</p>
               </div>
-              <div className="text-center">
-                <p className="text-white/40 text-xs">點擊卡片返回正面</p>
+              <div className="inline-flex items-center gap-2 bg-white/5 backdrop-blur-sm px-4 py-2 rounded-full border border-white/10">
+                <div className="w-1 h-1 bg-white/60 rounded-full"></div>
+                <p className="text-white/50 text-xs tracking-wide">CLICK TO RETURN</p>
+                <div className="w-1 h-1 bg-white/60 rounded-full"></div>
               </div>
             </div>
           )}
