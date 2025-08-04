@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from 'react'
 import Image from 'next/image'
-import { FaBolt, FaCrown, FaMedal, FaTrophy } from 'react-icons/fa'
+import { FaBolt, FaCrown, FaMedal, FaTrophy, FaComments, FaHeart, FaStar } from 'react-icons/fa'
 
 interface Partner {
   id: string
@@ -64,8 +64,8 @@ export default function PartnerCard({ partner, onQuickBook, showNextStep = false
 
   return (
     <div
-      className={`relative bg-white rounded-2xl shadow-lg overflow-hidden transition-all duration-300 border border-gray-200 cursor-pointer ${
-        flipped ? 'ring-4 ring-indigo-400 shadow-2xl' : 'hover:shadow-xl'
+      className={`relative bg-white rounded-2xl shadow-lg overflow-hidden transition-all duration-500 border border-gray-200 cursor-pointer transform ${
+        flipped ? 'ring-4 ring-indigo-400 shadow-2xl scale-105' : 'hover:shadow-xl hover:scale-102'
       }`}
       onClick={handleCardClick}
     >
@@ -193,13 +193,65 @@ export default function PartnerCard({ partner, onQuickBook, showNextStep = false
           </div>
         </div>
       ) : (
-        <div className="relative h-64 bg-black flex flex-col justify-center items-center">
+        <div className="relative h-64 bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900 flex flex-col justify-center items-center overflow-hidden">
+          {/* 背景裝飾元素 */}
+          <div className="absolute inset-0 opacity-10">
+            <div className="absolute top-4 left-4 w-8 h-8 border-2 border-white/30 rounded-full"></div>
+            <div className="absolute top-8 right-8 w-4 h-4 bg-white/20 rounded-full"></div>
+            <div className="absolute bottom-6 left-8 w-6 h-6 border border-white/20 rounded-full"></div>
+            <div className="absolute bottom-4 right-4 w-3 h-3 bg-white/30 rounded-full"></div>
+          </div>
+          
           {/* 留言板內容（僅翻面時顯示） */}
-          {partner.customerMessage && (
-            <div className="w-full px-6">
-              <div className="text-xs text-white/90 mb-2 drop-shadow-lg">留言板：</div>
-              <div className="text-sm text-white bg-black/60 backdrop-blur-sm p-3 rounded-lg border border-white/20 shadow-lg">
-                {partner.customerMessage}
+          {partner.customerMessage ? (
+            <div className="w-full px-6 relative z-10">
+              {/* 標題區域 */}
+              <div className="flex items-center justify-center mb-4">
+                <div className="flex items-center gap-2 bg-white/10 backdrop-blur-sm px-4 py-2 rounded-full border border-white/20">
+                  <FaComments className="text-white/80 text-sm" />
+                  <span className="text-white/90 text-sm font-medium">留言板</span>
+                </div>
+              </div>
+              
+              {/* 主要留言內容 */}
+              <div className="relative">
+                {/* 裝飾性引號 */}
+                <div className="absolute -top-2 -left-2 text-white/20 text-2xl">"</div>
+                <div className="absolute -bottom-2 -right-2 text-white/20 text-2xl">"</div>
+                
+                {/* 留言卡片 */}
+                <div className="bg-white/15 backdrop-blur-md p-4 rounded-xl border border-white/25 shadow-2xl relative overflow-hidden">
+                  {/* 漸層背景效果 */}
+                  <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-white/5"></div>
+                  
+                  {/* 內容 */}
+                  <div className="relative z-10">
+                    <p className="text-white text-sm leading-relaxed font-medium">
+                      {partner.customerMessage}
+                    </p>
+                  </div>
+                  
+                  {/* 底部裝飾 */}
+                  <div className="absolute bottom-2 right-2 flex gap-1">
+                    <FaHeart className="text-pink-300 text-xs" />
+                    <FaStar className="text-yellow-300 text-xs" />
+                  </div>
+                </div>
+              </div>
+              
+              {/* 底部提示 */}
+              <div className="text-center mt-3">
+                <p className="text-white/60 text-xs">點擊卡片返回正面</p>
+              </div>
+            </div>
+          ) : (
+            <div className="text-center">
+              <div className="mb-4">
+                <FaComments className="text-white/40 text-4xl mx-auto mb-2" />
+                <p className="text-white/60 text-sm">暫無留言</p>
+              </div>
+              <div className="text-center">
+                <p className="text-white/40 text-xs">點擊卡片返回正面</p>
               </div>
             </div>
           )}
