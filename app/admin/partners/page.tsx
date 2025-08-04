@@ -78,6 +78,12 @@ export default function AdminPartnersPage() {
           >
             用戶管理
           </a>
+          <a
+            href="/admin/anti-money-laundering"
+            className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
+          >
+            反洗錢監控
+          </a>
         </div>
       </div>
       <div className="mb-6 flex justify-end">
