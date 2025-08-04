@@ -432,12 +432,11 @@ export default function JoinPage() {
                       <h3 className="text-sm font-medium text-yellow-800">
                         重要提醒
                       </h3>
-                      <div className="mt-2 text-sm text-yellow-700">
-                        <p>
-                          銀行帳戶資訊提交後將無法更改，請務必確認資訊正確無誤。
-                          此措施是為了防止洗錢等違法行為，保障平台安全。
-                        </p>
-                      </div>
+                                             <div className="mt-2 text-sm text-yellow-700">
+                         <p>
+                           銀行帳戶資訊提交後將無法更改，請務必確認資訊正確無誤。
+                         </p>
+                       </div>
                     </div>
                   </div>
                 </div>
