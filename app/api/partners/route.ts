@@ -134,7 +134,7 @@ export async function POST(request: Request) {
     }
     data = await request.json()
     // 驗證必填欄位（移除 userId）
-    const requiredFields = ['name', 'birthday', 'phone', 'halfHourlyRate', 'games', 'coverImage', 'bankAccount']
+    const requiredFields = ['name', 'birthday', 'phone', 'halfHourlyRate', 'games', 'coverImage', 'bankCode', 'bankAccountNumber']
     for (const field of requiredFields) {
       if (!data[field]) {
         return NextResponse.json(
@@ -168,7 +168,8 @@ export async function POST(request: Request) {
         halfHourlyRate: data.halfHourlyRate,
         games: data.games,
         coverImage: data.coverImage,
-        bankAccount: data.bankAccount,
+        bankCode: data.bankCode,
+        bankAccountNumber: data.bankAccountNumber,
       },
     })
     return NextResponse.json(partner)

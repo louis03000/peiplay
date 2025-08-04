@@ -18,7 +18,8 @@ const partnerSchema = z.object({
   halfHourlyRate: z.number().min(1, '請設定每半小時收費'),
   games: z.array(z.string()).min(1, '請至少選擇一個遊戲').max(MAX_GAMES, '最多 10 個遊戲'),
   coverImage: z.string().min(1, '請上傳封面照片'),
-  bankAccount: z.string().min(1, '請填寫銀行帳戶資訊'),
+  bankCode: z.string().min(1, '請填寫銀行代碼'),
+  bankAccountNumber: z.string().min(1, '請填寫銀行帳號'),
   inviteCode: z.string().optional(),
 })
 
@@ -157,9 +158,10 @@ export default function JoinPage() {
           email: session!.user!.email,
           coverImage: coverImageUrl,
           games,
-          halfHourlyRate: data.halfHourlyRate,
-          bankAccount: data.bankAccount,
-          inviteCode: inviteCode.trim() || undefined,
+                     halfHourlyRate: data.halfHourlyRate,
+           bankCode: data.bankCode,
+           bankAccountNumber: data.bankAccountNumber,
+           inviteCode: inviteCode.trim() || undefined,
         }),
       })
       const text = await response.text();
@@ -373,25 +375,70 @@ export default function JoinPage() {
                   </div>
                 </div>
 
-                <div>
-                  <label
-                    htmlFor="bankAccount"
-                    className="block text-sm font-medium text-gray-700"
-                  >
-                    銀行帳戶資訊
-                  </label>
-                  <div className="mt-1">
-                    <input
-                      type="text"
-                      {...register('bankAccount')}
-                      placeholder="請填寫銀行代碼、帳號、戶名（例：123-4567890123456 王小明）"
-                      className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md text-black"
-                    />
-                    {errors.bankAccount && (
-                      <p className="mt-2 text-sm text-red-600">
-                        {errors.bankAccount.message}
-                      </p>
-                    )}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label
+                      htmlFor="bankCode"
+                      className="block text-sm font-medium text-gray-700"
+                    >
+                      銀行代碼
+                    </label>
+                    <div className="mt-1">
+                      <input
+                        type="text"
+                        {...register('bankCode')}
+                        placeholder="請填寫銀行代碼（例：123）"
+                        className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md text-black"
+                      />
+                      {errors.bankCode && (
+                        <p className="mt-2 text-sm text-red-600">
+                          {errors.bankCode.message}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <label
+                      htmlFor="bankAccountNumber"
+                      className="block text-sm font-medium text-gray-700"
+                    >
+                      銀行帳號
+                    </label>
+                    <div className="mt-1">
+                      <input
+                        type="text"
+                        {...register('bankAccountNumber')}
+                        placeholder="請填寫銀行帳號（例：4567890123456）"
+                        className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md text-black"
+                      />
+                      {errors.bankAccountNumber && (
+                        <p className="mt-2 text-sm text-red-600">
+                          {errors.bankAccountNumber.message}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                  <div className="flex items-start">
+                    <div className="flex-shrink-0">
+                      <svg className="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                      </svg>
+                    </div>
+                    <div className="ml-3">
+                      <h3 className="text-sm font-medium text-yellow-800">
+                        重要提醒
+                      </h3>
+                      <div className="mt-2 text-sm text-yellow-700">
+                        <p>
+                          銀行帳戶資訊提交後將無法更改，請務必確認資訊正確無誤。
+                          此措施是為了防止洗錢等違法行為，保障平台安全。
+                        </p>
+                      </div>
+                    </div>
                   </div>
                 </div>
 

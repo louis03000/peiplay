@@ -39,7 +39,8 @@ model Partner {
   phone           String
   coverImage      String
   games           String[]
-  bankAccount     String?
+  bankCode        String?
+  bankAccountNumber String?
   inviteCode      String?
   invitedBy       String?
   createdAt       DateTime      @default(now())
