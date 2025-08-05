@@ -324,28 +324,37 @@ function BookingWizardContent() {
       // 4. 延遲後跳轉到綠界付款頁面
       setTimeout(() => {
         try {
-          // 創建表單並提交到綠界
-          const form = document.createElement('form');
-          form.method = 'POST';
-          form.action = paymentData.paymentUrl;
-          form.target = '_blank';
+          // 先嘗試直接打開新視窗
+          const paymentWindow = window.open('', '_blank');
+          if (paymentWindow) {
+            // 創建表單並提交到綠界
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = paymentData.paymentUrl;
+            form.target = '_blank';
 
-          // 添加所有參數
-          Object.entries(paymentData.params).forEach(([key, value]) => {
-            const input = document.createElement('input');
-            input.type = 'hidden';
-            input.name = key;
-            input.value = value as string;
-            form.appendChild(input);
-          });
+            // 添加所有參數
+            Object.entries(paymentData.params).forEach(([key, value]) => {
+              const input = document.createElement('input');
+              input.type = 'hidden';
+              input.name = key;
+              input.value = value as string;
+              form.appendChild(input);
+            });
 
-          document.body.appendChild(form);
-          form.submit();
-          document.body.removeChild(form);
+            document.body.appendChild(form);
+            form.submit();
+            document.body.removeChild(form);
 
-          console.log('Payment form submitted successfully');
+            console.log('Payment form submitted successfully');
+          } else {
+            // 如果彈出視窗被阻擋，顯示提示訊息
+            alert('付款頁面被瀏覽器阻擋，請允許彈出視窗後重新嘗試');
+            console.error('Payment window blocked by browser');
+          }
         } catch (error) {
           console.error('Payment form submission error:', error);
+          alert('付款頁面開啟失敗，請檢查瀏覽器設定');
         }
 
         // 跳轉到完成頁面
