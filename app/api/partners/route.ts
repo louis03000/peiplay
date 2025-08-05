@@ -71,6 +71,11 @@ export async function GET(request: Request) {
             startTime: true,
             endTime: true,
             isAvailable: true,
+            bookings: {
+              select: {
+                status: true
+              }
+            }
           },
         },
       } as any,

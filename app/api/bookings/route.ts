@@ -36,8 +36,17 @@ export async function POST(request: Request) {
       include: { bookings: true },
     });
 
-    // 檢查時段是否已被預約
-    const unavailableSchedules = schedules.filter(s => !s.isAvailable || s.bookings !== null);
+    // 檢查時段是否已被預約（排除已取消的預約）
+    const unavailableSchedules = schedules.filter(s => {
+      // 如果時段本身不可用
+      if (!s.isAvailable) return true;
+      
+      // 如果有預約記錄且狀態不是 CANCELLED，則時段不可用
+      if (s.bookings && s.bookings.status !== 'CANCELLED') return true;
+      
+      return false;
+    });
+    
     if (unavailableSchedules.length > 0) {
       return NextResponse.json({
         error: `時段已被預約，請重新選擇。`,

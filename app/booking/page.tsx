@@ -41,7 +41,14 @@ export type Partner = {
   halfHourlyRate: number;
   coverImage?: string;
   images?: string[]; // 新增多張圖片支援
-  schedules: { id: string; date: string; startTime: string; endTime: string, isAvailable: boolean }[];
+  schedules: { 
+    id: string; 
+    date: string; 
+    startTime: string; 
+    endTime: string; 
+    isAvailable: boolean;
+    bookings?: { status: string } | null;
+  }[];
   isAvailableNow: boolean;
   isRankBooster: boolean;
   customerMessage?: string;
@@ -222,7 +229,12 @@ function BookingWizardContent() {
     const seenTimeSlots = new Set<string>()
     const now = new Date();
     const uniqueSchedules = selectedPartner.schedules.filter(schedule => {
+      // 檢查時段是否可用（排除已取消的預約）
       if (!schedule.isAvailable) return false;
+      
+      // 如果有預約記錄且狀態不是 CANCELLED，則時段不可用
+      if (schedule.bookings && schedule.bookings.status !== 'CANCELLED') return false;
+      
       const scheduleDate = new Date(schedule.date)
       if (!isSameDay(scheduleDate, selectedDate)) return false;
       if (new Date(schedule.startTime) <= now) return false;
