@@ -323,24 +323,30 @@ function BookingWizardContent() {
 
       // 4. 延遲後跳轉到綠界付款頁面
       setTimeout(() => {
-        // 創建表單並提交到綠界
-        const form = document.createElement('form');
-        form.method = 'POST';
-        form.action = paymentData.paymentUrl;
-        form.target = '_blank';
+        try {
+          // 創建表單並提交到綠界
+          const form = document.createElement('form');
+          form.method = 'POST';
+          form.action = paymentData.paymentUrl;
+          form.target = '_blank';
 
-        // 添加所有參數
-        Object.entries(paymentData.params).forEach(([key, value]) => {
-          const input = document.createElement('input');
-          input.type = 'hidden';
-          input.name = key;
-          input.value = value as string;
-          form.appendChild(input);
-        });
+          // 添加所有參數
+          Object.entries(paymentData.params).forEach(([key, value]) => {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = key;
+            input.value = value as string;
+            form.appendChild(input);
+          });
 
-        document.body.appendChild(form);
-        form.submit();
-        document.body.removeChild(form);
+          document.body.appendChild(form);
+          form.submit();
+          document.body.removeChild(form);
+
+          console.log('Payment form submitted successfully');
+        } catch (error) {
+          console.error('Payment form submission error:', error);
+        }
 
         // 跳轉到完成頁面
         setStep(5);
@@ -678,7 +684,7 @@ function BookingWizardContent() {
           <div className="text-center">
             <div className="text-lg text-white/90 mb-4">（6）完成</div>
             <div className="text-6xl mb-4">✅</div>
-            <p className="text-gray-400">預約成功！請完成付款以確認預約。</p>
+            <p className="text-gray-400">預約成功！等待夥伴確認即可。</p>
           </div>
         )}
       </div>
