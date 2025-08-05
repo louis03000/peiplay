@@ -153,6 +153,13 @@ function BookingWizardContent() {
         const params = [];
         if (onlyAvailable) params.push('availableNow=true');
         if (onlyRankBooster) params.push('rankBooster=true');
+        
+        // 傳遞更寬的日期範圍，確保能獲取到足夠的時段資料
+        const now = new Date();
+        const endDate = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000); // 30天後
+        params.push(`startDate=${now.toISOString()}`);
+        params.push(`endDate=${endDate.toISOString()}`);
+        
         if (params.length > 0) url += '?' + params.join('&');
         
         const res = await fetch(url)

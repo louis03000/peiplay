@@ -22,6 +22,8 @@ export async function GET(request: Request) {
     // 計算今天0點
     const now = new Date();
     const todayZero = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+    
+    // 時段查詢條件：如果有指定日期範圍就用指定的，否則查詢從今天開始的所有時段
     const scheduleDateFilter = startDate && endDate ? {
       gte: new Date(startDate),
       lt: new Date(endDate),
