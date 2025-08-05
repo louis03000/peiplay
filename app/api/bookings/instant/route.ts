@@ -48,11 +48,22 @@ export async function POST(request: NextRequest) {
     // 計算金額
     const totalAmount = duration * partner.halfHourlyRate * 2 // 每小時 = 2個半小時
 
+    // 為即時預約創建一個臨時的 schedule
+    const tempSchedule = await prisma.schedule.create({
+      data: {
+        partnerId: partnerId,
+        date: startTime,
+        startTime: startTime,
+        endTime: endTime,
+        isAvailable: false, // 立即標記為不可用
+      }
+    })
+
     // 創建預約記錄
     const booking = await prisma.booking.create({
       data: {
         customerId: customer.id,
-        scheduleId: 'instant-booking', // 使用特殊標識符
+        scheduleId: tempSchedule.id, // 使用新創建的 schedule ID
         status: 'CONFIRMED',
         orderNumber: `INST-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         originalAmount: totalAmount,

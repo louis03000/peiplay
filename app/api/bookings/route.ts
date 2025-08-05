@@ -30,12 +30,14 @@ export async function POST(request: Request) {
   }
 
   try {
-    // 1. 先查詢所有 schedule 狀態
+    // 1. 先查詢所有 schedule 狀態和現有預約
     const schedules = await prisma.schedule.findMany({
       where: { id: { in: scheduleIds } },
+      include: { bookings: true },
     });
 
-    const unavailableSchedules = schedules.filter(s => !s.isAvailable);
+    // 檢查時段是否已被預約
+    const unavailableSchedules = schedules.filter(s => !s.isAvailable || s.bookings !== null);
     if (unavailableSchedules.length > 0) {
       return NextResponse.json({
         error: `時段已被預約，請重新選擇。`,
