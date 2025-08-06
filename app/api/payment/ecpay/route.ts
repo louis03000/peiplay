@@ -77,23 +77,23 @@ export async function POST(request: NextRequest) {
     
     const orderNumber = `PEI${year}${month}${day}${hour}${minute}${second}${random}`
 
-         // 準備綠界金流參數
-     const ecpayParams: Record<string, string> = {
-       MerchantID: ECPAY_CONFIG.MERCHANT_ID,
-       MerchantTradeNo: orderNumber,
-       MerchantTradeDate: `${now.getFullYear()}/${String(now.getMonth() + 1).padStart(2, '0')}/${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`,
-       PaymentType: 'aio',
-       TotalAmount: amount.toString(),
-       TradeDesc: description,
-       ItemName: `PeiPlay 遊戲夥伴預約 - ${description}`,
-       ReturnURL: ECPAY_CONFIG.RETURN_URL,
-       ClientBackURL: ECPAY_CONFIG.CLIENT_BACK_URL,
-       OrderResultURL: ECPAY_CONFIG.CLIENT_FRONT_URL,
-       ChoosePayment: 'Credit',
-       EncryptType: '1',
-       IgnorePayment: 'WebATM#ATM#CVS#BARCODE',
-       ExpireDate: '7'
-     }
+    // 準備綠界金流參數
+    const ecpayParams: Record<string, string> = {
+      MerchantID: ECPAY_CONFIG.MERCHANT_ID,
+      MerchantTradeNo: orderNumber,
+      MerchantTradeDate: `${now.getFullYear()}/${String(now.getMonth() + 1).padStart(2, '0')}/${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`,
+      PaymentType: 'aio',
+      TotalAmount: amount.toString(),
+      TradeDesc: description,
+      ItemName: `PeiPlay 遊戲夥伴預約 - ${description}`,
+      ReturnURL: ECPAY_CONFIG.RETURN_URL,
+      ClientBackURL: ECPAY_CONFIG.CLIENT_BACK_URL,
+      OrderResultURL: ECPAY_CONFIG.CLIENT_FRONT_URL,
+      ChoosePayment: 'Credit',
+      EncryptType: '1',
+      IgnorePayment: 'WebATM#ATM#CVS#BARCODE',
+      ExpireDate: '7'
+    }
 
     // 產生檢查碼
     const checkMacValue = generateCheckMacValue(ecpayParams)
