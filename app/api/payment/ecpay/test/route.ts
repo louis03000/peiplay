@@ -82,7 +82,12 @@ export async function GET() {
       ChoosePayment: 'Credit',
       EncryptType: '1',
       IgnorePayment: 'WebATM#ATM#CVS#BARCODE',
-      ExpireDate: '7'
+      ExpireDate: '7',
+      // 添加更多必要參數
+      Language: 'ZH-TW',
+      NeedExtraPaidInfo: 'N',
+      Redeem: 'N',
+      UnionPay: 0
     }
 
     // 產生檢查碼
