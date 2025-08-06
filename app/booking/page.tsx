@@ -313,34 +313,34 @@ function BookingWizardContent() {
         totalAmount = selectedTimes.length * selectedPartner.halfHourlyRate;
       }
 
-      const bookingId = bookingData.id;
+             const bookingId = bookingData.id;
 
-      // 2. 創建付款請求
-      const paymentRes = await fetch('/api/payment/ecpay', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          bookingId: bookingId,
-          amount: totalAmount,
-          description: onlyAvailable 
-            ? `${selectedPartner.name} - ${selectedDuration} 小時即時預約`
-            : `${selectedPartner.name} - ${selectedTimes.length} 個時段`,
-          customerName: 'PeiPlay 用戶',
-          customerEmail: 'user@peiplay.com'
-        }),
-      });
+       // 2. 創建付款請求
+       const paymentRes = await fetch('/api/payment/ecpay', {
+         method: 'POST',
+         headers: { 'Content-Type': 'application/json' },
+         body: JSON.stringify({
+           bookingId: bookingId,
+           amount: totalAmount,
+           description: onlyAvailable 
+             ? `${selectedPartner.name} - ${selectedDuration} 小時即時預約`
+             : `${selectedPartner.name} - ${selectedTimes.length} 個時段`,
+           customerName: 'PeiPlay 用戶',
+           customerEmail: 'user@peiplay.com'
+         }),
+       });
 
-      if (!paymentRes.ok) {
-        const errorData = await paymentRes.json();
-        throw new Error(errorData.error || '付款建立失敗，請重試');
-      }
+       if (!paymentRes.ok) {
+         const errorData = await paymentRes.json();
+         throw new Error(errorData.error || '付款建立失敗，請重試');
+       }
 
-      const paymentData = await paymentRes.json();
+       const paymentData = await paymentRes.json();
 
-      // 3. 跳轉到付款頁面
-      setStep(4); // 顯示付款跳轉頁面
+       // 3. 跳轉到付款頁面
+       setStep(4); // 顯示付款跳轉頁面
 
-             // 4. 延遲後跳轉到綠界付款頁面
+       // 4. 延遲後跳轉到綠界付款頁面
        setTimeout(() => {
          try {
            // 創建表單並提交到綠界
