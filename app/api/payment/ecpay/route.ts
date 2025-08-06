@@ -3,9 +3,9 @@ import crypto from 'crypto'
 
 // 綠界金流設定
 const ECPAY_CONFIG = {
-  MERCHANT_ID: '3464691',
-  HASH_KEY: 'ilByxKjPNI9qpHBK',
-  HASH_IV: 'OTzB3pify1U9G0j6',
+  MERCHANT_ID: '2000132', // 測試環境的商店ID
+  HASH_KEY: '5294y06JbISpM5x9',
+  HASH_IV: 'v77hoKGq4kWxNNIS',
   PAYMENT_URL: 'https://payment-stage.ecpay.com.tw/Cashier/AioCheckOut/V5', // 使用測試環境
   RETURN_URL: 'https://peiplay.vercel.app/api/payment/callback',
   CLIENT_BACK_URL: 'https://peiplay.vercel.app/booking',
@@ -87,7 +87,9 @@ export async function POST(request: NextRequest) {
       ClientBackURL: ECPAY_CONFIG.CLIENT_BACK_URL,
       OrderResultURL: ECPAY_CONFIG.CLIENT_FRONT_URL,
       ChoosePayment: 'Credit',
-      EncryptType: '1'
+      EncryptType: '1',
+      IgnorePayment: 'WebATM#ATM#CVS#BARCODE',
+      ExpireDate: '7'
     }
 
     // 產生檢查碼
