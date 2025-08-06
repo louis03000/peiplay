@@ -41,8 +41,8 @@ export async function POST(request: Request) {
       // 如果時段本身不可用
       if (!s.isAvailable) return true;
       
-      // 如果有預約記錄且狀態不是 CANCELLED，則時段不可用
-      if (s.bookings && s.bookings.status !== 'CANCELLED') return true;
+      // 如果有預約記錄且狀態不是 CANCELLED 或 REJECTED，則時段不可用
+      if (s.bookings && s.bookings.status !== 'CANCELLED' && s.bookings.status !== 'REJECTED') return true;
       
       return false;
     });

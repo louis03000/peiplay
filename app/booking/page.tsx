@@ -239,8 +239,8 @@ function BookingWizardContent() {
       // 檢查時段是否可用（排除已取消的預約）
       if (!schedule.isAvailable) return false;
       
-      // 如果有預約記錄且狀態不是 CANCELLED，則時段不可用
-      if (schedule.bookings && schedule.bookings.status !== 'CANCELLED') return false;
+      // 如果有預約記錄且狀態不是 CANCELLED 或 REJECTED，則時段不可用
+      if (schedule.bookings && schedule.bookings.status !== 'CANCELLED' && schedule.bookings.status !== 'REJECTED') return false;
       
       const scheduleDate = new Date(schedule.date)
       if (!isSameDay(scheduleDate, selectedDate)) return false;
