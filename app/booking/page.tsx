@@ -343,41 +343,34 @@ function BookingWizardContent() {
       // 4. 延遲後跳轉到綠界付款頁面
       setTimeout(() => {
         try {
-          // 先嘗試直接打開新視窗
-          const paymentWindow = window.open('', '_blank');
-          if (paymentWindow) {
-            // 創建表單並提交到綠界
-            const form = document.createElement('form');
-            form.method = 'POST';
-            form.action = paymentData.paymentUrl;
-            form.target = '_blank';
+          // 創建表單並提交到綠界
+          const form = document.createElement('form');
+          form.method = 'POST';
+          form.action = paymentData.paymentUrl;
+          form.target = '_blank';
 
-            // 添加所有參數
-            Object.entries(paymentData.params).forEach(([key, value]) => {
-              const input = document.createElement('input');
-              input.type = 'hidden';
-              input.name = key;
-              input.value = value as string;
-              form.appendChild(input);
-            });
+          // 添加所有參數
+          Object.entries(paymentData.params).forEach(([key, value]) => {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = key;
+            input.value = value as string;
+            form.appendChild(input);
+          });
 
-            document.body.appendChild(form);
-            form.submit();
-            document.body.removeChild(form);
+          document.body.appendChild(form);
+          form.submit();
+          document.body.removeChild(form);
 
-            console.log('Payment form submitted successfully');
-          } else {
-            // 如果彈出視窗被阻擋，顯示提示訊息
-            alert('付款頁面被瀏覽器阻擋，請允許彈出視窗後重新嘗試');
-            console.error('Payment window blocked by browser');
-          }
+          console.log('Payment form submitted successfully');
+          
+          // 顯示成功訊息
+          setStep(5);
         } catch (error) {
           console.error('Payment form submission error:', error);
-          alert('付款頁面開啟失敗，請檢查瀏覽器設定');
+          // 即使付款頁面開啟失敗，也顯示預約成功
+          setStep(5);
         }
-
-        // 跳轉到完成頁面
-        setStep(5);
       }, 2000);
 
     } catch (err) {
@@ -712,7 +705,12 @@ function BookingWizardContent() {
           <div className="text-center">
             <div className="text-lg text-white/90 mb-4">（6）完成</div>
             <div className="text-6xl mb-4">✅</div>
-            <p className="text-gray-400">預約成功！等待夥伴確認即可。</p>
+            <p className="text-gray-400 mb-4">預約成功！等待夥伴確認即可。</p>
+            <div className="bg-blue-900/30 border border-blue-500 rounded-lg p-4 mt-4">
+              <p className="text-blue-300 text-sm">
+                💡 提示：付款頁面應該已經在新視窗中開啟。如果沒有看到付款頁面，請檢查瀏覽器的彈出視窗設定。
+              </p>
+            </div>
           </div>
         )}
       </div>
