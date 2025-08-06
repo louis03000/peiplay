@@ -87,7 +87,9 @@ export async function POST(request: NextRequest) {
        ClientBackURL: ECPAY_CONFIG.CLIENT_BACK_URL,
        OrderResultURL: ECPAY_CONFIG.CLIENT_FRONT_URL,
        ChoosePayment: 'Credit',
-       EncryptType: '1'
+       EncryptType: '1',
+       IgnorePayment: 'WebATM#ATM#CVS#BARCODE',
+       ExpireDate: '7'
      }
 
     // 產生檢查碼
