@@ -62,9 +62,17 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // 產生訂單編號（格式：年月日時分秒 + 4位隨機數）
+    // 產生訂單編號（格式：年月日時分秒 + 3位隨機數，限制在20字元內）
     const now = new Date()
-    const orderNumber = `PEI${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}${String(Math.floor(Math.random() * 10000)).padStart(4, '0')}`
+    const year = now.getFullYear().toString().slice(-2) // 只取年份後兩位
+    const month = String(now.getMonth() + 1).padStart(2, '0')
+    const day = String(now.getDate()).padStart(2, '0')
+    const hour = String(now.getHours()).padStart(2, '0')
+    const minute = String(now.getMinutes()).padStart(2, '0')
+    const second = String(now.getSeconds()).padStart(2, '0')
+    const random = String(Math.floor(Math.random() * 1000)).padStart(3, '0')
+    
+    const orderNumber = `PEI${year}${month}${day}${hour}${minute}${second}${random}`
 
     // 準備綠界金流參數
     const ecpayParams: Record<string, string> = {
