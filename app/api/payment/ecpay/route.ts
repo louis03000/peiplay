@@ -6,7 +6,7 @@ const ECPAY_CONFIG = {
   MERCHANT_ID: '3464691',
   HASH_KEY: 'ilByxKjPNI9qpHBK',
   HASH_IV: 'OTzB3pify1U9G0j6',
-  PAYMENT_URL: 'https://payment.ecpay.com.tw/Cashier/AioCheckOut/V5',
+  PAYMENT_URL: 'https://payment-stage.ecpay.com.tw/Cashier/AioCheckOut/V5', // 使用測試環境
   RETURN_URL: 'https://peiplay.vercel.app/api/payment/callback',
   CLIENT_BACK_URL: 'https://peiplay.vercel.app/booking',
   CLIENT_FRONT_URL: 'https://peiplay.vercel.app/booking'
