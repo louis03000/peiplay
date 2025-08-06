@@ -340,38 +340,38 @@ function BookingWizardContent() {
       // 3. 跳轉到付款頁面
       setStep(4); // 顯示付款跳轉頁面
 
-      // 4. 延遲後跳轉到綠界付款頁面
-      setTimeout(() => {
-        try {
-          // 創建表單並提交到綠界
-          const form = document.createElement('form');
-          form.method = 'POST';
-          form.action = paymentData.paymentUrl;
-          form.target = '_blank';
+             // 4. 延遲後跳轉到綠界付款頁面
+       setTimeout(() => {
+         try {
+           // 創建表單並提交到綠界
+           const form = document.createElement('form');
+           form.method = 'POST';
+           form.action = paymentData.paymentUrl;
+           form.target = '_blank';
 
-          // 添加所有參數
-          Object.entries(paymentData.params).forEach(([key, value]) => {
-            const input = document.createElement('input');
-            input.type = 'hidden';
-            input.name = key;
-            input.value = value as string;
-            form.appendChild(input);
-          });
+           // 添加所有參數
+           Object.entries(paymentData.params).forEach(([key, value]) => {
+             const input = document.createElement('input');
+             input.type = 'hidden';
+             input.name = key;
+             input.value = value as string;
+             form.appendChild(input);
+           });
 
-          document.body.appendChild(form);
-          form.submit();
-          document.body.removeChild(form);
+           document.body.appendChild(form);
+           form.submit();
+           document.body.removeChild(form);
 
-          console.log('Payment form submitted successfully');
-          
-          // 顯示成功訊息
-          setStep(5);
-        } catch (error) {
-          console.error('Payment form submission error:', error);
-          // 即使付款頁面開啟失敗，也顯示預約成功
-          setStep(5);
-        }
-      }, 2000);
+           console.log('Payment form submitted successfully');
+           
+           // 保持在付款步驟，等待用戶完成付款
+           // 付款完成後會通過 callback 更新預約狀態
+         } catch (error) {
+           console.error('Payment form submission error:', error);
+           // 如果付款頁面開啟失敗，回到確認步驟
+           setStep(3);
+         }
+       }, 2000);
 
     } catch (err) {
       alert(err instanceof Error ? err.message : '預約失敗，請重試');
@@ -694,25 +694,38 @@ function BookingWizardContent() {
             </div>
           </div>
         )}
-        {step === 4 && (
-          <div className="text-center">
-            <div className="text-lg text-white/90 mb-4">（5）跳轉付款</div>
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-500 mx-auto mb-4"></div>
-            <p className="text-gray-400">正在跳轉到付款頁面...</p>
-          </div>
-        )}
-        {step === 5 && (
-          <div className="text-center">
-            <div className="text-lg text-white/90 mb-4">（6）完成</div>
-            <div className="text-6xl mb-4">✅</div>
-            <p className="text-gray-400 mb-4">預約成功！等待夥伴確認即可。</p>
-            <div className="bg-blue-900/30 border border-blue-500 rounded-lg p-4 mt-4">
-              <p className="text-blue-300 text-sm">
-                💡 提示：付款頁面應該已經在新視窗中開啟。如果沒有看到付款頁面，請檢查瀏覽器的彈出視窗設定。
-              </p>
-            </div>
-          </div>
-        )}
+                 {step === 4 && (
+           <div className="text-center">
+             <div className="text-lg text-white/90 mb-4">（5）付款</div>
+             <div className="text-6xl mb-4">💳</div>
+             <p className="text-gray-400 mb-4">請在新視窗中完成付款</p>
+             <div className="bg-yellow-900/30 border border-yellow-500 rounded-lg p-4 mt-4">
+               <p className="text-yellow-300 text-sm">
+                 ⚠️ 重要：請在新開啟的付款頁面中完成付款，付款完成後預約才會生效。
+               </p>
+             </div>
+             <div className="mt-4">
+               <button
+                 onClick={() => setStep(3)}
+                 className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 transition-colors"
+               >
+                 回到確認頁面
+               </button>
+             </div>
+           </div>
+         )}
+                 {step === 5 && (
+           <div className="text-center">
+             <div className="text-lg text-white/90 mb-4">（6）完成</div>
+             <div className="text-6xl mb-4">✅</div>
+             <p className="text-gray-400 mb-4">付款成功！預約已確認，等待夥伴確認即可。</p>
+             <div className="bg-green-900/30 border border-green-500 rounded-lg p-4 mt-4">
+               <p className="text-green-300 text-sm">
+                 🎉 恭喜！您的付款已完成，預約已成功建立。
+               </p>
+             </div>
+           </div>
+         )}
       </div>
 
       {/* 導航按鈕 */}
