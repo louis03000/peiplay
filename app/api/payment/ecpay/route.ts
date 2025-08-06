@@ -17,10 +17,10 @@ function generateCheckMacValue(params: Record<string, string>): string {
   // 1. 將參數依照參數名稱 ASCII Code 編碼排序
   const sortedKeys = Object.keys(params).sort()
   
-  // 2. 組合參數
+  // 2. 組合參數（不包含 CheckMacValue）
   let queryString = ''
   for (const key of sortedKeys) {
-    if (params[key] !== '' && params[key] !== null && params[key] !== undefined) {
+    if (key !== 'CheckMacValue' && params[key] !== '' && params[key] !== null && params[key] !== undefined) {
       queryString += `${key}=${params[key]}&`
     }
   }

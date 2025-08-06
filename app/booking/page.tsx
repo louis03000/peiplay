@@ -315,11 +315,63 @@ function BookingWizardContent() {
 
              const bookingId = bookingData.id;
 
-       // 2. 暫時跳過付款，直接完成預約
-       console.log('Booking created successfully:', bookingId);
-       
-       // 3. 直接跳到完成步驟
-       setStep(5);
+       // 2. 創建付款請求
+       const paymentRes = await fetch('/api/payment/ecpay', {
+         method: 'POST',
+         headers: { 'Content-Type': 'application/json' },
+         body: JSON.stringify({
+           bookingId: bookingId,
+           amount: totalAmount,
+           description: onlyAvailable 
+             ? `${selectedPartner.name} - ${selectedDuration} 小時即時預約`
+             : `${selectedPartner.name} - ${selectedTimes.length} 個時段`,
+           customerName: 'PeiPlay 用戶',
+           customerEmail: 'user@peiplay.com'
+         }),
+       });
+
+       if (!paymentRes.ok) {
+         const errorData = await paymentRes.json();
+         throw new Error(errorData.error || '付款建立失敗，請重試');
+       }
+
+       const paymentData = await paymentRes.json();
+
+       // 3. 跳轉到付款頁面
+       setStep(4); // 顯示付款跳轉頁面
+
+       // 4. 延遲後跳轉到綠界付款頁面
+       setTimeout(() => {
+         try {
+           // 創建表單並提交到綠界
+           const form = document.createElement('form');
+           form.method = 'POST';
+           form.action = paymentData.paymentUrl;
+           form.target = '_blank';
+
+           // 添加所有參數
+           Object.entries(paymentData.params).forEach(([key, value]) => {
+             const input = document.createElement('input');
+             input.type = 'hidden';
+             input.name = key;
+             input.value = value as string;
+             form.appendChild(input);
+           });
+
+           document.body.appendChild(form);
+           form.submit();
+           document.body.removeChild(form);
+
+           console.log('Payment form submitted successfully');
+           
+           // 保持在付款步驟，等待用戶完成付款
+           // 付款完成後會通過 callback 更新預約狀態
+         } catch (error) {
+           console.error('Payment form submission error:', error);
+           // 如果付款頁面開啟失敗，回到確認步驟
+           setStep(3);
+         }
+       }, 2000);
 
     } catch (err) {
       alert(err instanceof Error ? err.message : '預約失敗，請重試');
@@ -666,10 +718,10 @@ function BookingWizardContent() {
            <div className="text-center">
              <div className="text-lg text-white/90 mb-4">（6）完成</div>
              <div className="text-6xl mb-4">✅</div>
-             <p className="text-gray-400 mb-4">預約成功！等待夥伴確認即可。</p>
-             <div className="bg-blue-900/30 border border-blue-500 rounded-lg p-4 mt-4">
-               <p className="text-blue-300 text-sm">
-                 📝 注意：付款功能暫時停用，預約已成功建立。
+             <p className="text-gray-400 mb-4">付款成功！預約已確認，等待夥伴確認即可。</p>
+             <div className="bg-green-900/30 border border-green-500 rounded-lg p-4 mt-4">
+               <p className="text-green-300 text-sm">
+                 🎉 恭喜！您的付款已完成，預約已成功建立。
                </p>
              </div>
            </div>
