@@ -65,7 +65,15 @@ export async function POST(request: Request) {
 
     // 2. 進入 transaction 建立預約
     const result = await prisma.$transaction(async (tx) => {
-      // 2-1. 建立預約
+      // 2-1. 先刪除現有的 CANCELLED 和 REJECTED 預約記錄
+      await tx.booking.deleteMany({
+        where: {
+          scheduleId: { in: scheduleIds },
+          status: { in: ['CANCELLED', 'REJECTED'] }
+        }
+      });
+
+      // 2-2. 建立預約
       const createdBookings = await Promise.all(
         scheduleIds.map(scheduleId => 
           tx.booking.create({
