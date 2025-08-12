@@ -91,7 +91,15 @@ export async function POST(request: NextRequest) {
       OrderResultURL: ECPAY_CONFIG.CLIENT_FRONT_URL,
       ChoosePayment: 'Credit',
       EncryptType: '1',
-      Language: 'ZH-TW'
+      Language: 'ZH-TW',
+      // 添加綠界官方推薦的必要參數
+      NeedExtraPaidInfo: 'N',
+      Redeem: 'N',
+      UnionPay: '0',
+      IgnorePayment: 'WebATM#ATM#CVS#BARCODE',
+      ExpireDate: '7',
+      PaymentInfoURL: ECPAY_CONFIG.RETURN_URL,
+      ClientRedirectURL: ECPAY_CONFIG.CLIENT_FRONT_URL
     }
 
     // 產生檢查碼
