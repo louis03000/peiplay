@@ -91,10 +91,7 @@ export async function POST(request: NextRequest) {
       OrderResultURL: ECPAY_CONFIG.CLIENT_FRONT_URL,
       ChoosePayment: 'Credit',
       EncryptType: '1',
-      Language: 'ZH-TW',
-      NeedExtraPaidInfo: 'N',
-      Redeem: 'N',
-      UnionPay: '0'
+      Language: 'ZH-TW'
     }
 
     // 產生檢查碼
