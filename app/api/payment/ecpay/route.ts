@@ -12,7 +12,7 @@ const ECPAY_CONFIG = {
   CLIENT_FRONT_URL: 'https://peiplay.vercel.app/booking'
 }
 
-// 產生綠界金流所需的檢查碼
+// 產生綠界金流所需的檢查碼（修正版本）
 function generateCheckMacValue(params: Record<string, string>): string {
   // 1. 將參數依照參數名稱 ASCII Code 編碼排序
   const sortedKeys = Object.keys(params).sort()
@@ -91,13 +91,10 @@ export async function POST(request: NextRequest) {
       OrderResultURL: ECPAY_CONFIG.CLIENT_FRONT_URL,
       ChoosePayment: 'Credit',
       EncryptType: '1',
-      IgnorePayment: 'WebATM#ATM#CVS#BARCODE',
-      ExpireDate: '7',
-      // 添加更多必要參數
       Language: 'ZH-TW',
       NeedExtraPaidInfo: 'N',
       Redeem: 'N',
-      UnionPay: 0
+      UnionPay: '0'
     }
 
     // 產生檢查碼

@@ -8,7 +8,7 @@ const ECPAY_CONFIG = {
   HASH_IV: 'OTzB3pify1U9G0j6'
 }
 
-// 驗證綠界回調的檢查碼
+// 驗證綠界回調的檢查碼（修正版本）
 function verifyCheckMacValue(params: Record<string, string>): boolean {
   const receivedCheckMacValue = params.CheckMacValue
   delete params.CheckMacValue
@@ -23,12 +23,28 @@ function verifyCheckMacValue(params: Record<string, string>): boolean {
     }
   }
   
-  queryString += `HashKey=${ECPAY_CONFIG.HASH_KEY}`
+  // 移除最後一個 & 符號
+  queryString = queryString.slice(0, -1)
+  
+  // 加入 HashKey
+  queryString += `&HashKey=${ECPAY_CONFIG.HASH_KEY}`
+  
+  // 進行 URL encode
   const urlEncoded = encodeURIComponent(queryString)
+  
+  // 轉為小寫
   const lowerCase = urlEncoded.toLowerCase()
+  
+  // 加入 HashIV
   const withHashIV = lowerCase + `&HashIV=${ECPAY_CONFIG.HASH_IV}`
+  
+  // 進行 URL encode
   const finalEncoded = encodeURIComponent(withHashIV)
+  
+  // 轉為小寫
   const finalLower = finalEncoded.toLowerCase()
+  
+  // 使用 SHA256 加密
   const hash = crypto.createHash('sha256').update(finalLower).digest('hex')
   const calculatedCheckMacValue = hash.toUpperCase()
 
