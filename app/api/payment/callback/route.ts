@@ -8,7 +8,7 @@ const ECPAY_CONFIG = {
   HASH_IV: 'OTzB3pify1U9G0j6'
 }
 
-// 驗證綠界回調的檢查碼（修正版本）
+// 綠界官方正確的 CheckMacValue 驗證方式
 function verifyCheckMacValue(params: Record<string, string>): boolean {
   const receivedCheckMacValue = params.CheckMacValue
   delete params.CheckMacValue
@@ -26,26 +26,17 @@ function verifyCheckMacValue(params: Record<string, string>): boolean {
   // 移除最後一個 & 符號
   queryString = queryString.slice(0, -1)
   
-  // 加入 HashKey
-  queryString += `&HashKey=${ECPAY_CONFIG.HASH_KEY}`
+  // 最前面加上 HashKey，最後面加上 HashIV（綠界官方正確方式）
+  const withKeys = `HashKey=${ECPAY_CONFIG.HASH_KEY}&${queryString}&HashIV=${ECPAY_CONFIG.HASH_IV}`
   
   // 進行 URL encode
-  const urlEncoded = encodeURIComponent(queryString)
+  const urlEncoded = encodeURIComponent(withKeys)
   
   // 轉為小寫
   const lowerCase = urlEncoded.toLowerCase()
   
-  // 加入 HashIV
-  const withHashIV = lowerCase + `&HashIV=${ECPAY_CONFIG.HASH_IV}`
-  
-  // 進行 URL encode
-  const finalEncoded = encodeURIComponent(withHashIV)
-  
-  // 轉為小寫
-  const finalLower = finalEncoded.toLowerCase()
-  
   // 使用 SHA256 加密
-  const hash = crypto.createHash('sha256').update(finalLower).digest('hex')
+  const hash = crypto.createHash('sha256').update(lowerCase).digest('hex')
   const calculatedCheckMacValue = hash.toUpperCase()
 
   return calculatedCheckMacValue === receivedCheckMacValue

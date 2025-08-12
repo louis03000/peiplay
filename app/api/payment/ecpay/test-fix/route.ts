@@ -12,26 +12,35 @@ const ECPAY_CONFIG = {
   CLIENT_FRONT_URL: 'https://peiplay.vercel.app/booking'
 }
 
-// 修正後的 CheckMacValue 計算
+// 綠界官方正確的 CheckMacValue 計算方式
 function generateCheckMacValue(params: Record<string, string>): string {
+  // 1. 將參數依照參數名稱 ASCII Code 編碼排序
   const sortedKeys = Object.keys(params).sort()
-  let queryString = ''
   
+  // 2. 組合參數（不包含 CheckMacValue）
+  let queryString = ''
   for (const key of sortedKeys) {
     if (key !== 'CheckMacValue' && params[key] !== '' && params[key] !== null && params[key] !== undefined) {
       queryString += `${key}=${params[key]}&`
     }
   }
   
+  // 3. 移除最後一個 & 符號
   queryString = queryString.slice(0, -1)
-  queryString += `&HashKey=${ECPAY_CONFIG.HASH_KEY}`
-  const urlEncoded = encodeURIComponent(queryString)
-  const lowerCase = urlEncoded.toLowerCase()
-  const withHashIV = lowerCase + `&HashIV=${ECPAY_CONFIG.HASH_IV}`
-  const finalEncoded = encodeURIComponent(withHashIV)
-  const finalLower = finalEncoded.toLowerCase()
-  const hash = crypto.createHash('sha256').update(finalLower).digest('hex')
   
+  // 4. 最前面加上 HashKey，最後面加上 HashIV（綠界官方正確方式）
+  const withKeys = `HashKey=${ECPAY_CONFIG.HASH_KEY}&${queryString}&HashIV=${ECPAY_CONFIG.HASH_IV}`
+  
+  // 5. 進行 URL encode
+  const urlEncoded = encodeURIComponent(withKeys)
+  
+  // 6. 轉為小寫
+  const lowerCase = urlEncoded.toLowerCase()
+  
+  // 7. 使用 SHA256 加密
+  const hash = crypto.createHash('sha256').update(lowerCase).digest('hex')
+  
+  // 8. 轉為大寫
   return hash.toUpperCase()
 }
 
@@ -46,108 +55,220 @@ export async function GET() {
     const second = String(now.getSeconds()).padStart(2, '0')
     const random = String(Math.floor(Math.random() * 1000)).padStart(3, '0')
     
-    const orderNumber = `FIX${year}${month}${day}${hour}${minute}${second}${random}`
+    const orderNumber = `TEST${year}${month}${day}${hour}${minute}${second}${random}`
 
-    // 準備綠界金流參數
+    // 使用綠界官方範例的參數格式
     const ecpayParams: Record<string, string> = {
-      MerchantID: ECPAY_CONFIG.MERCHANT_ID,
-      MerchantTradeNo: orderNumber,
-      MerchantTradeDate: `${now.getFullYear()}/${String(now.getMonth() + 1).padStart(2, '0')}/${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`,
-      PaymentType: 'aio',
-      TotalAmount: '100',
-      TradeDesc: '修復測試',
-      ItemName: 'PeiPlay 遊戲夥伴預約 - 修復測試',
-      ReturnURL: ECPAY_CONFIG.RETURN_URL,
-      ClientBackURL: ECPAY_CONFIG.CLIENT_BACK_URL,
-      OrderResultURL: ECPAY_CONFIG.CLIENT_FRONT_URL,
       ChoosePayment: 'Credit',
       EncryptType: '1',
-      Language: 'ZH-TW',
-      NeedExtraPaidInfo: 'N',
-      Redeem: 'N',
-      UnionPay: '0'
+      ItemName: 'PeiPlay 遊戲夥伴預約',
+      MerchantID: ECPAY_CONFIG.MERCHANT_ID,
+      MerchantTradeDate: `${now.getFullYear()}/${String(now.getMonth() + 1).padStart(2, '0')}/${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`,
+      MerchantTradeNo: orderNumber,
+      PaymentType: 'aio',
+      ReturnURL: ECPAY_CONFIG.RETURN_URL,
+      TotalAmount: '100',
+      TradeDesc: 'PeiPlay 遊戲夥伴預約服務'
     }
 
     // 產生檢查碼
     const checkMacValue = generateCheckMacValue(ecpayParams)
     ecpayParams.CheckMacValue = checkMacValue
 
-    const testHtml = `
+    // 顯示詳細的計算步驟
+    const sortedKeys = Object.keys(ecpayParams).filter(key => key !== 'CheckMacValue').sort()
+    let queryString = ''
+    for (const key of sortedKeys) {
+      queryString += `${key}=${ecpayParams[key]}&`
+    }
+    queryString = queryString.slice(0, -1)
+    
+    const withKeys = `HashKey=${ECPAY_CONFIG.HASH_KEY}&${queryString}&HashIV=${ECPAY_CONFIG.HASH_IV}`
+    const urlEncoded = encodeURIComponent(withKeys)
+    const lowerCase = urlEncoded.toLowerCase()
+
+    const testFixHtml = `
       <!DOCTYPE html>
       <html>
       <head>
-        <title>綠界修復測試</title>
+        <title>綠界 CheckMacValue 修正測試</title>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <style>
-          body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
-          .container { max-width: 800px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-          .section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+          body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            margin: 0; 
+            padding: 20px; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+          }
+          .container { 
+            max-width: 1200px; 
+            margin: 0 auto; 
+            background: white; 
+            padding: 30px; 
+            border-radius: 15px; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+          }
+          .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 3px solid #667eea;
+          }
+          .header h1 {
+            color: #333;
+            margin: 0;
+            font-size: 2.5em;
+          }
+          .section { 
+            margin: 25px 0; 
+            padding: 20px; 
+            border: 2px solid #e9ecef; 
+            border-radius: 10px; 
+            background: #f8f9fa;
+          }
+          .section h2 {
+            color: #495057;
+            margin-top: 0;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+          }
           .success { color: #28a745; font-weight: bold; }
           .error { color: #dc3545; font-weight: bold; }
-          pre { background: #f8f9fa; padding: 10px; border-radius: 4px; overflow-x: auto; font-size: 12px; }
-          .test-button { background: #007bff; color: white; padding: 12px 24px; border: none; border-radius: 4px; font-size: 16px; cursor: pointer; }
-          .test-button:hover { background: #0056b3; }
-          .info { background: #e7f3ff; padding: 10px; border-radius: 4px; margin: 10px 0; }
+          .warning { color: #ffc107; font-weight: bold; }
+          .info { color: #17a2b8; font-weight: bold; }
+          pre { 
+            background: #2d3748; 
+            color: #e2e8f0; 
+            padding: 15px; 
+            border-radius: 8px; 
+            overflow-x: auto; 
+            font-size: 13px; 
+            line-height: 1.4;
+            border-left: 4px solid #667eea;
+          }
+          .test-button { 
+            background: linear-gradient(45deg, #667eea, #764ba2); 
+            color: white; 
+            padding: 15px 30px; 
+            border: none; 
+            border-radius: 25px; 
+            font-size: 18px; 
+            cursor: pointer; 
+            margin: 10px; 
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+          }
+          .test-button:hover { 
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+          }
+          .step { 
+            margin: 15px 0; 
+            padding: 15px; 
+            background: white; 
+            border-left: 4px solid #667eea; 
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+          }
+          .alert {
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            border-left: 5px solid;
+          }
+          .alert-success {
+            background: #d4edda;
+            border-color: #28a745;
+            color: #155724;
+          }
+          .alert-info {
+            background: #d1ecf1;
+            border-color: #17a2b8;
+            color: #0c5460;
+          }
         </style>
       </head>
       <body>
         <div class="container">
-          <h1>🛠️ 綠界金流修復測試</h1>
+          <div class="header">
+            <h1>🔧 綠界 CheckMacValue 修正測試</h1>
+            <p style="color: #666; font-size: 1.2em;">使用綠界官方正確的計算方式</p>
+          </div>
           
-          <div class="info">
-            <strong>修復內容：</strong> 修正了 CheckMacValue 計算邏輯，確保與綠界官方文件一致
+          <div class="alert alert-success">
+            <strong>✅ 修正完成！</strong> 已使用綠界官方正確的 CheckMacValue 計算方式
           </div>
           
           <div class="section">
-            <h2>📋 配置信息</h2>
-            <p><strong>MerchantID:</strong> <span class="success">${ECPAY_CONFIG.MERCHANT_ID}</span></p>
-            <p><strong>HashKey:</strong> ${ECPAY_CONFIG.HASH_KEY.substring(0, 8)}...</p>
-            <p><strong>HashIV:</strong> ${ECPAY_CONFIG.HASH_IV.substring(0, 8)}...</p>
-            <p><strong>Payment URL:</strong> ${ECPAY_CONFIG.PAYMENT_URL}</p>
-          </div>
-          
-          <div class="section">
-            <h2>🔧 測試參數</h2>
+            <h2>📋 測試參數</h2>
             <pre>${JSON.stringify(ecpayParams, null, 2)}</pre>
           </div>
           
           <div class="section">
-            <h2>✅ CheckMacValue</h2>
-            <p><strong>計算結果:</strong> <span class="success">${checkMacValue}</span></p>
-            <p><strong>長度:</strong> ${checkMacValue.length} 字元</p>
+            <h2>🔍 CheckMacValue 計算詳解</h2>
+            <div class="step">
+              <strong>步驟 1:</strong> 排序後的參數名稱
+              <pre>${sortedKeys.join(', ')}</pre>
+            </div>
+            
+            <div class="step">
+              <strong>步驟 2:</strong> 組合參數（不含 CheckMacValue）
+              <pre>${queryString}</pre>
+            </div>
+            
+            <div class="step">
+              <strong>步驟 3:</strong> 最前面加上 HashKey，最後面加上 HashIV
+              <pre>${withKeys}</pre>
+            </div>
+            
+            <div class="step">
+              <strong>步驟 4:</strong> URL Encode
+              <pre>${urlEncoded}</pre>
+            </div>
+            
+            <div class="step">
+              <strong>步驟 5:</strong> 轉小寫
+              <pre>${lowerCase}</pre>
+            </div>
+            
+            <div class="step">
+              <strong>步驟 6:</strong> SHA256 加密並轉大寫 (最終 CheckMacValue)
+              <pre class="success">${checkMacValue}</pre>
+            </div>
           </div>
           
           <div class="section">
-            <h2>🧪 測試表單</h2>
-            <p>點擊下方按鈕測試修復後的付款功能：</p>
+            <h2>🧪 測試付款</h2>
+            <div class="alert alert-info">
+              <strong>準備就緒！</strong> 點擊下方按鈕測試修正後的付款功能
+            </div>
             <form method="POST" action="${ECPAY_CONFIG.PAYMENT_URL}" target="_blank">
               ${Object.entries(ecpayParams).map(([key, value]) => 
                 `<input type="hidden" name="${key}" value="${value}">`
               ).join('')}
-              <button type="submit" class="test-button">🚀 測試付款</button>
+              <button type="submit" class="test-button">🚀 測試修正後的付款</button>
             </form>
           </div>
           
           <div class="section">
-            <h2>📊 驗證檢查</h2>
-            <ul>
-              <li>✅ MerchantID 格式正確</li>
-              <li>✅ HashKey 長度: ${ECPAY_CONFIG.HASH_KEY.length} 字元</li>
-              <li>✅ HashIV 長度: ${ECPAY_CONFIG.HASH_IV.length} 字元</li>
-              <li>✅ 訂單編號格式: ${orderNumber.length} 字元</li>
-              <li>✅ 金額格式: ${ecpayParams.TotalAmount}</li>
-              <li>✅ CheckMacValue 格式: ${checkMacValue.length} 字元</li>
-            </ul>
-          </div>
-          
-          <div class="info">
-            <strong>注意：</strong> 如果測試成功，您應該能夠正常進入綠界付款頁面，不會再出現 CheckMacValue Error。
+            <h2>📊 修正對比</h2>
+            <div class="alert alert-info">
+              <strong>修正重點：</strong>
+              <ul>
+                <li>❌ 舊方式：參數 + HashKey → URL encode → 轉小寫 → + HashIV → URL encode → 轉小寫 → SHA256</li>
+                <li>✅ 新方式：HashKey + 參數 + HashIV → URL encode → 轉小寫 → SHA256</li>
+                <li>關鍵差異：HashKey 和 HashIV 的位置和處理順序</li>
+              </ul>
+            </div>
           </div>
         </div>
       </body>
       </html>
     `
 
-    return new NextResponse(testHtml, {
+    return new NextResponse(testFixHtml, {
       headers: {
         'Content-Type': 'text/html',
       },
@@ -156,7 +277,7 @@ export async function GET() {
   } catch (error) {
     console.error('Test fix error:', error)
     return NextResponse.json(
-      { error: '測試失敗' },
+      { error: '測試修正失敗' },
       { status: 500 }
     )
   }
