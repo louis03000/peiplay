@@ -111,8 +111,9 @@ export async function GET() {
       const sortedKeys = Object.keys(testCase.params).sort()
       let queryString = ''
       for (const key of sortedKeys) {
-        if (key !== 'CheckMacValue' && testCase.params[key] !== '' && testCase.params[key] !== null && testCase.params[key] !== undefined) {
-          queryString += `${key}=${testCase.params[key]}&`
+        const value = testCase.params[key as keyof typeof testCase.params]
+        if (key !== 'CheckMacValue' && value !== '' && value !== null && value !== undefined) {
+          queryString += `${key}=${value}&`
         }
       }
       queryString = queryString.slice(0, -1)
@@ -123,7 +124,7 @@ export async function GET() {
       const finalEncoded = encodeURIComponent(withHashIV)
       const finalLower = finalEncoded.toLowerCase()
       const hash = crypto.createHash('sha256').update(finalLower).digest('hex')
-      testCase.params.CheckMacValue = hash.toUpperCase()
+      ;(testCase.params as any).CheckMacValue = hash.toUpperCase()
     })
 
     const issues = checkPotentialIssues()
@@ -312,7 +313,7 @@ export async function GET() {
                 <h3>測試案例 ${index + 1}: ${testCase.name}</h3>
                 <div class="config">
                   <p><strong>參數數量:</strong> ${Object.keys(testCase.params).length} 個</p>
-                  <p><strong>CheckMacValue:</strong> ${testCase.params.CheckMacValue}</p>
+                  <p><strong>CheckMacValue:</strong> ${(testCase.params as any).CheckMacValue}</p>
                 </div>
                 <pre>${JSON.stringify(testCase.params, null, 2)}</pre>
                 <form method="POST" action="${ECPAY_CONFIG.PAYMENT_URL}" target="_blank">
