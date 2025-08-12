@@ -53,6 +53,10 @@ export async function POST(
       return NextResponse.json({ error: '已完成的預約無法取消' }, { status: 400 });
     }
 
+    if (booking.status === 'REJECTED') {
+      return NextResponse.json({ error: '已拒絕的預約無法取消' }, { status: 400 });
+    }
+
     // 檢查是否可以取消（例如：距離預約時間太近）
     const now = new Date();
     const bookingStartTime = new Date(booking.schedule.startTime);
@@ -70,7 +74,13 @@ export async function POST(
       // 1. 更新預約狀態為已取消
       const updatedBooking = await tx.booking.update({
         where: { id: bookingId },
-        data: { status: 'CANCELLED' as any }
+        data: { 
+          status: 'CANCELLED' as any,
+          // 清除付款相關資訊
+          orderNumber: null,
+          paymentInfo: undefined,
+          paymentError: null
+        }
       });
 
       // 2. 將時段標記為可預約

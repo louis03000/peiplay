@@ -54,7 +54,7 @@ export default function BookingsPage() {
 
   // 檢查是否可以取消預約
   const canCancel = (booking: any) => {
-    if (booking.status === 'CANCELLED' || booking.status === 'COMPLETED') {
+    if (booking.status === 'CANCELLED' || booking.status === 'COMPLETED' || booking.status === 'REJECTED') {
       return false;
     }
     
@@ -150,7 +150,8 @@ export default function BookingsPage() {
       'CONFIRMED': '已確認',
       'REJECTED': '已拒絕',
       'CANCELLED': '已取消',
-      'COMPLETED': '已完成'
+      'COMPLETED': '已完成',
+      'PENDING_PAYMENT': '待付款'
     }
     return statusMap[status] || status
   }
@@ -161,8 +162,8 @@ export default function BookingsPage() {
     const now = new Date();
     filteredBookings = bookings.filter(b => {
       const start = new Date(b.schedule.startTime);
-      // 狀態為 PENDING 或 CONFIRMED，且開始時間在未來
-      return (b.status === 'PENDING' || b.status === 'CONFIRMED') && start.getTime() > now.getTime();
+      // 狀態為 PENDING、PENDING_PAYMENT 或 CONFIRMED，且開始時間在未來
+      return (b.status === 'PENDING' || b.status === 'PENDING_PAYMENT' || b.status === 'CONFIRMED') && start.getTime() > now.getTime();
     });
   }
   const pagedBookings = mergeBookings(filteredBookings).slice((currentPage - 1) * pageSize, currentPage * pageSize);
@@ -307,6 +308,7 @@ export default function BookingsPage() {
                       booking.status === 'REJECTED' ? 'bg-red-500 text-white' :
                       booking.status === 'CANCELLED' ? 'bg-red-600 text-white' :
                       booking.status === 'COMPLETED' ? 'bg-blue-600 text-white' :
+                      booking.status === 'PENDING_PAYMENT' ? 'bg-purple-600 text-white' :
                       'bg-gray-600 text-white'
                     }`}>
                       {getStatusText(booking.status)}

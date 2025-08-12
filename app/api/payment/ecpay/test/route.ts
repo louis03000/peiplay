@@ -87,7 +87,7 @@ export async function GET() {
       Language: 'ZH-TW',
       NeedExtraPaidInfo: 'N',
       Redeem: 'N',
-      UnionPay: 0
+      UnionPay: '0'
     }
 
     // 產生檢查碼

@@ -144,6 +144,7 @@ enum PartnerStatus {
 
 enum BookingStatus {
   PENDING
+  PENDING_PAYMENT
   CONFIRMED
   CANCELLED
   COMPLETED
