@@ -55,7 +55,7 @@ export async function GET() {
     const second = String(now.getSeconds()).padStart(2, '0')
     const random = String(Math.floor(Math.random() * 1000)).padStart(3, '0')
     
-    const orderNumber = `SIMPLE${year}${month}${day}${hour}${minute}${second}${random}`
+    const orderNumber = `S${year}${month}${day}${hour}${minute}${second}${random}`
 
     // 使用最簡化的參數組合
     const ecpayParams: Record<string, string> = {
