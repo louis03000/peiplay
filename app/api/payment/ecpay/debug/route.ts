@@ -28,26 +28,17 @@ function generateCheckMacValue(params: Record<string, string>): string {
   // 3. 移除最後一個 & 符號
   queryString = queryString.slice(0, -1)
   
-  // 4. 加入 HashKey
-  queryString += `&HashKey=${ECPAY_CONFIG.HASH_KEY}`
+  // 4. 最前面加上 HashKey，最後面加上 HashIV（綠界官方正確方式）
+  const withKeys = `HashKey=${ECPAY_CONFIG.HASH_KEY}&${queryString}&HashIV=${ECPAY_CONFIG.HASH_IV}`
   
   // 5. 進行 URL encode
-  const urlEncoded = encodeURIComponent(queryString)
+  const urlEncoded = encodeURIComponent(withKeys)
   
   // 6. 轉為小寫
   const lowerCase = urlEncoded.toLowerCase()
   
-  // 7. 加入 HashIV
-  const withHashIV = lowerCase + `&HashIV=${ECPAY_CONFIG.HASH_IV}`
-  
-  // 8. 進行 URL encode
-  const finalEncoded = encodeURIComponent(withHashIV)
-  
-  // 9. 轉為小寫
-  const finalLower = finalEncoded.toLowerCase()
-  
-  // 10. 使用 SHA256 加密
-  const hash = crypto.createHash('sha256').update(finalLower).digest('hex')
+  // 7. 使用 SHA256 加密
+  const hash = crypto.createHash('sha256').update(lowerCase).digest('hex')
   
   // 11. 轉為大寫
   return hash.toUpperCase()

@@ -117,13 +117,11 @@ export async function GET() {
         }
       }
       queryString = queryString.slice(0, -1)
-      queryString += `&HashKey=${ECPAY_CONFIG.HASH_KEY}`
-      const urlEncoded = encodeURIComponent(queryString)
+      // 最前面加上 HashKey，最後面加上 HashIV（綠界官方正確方式）
+      const withKeys = `HashKey=${ECPAY_CONFIG.HASH_KEY}&${queryString}&HashIV=${ECPAY_CONFIG.HASH_IV}`
+      const urlEncoded = encodeURIComponent(withKeys)
       const lowerCase = urlEncoded.toLowerCase()
-      const withHashIV = lowerCase + `&HashIV=${ECPAY_CONFIG.HASH_IV}`
-      const finalEncoded = encodeURIComponent(withHashIV)
-      const finalLower = finalEncoded.toLowerCase()
-      const hash = crypto.createHash('sha256').update(finalLower).digest('hex')
+      const hash = crypto.createHash('sha256').update(lowerCase).digest('hex')
       ;(testCase.params as any).CheckMacValue = hash.toUpperCase()
     })
 
