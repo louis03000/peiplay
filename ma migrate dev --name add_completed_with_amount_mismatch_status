@@ -1,0 +1,5 @@
+[33ma16a967[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmaster[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m Add ECPay official exact example test tool
+[33m66a40bd[m Add ECPay support contact tool with technical information
+[33m68c734f[m Add ECPay example test tool with minimal parameters
+[33ma4b3037[m Add official ECPay test tool with complete parameters
+[33mfa6062c[m Remove all old test tools with incorrect CheckMacValue calculation

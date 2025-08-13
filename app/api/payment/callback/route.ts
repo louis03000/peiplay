@@ -95,19 +95,36 @@ export async function POST(request: NextRequest) {
         if (bookingResponse.ok) {
           const booking = await bookingResponse.json()
           
-          // 更新預約狀態為已完成
+          // 驗證付款金額是否正確
+          const actualAmount = parseInt(TradeAmt)
+          const expectedAmount = booking.expectedAmount || 0
+          
+          let paymentStatus = 'COMPLETED'
+          let paymentNote = ''
+          
+          if (expectedAmount > 0 && actualAmount !== expectedAmount) {
+            // 金額不匹配，記錄差異
+            paymentStatus = 'COMPLETED_WITH_AMOUNT_MISMATCH'
+            paymentNote = `預期金額: ${expectedAmount}元, 實際付款: ${actualAmount}元, 差異: ${actualAmount - expectedAmount}元`
+            console.warn(`Payment amount mismatch for booking ${booking.id}: expected ${expectedAmount}, actual ${actualAmount}`)
+          }
+          
+          // 更新預約狀態
           const updateResponse = await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/bookings/${booking.id}/update-status`, {
             method: 'PUT',
             headers: {
               'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-              status: 'COMPLETED',
+              status: paymentStatus,
               paymentInfo: {
                 orderNumber: MerchantTradeNo,
                 paymentDate: PaymentDate,
                 paymentType: PaymentType,
-                amount: TradeAmt
+                amount: TradeAmt,
+                expectedAmount: expectedAmount,
+                amountMismatch: actualAmount !== expectedAmount,
+                paymentNote: paymentNote
               }
             })
           })

@@ -106,7 +106,8 @@ export async function POST(request: NextRequest) {
         },
         body: JSON.stringify({
           status: 'PENDING_PAYMENT',
-          orderNumber: orderNumber
+          orderNumber: orderNumber,
+          expectedAmount: parseInt(amount) // 記錄預期金額
         })
       })
 
