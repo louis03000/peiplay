@@ -31,7 +31,7 @@ function generateCheckMacValue(params: Record<string, string>): string {
   // 4. 最前面加上 HashKey，最後面加上 HashIV（綠界官方正確方式）
   const withKeys = `HashKey=${ECPAY_CONFIG.HASH_KEY}&${queryString}&HashIV=${ECPAY_CONFIG.HASH_IV}`
   
-  // 5. 進行 URL encode
+  // 5. 進行 URL encode（使用標準 URLEncode）
   const urlEncoded = encodeURIComponent(withKeys)
   
   // 6. 轉為小寫

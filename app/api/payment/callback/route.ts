@@ -29,7 +29,7 @@ function verifyCheckMacValue(params: Record<string, string>): boolean {
   // 最前面加上 HashKey，最後面加上 HashIV（綠界官方正確方式）
   const withKeys = `HashKey=${ECPAY_CONFIG.HASH_KEY}&${queryString}&HashIV=${ECPAY_CONFIG.HASH_IV}`
   
-  // 進行 URL encode
+  // 進行 URL encode（使用標準 URLEncode）
   const urlEncoded = encodeURIComponent(withKeys)
   
   // 轉為小寫
