@@ -80,7 +80,7 @@ export async function POST(request: NextRequest) {
       ReturnURL: ECPAY_CONFIG.RETURN_URL,
       ClientBackURL: ECPAY_CONFIG.CLIENT_BACK_URL,
       OrderResultURL: ECPAY_CONFIG.CLIENT_FRONT_URL,
-      ChoosePayment: 'Credit',
+      ChoosePayment: 'ALL', // 改為 ALL，支援所有付款方式
       EncryptType: '1',
       Language: 'ZH-TW',
       // 添加綠界官方推薦的必要參數

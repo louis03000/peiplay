@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import crypto from 'crypto'
 
 const ECPAY_CONFIG = {
-  MERCHANT_ID: '3464691',
-  HASH_KEY: 'ilByxKjPNI9qpHBK',
-  HASH_IV: 'OTzB3pify1U9G0j6'
+  MERCHANT_ID: '3002607', // 使用綠界官方範例的 MerchantID
+  HASH_KEY: 'pwFHCqoQZGmho4w6', // 使用綠界官方範例的 HashKey
+  HASH_IV: 'EkRm7iFT261dpevs' // 使用綠界官方範例的 HashIV
 }
 
 // 使用綠界官方範例參數
