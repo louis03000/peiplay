@@ -7,6 +7,43 @@ const ECPAY_CONFIG = {
   HASH_IV: 'EkRm7iFT261dpevs'
 }
 
+// 自定義 URLEncode 函數，使用舊版標準（空格編碼為 +）
+function customUrlEncode(str: string): string {
+  return str.replace(/\+/g, '%2B')
+            .replace(/\s/g, '+')
+            .replace(/"/g, '%22')
+            .replace(/'/g, '%27')
+            .replace(/</g, '%3C')
+            .replace(/>/g, '%3E')
+            .replace(/#/g, '%23')
+            .replace(/%/g, '%25')
+            .replace(/\{/g, '%7B')
+            .replace(/\}/g, '%7D')
+            .replace(/\|/g, '%7C')
+            .replace(/\\/g, '%5C')
+            .replace(/\^/g, '%5E')
+            .replace(/\[/g, '%5B')
+            .replace(/\]/g, '%5D')
+            .replace(/`/g, '%60')
+            .replace(/;/g, '%3B')
+            .replace(/\//g, '%2F')
+            .replace(/\?/g, '%3F')
+            .replace(/:/g, '%3A')
+            .replace(/@/g, '%40')
+            .replace(/=/g, '%3D')
+            .replace(/&/g, '%26')
+            .replace(/\$/g, '%24')
+            .replace(/,/g, '%2C')
+            .replace(/\(/g, '%28')
+            .replace(/\)/g, '%29')
+            .replace(/!/g, '%21')
+            .replace(/~/g, '%7E')
+            .replace(/\*/g, '%2A')
+            .replace(/\./g, '%2E')
+            .replace(/_/g, '%5F')
+            .replace(/-/g, '%2D')
+}
+
 export async function GET() {
   try {
     // 使用綠界官方文檔的確切範例參數
@@ -34,8 +71,8 @@ export async function GET() {
     // 步驟 2: 前面加 HashKey，後面加 HashIV
     const step2 = `HashKey=${ECPAY_CONFIG.HASH_KEY}&${step1}&HashIV=${ECPAY_CONFIG.HASH_IV}`
 
-    // 步驟 3: URL encode
-    const step3 = encodeURIComponent(step2)
+    // 步驟 3: URL encode (使用舊版標準)
+    const step3 = customUrlEncode(step2)
 
     // 步驟 4: 轉小寫
     const step4 = step3.toLowerCase()
@@ -81,13 +118,20 @@ export async function GET() {
           .official { background: #e3f2fd; border: 1px solid #2196F3; padding: 15px; border-radius: 5px; margin: 20px 0; }
           .step-comparison { background: #fff8e1; border: 1px solid #ffb74d; padding: 15px; border-radius: 5px; margin: 20px 0; }
           .diff { background: #ffebee; border: 1px solid #ef5350; padding: 5px; border-radius: 3px; margin: 5px 0; }
+          .fix { background: #e8f5e8; border: 1px solid #4CAF50; padding: 15px; border-radius: 5px; margin: 20px 0; }
         </style>
       </head>
       <body>
         <div class="container">
           <div class="header">
             <h1>🔍 CheckMacValue 計算調試工具</h1>
-            <p>使用綠界官方文檔的確切範例參數 - 詳細步驟比對</p>
+            <p>使用綠界官方文檔的確切範例參數 - 已修正 URLEncode 問題</p>
+          </div>
+
+          <div class="fix">
+            <h3>🔧 問題已修正</h3>
+            <p><strong>問題:</strong> 綠界使用舊版 URLEncode 標準，空格編碼為 <code>+</code> 而非 <code>%20</code></p>
+            <p><strong>修正:</strong> 使用自定義 URLEncode 函數，確保空格編碼為 <code>+</code></p>
           </div>
 
           <div class="official">
@@ -124,7 +168,7 @@ export async function GET() {
           </div>
           
           <div class="step-comparison">
-            <h3>🌐 步驟 3: URL encode 比對</h3>
+            <h3>🌐 步驟 3: URL encode 比對 (已修正)</h3>
             <p><strong>我們的結果:</strong></p>
             <div class="code">${step3}</div>
             <p><strong>綠界官方:</strong></p>
@@ -199,9 +243,9 @@ export async function GET() {
             <h3>⚠️ 重要說明</h3>
             <ul>
               <li>此測試使用綠界官方文檔的確切範例參數</li>
+              <li>已修正 URLEncode 問題：空格編碼為 <code>+</code> 而非 <code>%20</code></li>
               <li>每個步驟都與綠界官方文檔進行比對</li>
               <li>如果某個步驟不一致，表示我們的計算邏輯有問題</li>
-              <li>請檢查每個步驟的比對結果，找出差異點</li>
             </ul>
           </div>
         </div>

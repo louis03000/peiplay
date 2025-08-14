@@ -8,6 +8,43 @@ const ECPAY_CONFIG = {
   HASH_IV: 'OTzB3pify1U9G0j6'
 }
 
+// 自定義 URLEncode 函數，使用舊版標準（空格編碼為 +）
+function customUrlEncode(str: string): string {
+  return str.replace(/\+/g, '%2B')
+            .replace(/\s/g, '+')
+            .replace(/"/g, '%22')
+            .replace(/'/g, '%27')
+            .replace(/</g, '%3C')
+            .replace(/>/g, '%3E')
+            .replace(/#/g, '%23')
+            .replace(/%/g, '%25')
+            .replace(/\{/g, '%7B')
+            .replace(/\}/g, '%7D')
+            .replace(/\|/g, '%7C')
+            .replace(/\\/g, '%5C')
+            .replace(/\^/g, '%5E')
+            .replace(/\[/g, '%5B')
+            .replace(/\]/g, '%5D')
+            .replace(/`/g, '%60')
+            .replace(/;/g, '%3B')
+            .replace(/\//g, '%2F')
+            .replace(/\?/g, '%3F')
+            .replace(/:/g, '%3A')
+            .replace(/@/g, '%40')
+            .replace(/=/g, '%3D')
+            .replace(/&/g, '%26')
+            .replace(/\$/g, '%24')
+            .replace(/,/g, '%2C')
+            .replace(/\(/g, '%28')
+            .replace(/\)/g, '%29')
+            .replace(/!/g, '%21')
+            .replace(/~/g, '%7E')
+            .replace(/\*/g, '%2A')
+            .replace(/\./g, '%2E')
+            .replace(/_/g, '%5F')
+            .replace(/-/g, '%2D')
+}
+
 // 綠界官方正確的 CheckMacValue 驗證方式
 function verifyCheckMacValue(params: Record<string, string>): boolean {
   const receivedCheckMacValue = params.CheckMacValue
@@ -29,8 +66,8 @@ function verifyCheckMacValue(params: Record<string, string>): boolean {
   // 最前面加上 HashKey，最後面加上 HashIV（綠界官方正確方式）
   const withKeys = `HashKey=${ECPAY_CONFIG.HASH_KEY}&${queryString}&HashIV=${ECPAY_CONFIG.HASH_IV}`
   
-  // 進行 URL encode（使用標準 URLEncode）
-  const urlEncoded = encodeURIComponent(withKeys)
+  // 進行 URL encode（使用舊版標準，空格編碼為 +）
+  const urlEncoded = customUrlEncode(withKeys)
   
   // 轉為小寫
   const lowerCase = urlEncoded.toLowerCase()
