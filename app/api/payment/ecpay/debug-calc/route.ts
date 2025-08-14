@@ -27,7 +27,7 @@ export async function GET() {
     const sortedKeys = Object.keys(params).sort()
     let step1 = ''
     for (const key of sortedKeys) {
-      step1 += `${key}=${params[key]}&`
+      step1 += `${key}=${(params as any)[key]}&`
     }
     step1 = step1.slice(0, -1)
 
@@ -53,67 +53,96 @@ export async function GET() {
         <title>CheckMacValue 計算調試</title>
         <meta charset="UTF-8">
         <style>
-          body { font-family: Arial, sans-serif; margin: 20px; }
-          .container { max-width: 1200px; margin: 0 auto; }
-          .step { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
-          .code { background: #f4f4f4; padding: 10px; border-radius: 3px; font-family: monospace; white-space: pre-wrap; word-break: break-all; }
+          body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
+          .container { max-width: 1200px; margin: 0 auto; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+          .step { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; background: #fafafa; }
+          .code { background: #f4f4f4; padding: 10px; border-radius: 3px; font-family: monospace; white-space: pre-wrap; word-break: break-all; border-left: 4px solid #2196F3; }
           .success { color: #4CAF50; font-weight: bold; }
           .error { color: #f44336; font-weight: bold; }
           .expected { color: #2196F3; font-weight: bold; }
+          .warning { color: #ff9800; font-weight: bold; }
+          .header { background: #2196F3; color: white; padding: 15px; border-radius: 5px; margin-bottom: 20px; }
+          .comparison { background: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; border-radius: 5px; margin: 20px 0; }
+          .test-button { background: #4CAF50; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; margin: 10px 5px; }
+          .test-button:hover { background: #45a049; }
         </style>
       </head>
       <body>
         <div class="container">
-          <h1>🔍 CheckMacValue 計算調試</h1>
+          <div class="header">
+            <h1>🔍 CheckMacValue 計算調試工具</h1>
+            <p>使用綠界官方範例參數進行精確比對</p>
+          </div>
           
           <div class="step">
-            <h3>步驟 1: 排序參數</h3>
+            <h3>📋 步驟 1: 排序參數</h3>
+            <p><strong>排序後的參數:</strong></p>
             <div class="code">${step1}</div>
           </div>
           
           <div class="step">
-            <h3>步驟 2: 前面加 HashKey，後面加 HashIV</h3>
+            <h3>🔑 步驟 2: 前面加 HashKey，後面加 HashIV</h3>
+            <p><strong>HashKey:</strong> ${ECPAY_CONFIG.HASH_KEY}</p>
+            <p><strong>HashIV:</strong> ${ECPAY_CONFIG.HASH_IV}</p>
             <div class="code">${step2}</div>
           </div>
           
           <div class="step">
-            <h3>步驟 3: URL encode</h3>
+            <h3>🌐 步驟 3: URL encode</h3>
             <div class="code">${step3}</div>
           </div>
           
           <div class="step">
-            <h3>步驟 4: 轉小寫</h3>
+            <h3>📝 步驟 4: 轉小寫</h3>
             <div class="code">${step4}</div>
           </div>
           
           <div class="step">
-            <h3>步驟 5: SHA256 加密</h3>
+            <h3>🔐 步驟 5: SHA256 加密</h3>
             <div class="code">${step5}</div>
           </div>
           
           <div class="step">
-            <h3>步驟 6: 轉大寫 (我們的結果)</h3>
+            <h3>📊 步驟 6: 轉大寫 (我們的結果)</h3>
             <div class="code success">${step6}</div>
           </div>
           
-          <div class="step">
-            <h3>綠界官方預期結果</h3>
+          <div class="comparison">
+            <h3>🎯 比對結果</h3>
+            <p><strong>綠界官方預期:</strong></p>
             <div class="code expected">6C51C9E6888DE861FD62FB1DD17029FC742634498FD813DC43D4243B5685B840</div>
+            <p><strong>我們的結果:</strong></p>
+            <div class="code ${step6 === '6C51C9E6888DE861FD62FB1DD17029FC742634498FD813DC43D4243B5685B840' ? 'success' : 'error'}">${step6}</div>
+            <p><strong>比對結果:</strong> 
+              <span class="${step6 === '6C51C9E6888DE861FD62FB1DD17029FC742634498FD813DC43D4243B5685B840' ? 'success' : 'error'}">
+                ${step6 === '6C51C9E6888DE861FD62FB1DD17029FC742634498FD813DC43D4243B5685B840' ? '✅ 完全一致！' : '❌ 不一致！'}
+              </span>
+            </p>
           </div>
           
           <div class="step">
-            <h3>比對結果</h3>
-            <div class="${step6 === '6C51C9E6888DE861FD62FB1DD17029FC742634498FD813DC43D4243B5685B840' ? 'success' : 'error'}">
-              ${step6 === '6C51C9E6888DE861FD62FB1DD17029FC742634498FD813DC43D4243B5685B840' ? '✅ 完全一致！' : '❌ 不一致！'}
-            </div>
-          </div>
-          
-          <div class="step">
-            <h3>詳細分析</h3>
+            <h3>📈 詳細分析</h3>
             <p><strong>我們的結果長度:</strong> ${step6.length}</p>
             <p><strong>預期結果長度:</strong> 64</p>
-            <p><strong>是否長度相同:</strong> ${step6.length === 64 ? '是' : '否'}</p>
+            <p><strong>是否長度相同:</strong> ${step6.length === 64 ? '✅ 是' : '❌ 否'}</p>
             <p><strong>前10個字符:</strong> ${step6.substring(0, 10)} vs ${'6C51C9E6888DE861FD62FB1DD17029FC742634498FD813DC43D4243B5685B840'.substring(0, 10)}</p>
+            <p><strong>前10個字符是否相同:</strong> ${step6.substring(0, 10) === '6C51C9E6888DE861FD62FB1DD17029FC742634498FD813DC43D4243B5685B840'.substring(0, 10) ? '✅ 是' : '❌ 否'}</p>
+          </div>
+
+          <div class="step">
+            <h3>🧪 測試按鈕</h3>
+            <button class="test-button" onclick="window.open('https://peiplay.vercel.app/api/payment/ecpay/urlencode-test', '_blank')">測試 URLEncode 工具</button>
+            <button class="test-button" onclick="window.open('https://peiplay.vercel.app/api/payment/ecpay/official-exact', '_blank')">測試官方確切範例</button>
+          </div>
+
+          <div class="step">
+            <h3>⚠️ 重要說明</h3>
+            <ul>
+              <li>此測試使用綠界官方範例參數</li>
+              <li>如果比對結果一致，表示我們的 CheckMacValue 計算正確</li>
+              <li>如果比對結果不一致，表示我們的計算邏輯有問題</li>
+              <li>請檢查每個步驟的輸出，找出差異點</li>
+            </ul>
           </div>
         </div>
       </body>
