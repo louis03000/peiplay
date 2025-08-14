@@ -46,6 +46,36 @@ export async function GET() {
     // 步驟 6: 轉大寫
     const step6 = step5.toUpperCase()
 
+    // 嘗試不同的參數組合
+    const alternativeParams = {
+      ChoosePayment: 'ALL',
+      EncryptType: '1',
+      ItemName: 'Apple iphone 15',
+      MerchantID: '3002607',
+      MerchantTradeDate: '2023/03/12 15:30:23',
+      MerchantTradeNo: 'ecpay20230312153023',
+      PaymentType: 'aio',
+      ReturnURL: 'https://www.ecpay.com.tw/receive.php',
+      TotalAmount: '30000',
+      TradeDesc: '促銷方案',
+      // 嘗試添加可能遺漏的參數
+      ClientBackURL: 'https://www.ecpay.com.tw/client_back_url.php',
+      OrderResultURL: 'https://www.ecpay.com.tw/order_result_url.php'
+    }
+
+    const altSortedKeys = Object.keys(alternativeParams).sort()
+    let altStep1 = ''
+    for (const key of altSortedKeys) {
+      altStep1 += `${key}=${(alternativeParams as any)[key]}&`
+    }
+    altStep1 = altStep1.slice(0, -1)
+
+    const altStep2 = `HashKey=${ECPAY_CONFIG.HASH_KEY}&${altStep1}&HashIV=${ECPAY_CONFIG.HASH_IV}`
+    const altStep3 = encodeURIComponent(altStep2)
+    const altStep4 = altStep3.toLowerCase()
+    const altStep5 = crypto.createHash('sha256').update(altStep4).digest('hex')
+    const altStep6 = altStep5.toUpperCase()
+
     const html = `
       <!DOCTYPE html>
       <html>
@@ -54,7 +84,7 @@ export async function GET() {
         <meta charset="UTF-8">
         <style>
           body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
-          .container { max-width: 1200px; margin: 0 auto; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+          .container { max-width: 1400px; margin: 0 auto; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
           .step { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; background: #fafafa; }
           .code { background: #f4f4f4; padding: 10px; border-radius: 3px; font-family: monospace; white-space: pre-wrap; word-break: break-all; border-left: 4px solid #2196F3; }
           .success { color: #4CAF50; font-weight: bold; }
@@ -65,6 +95,8 @@ export async function GET() {
           .comparison { background: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; border-radius: 5px; margin: 20px 0; }
           .test-button { background: #4CAF50; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; margin: 10px 5px; }
           .test-button:hover { background: #45a049; }
+          .alternative { background: #e8f5e8; border: 1px solid #4CAF50; padding: 15px; border-radius: 5px; margin: 20px 0; }
+          .param-list { background: #f9f9f9; padding: 10px; border-radius: 3px; margin: 10px 0; }
         </style>
       </head>
       <body>
@@ -72,6 +104,13 @@ export async function GET() {
           <div class="header">
             <h1>🔍 CheckMacValue 計算調試工具</h1>
             <p>使用綠界官方範例參數進行精確比對</p>
+          </div>
+
+          <div class="step">
+            <h3>📋 當前使用的參數</h3>
+            <div class="param-list">
+              ${Object.entries(params).map(([key, value]) => `<strong>${key}:</strong> ${value}`).join('<br>')}
+            </div>
           </div>
           
           <div class="step">
@@ -119,6 +158,17 @@ export async function GET() {
               </span>
             </p>
           </div>
+
+          <div class="alternative">
+            <h3>🔬 嘗試添加額外參數</h3>
+            <p><strong>添加 ClientBackURL 和 OrderResultURL 後的結果:</strong></p>
+            <div class="code">${altStep6}</div>
+            <p><strong>是否匹配官方預期:</strong> 
+              <span class="${altStep6 === '6C51C9E6888DE861FD62FB1DD17029FC742634498FD813DC43D4243B5685B840' ? 'success' : 'error'}">
+                ${altStep6 === '6C51C9E6888DE861FD62FB1DD17029FC742634498FD813DC43D4243B5685B840' ? '✅ 是！' : '❌ 否'}
+              </span>
+            </p>
+          </div>
           
           <div class="step">
             <h3>📈 詳細分析</h3>
@@ -142,6 +192,7 @@ export async function GET() {
               <li>如果比對結果一致，表示我們的 CheckMacValue 計算正確</li>
               <li>如果比對結果不一致，表示我們的計算邏輯有問題</li>
               <li>請檢查每個步驟的輸出，找出差異點</li>
+              <li>我們也嘗試了添加額外參數來測試是否遺漏了必要參數</li>
             </ul>
           </div>
         </div>
