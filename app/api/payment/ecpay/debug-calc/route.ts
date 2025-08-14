@@ -7,7 +7,7 @@ const ECPAY_CONFIG = {
   HASH_IV: 'EkRm7iFT261dpevs'
 }
 
-// 自定義 URLEncode 函數，使用舊版標準（空格編碼為 +）
+// 修正的 URLEncode 函數 - 只編碼真正需要編碼的字符
 function customUrlEncode(str: string): string {
   return str.replace(/\+/g, '%2B')
             .replace(/\s/g, '+')
@@ -39,14 +39,15 @@ function customUrlEncode(str: string): string {
             .replace(/!/g, '%21')
             .replace(/~/g, '%7E')
             .replace(/\*/g, '%2A')
-            .replace(/\./g, '%2E')
-            .replace(/_/g, '%5F')
-            .replace(/-/g, '%2D')
+            // 移除對 . 和 - 的編碼，讓它們保持原樣
+            // .replace(/\./g, '%2E')
+            // .replace(/_/g, '%5F')
+            // .replace(/-/g, '%2D')
 }
 
 export async function GET() {
   try {
-    // 使用綠界官方文檔的確切範例參數 - 修正 ReturnURL 拼寫
+    // 使用綠界官方文檔的確切範例參數
     const params = {
       ChoosePayment: 'ALL',
       EncryptType: '1',
@@ -55,7 +56,7 @@ export async function GET() {
       MerchantTradeDate: '2025/02/08 09:27:23',
       MerchantTradeNo: 'ECPay1738978043',
       PaymentType: 'aio',
-      ReturnURL: 'https://08f6-211-23-76-78.ngrok-free.app/returnurl.php', // 修正：returnur1 -> returnurl
+      ReturnURL: 'https://08f6-211-23-76-78.ngrok-free.app/returnurl.php',
       TotalAmount: '30',
       TradeDesc: 'Trade'
     }
@@ -71,7 +72,7 @@ export async function GET() {
     // 步驟 2: 前面加 HashKey，後面加 HashIV
     const step2 = `HashKey=${ECPAY_CONFIG.HASH_KEY}&${step1}&HashIV=${ECPAY_CONFIG.HASH_IV}`
 
-    // 步驟 3: URL encode (使用舊版標準)
+    // 步驟 3: URL encode (修正版本)
     const step3 = customUrlEncode(step2)
 
     // 步驟 4: 轉小寫
@@ -146,18 +147,18 @@ export async function GET() {
         <div class="container">
           <div class="header">
             <h1>🔍 CheckMacValue 計算調試工具</h1>
-            <p>使用綠界官方文檔的確切範例參數 - 已修正 ReturnURL 拼寫錯誤</p>
+            <p>使用綠界官方文檔的確切範例參數 - 修正 URLEncode 過度編碼問題</p>
           </div>
 
           <div class="fix">
             <h3>🔧 問題已修正</h3>
             <p><strong>發現的問題:</strong></p>
             <ul>
-              <li>ReturnURL 參數拼寫錯誤：<code>returnur1.php</code> → <code>returnurl.php</code></li>
-              <li>字符串長度差異：375 vs 359 字符</li>
+              <li>URLEncode 函數過度編碼了 <code>-</code> 和 <code>.</code> 字符</li>
+              <li>導致字符串過長：375 vs 359 字符</li>
               <li>122 個字符位置存在差異</li>
             </ul>
-            <p><strong>修正內容:</strong> 將 ReturnURL 中的 <code>returnur1.php</code> 修正為 <code>returnurl.php</code></p>
+            <p><strong>修正內容:</strong> 移除對 <code>-</code> 和 <code>.</code> 的編碼，讓它們保持原樣</p>
           </div>
 
           <div class="debug">
@@ -174,7 +175,7 @@ export async function GET() {
           </div>
 
           <div class="official">
-            <h3>📋 綠界官方範例參數 (已修正)</h3>
+            <h3>📋 綠界官方範例參數</h3>
             <div class="param-list">
               ${Object.entries(params).map(([key, value]) => `<strong>${key}:</strong> ${value}`).join('<br>')}
             </div>
@@ -207,7 +208,7 @@ export async function GET() {
           </div>
           
           <div class="step-comparison">
-            <h3>🌐 步驟 3: URL encode 比對 (已修正)</h3>
+            <h3>🌐 步驟 3: URL encode 比對 (修正版本)</h3>
             <p><strong>我們的結果:</strong></p>
             <div class="code">${step3}</div>
             <p><strong>綠界官方:</strong></p>
@@ -282,8 +283,8 @@ export async function GET() {
             <h3>⚠️ 重要說明</h3>
             <ul>
               <li>此測試使用綠界官方文檔的確切範例參數</li>
-              <li>已修正 ReturnURL 拼寫錯誤：<code>returnur1.php</code> → <code>returnurl.php</code></li>
-              <li>已修正 URLEncode 問題：空格編碼為 <code>+</code> 而非 <code>%20</code></li>
+              <li>已修正 URLEncode 過度編碼問題：移除對 <code>-</code> 和 <code>.</code> 的編碼</li>
+              <li>已修正空格編碼：空格編碼為 <code>+</code> 而非 <code>%20</code></li>
               <li>每個步驟都與綠界官方文檔進行比對</li>
               <li>如果某個步驟不一致，表示我們的計算邏輯有問題</li>
               <li>新增字符級別調試，檢查是否有隱藏字符差異</li>
