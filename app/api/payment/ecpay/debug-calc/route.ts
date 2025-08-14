@@ -93,6 +93,26 @@ export async function GET() {
     const officialStep4 = 'hashkey%3dpwfhcqoqzgmho4w6%26choosepayment%3dall%26encrypttype%3d1%26itemname%3dmyitem%26merchantid%3d3002607%26merchanttradedate%3d2025%2f02%2f08+09%3a27%3a23%26merchanttradeno%3decpay1738978043%26paymenttype%3daio%26returnurl%3dhttps%3a%2f%2f08f6-211-23-76-78.ngrok-free.app%2freturnurl.php%26totalamount%3d30%26tradedesc%3dtrade%26hashiv%3dekrm7ift261dpevs'
     const officialStep5 = 'f1fb466ed0d6713dac7158ab6705914e37c93bd44fb8fa44c17f80cd17bb5728'
 
+    // 詳細調試：檢查字符串的每個字符
+    const step4Chars = step4.split('').map((char, index) => ({ char, index, code: char.charCodeAt(0) }))
+    const officialStep4Chars = officialStep4.split('').map((char, index) => ({ char, index, code: char.charCodeAt(0) }))
+
+    // 找出差異
+    const differences = []
+    for (let i = 0; i < Math.max(step4.length, officialStep4.length); i++) {
+      const ourChar = step4[i] || 'MISSING'
+      const officialChar = officialStep4[i] || 'MISSING'
+      if (ourChar !== officialChar) {
+        differences.push({
+          index: i,
+          ourChar,
+          officialChar,
+          ourCode: ourChar.charCodeAt(0),
+          officialCode: officialChar.charCodeAt(0)
+        })
+      }
+    }
+
     const html = `
       <!DOCTYPE html>
       <html>
@@ -119,19 +139,27 @@ export async function GET() {
           .step-comparison { background: #fff8e1; border: 1px solid #ffb74d; padding: 15px; border-radius: 5px; margin: 20px 0; }
           .diff { background: #ffebee; border: 1px solid #ef5350; padding: 5px; border-radius: 3px; margin: 5px 0; }
           .fix { background: #e8f5e8; border: 1px solid #4CAF50; padding: 15px; border-radius: 5px; margin: 20px 0; }
+          .debug { background: #fff3e0; border: 1px solid #ffb74d; padding: 15px; border-radius: 5px; margin: 20px 0; }
         </style>
       </head>
       <body>
         <div class="container">
           <div class="header">
             <h1>🔍 CheckMacValue 計算調試工具</h1>
-            <p>使用綠界官方文檔的確切範例參數 - 已修正 URLEncode 問題</p>
+            <p>使用綠界官方文檔的確切範例參數 - 詳細字符調試</p>
           </div>
 
-          <div class="fix">
-            <h3>🔧 問題已修正</h3>
-            <p><strong>問題:</strong> 綠界使用舊版 URLEncode 標準，空格編碼為 <code>+</code> 而非 <code>%20</code></p>
-            <p><strong>修正:</strong> 使用自定義 URLEncode 函數，確保空格編碼為 <code>+</code></p>
+          <div class="debug">
+            <h3>🔧 字符級別調試</h3>
+            <p><strong>我們的字符串長度:</strong> ${step4.length}</p>
+            <p><strong>官方字符串長度:</strong> ${officialStep4.length}</p>
+            <p><strong>差異數量:</strong> ${differences.length}</p>
+            ${differences.length > 0 ? `
+              <h4>發現的差異:</h4>
+              <div class="code">
+                ${differences.map(d => `位置 ${d.index}: 我們="${d.ourChar}"(${d.ourCode}) vs 官方="${d.officialChar}"(${d.officialCode})`).join('\n')}
+              </div>
+            ` : '<p><strong>✅ 沒有發現字符差異！</strong></p>'}
           </div>
 
           <div class="official">
@@ -246,6 +274,7 @@ export async function GET() {
               <li>已修正 URLEncode 問題：空格編碼為 <code>+</code> 而非 <code>%20</code></li>
               <li>每個步驟都與綠界官方文檔進行比對</li>
               <li>如果某個步驟不一致，表示我們的計算邏輯有問題</li>
+              <li>新增字符級別調試，檢查是否有隱藏字符差異</li>
             </ul>
           </div>
         </div>
