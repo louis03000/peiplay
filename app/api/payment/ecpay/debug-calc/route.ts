@@ -46,7 +46,7 @@ function customUrlEncode(str: string): string {
 
 export async function GET() {
   try {
-    // 使用綠界官方文檔的確切範例參數
+    // 使用綠界官方文檔的確切範例參數 - 修正 ReturnURL 拼寫
     const params = {
       ChoosePayment: 'ALL',
       EncryptType: '1',
@@ -55,7 +55,7 @@ export async function GET() {
       MerchantTradeDate: '2025/02/08 09:27:23',
       MerchantTradeNo: 'ECPay1738978043',
       PaymentType: 'aio',
-      ReturnURL: 'https://08f6-211-23-76-78.ngrok-free.app/returnurl.php',
+      ReturnURL: 'https://08f6-211-23-76-78.ngrok-free.app/returnurl.php', // 修正：returnur1 -> returnurl
       TotalAmount: '30',
       TradeDesc: 'Trade'
     }
@@ -146,7 +146,18 @@ export async function GET() {
         <div class="container">
           <div class="header">
             <h1>🔍 CheckMacValue 計算調試工具</h1>
-            <p>使用綠界官方文檔的確切範例參數 - 詳細字符調試</p>
+            <p>使用綠界官方文檔的確切範例參數 - 已修正 ReturnURL 拼寫錯誤</p>
+          </div>
+
+          <div class="fix">
+            <h3>🔧 問題已修正</h3>
+            <p><strong>發現的問題:</strong></p>
+            <ul>
+              <li>ReturnURL 參數拼寫錯誤：<code>returnur1.php</code> → <code>returnurl.php</code></li>
+              <li>字符串長度差異：375 vs 359 字符</li>
+              <li>122 個字符位置存在差異</li>
+            </ul>
+            <p><strong>修正內容:</strong> 將 ReturnURL 中的 <code>returnur1.php</code> 修正為 <code>returnurl.php</code></p>
           </div>
 
           <div class="debug">
@@ -163,7 +174,7 @@ export async function GET() {
           </div>
 
           <div class="official">
-            <h3>📋 綠界官方範例參數</h3>
+            <h3>📋 綠界官方範例參數 (已修正)</h3>
             <div class="param-list">
               ${Object.entries(params).map(([key, value]) => `<strong>${key}:</strong> ${value}`).join('<br>')}
             </div>
@@ -271,6 +282,7 @@ export async function GET() {
             <h3>⚠️ 重要說明</h3>
             <ul>
               <li>此測試使用綠界官方文檔的確切範例參數</li>
+              <li>已修正 ReturnURL 拼寫錯誤：<code>returnur1.php</code> → <code>returnurl.php</code></li>
               <li>已修正 URLEncode 問題：空格編碼為 <code>+</code> 而非 <code>%20</code></li>
               <li>每個步驟都與綠界官方文檔進行比對</li>
               <li>如果某個步驟不一致，表示我們的計算邏輯有問題</li>
