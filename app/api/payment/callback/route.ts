@@ -40,9 +40,10 @@ function customUrlEncode(str: string): string {
             .replace(/!/g, '%21')
             .replace(/~/g, '%7E')
             .replace(/\*/g, '%2A')
-            .replace(/\./g, '%2E')
-            .replace(/_/g, '%5F')
-            .replace(/-/g, '%2D')
+            // 移除對 . 和 - 的編碼，讓它們保持原樣
+            // .replace(/\./g, '%2E')
+            // .replace(/_/g, '%5F')
+            // .replace(/-/g, '%2D')
 }
 
 // 綠界官方正確的 CheckMacValue 驗證方式
