@@ -150,7 +150,7 @@ export default function RankingPage() {
         {/* TOP 3 特殊展示區域 */}
         {rankingData.length > 0 && (
           <div className="mb-8">
-            <h2 className="text-2xl font-bold text-gray-800 mb-6 text-center">🏆 TOP 3 夥伴</h2>
+            <h2 className="text-2xl font-bold text-white mb-6 text-center">🏆 TOP 3 夥伴</h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
               {rankingData.slice(0, 3).map((partner, index) => (
                 <div
@@ -224,47 +224,130 @@ export default function RankingPage() {
           </div>
         )}
 
+        {/* 4-10 名橫向列表 */}
+        {rankingData.length > 3 && (
+          <div className="mb-8">
+            <h2 className="text-xl font-bold text-white mb-4 text-center">🥇 第 4-10 名</h2>
+            <div className="bg-gray-800/50 rounded-lg p-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                {rankingData.slice(3, 10).map((partner) => (
+                  <div
+                    key={partner.id}
+                    className="bg-gray-700/50 rounded-lg p-4 hover:bg-gray-600/50 transition-all duration-200 cursor-pointer border border-gray-600/30"
+                    onClick={() => handlePartnerClick(partner.id)}
+                  >
+                    <div className="flex items-center space-x-3">
+                      {/* 排名 */}
+                      <div className="flex-shrink-0">
+                        <div className="w-8 h-8 rounded-full bg-gray-600 flex items-center justify-center">
+                          <span className="text-white font-bold text-sm">{partner.rank}</span>
+                        </div>
+                      </div>
+                      
+                      {/* 頭像 */}
+                      <div className="flex-shrink-0">
+                        <div className="w-12 h-12 rounded-full overflow-hidden bg-gray-600 flex items-center justify-center">
+                          {partner.coverImage ? (
+                            <Image
+                              src={partner.coverImage}
+                              alt={partner.name}
+                              width={48}
+                              height={48}
+                              className="object-cover w-full h-full"
+                            />
+                          ) : (
+                            <span className="text-lg font-bold text-gray-400">{partner.name[0]}</span>
+                          )}
+                        </div>
+                      </div>
+                      
+                      {/* 資訊 */}
+                      <div className="flex-1 min-w-0">
+                        <h3 className="text-white font-semibold text-sm truncate">{partner.name}</h3>
+                        <div className="flex items-center gap-1 mt-1">
+                          <FaBolt className="text-yellow-400 text-xs" />
+                          <span className="text-gray-300 text-xs">
+                            {Math.round(partner.totalMinutes / 60)}h
+                          </span>
+                        </div>
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {partner.games.slice(0, 1).map((game, i) => (
+                            <span key={i} className="px-1.5 py-0.5 bg-blue-500/20 text-blue-300 text-xs rounded">
+                              {game}
+                            </span>
+                          ))}
+                          {partner.games.length > 1 && (
+                            <span className="px-1.5 py-0.5 bg-gray-600/50 text-gray-400 text-xs rounded">
+                              +{partner.games.length - 1}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      
+                      {/* 狀態標籤 */}
+                      <div className="flex-shrink-0">
+                        <div className="flex flex-col gap-1">
+                          {partner.isAvailableNow && (
+                            <span className="px-1.5 py-0.5 bg-green-500/20 text-green-300 text-xs rounded">
+                              有空
+                            </span>
+                          )}
+                          {partner.isRankBooster && (
+                            <span className="px-1.5 py-0.5 bg-orange-500/20 text-orange-300 text-xs rounded">
+                              上分
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* 完整排行榜 */}
         {rankingData.length > 3 && (
           <div>
-            <h2 className="text-2xl font-bold text-gray-800 mb-6 text-center">完整排行榜</h2>
-            <div className="bg-white rounded-lg shadow-lg overflow-hidden">
+            <h2 className="text-2xl font-bold text-white mb-6 text-center">📊 完整排行榜</h2>
+            <div className="bg-gray-800/50 rounded-lg shadow-lg overflow-hidden border border-gray-600/30">
               <div className="overflow-x-auto">
                 <table className="w-full">
-                  <thead className="bg-gray-50">
+                  <thead className="bg-gray-700/50">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
                         排名
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
                         夥伴
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
                         遊戲
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
                         總時長
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
                         狀態
                       </th>
                     </tr>
                   </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {rankingData.slice(3).map((partner) => (
+                  <tbody className="bg-gray-800/30 divide-y divide-gray-700/50">
+                    {rankingData.slice(10).map((partner) => (
                       <tr 
                         key={partner.id} 
-                        className="hover:bg-gray-50 cursor-pointer transition-colors"
+                        className="hover:bg-gray-700/30 cursor-pointer transition-colors"
                         onClick={() => handlePartnerClick(partner.id)}
                       >
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center">
-                            <span className="text-sm font-medium text-gray-900">{partner.rank}</span>
+                            <span className="text-sm font-medium text-white">{partner.rank}</span>
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center">
-                            <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-200 flex items-center justify-center mr-3">
+                            <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-600 flex items-center justify-center mr-3">
                               {partner.coverImage ? (
                                 <Image
                                   src={partner.coverImage}
@@ -274,23 +357,23 @@ export default function RankingPage() {
                                   className="object-cover w-full h-full"
                                 />
                               ) : (
-                                <span className="text-sm font-bold text-gray-500">{partner.name[0]}</span>
+                                <span className="text-sm font-bold text-gray-400">{partner.name[0]}</span>
                               )}
                             </div>
                             <div>
-                              <div className="text-sm font-medium text-gray-900">{partner.name}</div>
+                              <div className="text-sm font-medium text-white">{partner.name}</div>
                             </div>
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex flex-wrap gap-1">
                             {partner.games.slice(0, 2).map((game, i) => (
-                              <span key={i} className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded">
+                              <span key={i} className="px-2 py-1 bg-blue-500/20 text-blue-300 text-xs rounded">
                                 {game}
                               </span>
                             ))}
                             {partner.games.length > 2 && (
-                              <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded">
+                              <span className="px-2 py-1 bg-gray-600/50 text-gray-400 text-xs rounded">
                                 +{partner.games.length - 2}
                               </span>
                             )}
@@ -298,8 +381,8 @@ export default function RankingPage() {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center">
-                            <FaBolt className="text-yellow-500 mr-1" />
-                            <span className="text-sm text-gray-900">
+                            <FaBolt className="text-yellow-400 mr-1" />
+                            <span className="text-sm text-white">
                               {Math.round(partner.totalMinutes / 60)} 小時
                             </span>
                           </div>
@@ -307,12 +390,12 @@ export default function RankingPage() {
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex gap-1">
                             {partner.isAvailableNow && (
-                              <span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded">
+                              <span className="px-2 py-1 bg-green-500/20 text-green-300 text-xs rounded">
                                 有空
                               </span>
                             )}
                             {partner.isRankBooster && (
-                              <span className="px-2 py-1 bg-orange-100 text-orange-800 text-xs rounded">
+                              <span className="px-2 py-1 bg-orange-500/20 text-orange-300 text-xs rounded">
                                 上分
                               </span>
                             )}

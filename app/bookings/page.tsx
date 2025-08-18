@@ -162,8 +162,16 @@ export default function BookingsPage() {
     const now = new Date();
     filteredBookings = bookings.filter(b => {
       const start = new Date(b.schedule.startTime);
-      // 狀態為 PENDING、PENDING_PAYMENT 或 CONFIRMED，且開始時間在未來
-      return (b.status === 'PENDING' || b.status === 'PENDING_PAYMENT' || b.status === 'CONFIRMED') && start.getTime() > now.getTime();
+      // 顯示所有狀態的預約，包括已取消的
+      // 但只顯示未來的預約（除非是已取消或已完成的）
+      if (b.status === 'CANCELLED' || b.status === 'COMPLETED') {
+        // 已取消或已完成的預約，顯示最近 30 天內的
+        const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        return start.getTime() > thirtyDaysAgo.getTime();
+      } else {
+        // 其他狀態的預約，只顯示未來的
+        return start.getTime() > now.getTime();
+      }
     });
   }
   const pagedBookings = mergeBookings(filteredBookings).slice((currentPage - 1) * pageSize, currentPage * pageSize);

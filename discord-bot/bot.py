@@ -1,4 +1,4 @@
-import os
+import os 
 import asyncio
 import random
 import discord
@@ -6,7 +6,7 @@ from discord.ext import commands, tasks
 from discord import app_commands
 from discord.ui import View, Button, Modal, TextInput
 from dotenv import load_dotenv
-from sqlalchemy import create_engine, Column, Integer, String, DateTime, Enum, ForeignKey
+from sqlalchemy import create_engine, Column, Integer, String, DateTime, ForeignKey, Boolean, Float
 from sqlalchemy.orm import declarative_base, sessionmaker, relationship
 from datetime import datetime, timedelta, timezone
 from flask import Flask, request, jsonify
@@ -18,37 +18,53 @@ TOKEN = os.getenv("DISCORD_BOT_TOKEN")
 GUILD_ID = int(os.getenv("DISCORD_GUILD_ID", "0"))
 POSTGRES_CONN = os.getenv("POSTGRES_CONN")
 ADMIN_CHANNEL_ID = int(os.getenv("ADMIN_CHANNEL_ID", "0"))
-CHECK_INTERVAL = int(os.getenv("CHECK_INTERVAL", "30")) 
+CHECK_INTERVAL = int(os.getenv("CHECK_INTERVAL", "30"))  # 檢查間隔（秒）
 
 Base = declarative_base()
 engine = create_engine(POSTGRES_CONN)
 Session = sessionmaker(bind=engine)
 session = Session()
 
-# --- 資料表模型 ---
+# --- 資料庫模型（對應 Prisma schema）---
 class User(Base):
     __tablename__ = 'User'
     id = Column(String, primary_key=True)
-    discord = Column(String)  # Discord 名稱
-
-class Customer(Base):
-    __tablename__ = 'Customer'
-    id = Column(String, primary_key=True)
-    userId = Column(String, ForeignKey('User.id'))
-    user = relationship("User")
+    email = Column(String)
+    name = Column(String)
+    discord = Column(String)  # 已經在註冊時設定
+    role = Column(String)
+    createdAt = Column(DateTime)
+    updatedAt = Column(DateTime)
 
 class Partner(Base):
     __tablename__ = 'Partner'
     id = Column(String, primary_key=True)
+    name = Column(String)
     userId = Column(String, ForeignKey('User.id'))
     user = relationship("User")
+    createdAt = Column(DateTime)
+    updatedAt = Column(DateTime)
+
+class Customer(Base):
+    __tablename__ = 'Customer'
+    id = Column(String, primary_key=True)
+    name = Column(String)
+    userId = Column(String, ForeignKey('User.id'))
+    user = relationship("User")
+    createdAt = Column(DateTime)
+    updatedAt = Column(DateTime)
 
 class Schedule(Base):
     __tablename__ = 'Schedule'
     id = Column(String, primary_key=True)
     partnerId = Column(String, ForeignKey('Partner.id'))
+    date = Column(DateTime)
     startTime = Column(DateTime)
+    endTime = Column(DateTime)
+    isAvailable = Column(Boolean, default=True)
     partner = relationship("Partner")
+    createdAt = Column(DateTime)
+    updatedAt = Column(DateTime)
 
 class Booking(Base):
     __tablename__ = 'Booking'
@@ -56,7 +72,11 @@ class Booking(Base):
     customerId = Column(String, ForeignKey('Customer.id'))
     scheduleId = Column(String, ForeignKey('Schedule.id'))
     status = Column(String)  # BookingStatus
-    createdAt = Column(DateTime)
+    orderNumber = Column(String)
+    paymentInfo = Column(String)  # JSON string
+    createdAt = Column(DateTime, default=datetime.utcnow)
+    updatedAt = Column(DateTime, default=datetime.utcnow)
+    finalAmount = Column(Float)
     customer = relationship("Customer")
     schedule = relationship("Schedule")
 
@@ -71,6 +91,7 @@ class PairingRecord(Base):
     rating = Column(Integer, nullable=True)
     comment = Column(String, nullable=True)
     animal_name = Column(String)
+    booking_id = Column(String, nullable=True)  # 關聯到預約ID
 
 class BlockRecord(Base):
     __tablename__ = 'block_records'
@@ -90,123 +111,146 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 active_voice_channels = {}
 evaluated_records = set()
 pending_ratings = {}
-opened_channels = set()
+processed_bookings = set()  # 記錄已處理的預約
+
 ANIMALS = ["🦊 狐狸", "🐱 貓咪", "🐶 小狗", "🐻 熊熊", "🐼 貓熊", "🐯 老虎", "🦁 獅子", "🐸 青蛙", "🐵 猴子"]
 TW_TZ = timezone(timedelta(hours=8))
 
 # --- 成員搜尋函數 ---
-def find_member_by_name(guild, name):
-    """不區分大小寫搜尋成員"""
-    name_lower = name.lower()
-    print(f"搜尋名稱: {name} (轉小寫: {name_lower})")
+def find_member_by_discord_name(guild, discord_name):
+    """根據 Discord 名稱搜尋成員"""
+    if not discord_name:
+        return None
     
+    discord_name_lower = discord_name.lower()
     for member in guild.members:
-        print(f"檢查成員: {member.name} (小寫: {member.name.lower()})")
-        if member.name.lower() == name_lower:
-            print(f"找到匹配: {member.name}")
+        if member.name.lower() == discord_name_lower or member.display_name.lower() == discord_name_lower:
             return member
-    
-    print(f"未找到匹配的成員: {name}")
     return None
 
-#自動開設頻道
-async def setup_pairing_channel(
-    guild, 
-    customer_member, 
-    partner_member, 
-    duration_minutes, 
-    animal, 
-    record=None, 
-    booking_id=None, 
-    interaction=None, 
-    mentioned=None
-):
-    # 建立語音頻道
-    overwrites = {
-        guild.default_role: discord.PermissionOverwrite(view_channel=False),
-        customer_member: discord.PermissionOverwrite(view_channel=True, connect=True),
-        partner_member: discord.PermissionOverwrite(view_channel=True, connect=True),
-    }
-    category = discord.utils.get(guild.categories, name="語音頻道")
-    channel_name = f"匿名配對-{customer_member.name[:6]}-{partner_member.name[:6]}"
-    vc = await guild.create_voice_channel(name=channel_name, overwrites=overwrites, category=category)
-
-    # 建立匿名文字區
-    text_channel = await guild.create_text_channel(
-        name="🔒匿名文字區", overwrites=overwrites, category=category
-    )
-
-    # 初始化 active_voice_channels
-    active_voice_channels[vc.id] = {
-        'text_channel': text_channel,
-        'remaining': duration_minutes * 60,
-        'extended': 0,
-        'record_id': booking_id or (record.id if record else f"manual_{vc.id}"),
-        'vc': vc
-    }
-
-            # 啟動倒數
-        bot.loop.create_task(
-            countdown(vc.id, animal, text_channel, vc, interaction, mentioned or [customer_member, partner_member], record)
-        )
-
-    return vc, text_channel
-
-# --- 自動查詢與開頻道任務 ---
+# --- 自動檢查預約任務 ---
 @tasks.loop(seconds=CHECK_INTERVAL)
-async def check_and_create_channels():
+async def check_bookings():
+    """定期檢查已付款的預約並創建語音頻道"""
     await bot.wait_until_ready()
-    session = Session()
-    now = datetime.now(timezone.utc)
-    window_start = now + timedelta(seconds=0)
-    window_end = now + timedelta(minutes=2)  # 2分鐘內即將開始
-
-    # 查詢即將開始且已同意的預約
-    bookings = session.query(Booking).join(Schedule).filter(
-        Booking.status == "CONFIRMED",
-        Schedule.startTime >= window_start,
-        Schedule.startTime < window_end
-    ).all()
-
-    guild = bot.get_guild(GUILD_ID)
-    if not guild:
-        print("找不到 Discord 伺服器")
-        return
-
-    for booking in bookings:
-        if booking.id in opened_channels:
-            continue
-
-        customer_discord = booking.customer.user.discord if booking.customer and booking.customer.user else None
-        partner_discord = booking.schedule.partner.user.discord if booking.schedule and booking.schedule.partner and booking.schedule.partner.user else None
-
-        if not customer_discord or not partner_discord:
-            print(f"找不到 Discord 名稱: {booking.id}")
-            continue
-
-        # 使用新的搜尋函數
-        customer_member = find_member_by_name(guild, customer_discord)
-        partner_member = find_member_by_name(guild, partner_discord)
-
-        if not customer_member or not partner_member:
-            print(f"找不到 Discord 成員: {customer_discord}, {partner_discord}")
-            continue
-
-        animal = "自動配對"
-        duration_minutes = 30  # 或根據 Booking 設定
-        # 用共用 function 建立頻道
-        vc, text_channel = await setup_pairing_channel(
-            guild, customer_member, partner_member, duration_minutes, animal, booking_id=booking.id
-        )
-
-        admin_channel = guild.get_channel(ADMIN_CHANNEL_ID)
-        if admin_channel:
-            await admin_channel.send(f"已自動為預約 {booking.id} 建立語音頻道：{vc.mention}")
-
-        opened_channels.add(booking.id)
-
-    session.close()
-
+    
+    try:
+        guild = bot.get_guild(GUILD_ID)
+        if not guild:
+            print("❌ 找不到 Discord 伺服器")
+            return
+        
+        # 查詢已確認且即將開始的預約
+        now = datetime.now(timezone.utc)
+        window_start = now
+        window_end = now + timedelta(minutes=5)  # 5分鐘內即將開始
+        
+        with Session() as s:
+            bookings = s.query(Booking).join(Schedule).filter(
+                Booking.status.in_(['CONFIRMED', 'COMPLETED']),
+                Booking.id.notin_(processed_bookings),
+                Schedule.startTime >= window_start,
+                Schedule.startTime <= window_end
+            ).all()
+            
+            for booking in bookings:
+                try:
+                    # 獲取顧客和夥伴的 Discord 名稱
+                    customer_discord = booking.customer.user.discord if booking.customer and booking.customer.user else None
+                    partner_discord = booking.schedule.partner.user.discord if booking.schedule and booking.schedule.partner and booking.schedule.partner.user else None
+                    
+                    if not customer_discord or not partner_discord:
+                        print(f"❌ 預約 {booking.id} 缺少 Discord 名稱: 顧客={customer_discord}, 夥伴={partner_discord}")
+                        continue
+                    
+                    # 查找 Discord 成員
+                    customer_member = find_member_by_discord_name(guild, customer_discord)
+                    partner_member = find_member_by_discord_name(guild, partner_discord)
+                    
+                    if not customer_member or not partner_member:
+                        print(f"❌ 找不到 Discord 成員: 顧客={customer_discord}, 夥伴={partner_discord}")
+                        continue
+                    
+                    # 計算頻道持續時間
+                    duration_minutes = int((booking.schedule.endTime - booking.schedule.startTime).total_seconds() / 60)
+                    
+                    # 創建語音頻道
+                    animal = random.choice(ANIMALS)
+                    channel_name = f"{animal}頻道-{booking.orderNumber or booking.id[:8]}"
+                    
+                    overwrites = {
+                        guild.default_role: discord.PermissionOverwrite(view_channel=False),
+                        customer_member: discord.PermissionOverwrite(view_channel=True, connect=True, speak=True),
+                        partner_member: discord.PermissionOverwrite(view_channel=True, connect=True, speak=True),
+                    }
+                    
+                    category = discord.utils.get(guild.categories, name="語音頻道")
+                    if not category:
+                        print("❌ 找不到「語音頻道」分類")
+                        continue
+                    
+                    vc = await guild.create_voice_channel(
+                        name=channel_name, 
+                        overwrites=overwrites, 
+                        user_limit=2, 
+                        category=category
+                    )
+                    
+                    text_channel = await guild.create_text_channel(
+                        name="🔒匿名文字區", 
+                        overwrites=overwrites, 
+                        category=category
+                    )
+                    
+                    # 創建配對記錄
+                    record = PairingRecord(
+                        user1_id=str(customer_member.id),
+                        user2_id=str(partner_member.id),
+                        duration=duration_minutes * 60,
+                        animal_name=animal,
+                        booking_id=booking.id
+                    )
+                    s.add(record)
+                    s.commit()
+                    
+                    # 初始化頻道狀態
+                    active_voice_channels[vc.id] = {
+                        'text_channel': text_channel,
+                        'remaining': duration_minutes * 60,
+                        'extended': 0,
+                        'record_id': record.id,
+                        'vc': vc,
+                        'booking_id': booking.id
+                    }
+                    
+                    # 標記為已處理
+                    processed_bookings.add(booking.id)
+                    
+                    # 通知管理員
+                    admin_channel = bot.get_channel(ADMIN_CHANNEL_ID)
+                    if admin_channel:
+                        await admin_channel.send(
+                            f"🎉 自動創建語音頻道：\n"
+                            f"📋 預約ID: {booking.id}\n"
+                            f"👤 顧客: {customer_member.mention} ({customer_discord})\n"
+                            f"👥 夥伴: {partner_member.mention} ({partner_discord})\n"
+                            f"⏰ 時間: {duration_minutes} 分鐘\n"
+                            f"🎮 頻道: {vc.mention}"
+                        )
+                    
+                    # 啟動倒數
+                    bot.loop.create_task(
+                        countdown(vc.id, channel_name, text_channel, vc, None, [customer_member, partner_member], record)
+                    )
+                    
+                    print(f"✅ 自動創建頻道成功: {channel_name} for booking {booking.id}")
+                    
+                except Exception as e:
+                    print(f"❌ 處理預約 {booking.id} 時發生錯誤: {e}")
+                    continue
+                    
+    except Exception as e:
+        print(f"❌ 檢查預約時發生錯誤: {e}")
 
 # --- 評分 Modal ---
 class RatingModal(Modal, title="匿名評分與留言"):
@@ -262,9 +306,9 @@ async def on_ready():
         synced = await bot.tree.sync(guild=guild)
         print(f"✅ Slash 指令已同步：{len(synced)} 個指令")
         
-        # 啟動自動查詢任務
-        check_and_create_channels.start()
-        print(f"✅ 自動查詢任務已啟動，檢查間隔：{CHECK_INTERVAL} 秒")
+        # 啟動自動檢查任務
+        check_bookings.start()
+        print(f"✅ 自動檢查預約任務已啟動，檢查間隔：{CHECK_INTERVAL} 秒")
     except Exception as e:
         print(f"❌ 指令同步失敗: {e}")
 
@@ -277,14 +321,16 @@ async def on_message(message):
     await bot.process_commands(message)
 
 # --- 倒數邏輯 ---
-async def countdown(vc_id, animal, text_channel, vc, interaction, mentioned, record):
+async def countdown(vc_id, animal_channel_name, text_channel, vc, interaction, mentioned, record):
     try:
-        for user in [interaction.user] + mentioned:
-            if user.voice and user.voice.channel:
-                await user.move_to(vc)
+        # 移動用戶到語音頻道（如果是自動創建的，mentioned 已經包含用戶）
+        if mentioned:
+            for user in mentioned:
+                if user.voice and user.voice.channel:
+                    await user.move_to(vc)
 
         view = ExtendView(vc.id)
-        await text_channel.send(f"🎉 語音頻道 {animal} 已開啟！\n⏳ 可延長10分鐘 ( 為了您有更好的遊戲體驗，請到最後需要時再點選 ) 。", view=view)
+        await text_channel.send(f"🎉 語音頻道 {animal_channel_name} 已開啟！\n⏳ 可延長10分鐘 ( 為了您有更好的遊戲體驗，請到最後需要時再點選 ) 。", view=view)
 
         while active_voice_channels[vc_id]['remaining'] > 0:
             remaining = active_voice_channels[vc_id]['remaining']
@@ -322,14 +368,17 @@ async def countdown(vc_id, animal, text_channel, vc, interaction, mentioned, rec
             try:
                 u1 = await bot.fetch_user(int(record.user1_id))
                 u2 = await bot.fetch_user(int(record.user2_id))
-                header = f"📋 配對紀錄：{u1.name} × {u2.name} | {record.duration//60} 分鐘 | 延長 {record.extended_times} 次"
+                header = f"📋 配對紀錄：{u1.mention} × {u2.mention} | {record.duration//60} 分鐘 | 延長 {record.extended_times} 次"
+                
+                if record.booking_id:
+                    header += f" | 預約ID: {record.booking_id}"
 
                 if record.id in pending_ratings:
                     feedback = "\n⭐ 評價回饋："
                     for r in pending_ratings[record.id]:
                         from_user = await bot.fetch_user(int(r['user1']))
                         to_user = await bot.fetch_user(int(r['user2']))
-                        feedback += f"\n- 「{from_user.name} → {to_user.name}」：{r['rating']} ⭐"
+                        feedback += f"\n- 「{from_user.mention} → {to_user.mention}」：{r['rating']} ⭐"
                         if r['comment']:
                             feedback += f"\n  💬 {r['comment']}"
                     del pending_ratings[record.id]
@@ -347,78 +396,63 @@ async def countdown(vc_id, animal, text_channel, vc, interaction, mentioned, rec
 @bot.tree.command(name="createvc", description="建立匿名語音頻道（指定開始時間）", guild=discord.Object(id=GUILD_ID))
 @app_commands.describe(members="標註的成員們", minutes="存在時間（分鐘）", start_time="幾點幾分後啟動 (格式: HH:MM, 24hr)", limit="人數上限")
 async def createvc(interaction: discord.Interaction, members: str, minutes: int, start_time: str, limit: int = 2):
+    await interaction.response.defer()
     try:
-        # 先回應，避免超時
-        await interaction.response.defer()
-        
-        # 解析時間
-        try:
-            hour, minute = map(int, start_time.split(":"))
-            now = datetime.now(TW_TZ)
-            start_dt = now.replace(hour=hour, minute=minute, second=0, microsecond=0)
-            if start_dt < now:
-                start_dt += timedelta(days=1)
-            start_dt_utc = start_dt.astimezone(timezone.utc)
-        except:
-            await interaction.followup.send("❗ 時間格式錯誤，請使用 HH:MM 24 小時制。")
-            return
+        hour, minute = map(int, start_time.split(":"))
+        now = datetime.now(TW_TZ)
+        start_dt = now.replace(hour=hour, minute=minute, second=0, microsecond=0)
+        if start_dt < now:
+            start_dt += timedelta(days=1)
+        start_dt_utc = start_dt.astimezone(timezone.utc)
+    except:
+        await interaction.followup.send("❗ 時間格式錯誤，請使用 HH:MM 24 小時制。")
+        return
 
-        # 解析成員名稱
-        member_names = [name.strip() for name in members.replace(',', ' ').split() if name.strip()]
-        
-        if not member_names:
-            await interaction.followup.send("❗ 請提供至少一位有效的成員名稱。")
-            return
+    with Session() as s:
+        blocked_ids = [b.blocked_id for b in s.query(BlockRecord).filter(BlockRecord.blocker_id == str(interaction.user.id)).all()]
+    mentioned = [m for m in interaction.guild.members if f"<@{m.id}>" in members and str(m.id) not in blocked_ids]
+    if not mentioned:
+        await interaction.followup.send("❗請標註至少一位成員。")
+        return
 
-        # 搜尋成員
-        guild = interaction.guild
-        found_members = []
-        for name in member_names:
-            member = find_member_by_name(guild, name)
-            if member:
-                found_members.append(member)
-            else:
-                await interaction.followup.send(f"❗ 找不到成員：{name}")
-                return
+    animal = random.choice(ANIMALS)
+    animal_channel_name = f"{animal}頻道"
+    await interaction.followup.send(f"✅ 已排程配對頻道：{animal_channel_name} 將於 <t:{int(start_dt_utc.timestamp())}:t> 開啟")
 
-        if len(found_members) < 2:
-            await interaction.followup.send("❗ 需要至少兩位成員才能建立配對頻道。")
-            return
+    async def countdown_wrapper():
+        await asyncio.sleep((start_dt_utc - datetime.now(timezone.utc)).total_seconds())
 
-        animal = random.choice(ANIMALS)
-        animal_channel_name = f"{animal}頻道"
-        
-        await interaction.followup.send(f"✅ 已排程配對頻道：{animal_channel_name} 將於 <t:{int(start_dt_utc.timestamp())}:t> 開啟")
+        overwrites = {
+            interaction.guild.default_role: discord.PermissionOverwrite(view_channel=False),
+            interaction.user: discord.PermissionOverwrite(view_channel=True, connect=True),
+        }
+        for m in mentioned:
+            overwrites[m] = discord.PermissionOverwrite(view_channel=True, connect=True)
 
-        async def countdown_wrapper():
-            await asyncio.sleep((start_dt_utc - datetime.now(timezone.utc)).total_seconds())
+        category = discord.utils.get(interaction.guild.categories, name="語音頻道")
+        vc = await interaction.guild.create_voice_channel(name=animal_channel_name, overwrites=overwrites, user_limit=limit, category=category)
+        text_channel = await interaction.guild.create_text_channel(name="🔒匿名文字區", overwrites=overwrites, category=category)
 
-            record = PairingRecord(
-                user1_id=str(found_members[0].id),
-                user2_id=str(found_members[1].id),
-                duration=minutes * 60,
-                animal_name=animal
-            )
-            session.add(record)
-            session.commit()
+        record = PairingRecord(
+            user1_id=str(interaction.user.id),
+            user2_id=str(mentioned[0].id),
+            duration=minutes * 60,
+            animal_name=animal
+        )
+        session.add(record)
+        session.commit()
 
-            # 用共用 function 建立頻道
-            await setup_pairing_channel(
-                interaction.guild, 
-                found_members[0], 
-                found_members[1], 
-                minutes, 
-                animal, 
-                record=record, 
-                interaction=interaction, 
-                mentioned=found_members
-            )
-        
-        bot.loop.create_task(countdown_wrapper())
-        
-    except Exception as e:
-        print(f"❌ /createvc 錯誤: {e}")
-        await interaction.followup.send(f"❌ 建立頻道時發生錯誤：{str(e)}")
+        active_voice_channels[vc.id] = {
+            'text_channel': text_channel,
+            'remaining': minutes * 60,
+            'extended': 0,
+            'record_id': record.id,
+            'vc': vc
+        }
+
+        await countdown(vc.id, animal_channel_name, text_channel, vc, interaction, mentioned, record)
+
+    bot.loop.create_task(countdown_wrapper())
 
 # --- 其他 Slash 指令 ---
 @bot.tree.command(name="viewblocklist", description="查看你封鎖的使用者", guild=discord.Object(id=GUILD_ID))

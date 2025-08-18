@@ -78,7 +78,7 @@ def start_bot():
     try:
         # 使用 subprocess 啟動 bot
         result = subprocess.run([
-            sys.executable, "discord_bot_peiplay.py"
+            sys.executable, "bot.py"
         ], check=True)
     except subprocess.CalledProcessError as e:
         print(f"❌ Discord Bot 啟動失敗: {e}")
