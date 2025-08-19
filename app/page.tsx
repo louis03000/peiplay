@@ -68,7 +68,7 @@ export default function Home() {
             <div>客服電話：0953868520</div>
             <div>客服時間：週一～週日 24 小時</div>
             <div>公司統一編號：95367956</div>
-            <div>營業負責人：鄭仁翔</div>
+            <div>營業人名稱：昇褀科技</div>
           </div>
           <div className="text-xs text-gray-400 mt-2">需要幫助請聯絡我們，我們將竭誠為您服務。</div>
         </div>

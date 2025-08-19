@@ -6,8 +6,8 @@ from discord.ext import commands, tasks
 from discord import app_commands
 from discord.ui import View, Button, Modal, TextInput
 from dotenv import load_dotenv
-from sqlalchemy import create_engine, Column, Integer, String, DateTime, ForeignKey, Boolean, Float
-from sqlalchemy.orm import declarative_base, sessionmaker, relationship
+from sqlalchemy import create_engine, Column, Integer, String, DateTime, ForeignKey, Boolean, Float, text
+from sqlalchemy.orm import declarative_base, sessionmaker, relationship, joinedload
 from datetime import datetime, timedelta, timezone
 from flask import Flask, request, jsonify
 import threading
@@ -72,11 +72,11 @@ class Booking(Base):
     customerId = Column(String, ForeignKey('Customer.id'))
     scheduleId = Column(String, ForeignKey('Schedule.id'))
     status = Column(String)  # BookingStatus
-    orderNumber = Column(String)
-    paymentInfo = Column(String)  # JSON string
+    orderNumber = Column(String, nullable=True)  # 可選欄位
+    paymentInfo = Column(String, nullable=True)  # JSON string
     createdAt = Column(DateTime, default=datetime.utcnow)
     updatedAt = Column(DateTime, default=datetime.utcnow)
-    finalAmount = Column(Float)
+    finalAmount = Column(Float, nullable=True)
     customer = relationship("Customer")
     schedule = relationship("Schedule")
 
@@ -99,7 +99,8 @@ class BlockRecord(Base):
     blocker_id = Column(String)
     blocked_id = Column(String)
 
-Base.metadata.create_all(engine)
+# 不自動創建表，因為我們使用的是現有的 Prisma 資料庫
+# Base.metadata.create_all(engine)
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -146,12 +147,78 @@ async def check_bookings():
         window_end = now + timedelta(minutes=5)  # 5分鐘內即將開始
         
         with Session() as s:
-            bookings = s.query(Booking).join(Schedule).filter(
-                Booking.status.in_(['CONFIRMED', 'COMPLETED']),
-                Booking.id.notin_(processed_bookings),
-                Schedule.startTime >= window_start,
-                Schedule.startTime <= window_end
-            ).all()
+            # 使用原生 SQL 查詢避免 orderNumber 欄位問題
+            query = """
+            SELECT 
+                b.id, b."customerId", b."scheduleId", b.status, b."createdAt", b."updatedAt",
+                c.name as customer_name, cu.discord as customer_discord,
+                p.name as partner_name, pu.discord as partner_discord,
+                s."startTime", s."endTime"
+            FROM "Booking" b
+            JOIN "Schedule" s ON s.id = b."scheduleId"
+            JOIN "Customer" c ON c.id = b."customerId"
+            JOIN "User" cu ON cu.id = c."userId"
+            JOIN "Partner" p ON p.id = s."partnerId"
+            JOIN "User" pu ON pu.id = p."userId"
+            WHERE b.status IN ('CONFIRMED', 'COMPLETED')
+            AND b.id NOT IN (SELECT unnest(%s::text[]))
+            AND s."startTime" >= %s
+            AND s."startTime" <= %s
+            """
+            
+            # 將 processed_bookings 轉換為列表
+            processed_list = list(processed_bookings) if processed_bookings else []
+            
+            # 修正參數傳遞格式
+            if processed_list:
+                # 如果有已處理的預約，使用 NOT IN 查詢
+                result = s.execute(text(query), {"processed_list": processed_list, "start_time_1": window_start, "start_time_2": window_end})
+            else:
+                # 如果沒有已處理的預約，簡化查詢
+                simple_query = """
+                SELECT 
+                    b.id, b."customerId", b."scheduleId", b.status, b."createdAt", b."updatedAt",
+                    c.name as customer_name, cu.discord as customer_discord,
+                    p.name as partner_name, pu.discord as partner_discord,
+                    s."startTime", s."endTime"
+                FROM "Booking" b
+                JOIN "Schedule" s ON s.id = b."scheduleId"
+                JOIN "Customer" c ON c.id = b."customerId"
+                JOIN "User" cu ON cu.id = c."userId"
+                JOIN "Partner" p ON p.id = s."partnerId"
+                JOIN "User" pu ON pu.id = p."userId"
+                WHERE b.status IN ('CONFIRMED', 'COMPLETED')
+                AND s."startTime" >= :start_time_1
+                AND s."startTime" <= :start_time_2
+                """
+                result = s.execute(text(simple_query), {"start_time_1": window_start, "start_time_2": window_end})
+            
+            bookings = []
+            for row in result:
+                # 創建一個簡單的物件來模擬 Booking 物件
+                booking = type('Booking', (), {
+                    'id': row.id,
+                    'customerId': row.customerId,
+                    'scheduleId': row.scheduleId,
+                    'status': row.status,
+                    'createdAt': row.createdAt,
+                    'updatedAt': row.updatedAt,
+                    'customer': type('Customer', (), {
+                        'user': type('User', (), {
+                            'discord': row.customer_discord
+                        })()
+                    })(),
+                    'schedule': type('Schedule', (), {
+                        'startTime': row.startTime,
+                        'endTime': row.endTime,
+                        'partner': type('Partner', (), {
+                            'user': type('User', (), {
+                                'discord': row.partner_discord
+                            })()
+                        })()
+                    })()
+                })()
+                bookings.append(booking)
             
             for booking in bookings:
                 try:
@@ -176,7 +243,9 @@ async def check_bookings():
                     
                     # 創建語音頻道
                     animal = random.choice(ANIMALS)
-                    channel_name = f"{animal}頻道-{booking.orderNumber or booking.id[:8]}"
+                    # 安全地處理 orderNumber，如果不存在就使用 ID 的前8位
+                    order_number = getattr(booking, 'orderNumber', None)
+                    channel_name = f"{animal}頻道-{order_number or booking.id[:8]}"
                     
                     overwrites = {
                         guild.default_role: discord.PermissionOverwrite(view_channel=False),
@@ -202,26 +271,27 @@ async def check_bookings():
                         category=category
                     )
                     
-                    # 創建配對記錄
-                    record = PairingRecord(
-                        user1_id=str(customer_member.id),
-                        user2_id=str(partner_member.id),
-                        duration=duration_minutes * 60,
-                        animal_name=animal,
-                        booking_id=booking.id
-                    )
-                    s.add(record)
-                    s.commit()
-                    
-                    # 初始化頻道狀態
-                    active_voice_channels[vc.id] = {
-                        'text_channel': text_channel,
-                        'remaining': duration_minutes * 60,
-                        'extended': 0,
-                        'record_id': record.id,
-                        'vc': vc,
-                        'booking_id': booking.id
-                    }
+                                         # 創建配對記錄
+                     record = PairingRecord(
+                         user1_id=str(customer_member.id),
+                         user2_id=str(partner_member.id),
+                         duration=duration_minutes * 60,
+                         animal_name=animal,
+                         booking_id=booking.id
+                     )
+                     s.add(record)
+                     s.commit()
+                     record_id = record.id  # 保存 ID，避免 Session 關閉後無法訪問
+                     
+                     # 初始化頻道狀態
+                     active_voice_channels[vc.id] = {
+                         'text_channel': text_channel,
+                         'remaining': duration_minutes * 60,
+                         'extended': 0,
+                         'record_id': record_id,  # 使用保存的 ID
+                         'vc': vc,
+                         'booking_id': booking.id
+                     }
                     
                     # 標記為已處理
                     processed_bookings.add(booking.id)
@@ -263,24 +333,32 @@ class RatingModal(Modal, title="匿名評分與留言"):
 
     async def on_submit(self, interaction: discord.Interaction):
         try:
-            record = session.get(PairingRecord, self.record_id)
-            record.rating = int(str(self.rating))
-            record.comment = str(self.comment)
-            session.commit()
+            # 使用新的 session 來避免連接問題
+            with Session() as s:
+                record = s.get(PairingRecord, self.record_id)
+                if not record:
+                    await interaction.response.send_message("❌ 找不到配對記錄", ephemeral=True)
+                    return
+                
+                record.rating = int(str(self.rating))
+                record.comment = str(self.comment)
+                s.commit()
+            
             await interaction.response.send_message("✅ 感謝你的匿名評價！", ephemeral=True)
 
             if self.record_id not in pending_ratings:
                 pending_ratings[self.record_id] = []
             pending_ratings[self.record_id].append({
-                'rating': record.rating,
-                'comment': record.comment,
+                'rating': int(str(self.rating)),
+                'comment': str(self.comment),
                 'user1': str(interaction.user.id),
                 'user2': str(record.user2_id if str(interaction.user.id) == record.user1_id else record.user1_id)
             })
 
             evaluated_records.add(self.record_id)
         except Exception as e:
-            await interaction.response.send_message(f"❌ 提交失敗：{e}", ephemeral=True)
+            print(f"❌ 評分提交錯誤: {e}")
+            await interaction.response.send_message("❌ 提交失敗，請稍後再試", ephemeral=True)
 
 # --- 延長按鈕 ---
 class ExtendView(View):
@@ -359,29 +437,44 @@ async def countdown(vc_id, animal_channel_name, text_channel, vc, interaction, m
         await asyncio.sleep(300)
         await text_channel.delete()
 
-        record.extended_times = active_voice_channels[vc_id]['extended']
-        record.duration += record.extended_times * 600
-        session.commit()
+        # 使用新的 session 來更新記錄
+        record_id = active_voice_channels[vc_id]['record_id']
+        with Session() as s:
+            record = s.get(PairingRecord, record_id)
+            if record:
+                record.extended_times = active_voice_channels[vc_id]['extended']
+                record.duration += record.extended_times * 600
+                s.commit()
+                
+                # 獲取更新後的記錄資訊
+                user1_id = record.user1_id
+                user2_id = record.user2_id
+                duration = record.duration
+                extended_times = record.extended_times
+                booking_id = record.booking_id
 
         admin = bot.get_channel(ADMIN_CHANNEL_ID)
         if admin:
             try:
-                u1 = await bot.fetch_user(int(record.user1_id))
-                u2 = await bot.fetch_user(int(record.user2_id))
-                header = f"📋 配對紀錄：{u1.mention} × {u2.mention} | {record.duration//60} 分鐘 | 延長 {record.extended_times} 次"
+                u1 = await bot.fetch_user(int(user1_id))
+                u2 = await bot.fetch_user(int(user2_id))
+                header = f"📋 配對紀錄：{u1.mention} × {u2.mention} | {duration//60} 分鐘 | 延長 {extended_times} 次"
+                
+                if booking_id:
+                    header += f" | 預約ID: {booking_id}"
                 
                 if record.booking_id:
                     header += f" | 預約ID: {record.booking_id}"
 
-                if record.id in pending_ratings:
+                if record_id in pending_ratings:
                     feedback = "\n⭐ 評價回饋："
-                    for r in pending_ratings[record.id]:
+                    for r in pending_ratings[record_id]:
                         from_user = await bot.fetch_user(int(r['user1']))
                         to_user = await bot.fetch_user(int(r['user2']))
                         feedback += f"\n- 「{from_user.mention} → {to_user.mention}」：{r['rating']} ⭐"
                         if r['comment']:
                             feedback += f"\n  💬 {r['comment']}"
-                    del pending_ratings[record.id]
+                    del pending_ratings[record_id]
                     await admin.send(f"{header}{feedback}")
                 else:
                     await admin.send(f"{header}\n⭐ 沒有收到任何評價。")
@@ -433,20 +526,22 @@ async def createvc(interaction: discord.Interaction, members: str, minutes: int,
         vc = await interaction.guild.create_voice_channel(name=animal_channel_name, overwrites=overwrites, user_limit=limit, category=category)
         text_channel = await interaction.guild.create_text_channel(name="🔒匿名文字區", overwrites=overwrites, category=category)
 
-        record = PairingRecord(
-            user1_id=str(interaction.user.id),
-            user2_id=str(mentioned[0].id),
-            duration=minutes * 60,
-            animal_name=animal
-        )
-        session.add(record)
-        session.commit()
+        with Session() as s:
+            record = PairingRecord(
+                user1_id=str(interaction.user.id),
+                user2_id=str(mentioned[0].id),
+                duration=minutes * 60,
+                animal_name=animal
+            )
+            s.add(record)
+            s.commit()
+            record_id = record.id  # 保存 ID，避免 Session 關閉後無法訪問
 
         active_voice_channels[vc.id] = {
             'text_channel': text_channel,
             'remaining': minutes * 60,
             'extended': 0,
-            'record_id': record.id,
+            'record_id': record_id,  # 使用保存的 ID
             'vc': vc
         }
 
@@ -487,7 +582,8 @@ async def report(interaction: discord.Interaction, member: discord.Member, reaso
 
 @bot.tree.command(name="mystats", description="查詢自己的配對統計", guild=discord.Object(id=GUILD_ID))
 async def mystats(interaction: discord.Interaction):
-    records = session.query(PairingRecord).filter((PairingRecord.user1_id==str(interaction.user.id)) | (PairingRecord.user2_id==str(interaction.user.id))).all()
+    with Session() as s:
+        records = s.query(PairingRecord).filter((PairingRecord.user1_id==str(interaction.user.id)) | (PairingRecord.user2_id==str(interaction.user.id))).all()
     count = len(records)
     ratings = [r.rating for r in records if r.rating]
     comments = [r.comment for r in records if r.comment]
@@ -500,7 +596,8 @@ async def stats(interaction: discord.Interaction, member: discord.Member):
     if not interaction.user.guild_permissions.administrator:
         await interaction.response.send_message("❌ 僅限管理員查詢。", ephemeral=True)
         return
-    records = session.query(PairingRecord).filter((PairingRecord.user1_id==str(member.id)) | (PairingRecord.user2_id==str(member.id))).all()
+    with Session() as s:
+        records = s.query(PairingRecord).filter((PairingRecord.user1_id==str(member.id)) | (PairingRecord.user2_id==str(member.id))).all()
     count = len(records)
     ratings = [r.rating for r in records if r.rating]
     comments = [r.comment for r in records if r.comment]
