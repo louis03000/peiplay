@@ -271,20 +271,26 @@ async def check_bookings():
                         category=category
                     )
                     
-                                         # 創建配對記錄
-                     record = PairingRecord(
-                         user1_id=str(customer_member.id),
-                         user2_id=str(partner_member.id),
+                    # 創建配對記錄
+                    user1_id = str(customer_member.id)
+                    user2_id = str(partner_member.id)
+                    
+                    # 添加調試信息
+                    print(f"🔍 自動創建配對記錄: {user1_id} × {user2_id}")
+                    
+                    record = PairingRecord(
+                         user1_id=user1_id,
+                         user2_id=user2_id,
                          duration=duration_minutes * 60,
                          animal_name=animal,
                          booking_id=booking.id
                      )
-                     s.add(record)
-                     s.commit()
-                     record_id = record.id  # 保存 ID，避免 Session 關閉後無法訪問
+                    s.add(record)
+                    s.commit()
+                    record_id = record.id  # 保存 ID，避免 Session 關閉後無法訪問
                      
-                     # 初始化頻道狀態
-                     active_voice_channels[vc.id] = {
+                    # 初始化頻道狀態
+                    active_voice_channels[vc.id] = {
                          'text_channel': text_channel,
                          'remaining': duration_minutes * 60,
                          'extended': 0,
@@ -292,27 +298,27 @@ async def check_bookings():
                          'vc': vc,
                          'booking_id': booking.id
                      }
-                    
+                     
                     # 標記為已處理
                     processed_bookings.add(booking.id)
-                    
+                     
                     # 通知管理員
                     admin_channel = bot.get_channel(ADMIN_CHANNEL_ID)
                     if admin_channel:
-                        await admin_channel.send(
-                            f"🎉 自動創建語音頻道：\n"
-                            f"📋 預約ID: {booking.id}\n"
-                            f"👤 顧客: {customer_member.mention} ({customer_discord})\n"
-                            f"👥 夥伴: {partner_member.mention} ({partner_discord})\n"
-                            f"⏰ 時間: {duration_minutes} 分鐘\n"
-                            f"🎮 頻道: {vc.mention}"
-                        )
-                    
+                         await admin_channel.send(
+                             f"🎉 自動創建語音頻道：\n"
+                             f"📋 預約ID: {booking.id}\n"
+                             f"👤 顧客: {customer_member.mention} ({customer_discord})\n"
+                             f"👥 夥伴: {partner_member.mention} ({partner_discord})\n"
+                             f"⏰ 時間: {duration_minutes} 分鐘\n"
+                             f"🎮 頻道: {vc.mention}"
+                         )
+                     
                     # 啟動倒數
                     bot.loop.create_task(
-                        countdown(vc.id, channel_name, text_channel, vc, None, [customer_member, partner_member], record)
-                    )
-                    
+                         countdown(vc.id, channel_name, text_channel, vc, None, [customer_member, partner_member], record_id)
+                     )
+                     
                     print(f"✅ 自動創建頻道成功: {channel_name} for booking {booking.id}")
                     
                 except Exception as e:
@@ -340,6 +346,10 @@ class RatingModal(Modal, title="匿名評分與留言"):
                     await interaction.response.send_message("❌ 找不到配對記錄", ephemeral=True)
                     return
                 
+                # 在 session 內獲取需要的資料
+                user1_id = record.user1_id
+                user2_id = record.user2_id
+                
                 record.rating = int(str(self.rating))
                 record.comment = str(self.comment)
                 s.commit()
@@ -352,13 +362,17 @@ class RatingModal(Modal, title="匿名評分與留言"):
                 'rating': int(str(self.rating)),
                 'comment': str(self.comment),
                 'user1': str(interaction.user.id),
-                'user2': str(record.user2_id if str(interaction.user.id) == record.user1_id else record.user1_id)
+                'user2': str(user2_id if str(interaction.user.id) == user1_id else user1_id)
             })
 
             evaluated_records.add(self.record_id)
         except Exception as e:
             print(f"❌ 評分提交錯誤: {e}")
-            await interaction.response.send_message("❌ 提交失敗，請稍後再試", ephemeral=True)
+            try:
+                await interaction.response.send_message("❌ 提交失敗，請稍後再試", ephemeral=True)
+            except:
+                # 如果已經回應過，就忽略錯誤
+                pass
 
 # --- 延長按鈕 ---
 class ExtendView(View):
@@ -399,7 +413,7 @@ async def on_message(message):
     await bot.process_commands(message)
 
 # --- 倒數邏輯 ---
-async def countdown(vc_id, animal_channel_name, text_channel, vc, interaction, mentioned, record):
+async def countdown(vc_id, animal_channel_name, text_channel, vc, interaction, mentioned, record_id):
     try:
         # 移動用戶到語音頻道（如果是自動創建的，mentioned 已經包含用戶）
         if mentioned:
@@ -431,14 +445,13 @@ async def countdown(vc_id, animal_channel_name, text_channel, vc, interaction, m
                     await interaction.response.send_message("❗ 已提交過評價。", ephemeral=True)
                     return
                 self.clicked = True
-                await interaction.response.send_modal(RatingModal(record.id))
+                await interaction.response.send_modal(RatingModal(record_id))
 
         await text_channel.send(view=SubmitButton())
         await asyncio.sleep(300)
         await text_channel.delete()
 
         # 使用新的 session 來更新記錄
-        record_id = active_voice_channels[vc_id]['record_id']
         with Session() as s:
             record = s.get(PairingRecord, record_id)
             if record:
@@ -456,22 +469,40 @@ async def countdown(vc_id, animal_channel_name, text_channel, vc, interaction, m
         admin = bot.get_channel(ADMIN_CHANNEL_ID)
         if admin:
             try:
-                u1 = await bot.fetch_user(int(user1_id))
-                u2 = await bot.fetch_user(int(user2_id))
-                header = f"📋 配對紀錄：{u1.mention} × {u2.mention} | {duration//60} 分鐘 | 延長 {extended_times} 次"
+                # 嘗試獲取用戶資訊，如果失敗則使用用戶 ID
+                try:
+                    u1 = await bot.fetch_user(int(user1_id))
+                    user1_display = u1.mention
+                except:
+                    user1_display = f"<@{user1_id}>"
+                
+                try:
+                    u2 = await bot.fetch_user(int(user2_id))
+                    user2_display = u2.mention
+                except:
+                    user2_display = f"<@{user2_id}>"
+                
+                header = f"📋 配對紀錄：{user1_display} × {user2_display} | {duration//60} 分鐘 | 延長 {extended_times} 次"
                 
                 if booking_id:
                     header += f" | 預約ID: {booking_id}"
-                
-                if record.booking_id:
-                    header += f" | 預約ID: {record.booking_id}"
 
                 if record_id in pending_ratings:
                     feedback = "\n⭐ 評價回饋："
                     for r in pending_ratings[record_id]:
-                        from_user = await bot.fetch_user(int(r['user1']))
-                        to_user = await bot.fetch_user(int(r['user2']))
-                        feedback += f"\n- 「{from_user.mention} → {to_user.mention}」：{r['rating']} ⭐"
+                        try:
+                            from_user = await bot.fetch_user(int(r['user1']))
+                            from_user_display = from_user.mention
+                        except:
+                            from_user_display = f"<@{r['user1']}>"
+                        
+                        try:
+                            to_user = await bot.fetch_user(int(r['user2']))
+                            to_user_display = to_user.mention
+                        except:
+                            to_user_display = f"<@{r['user2']}>"
+                        
+                        feedback += f"\n- 「{from_user_display} → {to_user_display}」：{r['rating']} ⭐"
                         if r['comment']:
                             feedback += f"\n  💬 {r['comment']}"
                     del pending_ratings[record_id]
@@ -480,6 +511,14 @@ async def countdown(vc_id, animal_channel_name, text_channel, vc, interaction, m
                     await admin.send(f"{header}\n⭐ 沒有收到任何評價。")
             except Exception as e:
                 print(f"推送管理區評價失敗：{e}")
+                # 如果完全失敗，至少顯示基本的配對資訊
+                try:
+                    basic_header = f"📋 配對紀錄：用戶 {user1_id} × 用戶 {user2_id} | {duration//60} 分鐘 | 延長 {extended_times} 次"
+                    if booking_id:
+                        basic_header += f" | 預約ID: {booking_id}"
+                    await admin.send(f"{basic_header}\n⭐ 沒有收到任何評價。")
+                except:
+                    pass
 
         active_voice_channels.pop(vc_id, None)
     except Exception as e:
@@ -507,6 +546,12 @@ async def createvc(interaction: discord.Interaction, members: str, minutes: int,
     if not mentioned:
         await interaction.followup.send("❗請標註至少一位成員。")
         return
+    
+    # 確保不會與自己配對
+    mentioned = [m for m in mentioned if m.id != interaction.user.id]
+    if not mentioned:
+        await interaction.followup.send("❗請標註其他成員，不能與自己配對。")
+        return
 
     animal = random.choice(ANIMALS)
     animal_channel_name = f"{animal}頻道"
@@ -527,9 +572,16 @@ async def createvc(interaction: discord.Interaction, members: str, minutes: int,
         text_channel = await interaction.guild.create_text_channel(name="🔒匿名文字區", overwrites=overwrites, category=category)
 
         with Session() as s:
+            # 確保記錄兩個不同的用戶
+            user1_id = str(interaction.user.id)
+            user2_id = str(mentioned[0].id)
+            
+            # 添加調試信息
+            print(f"🔍 創建配對記錄: {user1_id} × {user2_id}")
+            
             record = PairingRecord(
-                user1_id=str(interaction.user.id),
-                user2_id=str(mentioned[0].id),
+                user1_id=user1_id,
+                user2_id=user2_id,
                 duration=minutes * 60,
                 animal_name=animal
             )
@@ -545,7 +597,7 @@ async def createvc(interaction: discord.Interaction, members: str, minutes: int,
             'vc': vc
         }
 
-        await countdown(vc.id, animal_channel_name, text_channel, vc, interaction, mentioned, record)
+        await countdown(vc.id, animal_channel_name, text_channel, vc, interaction, mentioned, record_id)
 
     bot.loop.create_task(countdown_wrapper())
 

@@ -21,6 +21,7 @@ const partnerSchema = z.object({
   bankCode: z.string().min(1, '請填寫銀行代碼'),
   bankAccountNumber: z.string().min(1, '請填寫銀行帳號'),
   inviteCode: z.string().optional(),
+  contractFile: z.string().min(1, '請上傳已簽署的合作承攬合約書'),
 })
 
 type PartnerFormData = z.infer<typeof partnerSchema>
@@ -50,7 +51,9 @@ export default function JoinPage() {
   })
 
   const [coverImageUrl, setCoverImageUrl] = useState<string>('')
+  const [contractFileUrl, setContractFileUrl] = useState<string>('')
   const [uploading, setUploading] = useState(false)
+  const [uploadingContract, setUploadingContract] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string>('')
   const [selectedGames, setSelectedGames] = useState<string[]>([])
@@ -117,6 +120,82 @@ export default function JoinPage() {
     }
   };
 
+  // 下載合作承攬合約書
+  const downloadContract = () => {
+    const contractContent = `陪玩合作承攬合約書
+
+立約雙方：
+
+甲方（平台方／公司）
+公司名稱：昇祺科技
+統一編號：95367956
+負責人：鄭仁翔
+
+乙方（合作夥伴）
+姓名：${userData?.name || '＿＿＿＿＿'}
+身分證字號：＿＿＿＿＿
+聯絡方式：${userData?.phone || '＿＿＿＿＿'}
+
+第一條　合約性質
+
+本合約為 合作／承攬契約，雙方並非僱傭關係，甲方不提供勞工保險、健保或其他勞動法令下之福利。乙方自行負責個人保險及稅務申報。
+
+第二條　合作內容
+
+乙方透過甲方平台，提供遊戲陪玩、語音互動或相關娛樂服務。
+
+乙方可自行選擇是否接單，甲方不得強制指派工作。
+
+服務之方式、時間與地點，由乙方自由決定。
+
+第三條　分潤與給付方式
+
+客戶支付之金額，由甲方代收，甲方依法扣除平台服務費後，將剩餘部分支付予乙方。
+
+分潤比例：甲方 30%，乙方 70%。
+
+甲方應於每月 15 日前，依實際金流紀錄結算並支付予乙方。
+
+第四條　稅務與法規遵循
+
+乙方應自行申報並繳納因提供服務所產生之所得稅。
+
+甲方得依國稅局規定，於年底開立扣繳憑單或其他合法憑證。
+
+第五條　保密與禁止行為
+
+乙方不得於服務過程中洩漏客戶隱私或平台機密。
+
+乙方不得私下與客戶進行交易，否則甲方得立即終止合作。
+
+乙方不得利用平台進行詐騙、色情或任何違法行為，否則須自行負責相關法律責任。
+
+第六條　合約期間與終止
+
+本合約自簽署日起生效，有效期間為一年，期滿自動續約。
+
+任一方得隨時以書面或電子通知方式終止本合約。
+
+第七條　爭議解決
+
+如有爭議，雙方同意以台灣台北地方法院為第一審管轄法院。
+
+簽署
+
+甲方代表（簽章）：＿＿＿＿＿　日期：＿＿年＿月＿日
+乙方（簽名或電子簽名）：${userData?.name || '＿＿＿＿＿'}　日期：＿＿年＿月＿日`;
+
+    const blob = new Blob([contractContent], { type: 'text/plain;charset=utf-8' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `陪玩合作承攬合約書_${userData?.name || '夥伴'}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+  };
+
   if (!session?.user?.id) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center">
@@ -157,11 +236,12 @@ export default function JoinPage() {
           userId: session!.user!.id,
           email: session!.user!.email,
           coverImage: coverImageUrl,
+          contractFile: contractFileUrl,
           games,
-                     halfHourlyRate: data.halfHourlyRate,
-           bankCode: data.bankCode,
-           bankAccountNumber: data.bankAccountNumber,
-           inviteCode: inviteCode.trim() || undefined,
+          halfHourlyRate: data.halfHourlyRate,
+          bankCode: data.bankCode,
+          bankAccountNumber: data.bankAccountNumber,
+          inviteCode: inviteCode.trim() || undefined,
         }),
       })
       const text = await response.text();
@@ -215,6 +295,36 @@ export default function JoinPage() {
     }
   }
 
+  const handleContractFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploadingContract(true)
+    setError('')
+    
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      })
+      const result = await res.json()
+      
+      if (!res.ok) {
+        throw new Error(result.error || '上傳失敗')
+      }
+      
+      if (result.url) {
+        setContractFileUrl(result.url)
+        setValue('contractFile', result.url, { shouldValidate: true })
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '上傳失敗')
+    } finally {
+      setUploadingContract(false)
+    }
+  }
+
   return (
     <div className="min-h-screen bg-gray-100">
       <div className="max-w-3xl mx-auto py-12 px-4 sm:px-6 lg:px-8 pt-32">
@@ -262,6 +372,62 @@ export default function JoinPage() {
                 <input type="hidden" {...register('name')} value={userData?.name || ''} />
                 <input type="hidden" {...register('birthday')} value={userData?.birthday ? userData.birthday.slice(0, 10) : ''} />
                 <input type="hidden" {...register('phone')} value={userData?.phone || ''} />
+
+                {/* 合作承攬合約書 */}
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <h3 className="text-lg font-medium text-blue-900 mb-4">📋 合作承攬合約書</h3>
+                  <div className="space-y-4">
+                                         <div className="bg-white p-4 rounded-lg border border-blue-300">
+                       <h4 className="font-medium text-blue-800 mb-2">步驟 1：下載合約書</h4>
+                       <p className="text-sm text-blue-700 mb-3">
+                         請先下載合作承攬合約書，仔細閱讀後簽署。此合約確保雙方為合作關係而非僱傭關係。
+                       </p>
+                       <div className="flex flex-col sm:flex-row gap-2">
+                         <button
+                           type="button"
+                           onClick={downloadContract}
+                           className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-blue-700 bg-blue-100 hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                         >
+                           📥 下載合作承攬合約書
+                         </button>
+                         <a
+                           href="/contract"
+                           target="_blank"
+                           className="inline-flex items-center px-4 py-2 border border-blue-300 text-sm font-medium rounded-md text-blue-700 bg-white hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                         >
+                           📄 查看完整合約書
+                         </a>
+                       </div>
+                     </div>
+                    
+                    <div className="bg-white p-4 rounded-lg border border-blue-300">
+                      <h4 className="font-medium text-blue-800 mb-2">步驟 2：上傳已簽署的合約書</h4>
+                      <p className="text-sm text-blue-700 mb-3">
+                        請將已簽署的合作承攬合約書拍照或掃描後上傳（支援 JPG、PNG、PDF 格式）
+                      </p>
+                      <div className="space-y-2">
+                        <input
+                          type="file"
+                          accept=".jpg,.jpeg,.png,.pdf"
+                          onChange={handleContractFileChange}
+                          className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                        />
+                        {uploadingContract && <span className="text-sm text-gray-500">上傳中...</span>}
+                        {contractFileUrl && (
+                          <div className="flex items-center space-x-2">
+                            <svg className="h-5 w-5 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                            </svg>
+                            <span className="text-sm text-green-600">合約書上傳成功</span>
+                          </div>
+                        )}
+                        {errors.contractFile && (
+                          <p className="text-sm text-red-600">{errors.contractFile.message}</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
 
                 <div>
                   <label
@@ -432,11 +598,11 @@ export default function JoinPage() {
                       <h3 className="text-sm font-medium text-yellow-800">
                         重要提醒
                       </h3>
-                                             <div className="mt-2 text-sm text-yellow-700">
-                         <p>
-                           銀行帳戶資訊提交後將無法更改，請務必確認資訊正確無誤。
-                         </p>
-                       </div>
+                      <div className="mt-2 text-sm text-yellow-700">
+                        <p>
+                          銀行帳戶資訊提交後將無法更改，請務必確認資訊正確無誤。
+                        </p>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -570,7 +736,7 @@ export default function JoinPage() {
                 <div className="flex justify-end">
                   <button
                     type="submit"
-                    disabled={submitting || !coverImageUrl || selectedGames.length === 0}
+                    disabled={submitting || !coverImageUrl || !contractFileUrl || selectedGames.length === 0}
                     className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {submitting ? '提交中...' : '提交申請'}

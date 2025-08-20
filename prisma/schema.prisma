@@ -38,6 +38,7 @@ model Partner {
   birthday        DateTime
   phone           String
   coverImage      String
+  contractFile    String?       // 合作承攬合約書檔案路徑
   games           String[]
   bankCode        String?
   bankAccountNumber String?
