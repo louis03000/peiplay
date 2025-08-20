@@ -121,80 +121,137 @@ export default function JoinPage() {
   };
 
   // 下載合作承攬合約書
-  const downloadContract = () => {
-    const contractContent = `陪玩合作承攬合約書
-
-立約雙方：
-
-甲方（平台方／公司）
-公司名稱：昇祺科技
-統一編號：95367956
-
-乙方（合作夥伴）
-姓名：${userData?.name || '＿＿＿＿＿'}
-身分證字號：＿＿＿＿＿
-聯絡方式：${userData?.phone || '＿＿＿＿＿'}
-
-第一條　合約性質
-
-本合約為 合作／承攬契約，雙方並非僱傭關係，甲方不提供勞工保險、健保或其他勞動法令下之福利。乙方自行負責個人保險及稅務申報。
-
-第二條　合作內容
-
-乙方透過甲方平台，提供遊戲語音互動或相關娛樂服務。
-
-乙方可自行選擇是否接單，甲方不得強制指派工作。
-
-服務之方式、時間，由乙方自由決定。
-
-第三條　分潤與給付方式
-
-客戶支付之金額，由甲方代收，甲方依法扣除平台服務費後，將剩餘部分支付予乙方。
-
-分潤比例：甲方 20%，乙方 80%。
-
-甲方應於每月 15 日前，依實際金流紀錄結算並支付予乙方。
-
-第四條　稅務與法規遵循
-
-乙方應自行申報並繳納因提供服務所產生之所得稅。
-
-甲方得依國稅局規定，於年底開立扣繳憑單或其他合法憑證。
-
-第五條　保密與禁止行為
-
-乙方不得於服務過程中洩漏客戶隱私或平台機密。
-
-乙方不得私下與客戶進行交易，否則甲方得立即終止合作。
-
-乙方不得利用平台進行詐騙、色情或任何違法行為，否則須自行負責相關法律責任。
-
-第六條　合約期間與終止
-
-本合約自簽署日起生效，有效期間為一年，期滿自動續約。
-
-任一方得隨時以書面或電子通知方式終止本合約。
-
-第七條　爭議解決
-
-如有爭議，雙方同意以台灣台北地方法院為第一審管轄法院。
-
-簽署
-
-甲方：昇祺科技
-乙方（簽名或電子簽名）：${userData?.name || '＿＿＿＿＿'}
-
-日期：＿＿年＿月＿日`;
-
-    const blob = new Blob([contractContent], { type: 'text/plain;charset=utf-8' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `陪玩合作承攬合約書_${userData?.name || '夥伴'}.txt`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    window.URL.revokeObjectURL(url);
+  const downloadContract = async () => {
+    // 動態導入 jsPDF
+    const { jsPDF } = await import('jspdf');
+    
+    const doc = new jsPDF();
+    
+    // 設定中文字體支援
+    doc.addFont('https://cdn.jsdelivr.net/npm/noto-sans-tc@1.0.0/NotoSansTC-Regular.otf', 'NotoSansTC', 'normal');
+    doc.setFont('NotoSansTC');
+    
+    // 設定頁面格式
+    const pageWidth = doc.internal.pageSize.width;
+    const pageHeight = doc.internal.pageSize.height;
+    const margin = 20;
+    const lineHeight = 7;
+    let y = margin;
+    
+    // 標題
+    doc.setFontSize(18);
+    doc.setFont('NotoSansTC', 'bold');
+    const title = '陪玩合作承攬合約書';
+    const titleWidth = doc.getTextWidth(title);
+    doc.text(title, (pageWidth - titleWidth) / 2, y);
+    y += lineHeight * 2;
+    
+    // 立約雙方
+    doc.setFontSize(14);
+    doc.setFont('NotoSansTC', 'bold');
+    doc.text('立約雙方：', margin, y);
+    y += lineHeight * 1.5;
+    
+    // 甲方資訊
+    doc.setFontSize(12);
+    doc.setFont('NotoSansTC', 'normal');
+    doc.text('甲方（平台方／公司）', margin, y);
+    y += lineHeight;
+    doc.text('公司名稱：昇祺科技', margin + 10, y);
+    y += lineHeight;
+    doc.text('統一編號：95367956', margin + 10, y);
+    y += lineHeight * 1.5;
+    
+    // 乙方資訊
+    doc.text('乙方（合作夥伴）', margin, y);
+    y += lineHeight;
+    doc.text(`姓名：${userData?.name || '＿＿＿＿＿'}`, margin + 10, y);
+    y += lineHeight;
+    doc.text('身分證字號：＿＿＿＿＿', margin + 10, y);
+    y += lineHeight;
+    doc.text(`聯絡方式：${userData?.phone || '＿＿＿＿＿'}`, margin + 10, y);
+    y += lineHeight * 2;
+    
+    // 合約條款
+    const contractSections = [
+      {
+        title: '第一條　合約性質',
+        content: '本合約為 合作／承攬契約，雙方並非僱傭關係，甲方不提供勞工保險、健保或其他勞動法令下之福利。乙方自行負責個人保險及稅務申報。'
+      },
+      {
+        title: '第二條　合作內容',
+        content: '乙方透過甲方平台，提供遊戲語音互動或相關娛樂服務。\n乙方可自行選擇是否接單，甲方不得強制指派工作。\n服務之方式、時間，由乙方自由決定。'
+      },
+      {
+        title: '第三條　分潤與給付方式',
+        content: '客戶支付之金額，由甲方代收，甲方依法扣除平台服務費後，將剩餘部分支付予乙方。\n分潤比例：甲方 20%，乙方 80%。\n甲方應於每月 15 日前，依實際金流紀錄結算並支付予乙方。'
+      },
+      {
+        title: '第四條　稅務與法規遵循',
+        content: '乙方應自行申報並繳納因提供服務所產生之所得稅。\n甲方得依國稅局規定，於年底開立扣繳憑單或其他合法憑證。'
+      },
+      {
+        title: '第五條　保密與禁止行為',
+        content: '乙方不得於服務過程中洩漏客戶隱私或平台機密。\n乙方不得私下與客戶進行交易，否則甲方得立即終止合作。\n乙方不得利用平台進行詐騙、色情或任何違法行為，否則須自行負責相關法律責任。'
+      },
+      {
+        title: '第六條　合約期間與終止',
+        content: '本合約自簽署日起生效，有效期間為一年，期滿自動續約。\n任一方得隨時以書面或電子通知方式終止本合約。'
+      },
+      {
+        title: '第七條　爭議解決',
+        content: '如有爭議，雙方同意以台灣台北地方法院為第一審管轄法院。'
+      }
+    ];
+    
+    // 添加合約條款
+    contractSections.forEach(section => {
+      // 檢查是否需要新頁面
+      if (y > pageHeight - 60) {
+        doc.addPage();
+        y = margin;
+      }
+      
+      doc.setFontSize(14);
+      doc.setFont('NotoSansTC', 'bold');
+      doc.text(section.title, margin, y);
+      y += lineHeight;
+      
+      doc.setFontSize(12);
+      doc.setFont('NotoSansTC', 'normal');
+      const lines = doc.splitTextToSize(section.content, pageWidth - 2 * margin);
+      lines.forEach(line => {
+        if (y > pageHeight - 40) {
+          doc.addPage();
+          y = margin;
+        }
+        doc.text(line, margin, y);
+        y += lineHeight;
+      });
+      y += lineHeight;
+    });
+    
+    // 簽署區域
+    if (y > pageHeight - 80) {
+      doc.addPage();
+      y = margin;
+    }
+    
+    doc.setFontSize(14);
+    doc.setFont('NotoSansTC', 'bold');
+    doc.text('簽署', (pageWidth - doc.getTextWidth('簽署')) / 2, y);
+    y += lineHeight * 2;
+    
+    doc.setFontSize(12);
+    doc.setFont('NotoSansTC', 'normal');
+    doc.text('甲方：昇祺科技', margin, y);
+    doc.text(`乙方（簽名或電子簽名）：${userData?.name || '＿＿＿＿＿'}`, pageWidth - margin - 80, y);
+    y += lineHeight * 2;
+    
+    doc.text('日期：＿＿年＿月＿日', pageWidth - margin - 60, y);
+    
+    // 下載 PDF
+    doc.save(`陪玩合作承攬合約書_${userData?.name || '夥伴'}.pdf`);
   };
 
   if (!session?.user?.id) {
@@ -389,7 +446,7 @@ export default function JoinPage() {
                            onClick={downloadContract}
                            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-blue-700 bg-blue-100 hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                          >
-                           📥 下載合作承攬合約書
+                                                       📥 下載 PDF 合約書
                          </button>
                          <a
                            href="/contract"
