@@ -35,7 +35,6 @@ export default function ContractPage() {
 甲方（平台方／公司）
 公司名稱：昇祺科技
 統一編號：95367956
-負責人：鄭仁翔
 
 乙方（合作夥伴）
 姓名：${userData?.name || '＿＿＿＿＿'}
@@ -48,17 +47,17 @@ export default function ContractPage() {
 
 第二條　合作內容
 
-乙方透過甲方平台，提供遊戲陪玩、語音互動或相關娛樂服務。
+乙方透過甲方平台，提供遊戲語音互動或相關娛樂服務。
 
 乙方可自行選擇是否接單，甲方不得強制指派工作。
 
-服務之方式、時間與地點，由乙方自由決定。
+服務之方式、時間，由乙方自由決定。
 
 第三條　分潤與給付方式
 
 客戶支付之金額，由甲方代收，甲方依法扣除平台服務費後，將剩餘部分支付予乙方。
 
-分潤比例：甲方 30%，乙方 70%。
+分潤比例：甲方 20%，乙方 80%。
 
 甲方應於每月 15 日前，依實際金流紀錄結算並支付予乙方。
 
@@ -88,8 +87,10 @@ export default function ContractPage() {
 
 簽署
 
-甲方代表（簽章）：＿＿＿＿＿　日期：＿＿年＿月＿日
-乙方（簽名或電子簽名）：${userData?.name || '＿＿＿＿＿'}　日期：＿＿年＿月＿日`;
+甲方：昇祺科技
+乙方（簽名或電子簽名）：${userData?.name || '＿＿＿＿＿'}
+
+日期：＿＿年＿月＿日`;
 
     const blob = new Blob([contractContent], { type: 'text/plain;charset=utf-8' });
     const url = window.URL.createObjectURL(blob);
@@ -133,12 +134,11 @@ export default function ContractPage() {
               <div className="mb-6">
                 <h3 className="text-lg font-semibold mb-4">立約雙方：</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="bg-gray-50 p-4 rounded-lg">
-                    <h4 className="font-medium text-gray-900 mb-2">甲方（平台方／公司）</h4>
-                    <p className="text-sm text-gray-700">公司名稱：昇祺科技</p>
-                    <p className="text-sm text-gray-700">統一編號：95367956</p>
-                    <p className="text-sm text-gray-700">負責人：鄭仁翔</p>
-                  </div>
+                                     <div className="bg-gray-50 p-4 rounded-lg">
+                     <h4 className="font-medium text-gray-900 mb-2">甲方（平台方／公司）</h4>
+                     <p className="text-sm text-gray-700">公司名稱：昇祺科技</p>
+                     <p className="text-sm text-gray-700">統一編號：95367956</p>
+                   </div>
                   <div className="bg-blue-50 p-4 rounded-lg">
                     <h4 className="font-medium text-blue-900 mb-2">乙方（合作夥伴）</h4>
                     <p className="text-sm text-blue-700">姓名：{userData?.name || '＿＿＿＿＿'}</p>
@@ -156,23 +156,23 @@ export default function ContractPage() {
                   </p>
                 </div>
 
-                <div>
-                  <h3 className="text-lg font-semibold mb-2">第二條　合作內容</h3>
-                  <ul className="list-disc list-inside text-gray-700 space-y-2">
-                    <li>乙方透過甲方平台，提供遊戲陪玩、語音互動或相關娛樂服務。</li>
-                    <li>乙方可自行選擇是否接單，甲方不得強制指派工作。</li>
-                    <li>服務之方式、時間與地點，由乙方自由決定。</li>
-                  </ul>
-                </div>
+                                 <div>
+                   <h3 className="text-lg font-semibold mb-2">第二條　合作內容</h3>
+                   <ul className="list-disc list-inside text-gray-700 space-y-2">
+                     <li>乙方透過甲方平台，提供遊戲語音互動或相關娛樂服務。</li>
+                     <li>乙方可自行選擇是否接單，甲方不得強制指派工作。</li>
+                     <li>服務之方式、時間，由乙方自由決定。</li>
+                   </ul>
+                 </div>
 
-                <div>
-                  <h3 className="text-lg font-semibold mb-2">第三條　分潤與給付方式</h3>
-                  <ul className="list-disc list-inside text-gray-700 space-y-2">
-                    <li>客戶支付之金額，由甲方代收，甲方依法扣除平台服務費後，將剩餘部分支付予乙方。</li>
-                    <li><strong>分潤比例：甲方 30%，乙方 70%。</strong></li>
-                    <li>甲方應於每月 15 日前，依實際金流紀錄結算並支付予乙方。</li>
-                  </ul>
-                </div>
+                                 <div>
+                   <h3 className="text-lg font-semibold mb-2">第三條　分潤與給付方式</h3>
+                   <ul className="list-disc list-inside text-gray-700 space-y-2">
+                     <li>客戶支付之金額，由甲方代收，甲方依法扣除平台服務費後，將剩餘部分支付予乙方。</li>
+                     <li><strong>分潤比例：甲方 20%，乙方 80%。</strong></li>
+                     <li>甲方應於每月 15 日前，依實際金流紀錄結算並支付予乙方。</li>
+                   </ul>
+                 </div>
 
                 <div>
                   <h3 className="text-lg font-semibold mb-2">第四條　稅務與法規遵循</h3>
@@ -206,19 +206,20 @@ export default function ContractPage() {
                   </p>
                 </div>
 
-                <div className="mt-8 p-6 bg-gray-50 rounded-lg">
-                  <h3 className="text-lg font-semibold mb-4 text-center">簽署</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                      <p className="text-sm text-gray-600 mb-2">甲方代表（簽章）：＿＿＿＿＿</p>
-                      <p className="text-sm text-gray-600">日期：＿＿年＿月＿日</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-600 mb-2">乙方（簽名或電子簽名）：{userData?.name || '＿＿＿＿＿'}</p>
-                      <p className="text-sm text-gray-600">日期：＿＿年＿月＿日</p>
-                    </div>
-                  </div>
-                </div>
+                                 <div className="mt-8 p-6 bg-gray-50 rounded-lg">
+                   <h3 className="text-lg font-semibold mb-4 text-center">簽署</h3>
+                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                     <div>
+                       <p className="text-sm text-gray-600 mb-2">甲方：昇祺科技</p>
+                     </div>
+                     <div>
+                       <p className="text-sm text-gray-600 mb-2">乙方（簽名或電子簽名）：{userData?.name || '＿＿＿＿＿'}</p>
+                     </div>
+                   </div>
+                   <div className="text-right mt-4">
+                     <p className="text-sm text-gray-600">日期：＿＿年＿月＿日</p>
+                   </div>
+                 </div>
               </div>
             </div>
           </div>
