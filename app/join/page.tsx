@@ -219,8 +219,8 @@ export default function JoinPage() {
       
       doc.setFontSize(12);
       doc.setFont('NotoSansTC', 'normal');
-      const lines = doc.splitTextToSize(section.content, pageWidth - 2 * margin);
-      lines.forEach(line => {
+             const lines = doc.splitTextToSize(section.content, pageWidth - 2 * margin);
+       lines.forEach((line: string) => {
         if (y > pageHeight - 40) {
           doc.addPage();
           y = margin;
@@ -326,6 +326,14 @@ export default function JoinPage() {
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
+    
+    // 檢查檔案大小 (限制為 5MB)
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    if (file.size > maxSize) {
+      setError('封面圖片大小不能超過 5MB，請壓縮圖片後重新上傳')
+      return
+    }
+    
     setUploading(true)
     setError('')
     
@@ -356,6 +364,14 @@ export default function JoinPage() {
   const handleContractFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
+    
+    // 檢查檔案大小 (限制為 8MB)
+    const maxSize = 8 * 1024 * 1024; // 8MB
+    if (file.size > maxSize) {
+      setError('檔案大小不能超過 8MB，請壓縮檔案後重新上傳')
+      return
+    }
+    
     setUploadingContract(true)
     setError('')
     
@@ -794,7 +810,7 @@ export default function JoinPage() {
                 <div className="flex justify-end">
                   <button
                     type="submit"
-                    disabled={submitting || !coverImageUrl || !contractFileUrl || selectedGames.length === 0}
+                    disabled={submitting || !coverImageUrl || !contractFileUrl || selectedGames.length === 0 || !canAgree}
                     className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {submitting ? '提交中...' : '提交申請'}

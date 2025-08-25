@@ -125,8 +125,8 @@ export default function ContractPage() {
       
       doc.setFontSize(12);
       doc.setFont('NotoSansTC', 'normal');
-      const lines = doc.splitTextToSize(section.content, pageWidth - 2 * margin);
-      lines.forEach(line => {
+             const lines = doc.splitTextToSize(section.content, pageWidth - 2 * margin);
+       lines.forEach((line: string) => {
         if (y > pageHeight - 40) {
           doc.addPage();
           y = margin;
