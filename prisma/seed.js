@@ -154,7 +154,7 @@ async function main() {
       data: {
         customerId: customer.id,
         scheduleId: schedule.id,
-        status: 'PENDING',
+        status: 'CONFIRMED',
         orderNumber: `ORDER-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         originalAmount: 1000, // 2小時 * 500元/半小時
         finalAmount: 1000, // 最終金額（無折扣）

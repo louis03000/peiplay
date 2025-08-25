@@ -144,7 +144,6 @@ export default function MyBookings({ showCompletedOnly }: MyBookingsProps) {
   function getStatusText(status: string) {
     const statusMap: { [key: string]: string } = {
       'PENDING': '待確認',
-      'PENDING_PAYMENT': '待付款',
       'CONFIRMED': '已確認',
       'REJECTED': '已拒絕',
       'CANCELLED': '已取消',
@@ -210,8 +209,8 @@ export default function MyBookings({ showCompletedOnly }: MyBookingsProps) {
   } else {
     filteredBookings = bookings.filter(b => {
       const start = new Date(b.schedule.startTime);
-      // 狀態為 PENDING、PENDING_PAYMENT 或 CONFIRMED，且開始時間在未來
-      return (b.status === 'PENDING' || b.status === 'PENDING_PAYMENT' || b.status === 'CONFIRMED') && start.getTime() > now.getTime();
+      // 狀態為 PENDING 或 CONFIRMED，且開始時間在未來
+      return (b.status === 'PENDING' || b.status === 'CONFIRMED') && start.getTime() > now.getTime();
     });
   }
   // 合併、排序、分頁都用 filteredBookings
@@ -289,7 +288,6 @@ export default function MyBookings({ showCompletedOnly }: MyBookingsProps) {
                     <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                       b.status === 'CONFIRMED' ? 'bg-green-600 text-white' :
                       b.status === 'PENDING' ? 'bg-yellow-600 text-white' :
-                      b.status === 'PENDING_PAYMENT' ? 'bg-orange-600 text-white' :
                       b.status === 'REJECTED' ? 'bg-red-500 text-white' :
                       b.status === 'CANCELLED' ? 'bg-red-600 text-white' :
                       b.status === 'COMPLETED' ? 'bg-blue-600 text-white' :
