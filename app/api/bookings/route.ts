@@ -99,35 +99,54 @@ export async function POST(request: Request) {
       });
 
       // 2-3. Discord 通知（僅單一時段）
-      /*
       if (Array.isArray(scheduleIds) && scheduleIds.length === 1) {
-        const schedule = await prisma.schedule.findUnique({
-          where: { id: scheduleIds[0] },
-          include: { partner: { select: { userId: true } } }
-        });
-        const user1 = await prisma.user.findUnique({ where: { id: customer.userId } });
-        const user2 = schedule?.partner?.userId
-          ? await prisma.user.findUnique({ where: { id: schedule.partner.userId } })
-          : null;
-        if (user1?.discord && user2?.discord && schedule?.startTime && schedule?.endTime) {
-          const start = new Date(schedule.startTime).getTime();
-          const end = new Date(schedule.endTime).getTime();
-          const minutes = Math.round((end - start) / (1000 * 60));
-          await fetch('http://localhost:5001/pair', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': 'Bearer 你的密鑰'
-            },
-            body: JSON.stringify({
-              user1_id: encodeURIComponent(user1.discord),
-              user2_id: encodeURIComponent(user2.discord),
-              minutes
-            })
+        try {
+          const schedule = await prisma.schedule.findUnique({
+            where: { id: scheduleIds[0] },
+            include: { partner: { select: { userId: true } } }
           });
+          const user1 = await prisma.user.findUnique({ where: { id: customer.userId } });
+          const user2 = schedule?.partner?.userId
+            ? await prisma.user.findUnique({ where: { id: schedule.partner.userId } })
+            : null;
+          if (user1?.discord && user2?.discord && schedule?.startTime && schedule?.endTime) {
+            const start = new Date(schedule.startTime).getTime();
+            const end = new Date(schedule.endTime).getTime();
+            const minutes = Math.round((end - start) / (1000 * 60));
+            
+                        console.log('發送 Discord 通知:', {
+              user1_discord: user1.discord,
+              user2_discord: user2.discord,
+              minutes: minutes,
+              start_time: schedule.startTime
+            });
+
+            await fetch('http://localhost:5001/pair', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer 你的密鑰'
+              },
+              body: JSON.stringify({
+                user1_id: encodeURIComponent(user1.discord),
+                user2_id: encodeURIComponent(user2.discord),
+                minutes,
+                start_time: schedule.startTime.toISOString()
+              })
+            });
+          } else {
+            console.log('Discord 通知跳過 - 缺少必要資訊:', {
+              user1_discord: user1?.discord,
+              user2_discord: user2?.discord,
+              schedule_start: schedule?.startTime,
+              schedule_end: schedule?.endTime
+            });
+          }
+        } catch (discordError) {
+          console.error('Discord 通知失敗:', discordError);
+          // Discord 通知失敗不影響預約流程
         }
       }
-      */
 
       return createdBookings;
     });

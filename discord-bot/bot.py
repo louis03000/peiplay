@@ -253,10 +253,19 @@ async def check_bookings():
                         partner_member: discord.PermissionOverwrite(view_channel=True, connect=True, speak=True),
                     }
                     
-                    category = discord.utils.get(guild.categories, name="語音頻道")
+                    category = discord.utils.get(guild.categories, name="Voice Channels")
                     if not category:
-                        print("❌ 找不到「語音頻道」分類")
-                        continue
+                        category = discord.utils.get(guild.categories, name="語音頻道")
+                    if not category:
+                        category = discord.utils.get(guild.categories, name="語音")
+                    if not category:
+                        # 嘗試使用第一個可用的分類
+                        if guild.categories:
+                            category = guild.categories[0]
+                            print(f"⚠️ 自動檢查使用現有分類: {category.name}")
+                        else:
+                            print("❌ 找不到任何分類，跳過此預約")
+                            continue
                     
                     vc = await guild.create_voice_channel(
                         name=channel_name, 
@@ -675,8 +684,141 @@ def move_user():
     bot.loop.create_task(mover())
     return jsonify({"status": "ok"})
 
+@app.route("/pair", methods=["POST"])
+def pair_users():
+    data = request.get_json()
+    user1_discord_name = data.get("user1_id")  # 實際上是 Discord 名稱
+    user2_discord_name = data.get("user2_id")  # 實際上是 Discord 名稱
+    minutes = data.get("minutes", 60)
+    start_time = data.get("start_time")  # 可選的開始時間
+
+    print(f"🔍 收到配對請求: {user1_discord_name} × {user2_discord_name}, {minutes} 分鐘")
+
+    async def create_pairing():
+        try:
+            guild = bot.get_guild(GUILD_ID)
+            if not guild:
+                print("❌ 找不到伺服器")
+                return
+
+            # 根據 Discord 名稱查找用戶
+            user1 = find_member_by_discord_name(guild, user1_discord_name)
+            user2 = find_member_by_discord_name(guild, user2_discord_name)
+            
+            if not user1 or not user2:
+                print(f"❌ 找不到用戶: {user1_discord_name}, {user2_discord_name}")
+                print(f"🔍 伺服器中的成員: {[m.name for m in guild.members]}")
+                return
+
+            print(f"✅ 找到用戶: {user1.name} ({user1.id}), {user2.name} ({user2.id})")
+
+            # 生成動物名稱
+            animals = ["🐻熊熊", "🐸青蛙", "🐼貓熊", "🐒猴子", "🐯老虎", "🐰兔子", "🦊狐狸", "🐺狼", "🐱貓咪", "🐶狗狗"]
+            animal = random.choice(animals)
+            channel_name = f"{animal}頻道"
+
+            # 創建語音頻道 - 嘗試多種分類名稱
+            category = discord.utils.get(guild.categories, name="Voice Channels")
+            if not category:
+                category = discord.utils.get(guild.categories, name="語音頻道")
+            if not category:
+                category = discord.utils.get(guild.categories, name="語音")
+            if not category:
+                # 嘗試使用第一個可用的分類
+                if guild.categories:
+                    category = guild.categories[0]
+                    print(f"⚠️ 使用現有分類: {category.name}")
+                else:
+                    print("❌ 找不到任何分類，請在 Discord 伺服器中創建分類")
+                    return
+
+            # 設定權限
+            overwrites = {
+                guild.default_role: discord.PermissionOverwrite(view_channel=False),
+                user1: discord.PermissionOverwrite(view_channel=True, connect=True, speak=True),
+                user2: discord.PermissionOverwrite(view_channel=True, connect=True, speak=True),
+            }
+
+            # 創建文字頻道（立即創建）
+            text_channel = await guild.create_text_channel(
+                name=f"{animal}聊天",
+                category=category,
+                overwrites=overwrites
+            )
+
+            # 如果有開始時間，則排程創建語音頻道
+            if start_time:
+                try:
+                    # 解析開始時間
+                    start_dt = datetime.fromisoformat(start_time.replace('Z', '+00:00'))
+                    now = datetime.now(timezone.utc)
+                    delay_seconds = (start_dt - now).total_seconds()
+                    
+                    if delay_seconds > 300:  # 如果超過5分鐘
+                        # 發送5分鐘提醒
+                        reminder_time = start_dt - timedelta(minutes=5)
+                        reminder_delay = (reminder_time - now).total_seconds()
+                        
+                        if reminder_delay > 0:
+                            await asyncio.sleep(reminder_delay)
+                            await text_channel.send(f"⏰ **預約提醒**\n🎮 您的語音頻道將在 5 分鐘後開啟！\n👥 參與者：{user1.mention} 和 {user2.mention}\n⏰ 開始時間：<t:{int(start_dt.timestamp())}:t>")
+                    
+                    # 等待到開始時間
+                    if delay_seconds > 0:
+                        await asyncio.sleep(delay_seconds)
+                    
+                    # 創建語音頻道
+                    voice_channel = await guild.create_voice_channel(
+                        name=channel_name,
+                        category=category,
+                        user_limit=2,
+                        overwrites=overwrites
+                    )
+                    
+                    # 移動用戶到語音頻道
+                    if user1.voice:
+                        await user1.move_to(voice_channel)
+                    if user2.voice:
+                        await user2.move_to(voice_channel)
+                    
+                    # 發送歡迎訊息（與手動創建相同）
+                    await text_channel.send(f"🎉 語音頻道 {channel_name} 已開啟！\n⏳ 可延長10分鐘 ( 為了您有更好的遊戲體驗，請到最後需要時再點選 ) 。")
+                    
+                    print(f"✅ 成功創建排程配對頻道: {channel_name}")
+                    
+                except Exception as e:
+                    print(f"❌ 排程創建頻道失敗: {e}")
+                    await text_channel.send("❌ 創建語音頻道時發生錯誤，請聯繫管理員。")
+            else:
+                # 立即創建語音頻道
+                voice_channel = await guild.create_voice_channel(
+                    name=channel_name,
+                    category=category,
+                    user_limit=2,
+                    overwrites=overwrites
+                )
+                
+                # 移動用戶到語音頻道
+                if user1.voice:
+                    await user1.move_to(voice_channel)
+                if user2.voice:
+                    await user2.move_to(voice_channel)
+                
+                # 發送歡迎訊息
+                await text_channel.send(f"🎮 歡迎 {user1.mention} 和 {user2.mention} 來到 {channel_name}！\n⏰ 時長：{minutes} 分鐘")
+                
+                print(f"✅ 成功創建即時配對頻道: {channel_name}")
+
+        except Exception as e:
+            print(f"❌ 創建配對頻道失敗: {e}")
+            import traceback
+            traceback.print_exc()
+
+    bot.loop.create_task(create_pairing())
+    return jsonify({"status": "ok", "message": "配對請求已處理"})
+
 def run_flask():
-    app.run(host="0.0.0.0", port=5000)
+    app.run(host="0.0.0.0", port=5001)
 
 threading.Thread(target=run_flask, daemon=True).start()
 bot.run(TOKEN) 

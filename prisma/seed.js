@@ -41,9 +41,16 @@ async function main() {
         password: hashedPartnerPassword,
         name: '測試夥伴',
         role: 'PARTNER',
+        discord: 'Louis0088', // 加入 Discord 資訊
       },
     });
     console.log('已建立測試夥伴帳號');
+  } else {
+    // 更新現有帳號的 Discord 資訊
+    await prisma.user.update({
+      where: { email: partnerEmail },
+      data: { discord: 'Louis0088' }
+    });
   }
 
   // 建立夥伴資料
@@ -78,9 +85,16 @@ async function main() {
         password: hashedCustomerPassword,
         name: '測試客戶',
         role: 'CUSTOMER',
+        discord: '0.08377', // 加入 Discord 資訊
       },
     });
     console.log('已建立測試客戶帳號');
+  } else {
+    // 更新現有帳號的 Discord 資訊
+    await prisma.user.update({
+      where: { email: customerEmail },
+      data: { discord: '0.08377' }
+    });
   }
 
   // 建立客戶資料
