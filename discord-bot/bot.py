@@ -18,6 +18,7 @@ TOKEN = os.getenv("DISCORD_BOT_TOKEN")
 GUILD_ID = int(os.getenv("DISCORD_GUILD_ID", "0"))
 POSTGRES_CONN = os.getenv("POSTGRES_CONN")
 ADMIN_CHANNEL_ID = int(os.getenv("ADMIN_CHANNEL_ID", "0"))
+CHANNEL_CREATION_CHANNEL_ID = int(os.getenv("CHANNEL_CREATION_CHANNEL_ID", "1410318589348810923"))  # 創建頻道通知頻道
 CHECK_INTERVAL = int(os.getenv("CHECK_INTERVAL", "30"))  # 檢查間隔（秒）
 
 Base = declarative_base()
@@ -113,8 +114,10 @@ active_voice_channels = {}
 evaluated_records = set()
 pending_ratings = {}
 processed_bookings = set()  # 記錄已處理的預約
+processed_text_channels = set()  # 記錄已創建文字頻道的預約
 
-ANIMALS = ["🦊 狐狸", "🐱 貓咪", "🐶 小狗", "🐻 熊熊", "🐼 貓熊", "🐯 老虎", "🦁 獅子", "🐸 青蛙", "🐵 猴子"]
+# 可愛的動物和物品列表
+CUTE_ITEMS = ["🦊 狐狸", "🐱 貓咪", "🐶 小狗", "🐻 熊熊", "🐼 貓熊", "🐯 老虎", "🦁 獅子", "🐸 青蛙", "🐵 猴子", "🐰 兔子", "🦄 獨角獸", "🐙 章魚", "🦋 蝴蝶", "🌸 櫻花", "⭐ 星星", "🌈 彩虹", "🍀 幸運草", "🎀 蝴蝶結", "🍭 棒棒糖", "🎈 氣球"]
 TW_TZ = timezone(timedelta(hours=8))
 
 # --- 成員搜尋函數 ---
@@ -129,6 +132,195 @@ def find_member_by_discord_name(guild, discord_name):
             return member
     return None
 
+# --- 創建預約文字頻道函數 ---
+async def create_booking_text_channel(booking_id, customer_discord, partner_discord, start_time, end_time):
+    """為預約創建文字頻道"""
+    try:
+        guild = bot.get_guild(GUILD_ID)
+        if not guild:
+            print("❌ 找不到 Discord 伺服器")
+            return None
+        
+        # 查找 Discord 成員
+        customer_member = find_member_by_discord_name(guild, customer_discord)
+        partner_member = find_member_by_discord_name(guild, partner_discord)
+        
+        if not customer_member or not partner_member:
+            print(f"❌ 找不到 Discord 成員: 顧客={customer_discord}, 夥伴={partner_discord}")
+            return None
+        
+        # 計算頻道持續時間
+        duration_minutes = int((end_time - start_time).total_seconds() / 60)
+        
+        # 創建頻道名稱 - 使用日期和時間
+        # 確保時間有時區資訊，並轉換為台灣時間
+        if start_time.tzinfo is None:
+            start_time = start_time.replace(tzinfo=timezone.utc)
+        if end_time.tzinfo is None:
+            end_time = end_time.replace(tzinfo=timezone.utc)
+        
+        # 轉換為台灣時間
+        tw_start_time = start_time.astimezone(TW_TZ)
+        tw_end_time = end_time.astimezone(TW_TZ)
+        
+        # 格式化日期和時間
+        date_str = tw_start_time.strftime("%m/%d")
+        start_time_str = tw_start_time.strftime("%H:%M")
+        end_time_str = tw_end_time.strftime("%H:%M")
+        
+        # 創建統一的頻道名稱 - 加上隨機可愛物品
+        cute_item = random.choice(CUTE_ITEMS)
+        channel_name = f"📅{date_str} {start_time_str}-{end_time_str} {cute_item}"
+        
+        # 設定權限
+        overwrites = {
+            guild.default_role: discord.PermissionOverwrite(view_channel=False),
+            customer_member: discord.PermissionOverwrite(view_channel=True, send_messages=True, read_message_history=True),
+            partner_member: discord.PermissionOverwrite(view_channel=True, send_messages=True, read_message_history=True),
+        }
+        
+        # 找到分類
+        category = discord.utils.get(guild.categories, name="Text Channels")
+        if not category:
+            category = discord.utils.get(guild.categories, name="文字頻道")
+        if not category:
+            category = discord.utils.get(guild.categories, name="文字")
+        if not category:
+            if guild.categories:
+                category = guild.categories[0]
+            else:
+                print("❌ 找不到任何分類")
+                return None
+        
+        # 創建文字頻道
+        text_channel = await guild.create_text_channel(
+            name=channel_name,
+            overwrites=overwrites,
+            category=category
+        )
+        
+        # 發送歡迎訊息 - 修正時區顯示
+        # 確保時間有時區資訊，並轉換為台灣時間
+        if start_time.tzinfo is None:
+            start_time = start_time.replace(tzinfo=timezone.utc)
+        if end_time.tzinfo is None:
+            end_time = end_time.replace(tzinfo=timezone.utc)
+        
+        # 轉換為台灣時間
+        tw_start_time = start_time.astimezone(TW_TZ)
+        tw_end_time = end_time.astimezone(TW_TZ)
+        
+        start_time_str = tw_start_time.strftime("%Y/%m/%d %H:%M")
+        end_time_str = tw_end_time.strftime("%H:%M")
+        
+        embed = discord.Embed(
+            title=f"🎮 預約頻道",
+            description=f"歡迎來到預約頻道！\n\n"
+                       f"📅 **預約時間**: {start_time_str} - {end_time_str}\n"
+                       f"⏰ **時長**: {duration_minutes} 分鐘\n"
+                       f"👤 **顧客**: {customer_member.mention}\n"
+                       f"👥 **夥伴**: {partner_member.mention}\n\n"
+                       f"💬 你們可以在這裡提前溝通\n"
+                       f"🎤 語音頻道將在預約開始前 5 分鐘自動創建",
+            color=0x00ff00
+        )
+        
+        await text_channel.send(embed=embed)
+        
+        # 通知創建頻道頻道
+        channel_creation_channel = bot.get_channel(CHANNEL_CREATION_CHANNEL_ID)
+        if channel_creation_channel:
+            await channel_creation_channel.send(
+                f"📝 預約文字頻道已創建：\n"
+                f"📋 預約ID: {booking_id}\n"
+                f"👤 顧客: {customer_member.mention} ({customer_discord})\n"
+                f"👥 夥伴: {partner_member.mention} ({partner_discord})\n"
+                f"⏰ 時間: {start_time_str} - {end_time_str}\n"
+                f"💬 頻道: {text_channel.mention}"
+            )
+        
+        print(f"✅ 預約文字頻道創建成功: {channel_name} for booking {booking_id}")
+        return text_channel
+        
+    except Exception as e:
+        print(f"❌ 創建預約文字頻道時發生錯誤: {e}")
+        return None
+
+# --- 檢查新預約並創建文字頻道任務 ---
+@tasks.loop(seconds=60)  # 每分鐘檢查一次
+async def check_new_bookings():
+    """檢查新預約並創建文字頻道"""
+    await bot.wait_until_ready()
+    
+    try:
+        with Session() as s:
+            # 查詢最近 10 分鐘內創建的已確認預約
+            now = datetime.now(timezone.utc)
+            recent_time = now - timedelta(minutes=10)
+            
+            # 檢查是否已創建文字頻道
+            processed_list = list(processed_text_channels)
+            
+            if processed_list:
+                # 如果有已處理的預約，使用 NOT IN 查詢
+                query = """
+                SELECT 
+                    b.id, b."customerId", b."scheduleId", b.status, b."createdAt", b."updatedAt",
+                    c.name as customer_name, cu.discord as customer_discord,
+                    p.name as partner_name, pu.discord as partner_discord,
+                    s."startTime", s."endTime"
+                FROM "Booking" b
+                JOIN "Schedule" s ON s.id = b."scheduleId"
+                JOIN "Customer" c ON c.id = b."customerId"
+                JOIN "User" cu ON cu.id = c."userId"
+                JOIN "Partner" p ON p.id = s."partnerId"
+                JOIN "User" pu ON pu.id = p."userId"
+                WHERE b.status = 'CONFIRMED'
+                AND b."createdAt" >= :recent_time
+                AND b.id NOT IN (SELECT unnest(:processed_list::text[]))
+                """
+                result = s.execute(text(query), {"recent_time": recent_time, "processed_list": processed_list})
+            else:
+                # 如果沒有已處理的預約，簡化查詢
+                simple_query = """
+                SELECT 
+                    b.id, b."customerId", b."scheduleId", b.status, b."createdAt", b."updatedAt",
+                    c.name as customer_name, cu.discord as customer_discord,
+                    p.name as partner_name, pu.discord as partner_discord,
+                    s."startTime", s."endTime"
+                FROM "Booking" b
+                JOIN "Schedule" s ON s.id = b."scheduleId"
+                JOIN "Customer" c ON c.id = b."customerId"
+                JOIN "User" cu ON cu.id = c."userId"
+                JOIN "Partner" p ON p.id = s."partnerId"
+                JOIN "User" pu ON pu.id = p."userId"
+                WHERE b.status = 'CONFIRMED'
+                AND b."createdAt" >= :recent_time
+                """
+                result = s.execute(text(simple_query), {"recent_time": recent_time})
+            
+            for row in result:
+                try:
+                    # 創建文字頻道
+                    text_channel = await create_booking_text_channel(
+                        row.id, 
+                        row.customer_discord, 
+                        row.partner_discord, 
+                        row.startTime, 
+                        row.endTime
+                    )
+                    
+                    if text_channel:
+                        # 標記為已處理
+                        processed_text_channels.add(row.id)
+                        
+                except Exception as e:
+                    print(f"❌ 處理新預約 {row.id} 時發生錯誤: {e}")
+                    continue
+                    
+    except Exception as e:
+        print(f"❌ 檢查新預約時發生錯誤: {e}")
+
 # --- 自動檢查預約任務 ---
 @tasks.loop(seconds=CHECK_INTERVAL)
 async def check_bookings():
@@ -141,7 +333,7 @@ async def check_bookings():
             print("❌ 找不到 Discord 伺服器")
             return
         
-        # 查詢已確認且即將開始的預約
+        # 查詢已確認且即將開始的預約（只創建語音頻道）
         now = datetime.now(timezone.utc)
         window_start = now
         window_end = now + timedelta(minutes=5)  # 5分鐘內即將開始
@@ -241,11 +433,30 @@ async def check_bookings():
                     # 計算頻道持續時間
                     duration_minutes = int((booking.schedule.endTime - booking.schedule.startTime).total_seconds() / 60)
                     
-                    # 創建語音頻道
-                    animal = random.choice(ANIMALS)
-                    # 安全地處理 orderNumber，如果不存在就使用 ID 的前8位
-                    order_number = getattr(booking, 'orderNumber', None)
-                    channel_name = f"{animal}頻道-{order_number or booking.id[:8]}"
+                    # 創建語音頻道（預約時間前 5 分鐘）
+                    # 確保時間有時區資訊，並轉換為台灣時間
+                    if booking.schedule.startTime.tzinfo is None:
+                        start_time = booking.schedule.startTime.replace(tzinfo=timezone.utc)
+                    else:
+                        start_time = booking.schedule.startTime
+                    
+                    if booking.schedule.endTime.tzinfo is None:
+                        end_time = booking.schedule.endTime.replace(tzinfo=timezone.utc)
+                    else:
+                        end_time = booking.schedule.endTime
+                    
+                    # 轉換為台灣時間
+                    tw_start_time = start_time.astimezone(TW_TZ)
+                    tw_end_time = end_time.astimezone(TW_TZ)
+                    
+                    # 格式化日期和時間
+                    date_str = tw_start_time.strftime("%m/%d")
+                    start_time_str = tw_start_time.strftime("%H:%M")
+                    end_time_str = tw_end_time.strftime("%H:%M")
+                     
+                    # 創建統一的頻道名稱（與文字頻道相同）
+                    cute_item = random.choice(CUTE_ITEMS)
+                    channel_name = f"📅{date_str} {start_time_str}-{end_time_str} {cute_item}"
                     
                     overwrites = {
                         guild.default_role: discord.PermissionOverwrite(view_channel=False),
@@ -288,45 +499,55 @@ async def check_bookings():
                     print(f"🔍 自動創建配對記錄: {user1_id} × {user2_id}")
                     
                     record = PairingRecord(
-                         user1_id=user1_id,
-                         user2_id=user2_id,
-                         duration=duration_minutes * 60,
-                         animal_name=animal,
-                         booking_id=booking.id
-                     )
+                        user1_id=user1_id,
+                        user2_id=user2_id,
+                        duration=duration_minutes * 60,
+                        animal_name="預約頻道",  # 修正未定義的 animal 變數
+                        booking_id=booking.id
+                    )
                     s.add(record)
                     s.commit()
                     record_id = record.id  # 保存 ID，避免 Session 關閉後無法訪問
                      
-                    # 初始化頻道狀態
+                                        # 初始化頻道狀態
                     active_voice_channels[vc.id] = {
-                         'text_channel': text_channel,
-                         'remaining': duration_minutes * 60,
-                         'extended': 0,
-                         'record_id': record_id,  # 使用保存的 ID
-                         'vc': vc,
-                         'booking_id': booking.id
-                     }
-                     
+                        'text_channel': text_channel,
+                        'remaining': duration_minutes * 60,
+                        'extended': 0,
+                        'record_id': record_id,  # 使用保存的 ID
+                        'vc': vc,
+                        'booking_id': booking.id
+                    }
+                    
                     # 標記為已處理
                     processed_bookings.add(booking.id)
-                     
-                    # 通知管理員
-                    admin_channel = bot.get_channel(ADMIN_CHANNEL_ID)
-                    if admin_channel:
-                         await admin_channel.send(
+                    
+                    # 通知創建頻道頻道 - 修正時區顯示
+                    channel_creation_channel = bot.get_channel(CHANNEL_CREATION_CHANNEL_ID)
+                    if channel_creation_channel:
+                         # 確保時間有時區資訊，並轉換為台灣時間
+                         if booking.schedule.startTime.tzinfo is None:
+                             start_time = booking.schedule.startTime.replace(tzinfo=timezone.utc)
+                         else:
+                             start_time = booking.schedule.startTime
+                         
+                         tw_start_time = start_time.astimezone(TW_TZ)
+                         start_time_str = tw_start_time.strftime("%Y/%m/%d %H:%M")
+                         
+                         await channel_creation_channel.send(
                              f"🎉 自動創建語音頻道：\n"
                              f"📋 預約ID: {booking.id}\n"
                              f"👤 顧客: {customer_member.mention} ({customer_discord})\n"
                              f"👥 夥伴: {partner_member.mention} ({partner_discord})\n"
-                             f"⏰ 時間: {duration_minutes} 分鐘\n"
+                             f"⏰ 開始時間: {start_time_str}\n"
+                             f"⏱️ 時長: {duration_minutes} 分鐘\n"
                              f"🎮 頻道: {vc.mention}"
                          )
-                     
+                    
                     # 啟動倒數
                     bot.loop.create_task(
-                         countdown(vc.id, channel_name, text_channel, vc, None, [customer_member, partner_member], record_id)
-                     )
+                        countdown(vc.id, channel_name, text_channel, vc, None, [customer_member, partner_member], record_id)
+                    )
                      
                     print(f"✅ 自動創建頻道成功: {channel_name} for booking {booking.id}")
                     
@@ -409,7 +630,9 @@ async def on_ready():
         
         # 啟動自動檢查任務
         check_bookings.start()
+        check_new_bookings.start()
         print(f"✅ 自動檢查預約任務已啟動，檢查間隔：{CHECK_INTERVAL} 秒")
+        print(f"✅ 新預約文字頻道檢查任務已啟動，檢查間隔：60 秒")
     except Exception as e:
         print(f"❌ 指令同步失敗: {e}")
 
@@ -562,7 +785,7 @@ async def createvc(interaction: discord.Interaction, members: str, minutes: int,
         await interaction.followup.send("❗請標註其他成員，不能與自己配對。")
         return
 
-    animal = random.choice(ANIMALS)
+    animal = random.choice(CUTE_ITEMS)
     animal_channel_name = f"{animal}頻道"
     await interaction.followup.send(f"✅ 已排程配對頻道：{animal_channel_name} 將於 <t:{int(start_dt_utc.timestamp())}:t> 開啟")
 
@@ -712,9 +935,8 @@ def pair_users():
 
             print(f"✅ 找到用戶: {user1.name} ({user1.id}), {user2.name} ({user2.id})")
 
-            # 生成動物名稱
-            animals = ["🐻熊熊", "🐸青蛙", "🐼貓熊", "🐒猴子", "🐯老虎", "🐰兔子", "🦊狐狸", "🐺狼", "🐱貓咪", "🐶狗狗"]
-            animal = random.choice(animals)
+            # 生成可愛物品名稱
+            animal = random.choice(CUTE_ITEMS)
             channel_name = f"{animal}頻道"
 
             # 創建語音頻道 - 嘗試多種分類名稱

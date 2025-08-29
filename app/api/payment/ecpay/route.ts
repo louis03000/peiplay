@@ -12,42 +12,9 @@ const ECPAY_CONFIG = {
   CLIENT_FRONT_URL: 'https://peiplay.vercel.app/booking'
 }
 
-// 自定義 URLEncode 函數，使用舊版標準（空格編碼為 +）
+// 使用標準的 encodeURIComponent 函數（綠界官方推薦）
 function customUrlEncode(str: string): string {
-  return str.replace(/\+/g, '%2B')
-            .replace(/\s/g, '+')
-            .replace(/"/g, '%22')
-            .replace(/'/g, '%27')
-            .replace(/</g, '%3C')
-            .replace(/>/g, '%3E')
-            .replace(/#/g, '%23')
-            .replace(/%/g, '%25')
-            .replace(/\{/g, '%7B')
-            .replace(/\}/g, '%7D')
-            .replace(/\|/g, '%7C')
-            .replace(/\\/g, '%5C')
-            .replace(/\^/g, '%5E')
-            .replace(/\[/g, '%5B')
-            .replace(/\]/g, '%5D')
-            .replace(/`/g, '%60')
-            .replace(/;/g, '%3B')
-            .replace(/\//g, '%2F')
-            .replace(/\?/g, '%3F')
-            .replace(/:/g, '%3A')
-            .replace(/@/g, '%40')
-            .replace(/=/g, '%3D')
-            .replace(/&/g, '%26')
-            .replace(/\$/g, '%24')
-            .replace(/,/g, '%2C')
-            .replace(/\(/g, '%28')
-            .replace(/\)/g, '%29')
-            .replace(/!/g, '%21')
-            .replace(/~/g, '%7E')
-            .replace(/\*/g, '%2A')
-            // 移除對 . 和 - 的編碼，讓它們保持原樣
-            // .replace(/\./g, '%2E')
-            // .replace(/_/g, '%5F')
-            // .replace(/-/g, '%2D')
+  return encodeURIComponent(str)
 }
 
 // 綠界官方正確的 CheckMacValue 計算方式
