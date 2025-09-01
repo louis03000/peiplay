@@ -117,6 +117,24 @@ export async function POST(
           })
         });
       }
+      
+      // 刪除 Discord 頻道
+      try {
+        await fetch('http://localhost:5001/delete', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            booking_id: bookingId
+          })
+        });
+        console.log('✅ Discord 頻道刪除請求已發送');
+      } catch (deleteError) {
+        console.error('Discord 頻道刪除失敗:', deleteError);
+        // 頻道刪除失敗不影響取消操作
+      }
+      
     } catch (discordError) {
       console.error('Discord notification failed:', discordError);
       // Discord 通知失敗不影響取消操作

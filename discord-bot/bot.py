@@ -227,6 +227,20 @@ async def create_booking_text_channel(booking_id, customer_discord, partner_disc
         
         await text_channel.send(embed=embed)
         
+        # 保存頻道 ID 到資料庫
+        try:
+            with Session() as s:
+                # 更新預約記錄，保存 Discord 頻道 ID
+                result = s.execute(
+                    text("UPDATE \"Booking\" SET \"discordTextChannelId\" = :channel_id WHERE id = :booking_id"),
+                    {"channel_id": str(text_channel.id), "booking_id": booking_id}
+                )
+                s.commit()
+                print(f"✅ 已保存文字頻道 ID {text_channel.id} 到預約 {booking_id}")
+        except Exception as db_error:
+            print(f"❌ 保存頻道 ID 到資料庫失敗: {db_error}")
+            # 即使保存失敗，頻道仍然可以使用
+        
         # 通知創建頻道頻道
         channel_creation_channel = bot.get_channel(CHANNEL_CREATION_CHANNEL_ID)
         if channel_creation_channel:
@@ -245,6 +259,88 @@ async def create_booking_text_channel(booking_id, customer_discord, partner_disc
     except Exception as e:
         print(f"❌ 創建預約文字頻道時發生錯誤: {e}")
         return None
+
+# --- 刪除預約頻道函數 ---
+async def delete_booking_channels(booking_id: str):
+    """刪除預約相關的 Discord 頻道"""
+    try:
+        guild = bot.get_guild(GUILD_ID)
+        if not guild:
+            print("❌ 找不到 Discord 伺服器")
+            return False
+        
+        # 從資料庫獲取頻道 ID
+        with Session() as s:
+            result = s.execute(
+                text("SELECT \"discordTextChannelId\", \"discordVoiceChannelId\" FROM \"Booking\" WHERE id = :booking_id"),
+                {"booking_id": booking_id}
+            )
+            row = result.fetchone()
+            
+            if not row:
+                print(f"❌ 找不到預約 {booking_id} 的頻道資訊")
+                return False
+            
+            text_channel_id = row[0]
+            voice_channel_id = row[1]
+        
+        deleted_channels = []
+        
+        # 刪除文字頻道
+        if text_channel_id:
+            try:
+                text_channel = guild.get_channel(int(text_channel_id))
+                if text_channel:
+                    await text_channel.delete()
+                    deleted_channels.append(f"文字頻道 {text_channel.name}")
+                    print(f"✅ 已刪除文字頻道: {text_channel.name}")
+                else:
+                    print(f"⚠️ 文字頻道 {text_channel_id} 不存在")
+            except Exception as text_error:
+                print(f"❌ 刪除文字頻道失敗: {text_error}")
+        
+        # 刪除語音頻道
+        if voice_channel_id:
+            try:
+                voice_channel = guild.get_channel(int(voice_channel_id))
+                if voice_channel:
+                    await voice_channel.delete()
+                    deleted_channels.append(f"語音頻道 {voice_channel.name}")
+                    print(f"✅ 已刪除語音頻道: {voice_channel.name}")
+                else:
+                    print(f"⚠️ 語音頻道 {voice_channel_id} 不存在")
+            except Exception as voice_error:
+                print(f"❌ 刪除語音頻道失敗: {voice_error}")
+        
+        # 清除資料庫中的頻道 ID
+        try:
+            with Session() as s:
+                s.execute(
+                    text("UPDATE \"Booking\" SET \"discordTextChannelId\" = NULL, \"discordVoiceChannelId\" = NULL WHERE id = :booking_id"),
+                    {"booking_id": booking_id}
+                )
+                s.commit()
+                print(f"✅ 已清除預約 {booking_id} 的頻道 ID")
+        except Exception as db_error:
+            print(f"❌ 清除頻道 ID 失敗: {db_error}")
+        
+        # 通知管理員
+        try:
+            admin_channel = bot.get_channel(ADMIN_CHANNEL_ID)
+            if admin_channel and deleted_channels:
+                await admin_channel.send(
+                    f"🗑️ **預約頻道已刪除**\n"
+                    f"預約ID: `{booking_id}`\n"
+                    f"已刪除頻道: {', '.join(deleted_channels)}"
+                )
+        except Exception as notify_error:
+            print(f"❌ 發送刪除通知失敗: {notify_error}")
+        
+        return len(deleted_channels) > 0
+        
+    except Exception as error:
+        print(f"❌ 刪除預約頻道失敗: {error}")
+        return False
 
 # --- 檢查新預約並創建文字頻道任務 ---
 @tasks.loop(seconds=60)  # 每分鐘檢查一次
@@ -907,6 +1003,36 @@ def move_user():
     bot.loop.create_task(mover())
     return jsonify({"status": "ok"})
 
+@app.route('/delete', methods=['POST'])
+def delete_booking():
+    """刪除預約相關的 Discord 頻道"""
+    try:
+        data = request.get_json()
+        booking_id = data.get('booking_id')
+        
+        if not booking_id:
+            return jsonify({'error': '缺少預約 ID'}), 400
+        
+        # 使用 asyncio 運行 Discord 操作
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            result = loop.run_until_complete(
+                delete_booking_channels(booking_id)
+            )
+            loop.close()
+            
+            if result:
+                return jsonify({'success': True, 'message': '頻道已成功刪除'})
+            else:
+                return jsonify({'error': '刪除頻道失敗'}), 500
+        except Exception as e:
+            loop.close()
+            return jsonify({'error': f'Discord 操作失敗: {str(e)}'}), 500
+            
+    except Exception as e:
+        return jsonify({'error': f'刪除預約失敗: {str(e)}'}), 500
+
 @app.route("/pair", methods=["POST"])
 def pair_users():
     data = request.get_json()
@@ -1038,6 +1164,36 @@ def pair_users():
 
     bot.loop.create_task(create_pairing())
     return jsonify({"status": "ok", "message": "配對請求已處理"})
+
+@app.route('/delete', methods=['POST'])
+def delete_booking():
+    """刪除預約相關的 Discord 頻道"""
+    try:
+        data = request.get_json()
+        booking_id = data.get('booking_id')
+        
+        if not booking_id:
+            return jsonify({'error': '缺少預約 ID'}), 400
+        
+        # 使用 asyncio 運行 Discord 操作
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            result = loop.run_until_complete(
+                delete_booking_channels(booking_id)
+            )
+            loop.close()
+            
+            if result:
+                return jsonify({'success': True, 'message': '頻道已成功刪除'})
+            else:
+                return jsonify({'error': '刪除頻道失敗'}), 500
+        except Exception as e:
+            loop.close()
+            return jsonify({'error': f'Discord 操作失敗: {str(e)}'}), 500
+            
+    except Exception as e:
+        return jsonify({'error': f'刪除預約失敗: {str(e)}'}), 500
 
 def run_flask():
     app.run(host="0.0.0.0", port=5001)
