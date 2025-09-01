@@ -373,7 +373,7 @@ async def check_new_bookings():
                 JOIN "User" pu ON pu.id = p."userId"
                 WHERE b.status = 'CONFIRMED'
                 AND b."createdAt" >= :recent_time
-                AND b.id NOT IN (SELECT unnest(:processed_list::text[]))
+                AND b.id NOT IN (SELECT unnest(%(processed_list)s::text[]))
                 """
                 result = s.execute(text(query), {"recent_time": recent_time, "processed_list": processed_list})
             else:
@@ -449,9 +449,9 @@ async def check_bookings():
             JOIN "Partner" p ON p.id = s."partnerId"
             JOIN "User" pu ON pu.id = p."userId"
             WHERE b.status IN ('CONFIRMED', 'COMPLETED')
-            AND b.id NOT IN (SELECT unnest(%s::text[]))
-            AND s."startTime" >= %s
-            AND s."startTime" <= %s
+            AND b.id NOT IN (SELECT unnest(%(processed_list)s::text[]))
+            AND s."startTime" >= %(start_time_1)s
+            AND s."startTime" <= %(start_time_2)s
             """
             
             # 將 processed_bookings 轉換為列表
@@ -1002,36 +1002,6 @@ def move_user():
 
     bot.loop.create_task(mover())
     return jsonify({"status": "ok"})
-
-@app.route('/delete', methods=['POST'])
-def delete_booking():
-    """刪除預約相關的 Discord 頻道"""
-    try:
-        data = request.get_json()
-        booking_id = data.get('booking_id')
-        
-        if not booking_id:
-            return jsonify({'error': '缺少預約 ID'}), 400
-        
-        # 使用 asyncio 運行 Discord 操作
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        try:
-            result = loop.run_until_complete(
-                delete_booking_channels(booking_id)
-            )
-            loop.close()
-            
-            if result:
-                return jsonify({'success': True, 'message': '頻道已成功刪除'})
-            else:
-                return jsonify({'error': '刪除頻道失敗'}), 500
-        except Exception as e:
-            loop.close()
-            return jsonify({'error': f'Discord 操作失敗: {str(e)}'}), 500
-            
-    except Exception as e:
-        return jsonify({'error': f'刪除預約失敗: {str(e)}'}), 500
 
 @app.route("/pair", methods=["POST"])
 def pair_users():

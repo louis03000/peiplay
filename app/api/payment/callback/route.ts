@@ -135,9 +135,9 @@ export async function POST(request: NextRequest) {
           
           // 驗證付款金額是否正確
           const actualAmount = parseInt(TradeAmt)
-          const expectedAmount = booking.expectedAmount || 0
+          const expectedAmount = booking.finalAmount || 0
           
-          let paymentStatus = 'COMPLETED'
+          let paymentStatus = 'CONFIRMED'  // 改為 CONFIRMED 狀態
           let paymentNote = ''
           
           if (expectedAmount > 0 && actualAmount !== expectedAmount) {
