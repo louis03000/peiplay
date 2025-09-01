@@ -19,8 +19,16 @@ function customUrlEncode(str: string): string {
 
 // 綠界官方正確的 CheckMacValue 計算方式
 function generateCheckMacValue(params: Record<string, string>): string {
-  // 1. 將參數依照參數名稱 ASCII Code 編碼排序
-  const sortedKeys = Object.keys(params).sort()
+  // 1. 將參數依照第一個英文字母 A-Z 排序（綠界官方方式）
+  const sortedKeys = Object.keys(params).sort((a, b) => {
+    // 按照第一個英文字母排序，相同時比較第二個字母
+    for (let i = 0; i < Math.min(a.length, b.length); i++) {
+      if (a[i] !== b[i]) {
+        return a[i].localeCompare(b[i])
+      }
+    }
+    return a.length - b.length
+  })
   
   // 2. 組合參數（不包含 CheckMacValue）
   let queryString = ''
@@ -36,7 +44,7 @@ function generateCheckMacValue(params: Record<string, string>): string {
   // 4. 最前面加上 HashKey，最後面加上 HashIV（綠界官方正確方式）
   const withKeys = `HashKey=${ECPAY_CONFIG.HASH_KEY}&${queryString}&HashIV=${ECPAY_CONFIG.HASH_IV}`
   
-  // 5. 進行 URL encode（使用舊版標準，空格編碼為 +）
+  // 5. 進行 URL encode（使用標準 encodeURIComponent）
   const urlEncoded = customUrlEncode(withKeys)
   
   // 6. 轉為小寫
