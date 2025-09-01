@@ -14,13 +14,10 @@ const ECPAY_CONFIG = {
 
 // 綠界特定的 URL 編碼函數（空格編碼為 +，不是 %20）
 function customUrlEncode(str: string): string {
-  // 先處理空格編碼為 +
-  let result = str.replace(/\s/g, '+')
+  // 使用標準的 encodeURIComponent，但將空格轉為 +
+  let result = encodeURIComponent(str)
   
-  // 然後使用標準的 encodeURIComponent，但將 + 轉回空格進行標準編碼
-  result = encodeURIComponent(result.replace(/\+/g, ' '))
-  
-  // 最後將編碼後的空格轉回 +
+  // 將編碼後的空格 %20 轉回 +
   result = result.replace(/%20/g, '+')
   
   return result
