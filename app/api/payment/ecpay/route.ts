@@ -23,44 +23,42 @@ function customUrlEncode(str: string): string {
   return result
 }
 
-// 綠界官方正確的 CheckMacValue 計算方式
+// 完全按照綠界官方步驟的 CheckMacValue 生成函數
 function generateCheckMacValue(params: Record<string, string>): string {
-  // 1. 將參數依照第一個英文字母 A-Z 排序（綠界官方方式）
-  const sortedKeys = Object.keys(params).sort((a, b) => {
-    // 按照第一個英文字母排序，相同時比較第二個字母
-    for (let i = 0; i < Math.min(a.length, b.length); i++) {
-      if (a[i] !== b[i]) {
-        return a[i].localeCompare(b[i])
-      }
-    }
-    return a.length - b.length
-  })
-  
-  // 2. 組合參數（不包含 CheckMacValue）
-  let queryString = ''
-  for (const key of sortedKeys) {
-    if (key !== 'CheckMacValue' && params[key] !== '' && params[key] !== null && params[key] !== undefined) {
-      queryString += `${key}=${params[key]}&`
+  // 開發期防呆：檢查是否有疑似已編碼的值
+  for (const [k, v] of Object.entries(params)) {
+    if (/%[0-9a-f]{2}/i.test(String(v))) {
+      throw new Error(`參數 ${k} 看起來已被 URL 編碼，請改傳原始值：${v}`)
     }
   }
-  
-  // 3. 移除最後一個 & 符號
-  queryString = queryString.slice(0, -1)
-  
-  // 4. 最前面加上 HashKey，最後面加上 HashIV（綠界官方正確方式）
-  const withKeys = `HashKey=${ECPAY_CONFIG.HASH_KEY}&${queryString}&HashIV=${ECPAY_CONFIG.HASH_IV}`
-  
-  // 5. 進行 URL encode（使用標準 encodeURIComponent）
-  const urlEncoded = customUrlEncode(withKeys)
-  
-  // 6. 轉為小寫
-  const lowerCase = urlEncoded.toLowerCase()
-  
-  // 7. 使用 SHA256 加密
-  const hash = crypto.createHash('sha256').update(lowerCase).digest('hex')
-  
-  // 8. 轉為大寫
-  return hash.toUpperCase()
+
+  // 1) 依鍵名 A-Z 排序；略過空值與 CheckMacValue 本身
+  const sortedKeys = Object.keys(params)
+    .filter(k => k !== 'CheckMacValue' && params[k] !== '' && params[k] != null)
+    .sort((a, b) => a.localeCompare(b))
+
+  // 2) 組合 query string（值不要預先做任何 encode）
+  const query = sortedKeys.map(k => `${k}=${params[k]}`).join('&')
+
+  // 3) 前後夾上 HashKey/HashIV
+  const raw = `HashKey=${ECPAY_CONFIG.HASH_KEY}&${query}&HashIV=${ECPAY_CONFIG.HASH_IV}`
+
+  // 4) 一次 UrlEncode（RFC 3986 風格），轉小寫，再做 .NET(ecpay) 對應字元還原，最後把空白改成 +
+  const normalized = encodeURIComponent(raw)
+    .toLowerCase()
+    // ── 依綠界對照表還原（有些語言才需要；在 JS 沒影響，但安全起見照做）
+    .replace(/%2d/g, '-')  // -
+    .replace(/%5f/g, '_')  // _
+    .replace(/%2e/g, '.')  // .
+    .replace(/%21/g, '!')  // !
+    .replace(/%2a/g, '*')  // *
+    .replace(/%28/g, '(')  // (
+    .replace(/%29/g, ')')  // )
+    // 空白改為 +
+    .replace(/%20/g, '+')
+
+  // 5) SHA256 → 6) 大寫
+  return crypto.createHash('sha256').update(normalized).digest('hex').toUpperCase()
 }
 
 export async function POST(request: NextRequest) {
