@@ -147,6 +147,9 @@ export default function BookingsPage() {
   function getStatusText(status: string) {
     const statusMap: { [key: string]: string } = {
       'PENDING': '待確認',
+      'PAID_WAITING_PARTNER_CONFIRMATION': '等待夥伴確認',
+      'PARTNER_ACCEPTED': '夥伴已接受',
+      'PARTNER_REJECTED': '夥伴已拒絕',
       'CONFIRMED': '已確認',
       'REJECTED': '已拒絕',
       'CANCELLED': '已取消',

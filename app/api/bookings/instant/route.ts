@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
       data: {
         customerId: customer.id,
         scheduleId: tempSchedule.id, // 使用新創建的 schedule ID
-        status: 'PAID_WAITING_PARTNER_CONFIRMATION', // 等待夥伴確認
+        status: 'PENDING', // 等待夥伴確認
         orderNumber: `INST-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         originalAmount: totalAmount,
         finalAmount: totalAmount,

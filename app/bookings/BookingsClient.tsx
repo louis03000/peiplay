@@ -6,6 +6,9 @@ import { format } from "date-fns";
 const STATUS_OPTIONS = [
   { value: "", label: "全部狀態" },
   { value: "PENDING", label: "待確認" },
+  { value: "PAID_WAITING_PARTNER_CONFIRMATION", label: "等待夥伴確認" },
+  { value: "PARTNER_ACCEPTED", label: "夥伴已接受" },
+  { value: "PARTNER_REJECTED", label: "夥伴已拒絕" },
   { value: "CONFIRMED", label: "已確認" },
   { value: "REJECTED", label: "已拒絕" },
   { value: "CANCELLED", label: "已取消" },
