@@ -25,14 +25,27 @@ function useDebounce<T>(value: T, delay: number): T {
   return debouncedValue
 }
 
-const steps = [
-  '選擇夥伴',
-  '選擇日期',
-  '選擇時段',
-  '確認預約',
-  '付款',
-  '完成'
-]
+// 動態步驟顯示
+const getSteps = (onlyAvailable: boolean) => {
+  if (onlyAvailable) {
+    return [
+      '選擇夥伴',
+      '選擇時長',
+      '確認預約',
+      '付款',
+      '完成'
+    ]
+  } else {
+    return [
+      '選擇夥伴',
+      '選擇日期',
+      '選擇時段',
+      '確認預約',
+      '付款',
+      '完成'
+    ]
+  }
+}
 
 export type Partner = {
   id: string;
@@ -338,7 +351,7 @@ function BookingWizardContent() {
        const paymentData = await paymentRes.json();
 
        // 3. 跳轉到付款頁面
-       setStep(4); // 顯示付款跳轉頁面
+       setStep(onlyAvailable ? 3 : 4); // 顯示付款跳轉頁面
 
        // 4. 延遲後跳轉到綠界付款頁面
        setTimeout(() => {
@@ -407,8 +420,8 @@ function BookingWizardContent() {
   const canProceed = useMemo(() => {
     switch (step) {
       case 0: return selectedPartner !== null
-      case 1: return onlyAvailable ? true : selectedDate !== null
-      case 2: return onlyAvailable ? selectedDuration > 0 : selectedTimes.length > 0
+      case 1: return onlyAvailable ? selectedDuration > 0 : selectedDate !== null
+      case 2: return onlyAvailable ? true : selectedTimes.length > 0
       default: return true
     }
   }, [step, selectedPartner, selectedDate, selectedTimes, selectedDuration, onlyAvailable])
@@ -419,7 +432,7 @@ function BookingWizardContent() {
       <div className="px-4 sm:px-10 pt-6 sm:pt-10 pb-4 sm:pb-6 bg-[#334155]/20">
         <div className="flex items-center justify-between relative">
           <div className="absolute top-1/2 left-4 sm:left-6 right-4 sm:right-6 h-1 bg-[#475569]/30 -z-10 rounded-full" style={{transform:'translateY(-50%)'}} />
-          {steps.map((s, i) => (
+          {getSteps(onlyAvailable).map((s, i) => (
             <div key={s} className="flex-1 flex flex-col items-center">
               <div className={`w-6 h-6 sm:w-8 sm:h-8 flex items-center justify-center rounded-full border-2 transition-all duration-300 text-xs sm:text-sm
                 ${i < step ? 'bg-[#6366f1] border-[#6366f1] text-white shadow-lg' :
@@ -536,7 +549,7 @@ function BookingWizardContent() {
             </div>
           </div>
         )}
-        {onlyAvailable && step === 2 && selectedPartner && (
+        {onlyAvailable && step === 1 && selectedPartner && (
           <div>
             <div className="text-lg text-white/90 mb-4">（2）選擇預約時長</div>
             <div className="text-sm text-gray-400 mb-6 text-center">
@@ -591,7 +604,7 @@ function BookingWizardContent() {
             </div>
           </div>
         )}
-        {step === 3 && selectedPartner && (
+        {((onlyAvailable && step === 2) || (!onlyAvailable && step === 3)) && selectedPartner && (
           <div>
             <div className="text-lg text-white/90 mb-4">（4）確認預約</div>
             <div className="bg-gray-800/30 rounded-lg p-6 mb-6">
@@ -694,7 +707,7 @@ function BookingWizardContent() {
             </div>
           </div>
         )}
-                 {step === 4 && (
+                 {((onlyAvailable && step === 3) || (!onlyAvailable && step === 4)) && (
            <div className="text-center">
              <div className="text-lg text-white/90 mb-4">（5）付款</div>
              <div className="text-6xl mb-4">💳</div>
@@ -706,7 +719,7 @@ function BookingWizardContent() {
              </div>
              <div className="mt-4">
                <button
-                 onClick={() => setStep(3)}
+                 onClick={() => setStep(onlyAvailable ? 2 : 3)}
                  className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 transition-colors"
                >
                  回到確認頁面
@@ -714,22 +727,29 @@ function BookingWizardContent() {
              </div>
            </div>
          )}
-                 {step === 5 && (
+                 {((onlyAvailable && step === 4) || (!onlyAvailable && step === 5)) && (
            <div className="text-center">
              <div className="text-lg text-white/90 mb-4">（6）完成</div>
              <div className="text-6xl mb-4">✅</div>
              <p className="text-gray-400 mb-4">付款成功！預約已確認，等待夥伴確認即可。</p>
              <div className="bg-green-900/30 border border-green-500 rounded-lg p-4 mt-4">
-               <p className="text-green-300 text-sm">
-                 🎉 恭喜！您的付款已完成，預約已成功建立。
-               </p>
+               <div className="bg-green-900/30 border border-green-500 rounded-lg p-4 mt-4">
+                 <p className="text-green-300 text-sm">
+                   🎉 恭喜！您的付款已完成，預約已成功建立。
+                 </p>
+                 {onlyAvailable && (
+                   <p className="text-blue-300 text-sm mt-2">
+                     ⏰ 即時預約：Discord 頻道將在夥伴確認後 3 分鐘自動開啟
+                   </p>
+                 )}
+               </div>
              </div>
            </div>
          )}
       </div>
 
       {/* 導航按鈕 */}
-      {step < 3 && (
+      {((onlyAvailable && step < 2) || (!onlyAvailable && step < 3)) && (
         <div className="px-10 pb-10 flex justify-between">
           <button
             onClick={handlePrevStep}

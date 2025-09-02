@@ -429,10 +429,14 @@ async def check_bookings():
             print("❌ 找不到 Discord 伺服器")
             return
         
-        # 查詢已確認且即將開始的預約（只創建語音頻道）
-        now = datetime.now(timezone.utc)
-        window_start = now
-        window_end = now + timedelta(minutes=5)  # 5分鐘內即將開始
+                    # 查詢已確認且即將開始的預約（只創建語音頻道）
+            now = datetime.now(timezone.utc)
+            window_start = now
+            window_end = now + timedelta(minutes=5)  # 5分鐘內即將開始
+            
+            # 查詢即時預約（夥伴確認後延遲開啟）
+            instant_window_start = now
+            instant_window_end = now + timedelta(minutes=10)  # 10分鐘內即將開始
         
         with Session() as s:
             # 使用原生 SQL 查詢避免 orderNumber 欄位問題
@@ -441,23 +445,47 @@ async def check_bookings():
                 b.id, b."customerId", b."scheduleId", b.status, b."createdAt", b."updatedAt",
                 c.name as customer_name, cu.discord as customer_discord,
                 p.name as partner_name, pu.discord as partner_discord,
-                s."startTime", s."endTime"
+                s."startTime", s."endTime",
+                b."paymentInfo"->>'isInstantBooking' as is_instant_booking,
+                b."paymentInfo"->>'discordDelayMinutes' as discord_delay_minutes
             FROM "Booking" b
             JOIN "Schedule" s ON s.id = b."scheduleId"
             JOIN "Customer" c ON c.id = b."customerId"
             JOIN "User" cu ON cu.id = c."userId"
             JOIN "Partner" p ON p.id = s."partnerId"
             JOIN "User" pu ON pu.id = p."userId"
-            WHERE b.status IN ('CONFIRMED', 'COMPLETED')
+            WHERE b.status IN ('CONFIRMED', 'COMPLETED', 'PARTNER_ACCEPTED')
             AND b.id NOT IN (SELECT unnest(%(processed_list)s::text[]))
             AND s."startTime" >= %(start_time_1)s
             AND s."startTime" <= %(start_time_2)s
             """
             
+            # 即時預約查詢
+            instant_query = """
+            SELECT 
+                b.id, b."customerId", b."scheduleId", b.status, b."createdAt", b."updatedAt",
+                c.name as customer_name, cu.discord as customer_discord,
+                p.name as partner_name, pu.discord as partner_discord,
+                s."startTime", s."endTime",
+                b."paymentInfo"->>'isInstantBooking' as is_instant_booking,
+                b."paymentInfo"->>'discordDelayMinutes' as discord_delay_minutes
+            FROM "Booking" b
+            JOIN "Schedule" s ON s.id = b."scheduleId"
+            JOIN "Customer" c ON c.id = b."customerId"
+            JOIN "User" cu ON cu.id = c."userId"
+            JOIN "Partner" p ON p.id = s."partnerId"
+            JOIN "User" pu ON pu.id = p."userId"
+            WHERE b.status = 'PARTNER_ACCEPTED'
+            AND b."paymentInfo"->>'isInstantBooking' = 'true'
+            AND b.id NOT IN (SELECT unnest(%(processed_list)s::text[]))
+            AND s."startTime" >= %(instant_start_time_1)s
+            AND s."startTime" <= %(instant_start_time_2)s
+            """
+            
             # 將 processed_bookings 轉換為列表
             processed_list = list(processed_bookings) if processed_bookings else []
             
-            # 修正參數傳遞格式
+            # 查詢一般預約
             if processed_list:
                 # 如果有已處理的預約，使用 NOT IN 查詢
                 result = s.execute(text(query), {"processed_list": processed_list, "start_time_1": window_start, "start_time_2": window_end})
@@ -468,22 +496,51 @@ async def check_bookings():
                     b.id, b."customerId", b."scheduleId", b.status, b."createdAt", b."updatedAt",
                     c.name as customer_name, cu.discord as customer_discord,
                     p.name as partner_name, pu.discord as partner_discord,
-                    s."startTime", s."endTime"
+                    s."startTime", s."endTime",
+                    b."paymentInfo"->>'isInstantBooking' as is_instant_booking,
+                    b."paymentInfo"->>'discordDelayMinutes' as discord_delay_minutes
                 FROM "Booking" b
                 JOIN "Schedule" s ON s.id = b."scheduleId"
                 JOIN "Customer" c ON c.id = b."customerId"
                 JOIN "User" cu ON cu.id = c."userId"
                 JOIN "Partner" p ON p.id = s."partnerId"
                 JOIN "User" pu ON pu.id = p."userId"
-                WHERE b.status IN ('CONFIRMED', 'COMPLETED')
+                WHERE b.status IN ('CONFIRMED', 'COMPLETED', 'PARTNER_ACCEPTED')
                 AND s."startTime" >= :start_time_1
                 AND s."startTime" <= :start_time_2
                 """
                 result = s.execute(text(simple_query), {"start_time_1": window_start, "start_time_2": window_end})
             
-            bookings = []
+            # 查詢即時預約
+            if processed_list:
+                instant_result = s.execute(text(instant_query), {"processed_list": processed_list, "instant_start_time_1": instant_window_start, "instant_start_time_2": instant_window_end})
+            else:
+                simple_instant_query = """
+                SELECT 
+                    b.id, b."customerId", b."scheduleId", b.status, b."createdAt", b."updatedAt",
+                    c.name as customer_name, cu.discord as customer_discord,
+                    p.name as partner_name, pu.discord as partner_discord,
+                    s."startTime", s."endTime",
+                    b."paymentInfo"->>'isInstantBooking' as is_instant_booking,
+                    b."paymentInfo"->>'discordDelayMinutes' as discord_delay_minutes
+                FROM "Booking" b
+                JOIN "Schedule" s ON s.id = b."scheduleId"
+                JOIN "Customer" c ON c.id = b."customerId"
+                JOIN "User" cu ON cu.id = c."userId"
+                JOIN "Partner" p ON p.id = s."partnerId"
+                JOIN "User" pu ON pu.id = p."userId"
+                WHERE b.status = 'PARTNER_ACCEPTED'
+                AND b."paymentInfo"->>'isInstantBooking' = 'true'
+                AND s."startTime" >= :instant_start_time_1
+                AND s."startTime" <= :instant_start_time_2
+                """
+                instant_result = s.execute(text(simple_instant_query), {"instant_start_time_1": instant_window_start, "instant_start_time_2": instant_window_end})
+            
+            # 合併兩種預約
+            all_bookings = []
+            
+            # 處理一般預約
             for row in result:
-                # 創建一個簡單的物件來模擬 Booking 物件
                 booking = type('Booking', (), {
                     'id': row.id,
                     'customerId': row.customerId,
@@ -504,9 +561,41 @@ async def check_bookings():
                                 'discord': row.partner_discord
                             })()
                         })()
-                    })()
+                    })(),
+                    'isInstantBooking': getattr(row, 'is_instant_booking', None),
+                    'discordDelayMinutes': getattr(row, 'discord_delay_minutes', None)
                 })()
-                bookings.append(booking)
+                all_bookings.append(booking)
+            
+            # 處理即時預約
+            for row in instant_result:
+                booking = type('Booking', (), {
+                    'id': row.id,
+                    'customerId': row.customerId,
+                    'scheduleId': row.scheduleId,
+                    'status': row.status,
+                    'createdAt': row.createdAt,
+                    'updatedAt': row.updatedAt,
+                    'customer': type('Customer', (), {
+                        'user': type('User', (), {
+                            'discord': row.customer_discord
+                        })()
+                    })(),
+                    'schedule': type('Schedule', (), {
+                        'startTime': row.startTime,
+                        'endTime': row.endTime,
+                        'partner': type('Partner', (), {
+                            'user': type('User', (), {
+                                'discord': row.partner_discord
+                            })()
+                        })()
+                    })(),
+                    'isInstantBooking': getattr(row, 'is_instant_booking', None),
+                    'discordDelayMinutes': getattr(row, 'discord_delay_minutes', None)
+                })()
+                all_bookings.append(booking)
+            
+            bookings = all_bookings
             
             for booking in bookings:
                 try:
@@ -529,7 +618,11 @@ async def check_bookings():
                     # 計算頻道持續時間
                     duration_minutes = int((booking.schedule.endTime - booking.schedule.startTime).total_seconds() / 60)
                     
-                    # 創建語音頻道（預約時間前 5 分鐘）
+                    # 檢查是否為即時預約
+                    is_instant_booking = getattr(booking, 'isInstantBooking', None) == 'true'
+                    discord_delay_minutes = int(getattr(booking, 'discordDelayMinutes', 0) or 0)
+                    
+                    # 創建語音頻道（預約時間前 5 分鐘，即時預約延遲開啟）
                     # 確保時間有時區資訊，並轉換為台灣時間
                     if booking.schedule.startTime.tzinfo is None:
                         start_time = booking.schedule.startTime.replace(tzinfo=timezone.utc)
@@ -552,7 +645,10 @@ async def check_bookings():
                      
                     # 創建統一的頻道名稱（與文字頻道相同）
                     cute_item = random.choice(CUTE_ITEMS)
-                    channel_name = f"📅{date_str} {start_time_str}-{end_time_str} {cute_item}"
+                    if is_instant_booking:
+                        channel_name = f"⚡即時{date_str} {start_time_str}-{end_time_str} {cute_item}"
+                    else:
+                        channel_name = f"📅{date_str} {start_time_str}-{end_time_str} {cute_item}"
                     
                     overwrites = {
                         guild.default_role: discord.PermissionOverwrite(view_channel=False),
@@ -618,34 +714,89 @@ async def check_bookings():
                     # 標記為已處理
                     processed_bookings.add(booking.id)
                     
-                    # 通知創建頻道頻道 - 修正時區顯示
-                    channel_creation_channel = bot.get_channel(CHANNEL_CREATION_CHANNEL_ID)
-                    if channel_creation_channel:
-                         # 確保時間有時區資訊，並轉換為台灣時間
-                         if booking.schedule.startTime.tzinfo is None:
-                             start_time = booking.schedule.startTime.replace(tzinfo=timezone.utc)
-                         else:
-                             start_time = booking.schedule.startTime
+                    if is_instant_booking:
+                        print(f"⚡ 即時預約語音頻道已創建: {channel_name} (預約 {booking.id})")
+                        print(f"⏰ Discord 頻道將在 {discord_delay_minutes} 分鐘後自動開啟")
+                        
+                        # 通知創建頻道頻道
+                        channel_creation_channel = bot.get_channel(CHANNEL_CREATION_CHANNEL_ID)
+                        if channel_creation_channel:
+                            await channel_creation_channel.send(
+                                f"⚡ 即時預約語音頻道已創建：\n"
+                                f"📋 預約ID: {booking.id}\n"
+                                f"👤 顧客: {customer_member.mention} ({customer_discord})\n"
+                                f"👥 夥伴: {partner_member.mention} ({partner_discord})\n"
+                                f"⏰ 開始時間: {tw_start_time.strftime('%Y/%m/%d %H:%M')}\n"
+                                f"⏱️ 時長: {duration_minutes} 分鐘\n"
+                                f"🎮 頻道: {vc.mention}\n"
+                                f"⏳ 將在 {discord_delay_minutes} 分鐘後自動開啟"
+                            )
+                        
+                        # 延遲開啟語音頻道
+                        async def delayed_open_voice():
+                            await asyncio.sleep(discord_delay_minutes * 60)  # 等待指定分鐘數
+                            try:
+                                # 檢查預約狀態是否仍然是 PARTNER_ACCEPTED
+                                with Session() as check_s:
+                                    current_booking = check_s.execute(
+                                        text("SELECT status FROM \"Booking\" WHERE id = :booking_id"),
+                                        {"booking_id": booking.id}
+                                    ).fetchone()
+                                    
+                                    if current_booking and current_booking.status == 'PARTNER_ACCEPTED':
+                                        # 開啟語音頻道
+                                        await vc.set_permissions(guild.default_role, view_channel=True)
+                                        await text_channel.set_permissions(guild.default_role, view_channel=True)
+                                        
+                                        # 發送開啟通知
+                                        embed = discord.Embed(
+                                            title="🎮 即時預約頻道已開啟！",
+                                            description=f"歡迎 {customer_member.mention} 和 {partner_member.mention} 來到 {channel_name}！",
+                                            color=0x00ff00,
+                                            timestamp=datetime.now(timezone.utc)
+                                        )
+                                        embed.add_field(name="⏰ 預約時長", value=f"{duration_minutes} 分鐘", inline=True)
+                                        embed.add_field(name="💰 費用", value=f"${duration_minutes * 2 * 150}", inline=True)  # 假設每半小時150元
+                                        
+                                        await text_channel.send(embed=embed)
+                                        print(f"✅ 即時預約語音頻道已開啟: {channel_name}")
+                                    else:
+                                        print(f"⚠️ 預約 {booking.id} 狀態已改變，取消延遲開啟")
+                            except Exception as e:
+                                print(f"❌ 延遲開啟語音頻道失敗: {e}")
+                        
+                        # 啟動延遲開啟任務
+                        bot.loop.create_task(delayed_open_voice())
+                        
+                    else:
+                        # 通知創建頻道頻道 - 修正時區顯示
+                        channel_creation_channel = bot.get_channel(CHANNEL_CREATION_CHANNEL_ID)
+                        if channel_creation_channel:
+                             # 確保時間有時區資訊，並轉換為台灣時間
+                             if booking.schedule.startTime.tzinfo is None:
+                                 start_time = booking.schedule.startTime.replace(tzinfo=timezone.utc)
+                             else:
+                                 start_time = booking.schedule.startTime
+                             
+                             tw_start_time = start_time.astimezone(TW_TZ)
+                             start_time_str = tw_start_time.strftime("%Y/%m/%d %H:%M")
+                             
+                             await channel_creation_channel.send(
+                                 f"🎉 自動創建語音頻道：\n"
+                                 f"📋 預約ID: {booking.id}\n"
+                                 f"👤 顧客: {customer_member.mention} ({customer_discord})\n"
+                                 f"👥 夥伴: {partner_member.mention} ({partner_discord})\n"
+                                 f"⏰ 開始時間: {start_time_str}\n"
+                                 f"⏱️ 時長: {duration_minutes} 分鐘\n"
+                                 f"🎮 頻道: {vc.mention}"
+                             )
+                        
+                        # 啟動倒數
+                        bot.loop.create_task(
+                            countdown(vc.id, channel_name, text_channel, vc, None, [customer_member, partner_member], record_id)
+                        )
                          
-                         tw_start_time = start_time.astimezone(TW_TZ)
-                         start_time_str = tw_start_time.strftime("%Y/%m/%d %H:%M")
-                         
-                         await channel_creation_channel.send(
-                             f"🎉 自動創建語音頻道：\n"
-                             f"📋 預約ID: {booking.id}\n"
-                             f"👤 顧客: {customer_member.mention} ({customer_discord})\n"
-                             f"👥 夥伴: {partner_member.mention} ({partner_discord})\n"
-                             f"⏰ 開始時間: {start_time_str}\n"
-                             f"⏱️ 時長: {duration_minutes} 分鐘\n"
-                             f"🎮 頻道: {vc.mention}"
-                         )
-                    
-                    # 啟動倒數
-                    bot.loop.create_task(
-                        countdown(vc.id, channel_name, text_channel, vc, None, [customer_member, partner_member], record_id)
-                    )
-                     
-                    print(f"✅ 自動創建頻道成功: {channel_name} for booking {booking.id}")
+                        print(f"✅ 自動創建頻道成功: {channel_name} for booking {booking.id}")
                     
                 except Exception as e:
                     print(f"❌ 處理預約 {booking.id} 時發生錯誤: {e}")
