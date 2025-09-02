@@ -32,7 +32,6 @@ const getSteps = (onlyAvailable: boolean) => {
       '選擇夥伴',
       '選擇時長',
       '確認預約',
-      '付款',
       '完成'
     ]
   } else {
@@ -41,7 +40,6 @@ const getSteps = (onlyAvailable: boolean) => {
       '選擇日期',
       '選擇時段',
       '確認預約',
-      '付款',
       '完成'
     ]
   }
@@ -328,7 +326,8 @@ function BookingWizardContent() {
 
              const bookingId = bookingData.id;
 
-       // 2. 創建付款請求
+       // 2. 創建付款請求 (暫時註解)
+       /*
        const paymentRes = await fetch('/api/payment/ecpay', {
          method: 'POST',
          headers: { 'Content-Type': 'application/json' },
@@ -385,6 +384,10 @@ function BookingWizardContent() {
            setStep(3);
          }
        }, 2000);
+       */
+
+       // 暫時直接跳到完成步驟
+       setStep(onlyAvailable ? 3 : 4);
 
     } catch (err) {
       alert(err instanceof Error ? err.message : '預約失敗，請重試');
@@ -704,48 +707,48 @@ function BookingWizardContent() {
                 disabled={isProcessing}
                 className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {isProcessing ? '處理中...' : '確認預約並付款'}
+                                 {isProcessing ? '處理中...' : '確認預約'}
               </button>
             </div>
           </div>
         )}
-                 {((onlyAvailable && step === 3) || (!onlyAvailable && step === 4)) && (
+                         {/* 付款步驟暫時移除
+        {((onlyAvailable && step === 3) || (!onlyAvailable && step === 4)) && (
+          <div className="text-center">
+            <div className="text-lg text-white/90 mb-4">（5）付款</div>
+            <div className="text-6xl mb-4">💳</div>
+            <p className="text-gray-400 mb-4">請在新視窗中完成付款</p>
+            <div className="bg-yellow-900/30 border border-yellow-500 rounded-lg p-4 mt-4">
+              <p className="text-yellow-300 text-sm">
+                ⚠️ 重要：請在新開啟的付款頁面中完成付款，付款完成後預約才會生效。
+              </p>
+            </div>
+            <div className="mt-4">
+              <button
+                onClick={() => setStep(onlyAvailable ? 2 : 3)}
+                className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 transition-colors"
+              >
+                回到確認頁面
+              </button>
+            </div>
+          </div>
+        )}
+        */}
+                                   {((onlyAvailable && step === 3) || (!onlyAvailable && step === 4)) && (
            <div className="text-center">
-             <div className="text-lg text-white/90 mb-4">（5）付款</div>
-             <div className="text-6xl mb-4">💳</div>
-             <p className="text-gray-400 mb-4">請在新視窗中完成付款</p>
-             <div className="bg-yellow-900/30 border border-yellow-500 rounded-lg p-4 mt-4">
-               <p className="text-yellow-300 text-sm">
-                 ⚠️ 重要：請在新開啟的付款頁面中完成付款，付款完成後預約才會生效。
-               </p>
-             </div>
-             <div className="mt-4">
-               <button
-                 onClick={() => setStep(onlyAvailable ? 2 : 3)}
-                 className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 transition-colors"
-               >
-                 回到確認頁面
-               </button>
-             </div>
-           </div>
-         )}
-                 {((onlyAvailable && step === 4) || (!onlyAvailable && step === 5)) && (
-           <div className="text-center">
-             <div className="text-lg text-white/90 mb-4">（6）完成</div>
+                           <div className="text-lg text-white/90 mb-4">（4）完成</div>
              <div className="text-6xl mb-4">✅</div>
-             <p className="text-gray-400 mb-4">付款成功！預約已確認，等待夥伴確認即可。</p>
-             <div className="bg-green-900/30 border border-green-500 rounded-lg p-4 mt-4">
-               <div className="bg-green-900/30 border border-green-500 rounded-lg p-4 mt-4">
-                 <p className="text-green-300 text-sm">
-                   🎉 恭喜！您的付款已完成，預約已成功建立。
-                 </p>
-                 {onlyAvailable && (
-                   <p className="text-blue-300 text-sm mt-2">
-                     ⏰ 即時預約：Discord 頻道將在夥伴確認後 3 分鐘自動開啟
-                   </p>
-                 )}
-               </div>
-             </div>
+                           <p className="text-gray-400 mb-4">預約已確認，等待夥伴確認即可。</p>
+              <div className="bg-green-900/30 border border-green-500 rounded-lg p-4 mt-4">
+                <p className="text-green-300 text-sm">
+                  🎉 恭喜！您的預約已成功建立。
+                </p>
+                {onlyAvailable && (
+                  <p className="text-blue-300 text-sm mt-2">
+                    ⏰ 即時預約：Discord 頻道將在夥伴確認後 3 分鐘自動開啟
+                  </p>
+                )}
+              </div>
            </div>
          )}
       </div>
