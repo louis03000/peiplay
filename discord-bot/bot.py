@@ -260,6 +260,200 @@ async def create_booking_text_channel(booking_id, customer_discord, partner_disc
         print(f"❌ 創建預約文字頻道時發生錯誤: {e}")
         return None
 
+# --- 創建預約語音頻道函數 ---
+async def create_booking_voice_channel(booking_id, customer_discord, partner_discord, start_time, end_time, is_instant_booking=None, discord_delay_minutes=None):
+    """為預約創建語音頻道"""
+    try:
+        guild = bot.get_guild(GUILD_ID)
+        if not guild:
+            print("❌ 找不到 Discord 伺服器")
+            return None
+        
+        # 查找 Discord 成員
+        customer_member = find_member_by_discord_name(guild, customer_discord)
+        partner_member = find_member_by_discord_name(guild, partner_discord)
+        
+        if not customer_member or not partner_member:
+            print(f"❌ 找不到 Discord 成員: 顧客={customer_discord}, 夥伴={partner_discord}")
+            return None
+        
+        # 計算頻道持續時間
+        duration_minutes = int((end_time - start_time).total_seconds() / 60)
+        
+        # 創建頻道名稱 - 使用日期和時間
+        # 確保時間有時區資訊，並轉換為台灣時間
+        if start_time.tzinfo is None:
+            start_time = start_time.replace(tzinfo=timezone.utc)
+        if end_time.tzinfo is None:
+            end_time = end_time.replace(tzinfo=timezone.utc)
+        
+        # 轉換為台灣時間
+        tw_start_time = start_time.astimezone(TW_TZ)
+        tw_end_time = end_time.astimezone(TW_TZ)
+        
+        # 格式化日期和時間
+        date_str = tw_start_time.strftime("%m/%d")
+        start_time_str = tw_start_time.strftime("%H:%M")
+        end_time_str = tw_end_time.strftime("%H:%M")
+        
+        # 創建統一的頻道名稱（與文字頻道相同）
+        cute_item = random.choice(CUTE_ITEMS)
+        if is_instant_booking == 'true':
+            channel_name = f"⚡即時{date_str} {start_time_str}-{end_time_str} {cute_item}"
+        else:
+            channel_name = f"📅{date_str} {start_time_str}-{end_time_str} {cute_item}"
+        
+        overwrites = {
+            guild.default_role: discord.PermissionOverwrite(view_channel=False),
+            customer_member: discord.PermissionOverwrite(view_channel=True, connect=True, speak=True),
+            partner_member: discord.PermissionOverwrite(view_channel=True, connect=True, speak=True),
+        }
+        
+        category = discord.utils.get(guild.categories, name="Voice Channels")
+        if not category:
+            category = discord.utils.get(guild.categories, name="語音頻道")
+        if not category:
+            category = discord.utils.get(guild.categories, name="語音")
+        if not category:
+            # 嘗試使用第一個可用的分類
+            if guild.categories:
+                category = guild.categories[0]
+                print(f"⚠️ 自動檢查使用現有分類: {category.name}")
+            else:
+                print("❌ 找不到任何分類，跳過此預約")
+                return None
+        
+        vc = await guild.create_voice_channel(
+            name=channel_name, 
+            overwrites=overwrites, 
+            user_limit=2, 
+            category=category
+        )
+        
+        text_channel = await guild.create_text_channel(
+            name="🔒匿名文字區", 
+            overwrites=overwrites, 
+            category=category
+        )
+        
+        # 創建配對記錄
+        user1_id = str(customer_member.id)
+        user2_id = str(partner_member.id)
+        
+        # 添加調試信息
+        print(f"🔍 自動創建配對記錄: {user1_id} × {user2_id}")
+        
+        with Session() as s:
+            try:
+                record = PairingRecord(
+                    user1_id=user1_id,
+                    user2_id=user2_id,
+                    duration=duration_minutes * 60,
+                    animal_name="預約頻道",
+                    booking_id=booking_id
+                )
+                s.add(record)
+                s.commit()
+                record_id = record.id
+                print(f"✅ 配對記錄創建成功，ID: {record_id}")
+            except Exception as e:
+                print(f"❌ 創建配對記錄失敗: {e}")
+                record_id = None
+        
+        # 初始化頻道狀態
+        active_voice_channels[vc.id] = {
+            'text_channel': text_channel,
+            'remaining': duration_minutes * 60,
+            'extended': 0,
+            'record_id': record_id,
+            'vc': vc,
+            'booking_id': booking_id
+        }
+        
+        if is_instant_booking == 'true':
+            print(f"⚡ 即時預約語音頻道已創建: {channel_name} (預約 {booking_id})")
+            print(f"⏰ Discord 頻道將在 {discord_delay_minutes} 分鐘後自動開啟")
+            
+            # 通知創建頻道頻道
+            channel_creation_channel = bot.get_channel(CHANNEL_CREATION_CHANNEL_ID)
+            if channel_creation_channel:
+                await channel_creation_channel.send(
+                    f"⚡ 即時預約語音頻道已創建：\n"
+                    f"📋 預約ID: {booking_id}\n"
+                    f"👤 顧客: {customer_member.mention} ({customer_discord})\n"
+                    f"👥 夥伴: {partner_member.mention} ({partner_discord})\n"
+                    f"⏰ 開始時間: {tw_start_time.strftime('%Y/%m/%d %H:%M')}\n"
+                    f"⏱️ 時長: {duration_minutes} 分鐘\n"
+                    f"🎮 頻道: {vc.mention}\n"
+                    f"⏳ 將在 {discord_delay_minutes} 分鐘後自動開啟"
+                )
+            
+            # 延遲開啟語音頻道
+            async def delayed_open_voice():
+                await asyncio.sleep(int(discord_delay_minutes or 3) * 60)  # 等待指定分鐘數
+                try:
+                    # 檢查預約狀態是否仍然是 PARTNER_ACCEPTED
+                    with Session() as check_s:
+                        current_booking = check_s.execute(
+                            text("SELECT status FROM \"Booking\" WHERE id = %(booking_id)s"),
+                            {"booking_id": booking_id}
+                        ).fetchone()
+                        
+                        if current_booking and current_booking.status == 'PARTNER_ACCEPTED':
+                            # 開啟語音頻道
+                            await vc.set_permissions(guild.default_role, view_channel=True)
+                            await text_channel.set_permissions(guild.default_role, view_channel=True)
+                            
+                            # 發送開啟通知
+                            embed = discord.Embed(
+                                title="🎮 即時預約頻道已開啟！",
+                                description=f"歡迎 {customer_member.mention} 和 {partner_member.mention} 來到 {channel_name}！",
+                                color=0x00ff00,
+                                timestamp=datetime.now(timezone.utc)
+                            )
+                            embed.add_field(name="⏰ 預約時長", value=f"{duration_minutes} 分鐘", inline=True)
+                            embed.add_field(name="💰 費用", value=f"${duration_minutes * 2 * 150}", inline=True)  # 假設每半小時150元
+                            
+                            await text_channel.send(embed=embed)
+                            print(f"✅ 即時預約語音頻道已開啟: {channel_name}")
+                        else:
+                            print(f"⚠️ 預約 {booking_id} 狀態已改變，取消延遲開啟")
+                except Exception as e:
+                    print(f"❌ 延遲開啟語音頻道失敗: {e}")
+            
+            # 啟動延遲開啟任務
+            bot.loop.create_task(delayed_open_voice())
+            
+        else:
+            # 通知創建頻道頻道
+            channel_creation_channel = bot.get_channel(CHANNEL_CREATION_CHANNEL_ID)
+            if channel_creation_channel:
+                await channel_creation_channel.send(
+                    f"🎉 自動創建語音頻道：\n"
+                    f"📋 預約ID: {booking_id}\n"
+                    f"👤 顧客: {customer_member.mention} ({customer_discord})\n"
+                    f"👥 夥伴: {partner_member.mention} ({partner_discord})\n"
+                    f"⏰ 開始時間: {tw_start_time.strftime('%Y/%m/%d %H:%M')}\n"
+                    f"⏱️ 時長: {duration_minutes} 分鐘\n"
+                    f"🎮 頻道: {vc.mention}"
+                )
+            
+            # 啟動倒數
+            if record_id:
+                bot.loop.create_task(
+                    countdown(vc.id, channel_name, text_channel, vc, None, [customer_member, partner_member], record_id)
+                )
+            
+            print(f"✅ 自動創建頻道成功: {channel_name} for booking {booking_id}")
+        
+        return vc
+        
+    except Exception as e:
+        print(f"❌ 創建語音頻道失敗: {e}")
+        import traceback
+        traceback.print_exc()
+        return None
+
 # --- 刪除預約頻道函數 ---
 async def delete_booking_channels(booking_id: str):
     """刪除預約相關的 Discord 頻道"""
@@ -739,7 +933,7 @@ async def check_bookings():
                                 # 檢查預約狀態是否仍然是 PARTNER_ACCEPTED
                                 with Session() as check_s:
                                     current_booking = check_s.execute(
-                                        text("SELECT status FROM \"Booking\" WHERE id = :booking_id"),
+                                        text("SELECT status FROM \"Booking\" WHERE id = %(booking_id)s"),
                                         {"booking_id": booking.id}
                                     ).fetchone()
                                     
