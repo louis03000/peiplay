@@ -50,7 +50,7 @@ let transporter: nodemailer.Transporter | null = null;
 
 function getTransporter() {
   if (!transporter) {
-    transporter = nodemailer.createTransporter(EMAIL_CONFIG);
+    transporter = nodemailer.createTransport(EMAIL_CONFIG);
   }
   return transporter;
 }

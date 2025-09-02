@@ -15,8 +15,8 @@ export async function GET(request: NextRequest) {
     }
 
             // 取得所有消費紀錄（訂單），包含完整的關聯資料
-        const orders = await prisma.order.findMany({
-          include: {
+    const orders = await prisma.order.findMany({
+      include: {
             customer: { 
               select: { 
                 name: true, 
@@ -28,9 +28,9 @@ export async function GET(request: NextRequest) {
                 }
               } 
             },
-            booking: {
-              include: {
-                schedule: {
+        booking: {
+          include: {
+            schedule: {
                   include: { 
                     partner: { 
                       select: { 
@@ -46,12 +46,12 @@ export async function GET(request: NextRequest) {
                       } 
                     } 
                   }
-                }
-              }
             }
-          },
-          orderBy: { createdAt: 'desc' }
-        });
+          }
+        }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
 
     // 建立 Excel 檔案
     const workbook = new ExcelJS.Workbook();
@@ -192,17 +192,17 @@ export async function GET(request: NextRequest) {
           { header: '夥伴姓名', key: 'partnerName', width: 20 },
           { header: '預約ID', key: 'bookingId', width: 15 },
           { header: '訂單編號', key: 'orderNumber', width: 20 },
-          { header: '預約日期', key: 'date', width: 15 },
-          { header: '開始時間', key: 'start', width: 12 },
-          { header: '結束時間', key: 'end', width: 12 },
-          { header: '總時長(分鐘)', key: 'duration', width: 15 },
-          { header: '每半小時收費', key: 'rate', width: 15 },
+      { header: '預約日期', key: 'date', width: 15 },
+      { header: '開始時間', key: 'start', width: 12 },
+      { header: '結束時間', key: 'end', width: 12 },
+      { header: '總時長(分鐘)', key: 'duration', width: 15 },
+      { header: '每半小時收費', key: 'rate', width: 15 },
           { header: '收費金額', key: 'amount', width: 15 },
           { header: '預約狀態', key: 'bookingStatus', width: 15 },
           { header: '顧客姓名', key: 'customerName', width: 15 },
           { header: '顧客Email', key: 'customerEmail', width: 25 },
           { header: '顧客電話', key: 'customerPhone', width: 15 },
-          { header: '建立時間', key: 'created', width: 20 },
+      { header: '建立時間', key: 'created', width: 20 },
           { header: '備註', key: 'notes', width: 30 },
         ];
 
@@ -314,7 +314,7 @@ export async function GET(request: NextRequest) {
 
     // 按月份和夥伴分組統計
     const monthlyStats = new Map();
-    
+
     for (const order of orders) {
       const schedule = order.booking?.schedule;
       const partner = schedule?.partner;
