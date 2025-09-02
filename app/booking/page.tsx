@@ -119,7 +119,7 @@ function BookingWizardContent() {
 
     try {
       const originalAmount = onlyAvailable 
-        ? selectedDuration * selectedPartner.halfHourlyRate * 2
+        ? (selectedDuration * selectedPartner.halfHourlyRate * 2).toFixed(0)
         : selectedTimes.length * selectedPartner.halfHourlyRate;
 
       const res = await fetch('/api/promo-codes/validate', {
@@ -308,7 +308,7 @@ function BookingWizardContent() {
         }
 
         bookingData = await bookingRes.json();
-        totalAmount = selectedDuration * selectedPartner.halfHourlyRate * 2; // 每小時 = 2個半小時
+        totalAmount = Math.round(selectedDuration * selectedPartner.halfHourlyRate * 2); // 每小時 = 2個半小時
       } else {
         // 正常模式：使用選擇的時段
         const bookingRes = await fetch('/api/bookings', {
@@ -336,7 +336,7 @@ function BookingWizardContent() {
            bookingId: bookingId,
            amount: totalAmount,
            description: onlyAvailable 
-             ? `${selectedPartner.name} - ${selectedDuration} 小時即時預約`
+             ? `${selectedPartner.name} - ${selectedDuration === 0.5 ? '30分鐘' : selectedDuration === 1 ? '1小時' : `${selectedDuration}小時`}即時預約`
              : `${selectedPartner.name} - ${selectedTimes.length} 個時段`,
            customerName: 'PeiPlay 用戶',
            customerEmail: 'user@peiplay.com'
@@ -556,21 +556,21 @@ function BookingWizardContent() {
               選擇您想要預約的時長，系統會自動安排最適合的時間
             </div>
             <div className="flex flex-wrap gap-3 justify-center">
-              {[1, 2, 3, 4, 5, 6].map(hours => (
+              {[0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4].map(duration => (
                 <button
-                  key={hours}
-                  onClick={() => setSelectedDuration(hours)}
-                  className={`px-6 py-3 rounded-lg border-2 transition-all duration-200 text-sm font-medium
-                    ${selectedDuration === hours 
+                  key={duration}
+                  onClick={() => setSelectedDuration(duration)}
+                  className={`px-4 py-3 rounded-lg border-2 transition-all duration-200 text-sm font-medium
+                    ${selectedDuration === duration 
                       ? 'bg-indigo-500 border-indigo-400 text-white shadow-lg scale-105' 
                       : 'bg-gray-800/50 border-gray-600 text-gray-300 hover:bg-gray-700/50 hover:border-gray-500'}`}
                 >
-                  {hours} 小時
+                  {duration === 0.5 ? '30分鐘' : duration === 1 ? '1小時' : `${duration}小時`}
                 </button>
               ))}
             </div>
             <div className="mt-4 text-center text-sm text-gray-400">
-              費用：${selectedDuration * selectedPartner.halfHourlyRate * 2} (${selectedPartner.halfHourlyRate}/半小時)
+              費用：${(selectedDuration * selectedPartner.halfHourlyRate * 2).toFixed(0)} (${selectedPartner.halfHourlyRate}/半小時)
             </div>
           </div>
         )}
@@ -622,7 +622,9 @@ function BookingWizardContent() {
                 {onlyAvailable ? (
                   <div className="flex justify-between items-center">
                     <span className="text-gray-300">預約時長：</span>
-                    <span className="text-white font-medium">{selectedDuration} 小時</span>
+                    <span className="text-white font-medium">
+                      {selectedDuration === 0.5 ? '30分鐘' : selectedDuration === 1 ? '1小時' : `${selectedDuration}小時`}
+                    </span>
                   </div>
                 ) : (
                   <div className="flex justify-between items-center">
@@ -644,7 +646,7 @@ function BookingWizardContent() {
                   <span className="text-gray-300">總費用：</span>
                   <span className="text-white font-bold text-lg">
                     ${onlyAvailable 
-                      ? selectedDuration * selectedPartner.halfHourlyRate * 2
+                      ? (selectedDuration * selectedPartner.halfHourlyRate * 2).toFixed(0)
                       : selectedTimes.length * selectedPartner.halfHourlyRate
                     }
                   </span>
