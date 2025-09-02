@@ -70,6 +70,24 @@ export async function GET(request: NextRequest) {
       { header: '平均每單收入', key: 'avgIncome', width: 15 },
     ];
 
+    // 2. 夥伴收入結算工作表（重點工作表）
+    const settlementSheet = workbook.addWorksheet('夥伴收入結算');
+    settlementSheet.columns = [
+      { header: '夥伴姓名', key: 'partnerName', width: 20 },
+      { header: '夥伴Email', key: 'partnerEmail', width: 25 },
+      { header: '夥伴電話', key: 'partnerPhone', width: 15 },
+      { header: 'Discord ID', key: 'partnerDiscord', width: 20 },
+      { header: '每半小時收費', key: 'halfHourlyRate', width: 15 },
+      { header: '總接單數', key: 'totalOrders', width: 12 },
+      { header: '總時長(分鐘)', key: 'totalDuration', width: 15 },
+      { header: '總時長(小時)', key: 'totalHours', width: 15 },
+      { header: '總收入', key: 'totalIncome', width: 15 },
+      { header: '平均每單收入', key: 'avgIncome', width: 15 },
+      { header: '平均每小時收入', key: 'avgHourlyIncome', width: 18 },
+      { header: '應得金額', key: 'settlementAmount', width: 15 },
+      { header: '備註', key: 'notes', width: 30 },
+    ];
+
     // 按夥伴分組統計
     const partnerStats = new Map();
     
@@ -277,23 +295,7 @@ export async function GET(request: NextRequest) {
       detailSheet.addRow({});
     }
 
-    // 3. 夥伴收入結算工作表（重點工作表）
-    const settlementSheet = workbook.addWorksheet('夥伴收入結算');
-    settlementSheet.columns = [
-      { header: '夥伴姓名', key: 'partnerName', width: 20 },
-      { header: '夥伴Email', key: 'partnerEmail', width: 25 },
-      { header: '夥伴電話', key: 'partnerPhone', width: 15 },
-      { header: 'Discord ID', key: 'partnerDiscord', width: 20 },
-      { header: '每半小時收費', key: 'halfHourlyRate', width: 15 },
-      { header: '總接單數', key: 'totalOrders', width: 12 },
-      { header: '總時長(分鐘)', key: 'totalDuration', width: 15 },
-      { header: '總時長(小時)', key: 'totalHours', width: 15 },
-      { header: '總收入', key: 'totalIncome', width: 15 },
-      { header: '平均每單收入', key: 'avgIncome', width: 15 },
-      { header: '平均每小時收入', key: 'avgHourlyIncome', width: 18 },
-      { header: '應得金額', key: 'settlementAmount', width: 15 },
-      { header: '備註', key: 'notes', width: 30 },
-    ];
+
 
     // 4. 時間統計工作表
     const timeSheet = workbook.addWorksheet('時間統計');
