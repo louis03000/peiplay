@@ -229,12 +229,14 @@ export async function GET(request: NextRequest) {
 
       // 設置標題行樣式
       const titleRow = detailSheet.lastRow;
-      titleRow.font = { bold: true, color: { argb: 'FF0000FF' } }; // 藍色粗體
-      titleRow.fill = {
-        type: 'pattern',
-        pattern: 'solid',
-        fgColor: { argb: 'FFF0F0F0' } // 淺灰色背景
-      };
+      if (titleRow) {
+        titleRow.font = { bold: true, color: { argb: 'FF0000FF' } }; // 藍色粗體
+        titleRow.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FFF0F0F0' } // 淺灰色背景
+        };
+      }
 
               // 添加該夥伴的所有訂單
         for (const order of stats.orders) {
@@ -284,12 +286,14 @@ export async function GET(request: NextRequest) {
 
       // 設置統計行樣式
       const summaryRow = detailSheet.lastRow;
-      summaryRow.font = { bold: true, color: { argb: 'FF008000' } }; // 綠色粗體
-      summaryRow.fill = {
-        type: 'pattern',
-        pattern: 'solid',
-        fgColor: { argb: 'FFF0FFF0' } // 淺綠色背景
-      };
+      if (summaryRow) {
+        summaryRow.font = { bold: true, color: { argb: 'FF008000' } }; // 綠色粗體
+        summaryRow.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FFF0FFF0' } // 淺綠色背景
+        };
+      }
 
       // 添加空行分隔
       detailSheet.addRow({});
