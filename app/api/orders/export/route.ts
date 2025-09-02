@@ -119,6 +119,55 @@ export async function GET(request: NextRequest) {
       });
     }
 
+    // 添加夥伴收入結算資料（重點工作表）
+    let grandTotalOrders = 0;
+    let grandTotalDuration = 0;
+    let grandTotalIncome = 0;
+    
+    for (const [partnerId, stats] of Array.from(partnerStats)) {
+      const totalHours = Math.round((stats.totalDuration / 60) * 100) / 100; // 轉換為小時，保留兩位小數
+      const avgHourlyIncome = totalHours > 0 ? Math.round(stats.totalIncome / totalHours) : 0;
+      
+      // 累計總計
+      grandTotalOrders += stats.totalOrders;
+      grandTotalDuration += stats.totalDuration;
+      grandTotalIncome += stats.totalIncome;
+      
+      settlementSheet.addRow({
+        partnerName: stats.partnerName,
+        partnerEmail: stats.partnerEmail,
+        partnerPhone: stats.partnerPhone,
+        partnerDiscord: stats.partnerDiscord,
+        halfHourlyRate: stats.halfHourlyRate,
+        totalOrders: stats.totalOrders,
+        totalDuration: stats.totalDuration,
+        totalHours: totalHours,
+        totalIncome: stats.totalIncome,
+        avgIncome: stats.totalOrders > 0 ? Math.round(stats.totalIncome / stats.totalOrders) : 0,
+        avgHourlyIncome: avgHourlyIncome,
+        settlementAmount: stats.totalIncome, // 應得金額（假設100%給夥伴，可根據實際分潤比例調整）
+        notes: `共${stats.totalOrders}單，總時長${totalHours}小時`
+      });
+    }
+
+    // 添加總計行
+    const grandTotalHours = Math.round((grandTotalDuration / 60) * 100) / 100;
+    settlementSheet.addRow({
+      partnerName: '=== 總計 ===',
+      partnerEmail: '',
+      partnerPhone: '',
+      partnerDiscord: '',
+      halfHourlyRate: '',
+      totalOrders: grandTotalOrders,
+      totalDuration: grandTotalDuration,
+      totalHours: grandTotalHours,
+      totalIncome: grandTotalIncome,
+      avgIncome: grandTotalOrders > 0 ? Math.round(grandTotalIncome / grandTotalOrders) : 0,
+      avgHourlyIncome: grandTotalHours > 0 ? Math.round(grandTotalIncome / grandTotalHours) : 0,
+      settlementAmount: grandTotalIncome,
+      notes: `全體夥伴總計：${grandTotalOrders}單，總時長${grandTotalHours}小時，總收入${grandTotalIncome}元`
+    });
+
             // 2. 詳細消費紀錄工作表（按夥伴分組）
         const detailSheet = workbook.addWorksheet('詳細消費紀錄');
         detailSheet.columns = [
@@ -228,7 +277,25 @@ export async function GET(request: NextRequest) {
       detailSheet.addRow({});
     }
 
-    // 3. 時間統計工作表
+    // 3. 夥伴收入結算工作表（重點工作表）
+    const settlementSheet = workbook.addWorksheet('夥伴收入結算');
+    settlementSheet.columns = [
+      { header: '夥伴姓名', key: 'partnerName', width: 20 },
+      { header: '夥伴Email', key: 'partnerEmail', width: 25 },
+      { header: '夥伴電話', key: 'partnerPhone', width: 15 },
+      { header: 'Discord ID', key: 'partnerDiscord', width: 20 },
+      { header: '每半小時收費', key: 'halfHourlyRate', width: 15 },
+      { header: '總接單數', key: 'totalOrders', width: 12 },
+      { header: '總時長(分鐘)', key: 'totalDuration', width: 15 },
+      { header: '總時長(小時)', key: 'totalHours', width: 15 },
+      { header: '總收入', key: 'totalIncome', width: 15 },
+      { header: '平均每單收入', key: 'avgIncome', width: 15 },
+      { header: '平均每小時收入', key: 'avgHourlyIncome', width: 18 },
+      { header: '應得金額', key: 'settlementAmount', width: 15 },
+      { header: '備註', key: 'notes', width: 30 },
+    ];
+
+    // 4. 時間統計工作表
     const timeSheet = workbook.addWorksheet('時間統計');
     timeSheet.columns = [
       { header: '月份', key: 'month', width: 15 },
@@ -285,7 +352,7 @@ export async function GET(request: NextRequest) {
     }
 
     // 設置樣式
-    [overviewSheet, detailSheet, timeSheet].forEach(sheet => {
+    [overviewSheet, detailSheet, settlementSheet, timeSheet].forEach(sheet => {
       // 設置標題行樣式
       if (sheet.rowCount > 0) {
         const headerRow = sheet.getRow(1);
@@ -298,6 +365,18 @@ export async function GET(request: NextRequest) {
         headerRow.alignment = { vertical: 'middle', horizontal: 'center' };
       }
     });
+
+    // 為夥伴收入結算工作表的總計行添加特殊樣式
+    if (settlementSheet.rowCount > 0) {
+      const totalRow = settlementSheet.getRow(settlementSheet.rowCount);
+      totalRow.font = { bold: true, color: { argb: 'FFFFFFFF' } }; // 白色粗體
+      totalRow.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FF8B0000' } // 深紅色背景
+      };
+      totalRow.alignment = { vertical: 'middle', horizontal: 'center' };
+    }
 
     const buffer = await workbook.xlsx.writeBuffer();
     return new Response(buffer, {
