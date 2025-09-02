@@ -402,7 +402,7 @@ export async function sendAdminNotification(message: string, data?: any): Promis
       return false;
     }
 
-    const embed = {
+    const embed: any = {
       title: '🔔 管理員通知',
       description: message,
       color: 0xff6b6b,
