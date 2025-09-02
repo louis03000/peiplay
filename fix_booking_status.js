@@ -41,11 +41,11 @@ async function fixBookingStatus() {
       if (booking.orderNumber) {
         console.log('✅ 有訂單編號，更新為已確認狀態');
         
-        // 更新為已確認狀態
+        // 更新為等待夥伴確認狀態
         const updatedBooking = await prisma.booking.update({
           where: { id: booking.id },
           data: {
-            status: 'CONFIRMED',
+            status: 'PAID_WAITING_PARTNER_CONFIRMATION',
             paymentInfo: {
               orderNumber: booking.orderNumber,
               paymentDate: new Date().toISOString(),

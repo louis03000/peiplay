@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { sendNotification, NotificationType } from '@/lib/notifications';
 
 export const dynamic = 'force-dynamic';
 
@@ -91,6 +92,28 @@ export async function POST(
 
       return updatedBooking;
     });
+
+    // 發送取消通知
+    try {
+      const notificationData = {
+        type: 'BOOKING_CANCELLED' as NotificationType,
+        bookingId: booking.id,
+        customerEmail: booking.customer.user.email,
+        customerName: booking.customer.name,
+        partnerEmail: booking.schedule.partner.user.email,
+        partnerName: booking.schedule.partner.name,
+        scheduleDate: new Date(booking.schedule.date),
+        startTime: new Date(booking.schedule.startTime),
+        endTime: new Date(booking.schedule.endTime),
+        amount: booking.finalAmount || 0,
+        reason: isCustomer ? '由顧客取消' : isPartner ? '由夥伴取消' : '由管理員取消',
+      };
+      
+      const notificationResult = await sendNotification(notificationData);
+      console.log('📧 取消通知發送結果:', notificationResult);
+    } catch (notificationError) {
+      console.error('❌ 發送取消通知失敗:', notificationError);
+    }
 
     // 發送 Discord 通知（如果有的話）
     try {

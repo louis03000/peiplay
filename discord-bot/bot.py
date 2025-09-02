@@ -371,9 +371,9 @@ async def check_new_bookings():
                 JOIN "User" cu ON cu.id = c."userId"
                 JOIN "Partner" p ON p.id = s."partnerId"
                 JOIN "User" pu ON pu.id = p."userId"
-                WHERE b.status = 'CONFIRMED'
-                AND b."createdAt" >= :recent_time
-                AND b.id NOT IN (SELECT unnest(%(processed_list)s::text[]))
+                                 WHERE b.status IN ('PAID_WAITING_PARTNER_CONFIRMATION', 'PARTNER_ACCEPTED', 'CONFIRMED')
+                 AND b."createdAt" >= :recent_time
+                 AND b.id NOT IN (SELECT unnest(%(processed_list)s::text[]))
                 """
                 result = s.execute(text(query), {"recent_time": recent_time, "processed_list": processed_list})
             else:
@@ -390,8 +390,8 @@ async def check_new_bookings():
                 JOIN "User" cu ON cu.id = c."userId"
                 JOIN "Partner" p ON p.id = s."partnerId"
                 JOIN "User" pu ON pu.id = p."userId"
-                WHERE b.status = 'CONFIRMED'
-                AND b."createdAt" >= :recent_time
+                                 WHERE b.status IN ('PAID_WAITING_PARTNER_CONFIRMATION', 'PARTNER_ACCEPTED', 'CONFIRMED')
+                 AND b."createdAt" >= :recent_time
                 """
                 result = s.execute(text(simple_query), {"recent_time": recent_time})
             

@@ -264,10 +264,10 @@ export default function AdminPromoCodesPage() {
       {showCreateForm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-            <h3 className="text-lg font-medium mb-4">新增優惠碼</h3>
+            <h3 className="text-lg font-medium text-gray-900 mb-4">新增優惠碼</h3>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-900 mb-1">
                   優惠碼
                 </label>
                 <input
@@ -280,7 +280,7 @@ export default function AdminPromoCodesPage() {
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-900 mb-1">
                   類型
                 </label>
                 <select
@@ -294,7 +294,7 @@ export default function AdminPromoCodesPage() {
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-900 mb-1">
                   數值
                 </label>
                 <input
@@ -307,7 +307,7 @@ export default function AdminPromoCodesPage() {
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-900 mb-1">
                   最大使用次數
                 </label>
                 <input
@@ -320,7 +320,7 @@ export default function AdminPromoCodesPage() {
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-900 mb-1">
                   生效時間
                 </label>
                 <input
@@ -332,7 +332,7 @@ export default function AdminPromoCodesPage() {
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-900 mb-1">
                   到期時間（選填）
                 </label>
                 <input
@@ -344,7 +344,7 @@ export default function AdminPromoCodesPage() {
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-900 mb-1">
                   描述（選填）
                 </label>
                 <input

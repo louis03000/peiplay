@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import crypto from 'crypto'
+import { sendNotification, NotificationType } from '@/lib/notifications'
 
 // 綠界金流設定
 const ECPAY_CONFIG = {
@@ -137,7 +138,7 @@ export async function POST(request: NextRequest) {
           const actualAmount = parseInt(TradeAmt)
           const expectedAmount = booking.finalAmount || 0
           
-          let paymentStatus = 'CONFIRMED'  // 改為 CONFIRMED 狀態
+          let paymentStatus = 'PAID_WAITING_PARTNER_CONFIRMATION'  // 付款成功，等待夥伴確認
           let paymentNote = ''
           
           if (expectedAmount > 0 && actualAmount !== expectedAmount) {
@@ -167,9 +168,31 @@ export async function POST(request: NextRequest) {
             })
           })
 
-          if (!updateResponse.ok) {
-            console.error('Failed to update booking status to completed')
-          }
+                     if (!updateResponse.ok) {
+             console.error('Failed to update booking status to completed')
+           } else {
+             // 發送付款成功通知
+             try {
+               const notificationData = {
+                 type: 'PAYMENT_SUCCESS' as NotificationType,
+                 bookingId: booking.id,
+                 customerEmail: booking.customer?.user?.email || '',
+                 customerName: booking.customer?.name || '',
+                 partnerEmail: booking.schedule?.partner?.user?.email || '',
+                 partnerName: booking.schedule?.partner?.name || '',
+                 scheduleDate: new Date(booking.schedule?.date || ''),
+                 startTime: new Date(booking.schedule?.startTime || ''),
+                 endTime: new Date(booking.schedule?.endTime || ''),
+                 amount: actualAmount,
+                 orderNumber: MerchantTradeNo,
+               };
+               
+               const notificationResult = await sendNotification(notificationData);
+               console.log('📧 通知發送結果:', notificationResult);
+             } catch (notificationError) {
+               console.error('❌ 發送通知失敗:', notificationError);
+             }
+           }
         }
       } catch (error) {
         console.error('Error updating booking status:', error)
@@ -208,9 +231,31 @@ export async function POST(request: NextRequest) {
             })
           })
 
-          if (!updateResponse.ok) {
-            console.error('Failed to update booking status to confirmed')
-          }
+                     if (!updateResponse.ok) {
+             console.error('Failed to update booking status to confirmed')
+           } else {
+             // 發送付款失敗通知
+             try {
+               const notificationData = {
+                 type: 'PAYMENT_FAILED' as NotificationType,
+                 bookingId: booking.id,
+                 customerEmail: booking.customer?.user?.email || '',
+                 customerName: booking.customer?.name || '',
+                 partnerEmail: booking.schedule?.partner?.user?.email || '',
+                 partnerName: booking.schedule?.partner?.name || '',
+                 scheduleDate: new Date(booking.schedule?.date || ''),
+                 startTime: new Date(booking.schedule?.startTime || ''),
+                 endTime: new Date(booking.schedule?.endTime || ''),
+                 amount: booking.finalAmount || 0,
+                 orderNumber: MerchantTradeNo,
+               };
+               
+               const notificationResult = await sendNotification(notificationData);
+               console.log('📧 付款失敗通知發送結果:', notificationResult);
+             } catch (notificationError) {
+               console.error('❌ 發送付款失敗通知失敗:', notificationError);
+             }
+           }
         }
       } catch (error) {
         console.error('Error updating booking status:', error)
