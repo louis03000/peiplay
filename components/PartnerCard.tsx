@@ -153,8 +153,8 @@ export default function PartnerCard({ partner, onQuickBook, showNextStep = false
               <h3 className="font-bold text-white text-lg drop-shadow-lg">{partner.name}</h3>
             </div>
 
-            {/* 遊戲標籤 - 每個遊戲獨立小方格 */}
-            <div className="flex flex-wrap gap-2 mb-2">
+            {/* 遊戲標籤 - 移到右側，避免擋住卡通角色 */}
+            <div className="flex flex-wrap gap-2 mb-2 justify-end">
               {partner.games.slice(0, 3).map((game) => (
                 <span
                   key={game}
@@ -173,7 +173,7 @@ export default function PartnerCard({ partner, onQuickBook, showNextStep = false
             {/* 價格資訊和按鈕 */}
             <div className="flex items-center justify-between">
               <div className="text-sky-300 font-semibold drop-shadow-lg">
-                ${partner.halfHourlyRate}/半小時
+                {partner.halfHourlyRate}金幣/半小時
               </div>
               {showNextStep && onQuickBook && (
                 <button

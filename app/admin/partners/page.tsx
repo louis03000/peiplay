@@ -107,7 +107,7 @@ export default function AdminPartnersPage() {
                 <div className="text-sm">電話: {p.phone}</div>
                 <div className="text-sm">生日: {p.birthday?.slice(0, 10)}</div>
                 <div className="text-sm">偏好遊戲: {p.games.join(", ")}</div>
-                <div className="text-sm">半小時收費: {p.halfHourlyRate}</div>
+                <div className="text-sm">半小時收費: {p.halfHourlyRate}金幣</div>
               </div>
               <div className="flex gap-2 mt-4 md:mt-0">
                 <button

@@ -62,7 +62,7 @@ export default function RechargePage() {
   
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black text-white">
-      <div className="max-w-4xl mx-auto py-8 px-4">
+      <div className="max-w-4xl mx-auto py-8 px-4 pt-32">
         <h1 className="text-4xl font-bold mb-8 text-center">🪙 儲值購金幣</h1>
         
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">

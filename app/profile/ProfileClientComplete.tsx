@@ -281,7 +281,7 @@ export default function ProfileClientComplete() {
                              {isPartner && userData.partner?.halfHourlyRate && (
                  <div className="mt-8 p-4 bg-indigo-600/20 rounded-lg border border-indigo-500/30">
                    <div className="text-indigo-300 mb-2 text-sm font-medium">每半小時收費</div>
-                   <span className="text-white font-bold text-xl">{`$${userData.partner.halfHourlyRate}`}</span>
+                   <span className="text-white font-bold text-xl">{`${userData.partner.halfHourlyRate}金幣`}</span>
                  </div>
                )}
                

@@ -188,7 +188,7 @@ export default function ProfileClient() {
   };
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="container mx-auto px-4 py-8 pt-32">
       {/* 頁面標題 */}
       <div className="text-center mb-8">
         <h1 className="text-3xl font-bold text-white mb-2">會員中心</h1>
@@ -222,7 +222,7 @@ export default function ProfileClient() {
               {isPartner && form.halfHourlyRate !== undefined && (
                 <div className="mt-6">
                   <div className="text-gray-300 mb-1 font-semibold">每半小時收費</div>
-                  <span className="text-white font-medium">{`$${form.halfHourlyRate}`}</span>
+                  <span className="text-white font-medium">{`${form.halfHourlyRate}金幣`}</span>
                 </div>
               )}
               {isPartner && (
