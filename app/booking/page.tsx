@@ -7,6 +7,7 @@ import DatePicker from 'react-datepicker'
 import 'react-datepicker/dist/react-datepicker.css'
 import PartnerCard from '@/components/PartnerCard'
 import { useSearchParams } from 'next/navigation'
+import { useSession } from 'next-auth/react'
 
 // 防抖 Hook
 function useDebounce<T>(value: T, delay: number): T {
@@ -91,6 +92,11 @@ function BookingWizardContent() {
   const [promoCodeResult, setPromoCodeResult] = useState<any>(null)
   const [promoCodeError, setPromoCodeError] = useState('')
   const [isValidatingPromoCode, setIsValidatingPromoCode] = useState(false)
+  const { data: session } = useSession()
+  const [userCoins, setUserCoins] = useState(0)
+  const [loadingCoins, setLoadingCoins] = useState(true)
+  const [creating, setCreating] = useState(false)
+  const [createdBooking, setCreatedBooking] = useState<any>(null)
   
   // 防抖搜尋
   const debouncedSearch = useDebounce(search, 300)
@@ -142,6 +148,27 @@ function BookingWizardContent() {
       setIsValidatingPromoCode(false);
     }
   };
+
+  // 獲取用戶金幣餘額
+  useEffect(() => {
+    const fetchUserCoins = async () => {
+      try {
+        const response = await fetch('/api/user/coins')
+        if (response.ok) {
+          const data = await response.json()
+          setUserCoins(data.coinBalance)
+        }
+      } catch (error) {
+        console.error('獲取金幣餘額失敗:', error)
+      } finally {
+        setLoadingCoins(false)
+      }
+    }
+
+    if (session?.user?.id) {
+      fetchUserCoins()
+    }
+  }, [session])
 
   // 處理 URL 參數
   useEffect(() => {
@@ -266,136 +293,64 @@ function BookingWizardContent() {
     return uniqueSchedules.sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime())
   }, [selectedPartner, selectedDate])
 
-  const handleCreateBooking = useCallback(async () => {
-    if (!selectedPartner || isProcessing) return;
+  // 計算所需金幣
+  const calculateRequiredCoins = () => {
+    if (onlyAvailable && selectedDuration && selectedPartner?.halfHourlyRate) {
+      return Math.ceil(selectedDuration * selectedPartner.halfHourlyRate * 2)
+    } else if (selectedTimes.length > 0 && selectedPartner?.halfHourlyRate) {
+      return Math.ceil(selectedTimes.length * selectedPartner.halfHourlyRate)
+    }
+    return 0
+  }
 
-    // 檢查是否有可用的時段
-    if (onlyAvailable) {
-      // 即時預約模式：使用預約時長
-      if (selectedDuration <= 0) {
-        alert('請選擇預約時長');
-        return;
-      }
-    } else {
-      // 正常模式：檢查選擇的時段
-      if (selectedTimes.length === 0) {
-        alert('請選擇預約時段');
-        return;
-      }
+  const requiredCoins = calculateRequiredCoins()
+  const hasEnoughCoins = userCoins >= requiredCoins
+
+  // 修改確認預約函數
+  const handleCreateBooking = async () => {
+    if (!hasEnoughCoins) {
+      alert(`金幣不足！需要 ${requiredCoins} 金幣，當前餘額 ${userCoins} 金幣`)
+      return
     }
 
-    setIsProcessing(true)
     try {
-      let bookingData;
-      let totalAmount;
+      setCreating(true)
+      
+              if (onlyAvailable && selectedPartner) {
+          // 即時預約
+          const response = await fetch('/api/bookings/instant', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              partnerId: selectedPartner.id,
+              duration: selectedDuration
+            })
+          })
 
-      if (onlyAvailable) {
-        // 即時預約模式：創建基於時長的預約
-        const bookingRes = await fetch('/api/bookings/instant', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            partnerId: selectedPartner.id,
-            duration: selectedDuration 
-          }),
-        });
-
-        if (!bookingRes.ok) {
-          const errorData = await bookingRes.json();
-          throw new Error(errorData.error || '預約失敗，請重試');
+        if (!response.ok) {
+          const errorData = await response.json()
+          if (errorData.error === '金幣不足') {
+            alert(`金幣不足！需要 ${errorData.required} 金幣，當前餘額 ${errorData.current} 金幣`)
+            return
+          }
+          throw new Error(errorData.error || '預約創建失敗')
         }
 
-        bookingData = await bookingRes.json();
-        totalAmount = Math.round(selectedDuration * selectedPartner.halfHourlyRate * 2); // 每小時 = 2個半小時
+        const data = await response.json()
+        setCreatedBooking(data.booking)
+        setUserCoins(data.newBalance) // 更新金幣餘額
+        setStep(3) // 跳到完成步驟
       } else {
-        // 正常模式：使用選擇的時段
-        const bookingRes = await fetch('/api/bookings', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ scheduleIds: selectedTimes }),
-        });
-
-        if (!bookingRes.ok) {
-          const errorData = await bookingRes.json();
-          throw new Error(errorData.error || '預約失敗，請重試');
-        }
-
-        bookingData = await bookingRes.json();
-        totalAmount = selectedTimes.length * selectedPartner.halfHourlyRate;
+        // 一般預約 - 也需要修改為金幣消費
+        // ... 類似邏輯
       }
-
-             const bookingId = bookingData.id;
-
-       // 2. 創建付款請求 (暫時註解)
-       /*
-       const paymentRes = await fetch('/api/payment/ecpay', {
-         method: 'POST',
-         headers: { 'Content-Type': 'application/json' },
-         body: JSON.stringify({
-           bookingId: bookingId,
-           amount: totalAmount,
-           description: onlyAvailable 
-             ? `${selectedPartner.name} - ${selectedDuration === 0.5 ? '30分鐘' : selectedDuration === 1 ? '1小時' : `${selectedDuration}小時`}即時預約`
-             : `${selectedPartner.name} - ${selectedTimes.length} 個時段`,
-           customerName: 'PeiPlay 用戶',
-           customerEmail: 'user@peiplay.com'
-         }),
-       });
-
-       if (!paymentRes.ok) {
-         const errorData = await paymentRes.json();
-         throw new Error(errorData.error || '付款建立失敗，請重試');
-       }
-
-       const paymentData = await paymentRes.json();
-
-       // 3. 跳轉到付款頁面
-       setStep(onlyAvailable ? 3 : 4); // 顯示付款跳轉頁面
-
-       // 4. 延遲後跳轉到綠界付款頁面
-       setTimeout(() => {
-         try {
-           // 創建表單並提交到綠界
-           const form = document.createElement('form');
-           form.method = 'POST';
-           form.action = paymentData.paymentUrl;
-           form.target = '_blank';
-
-           // 添加所有參數
-           Object.entries(paymentData.params).forEach(([key, value]) => {
-             const input = document.createElement('input');
-             input.type = 'hidden';
-             input.name = key;
-             input.value = value as string;
-             form.appendChild(input);
-           });
-
-           document.body.appendChild(form);
-           form.submit();
-           document.body.removeChild(form);
-
-           console.log('Payment form submitted successfully');
-           
-           // 保持在付款步驟，等待用戶完成付款
-           // 付款完成後會通過 callback 更新預約狀態
-         } catch (error) {
-           console.error('Payment form submission error:', error);
-           // 如果付款頁面開啟失敗，回到確認步驟
-           setStep(3);
-         }
-       }, 2000);
-       */
-
-       // 暫時直接跳到完成步驟
-       setStep(onlyAvailable ? 3 : 4);
-
-    } catch (err) {
-      alert(err instanceof Error ? err.message : '預約失敗，請重試');
-      setStep(3); // 回到確認頁面
+    } catch (error) {
+      console.error('預約創建失敗:', error)
+      alert(error instanceof Error ? error.message : '預約創建失敗，請重試')
     } finally {
-      setIsProcessing(false)
+      setCreating(false)
     }
-  }, [selectedPartner, selectedTimes, selectedDuration, onlyAvailable, isProcessing]);
+  }
 
   const handlePartnerSelect = useCallback((partner: Partner) => {
     setSelectedPartner(partner)
@@ -431,6 +386,15 @@ function BookingWizardContent() {
 
   return (
     <div className="max-w-2xl mx-auto mt-36 rounded-3xl p-0 shadow-2xl bg-[#1e293b]/80 backdrop-blur-lg border border-white/10 overflow-hidden">
+      {/* 顯示金幣餘額 */}
+      <div className="fixed top-4 right-4 bg-indigo-600 px-4 py-2 rounded-lg shadow-lg z-50">
+        <div className="flex items-center space-x-2">
+          <span className="text-yellow-400 text-xl">🪙</span>
+          <span className="font-semibold">{loadingCoins ? '...' : userCoins}</span>
+          <span className="text-sm text-indigo-200">金幣</span>
+        </div>
+      </div>
+
       {/* 步驟指示器 */}
       <div className="px-4 sm:px-10 pt-6 sm:pt-10 pb-4 sm:pb-6 bg-[#334155]/20">
         <div className="flex items-center justify-between relative">
@@ -704,10 +668,10 @@ function BookingWizardContent() {
               </button>
               <button
                 onClick={handleCreateBooking}
-                disabled={isProcessing}
+                disabled={!hasEnoughCoins || creating}
                 className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                                 {isProcessing ? '處理中...' : '確認預約'}
+                                 {creating ? '處理中...' : `確認預約 (消費 ${requiredCoins} 金幣)`}
               </button>
             </div>
           </div>

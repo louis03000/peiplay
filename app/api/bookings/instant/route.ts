@@ -45,60 +45,99 @@ export async function POST(request: NextRequest) {
     const startTime = new Date(now.getTime() + 15 * 60 * 1000) // 15分鐘後開始
     const endTime = new Date(startTime.getTime() + duration * 60 * 60 * 1000) // 加上預約時長
 
-    // 計算金額
-    const totalAmount = duration * partner.halfHourlyRate * 2 // 每小時 = 2個半小時
+    // 計算所需金幣 (1金幣 = 1元台幣)
+    const requiredCoins = Math.ceil(duration * partner.halfHourlyRate * 2) // 每小時 = 2個半小時
 
-    // 為即時預約創建一個臨時的 schedule
-    const tempSchedule = await prisma.schedule.create({
-      data: {
-        partnerId: partnerId,
-        date: startTime,
-        startTime: startTime,
-        endTime: endTime,
-        isAvailable: false, // 立即標記為不可用
-      }
+    // 檢查用戶金幣餘額
+    const userCoins = await prisma.userCoins.findUnique({
+      where: { userId: session.user.id }
     })
 
-    // 創建預約記錄
-    const booking = await prisma.booking.create({
-      data: {
-        customerId: customer.id,
-        scheduleId: tempSchedule.id, // 使用新創建的 schedule ID
-        status: 'PENDING', // 等待夥伴確認
-        orderNumber: `INST-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        originalAmount: totalAmount,
-        finalAmount: totalAmount,
-        paymentInfo: {
-          type: 'instant',
-          duration: duration,
-          startTime: startTime.toISOString(),
-          endTime: endTime.toISOString(),
-          rate: partner.halfHourlyRate,
-          isInstantBooking: true, // 標記為即時預約
-          discordDelayMinutes: 3 // Discord 頻道延遲開啟時間（分鐘）
+    if (!userCoins || userCoins.coinBalance < requiredCoins) {
+      return NextResponse.json({ 
+        error: '金幣不足', 
+        required: requiredCoins,
+        current: userCoins?.coinBalance || 0
+      }, { status: 400 })
+    }
+
+    // 使用事務確保資料一致性
+    const result = await prisma.$transaction(async (tx) => {
+      // 扣除金幣
+      const updatedCoins = await tx.userCoins.update({
+        where: { userId: session.user.id },
+        data: { coinBalance: { decrement: requiredCoins } }
+      })
+
+      // 記錄消費交易
+      await tx.coinTransaction.create({
+        data: {
+          userId: session.user.id,
+          transactionType: 'BOOKING',
+          amount: requiredCoins,
+          description: `即時預約 ${partner.name} - ${duration}小時`,
+          balanceBefore: updatedCoins.coinBalance + requiredCoins,
+          balanceAfter: updatedCoins.coinBalance
         }
-      },
-      include: {
-        customer: true,
-        schedule: {
-          include: {
-            partner: true
+      })
+
+      // 為即時預約創建一個臨時的 schedule
+      const tempSchedule = await tx.schedule.create({
+        data: {
+          partnerId: partnerId,
+          date: startTime,
+          startTime: startTime,
+          endTime: endTime,
+          isAvailable: false,
+        }
+      })
+
+      // 創建預約記錄
+      const booking = await tx.booking.create({
+        data: {
+          customerId: customer.id,
+          scheduleId: tempSchedule.id,
+          status: 'PENDING',
+          orderNumber: `INST-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          originalAmount: requiredCoins, // 改為金幣數量
+          finalAmount: requiredCoins,
+          paymentInfo: {
+            type: 'instant',
+            duration: duration,
+            startTime: startTime.toISOString(),
+            endTime: endTime.toISOString(),
+            rate: partner.halfHourlyRate,
+            isInstantBooking: true,
+            discordDelayMinutes: 3,
+            coinsSpent: requiredCoins
+          }
+        },
+        include: {
+          customer: true,
+          schedule: {
+            include: {
+              partner: true
+            }
           }
         }
-      }
+      })
+
+      return { booking, coinsSpent: requiredCoins, newBalance: updatedCoins.coinBalance }
     })
 
     return NextResponse.json({
-      id: booking.id,
+      id: result.booking.id,
       message: '即時預約創建成功',
+      coinsSpent: result.coinsSpent,
+      newBalance: result.newBalance,
       booking: {
-        id: booking.id,
-        status: booking.status,
-        orderNumber: booking.orderNumber,
+        id: result.booking.id,
+        status: result.booking.status,
+        orderNumber: result.booking.orderNumber,
         duration: duration,
         startTime: startTime.toISOString(),
         endTime: endTime.toISOString(),
-        totalAmount: duration * partner.halfHourlyRate * 2 // 每小時 = 2個半小時
+        requiredCoins: requiredCoins
       }
     })
 

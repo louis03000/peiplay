@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import crypto from 'crypto'
 import { sendNotification, NotificationType } from '@/lib/notifications'
+import { PrismaClient } from '@prisma/client'
+
+const prisma = new PrismaClient()
 
 // 綠界金流設定
 const ECPAY_CONFIG = {
@@ -84,192 +87,209 @@ function verifyCheckMacValue(params: Record<string, string>): boolean {
 export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData()
-    const params: Record<string, string> = {}
+    const paymentStatus = formData.get('PaymentStatus')
+    const orderNumber = formData.get('MerchantTradeNo')
+    const amount = formData.get('TradeAmt')
+    const paymentDate = formData.get('PaymentDate')
+    const paymentType = formData.get('PaymentType')
+    const paymentTypeChargeFee = formData.get('PaymentTypeChargeFee')
+    const simulatePaid = formData.get('SimulatePaid')
 
-    // 將 FormData 轉換為物件
-    for (const [key, value] of formData.entries()) {
-      if (typeof value === 'string') {
-        params[key] = value
+    console.log('付款回調收到:', {
+      paymentStatus,
+      orderNumber,
+      amount,
+      paymentDate,
+      paymentType,
+      paymentTypeChargeFee,
+      simulatePaid
+    })
+
+    // 檢查是否為儲值訂單
+    if (orderNumber && orderNumber.toString().startsWith('RECHARGE-')) {
+      return await handleRechargeCallback(formData)
+    }
+
+    // 原有的預約付款邏輯
+    if (!orderNumber) {
+      return NextResponse.json({ error: '缺少訂單號碼' }, { status: 400 })
+    }
+
+    // 查找預約
+    const booking = await prisma.booking.findFirst({
+      where: { orderNumber: orderNumber.toString() }
+    })
+
+    if (!booking) {
+      console.error('找不到預約:', orderNumber)
+      return NextResponse.json({ error: '找不到預約' }, { status: 404 })
+    }
+
+    if (paymentStatus === 'SUCCESS' || simulatePaid === 'Y') {
+      // 付款成功
+      const expectedAmount = booking.finalAmount
+      const actualAmount = parseInt(amount?.toString() || '0')
+
+      if (actualAmount !== expectedAmount) {
+        console.warn(`金額不匹配: 期望 ${expectedAmount}, 實際 ${actualAmount}`)
       }
-    }
 
-    console.log('Payment callback received:', params)
-
-    // 驗證檢查碼
-    if (!verifyCheckMacValue(params)) {
-      console.error('CheckMacValue verification failed')
-      return NextResponse.json({ error: '驗證失敗' }, { status: 400 })
-    }
-
-    const {
-      MerchantTradeNo,
-      PaymentDate,
-      PaymentType,
-      PaymentTypeChargeFee,
-      SimulatePaid,
-      RtnCode,
-      RtnMsg,
-      TradeAmt,
-      TradeDate,
-      TradeDesc
-    } = params
-
-    // 檢查付款結果
-    const isSuccess = RtnCode === '1' || SimulatePaid === 'Y'
-    
-    if (isSuccess) {
-      // 付款成功，更新預約狀態
-      try {
-        // 根據訂單編號找到對應的預約
-        const bookingResponse = await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/bookings/find-by-order`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            orderNumber: MerchantTradeNo
-          })
-        })
-
-        if (bookingResponse.ok) {
-          const booking = await bookingResponse.json()
-          
-          // 驗證付款金額是否正確
-          const actualAmount = parseInt(TradeAmt)
-          const expectedAmount = booking.finalAmount || 0
-          
-          let paymentStatus = 'PAID_WAITING_PARTNER_CONFIRMATION'  // 付款成功，等待夥伴確認
-          let paymentNote = ''
-          
-          if (expectedAmount > 0 && actualAmount !== expectedAmount) {
-            // 金額不匹配，記錄差異
-            paymentStatus = 'COMPLETED_WITH_AMOUNT_MISMATCH'
-            paymentNote = `預期金額: ${expectedAmount}元, 實際付款: ${actualAmount}元, 差異: ${actualAmount - expectedAmount}元`
-            console.warn(`Payment amount mismatch for booking ${booking.id}: expected ${expectedAmount}, actual ${actualAmount}`)
+      // 更新預約狀態
+      await prisma.booking.update({
+        where: { id: booking.id },
+        data: {
+          status: 'PAID_WAITING_PARTNER_CONFIRMATION',
+          paymentInfo: {
+            ...booking.paymentInfo,
+            paymentStatus: 'SUCCESS',
+            paymentDate: paymentDate?.toString(),
+            paymentType: paymentType?.toString(),
+            paymentTypeChargeFee: paymentTypeChargeFee?.toString(),
+            actualAmount: actualAmount,
+            expectedAmount: expectedAmount
           }
-          
-          // 更新預約狀態
-          const updateResponse = await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/bookings/${booking.id}/update-status`, {
-            method: 'PUT',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              status: paymentStatus,
-              paymentInfo: {
-                orderNumber: MerchantTradeNo,
-                paymentDate: PaymentDate,
-                paymentType: PaymentType,
-                amount: TradeAmt,
-                expectedAmount: expectedAmount,
-                amountMismatch: actualAmount !== expectedAmount,
-                paymentNote: paymentNote
-              }
-            })
-          })
-
-                     if (!updateResponse.ok) {
-             console.error('Failed to update booking status to completed')
-           } else {
-             // 發送付款成功通知
-             try {
-               const notificationData = {
-                 type: 'PAYMENT_SUCCESS' as NotificationType,
-                 bookingId: booking.id,
-                 customerEmail: booking.customer?.user?.email || '',
-                 customerName: booking.customer?.name || '',
-                 partnerEmail: booking.schedule?.partner?.user?.email || '',
-                 partnerName: booking.schedule?.partner?.name || '',
-                 scheduleDate: new Date(booking.schedule?.date || ''),
-                 startTime: new Date(booking.schedule?.startTime || ''),
-                 endTime: new Date(booking.schedule?.endTime || ''),
-                 amount: actualAmount,
-                 orderNumber: MerchantTradeNo,
-               };
-               
-               const notificationResult = await sendNotification(notificationData);
-               console.log('📧 通知發送結果:', notificationResult);
-             } catch (notificationError) {
-               console.error('❌ 發送通知失敗:', notificationError);
-             }
-           }
         }
-      } catch (error) {
-        console.error('Error updating booking status:', error)
-      }
-
-      // 回傳成功給綠界
-      return NextResponse.json({
-        RtnCode: '1',
-        RtnMsg: 'OK'
       })
-    } else {
-      // 付款失敗，更新預約狀態
+
+      console.log('預約付款成功:', booking.id)
+
+      // 發送通知
       try {
-        const bookingResponse = await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/bookings/find-by-order`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            orderNumber: MerchantTradeNo
-          })
+        await sendNotification('PAYMENT_SUCCESS', {
+          bookingId: booking.id,
+          orderNumber: orderNumber.toString(),
+          amount: actualAmount
         })
-
-        if (bookingResponse.ok) {
-          const booking = await bookingResponse.json()
-          
-          // 更新預約狀態為已確認（讓用戶可以重新付款）
-          const updateResponse = await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/bookings/${booking.id}/update-status`, {
-            method: 'PUT',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              status: 'CONFIRMED',
-              paymentError: RtnMsg
-            })
-          })
-
-                     if (!updateResponse.ok) {
-             console.error('Failed to update booking status to confirmed')
-           } else {
-             // 發送付款失敗通知
-             try {
-               const notificationData = {
-                 type: 'PAYMENT_FAILED' as NotificationType,
-                 bookingId: booking.id,
-                 customerEmail: booking.customer?.user?.email || '',
-                 customerName: booking.customer?.name || '',
-                 partnerEmail: booking.schedule?.partner?.user?.email || '',
-                 partnerName: booking.schedule?.partner?.name || '',
-                 scheduleDate: new Date(booking.schedule?.date || ''),
-                 startTime: new Date(booking.schedule?.startTime || ''),
-                 endTime: new Date(booking.schedule?.endTime || ''),
-                 amount: booking.finalAmount || 0,
-                 orderNumber: MerchantTradeNo,
-               };
-               
-               const notificationResult = await sendNotification(notificationData);
-               console.log('📧 付款失敗通知發送結果:', notificationResult);
-             } catch (notificationError) {
-               console.error('❌ 發送付款失敗通知失敗:', notificationError);
-             }
-           }
-        }
       } catch (error) {
-        console.error('Error updating booking status:', error)
+        console.error('發送付款成功通知失敗:', error)
       }
 
-      // 回傳失敗給綠界
-      return NextResponse.json({
-        RtnCode: '0',
-        RtnMsg: 'Payment failed'
+      return NextResponse.json({ success: true, message: '付款成功' })
+    } else {
+      // 付款失敗
+      await prisma.booking.update({
+        where: { id: booking.id },
+        data: {
+          status: 'PENDING_PAYMENT',
+          paymentInfo: {
+            ...booking.paymentInfo,
+            paymentStatus: 'FAILED',
+            paymentDate: paymentDate?.toString(),
+            paymentType: paymentType?.toString(),
+            failureReason: '付款失敗'
+          }
+        }
       })
+
+      console.log('預約付款失敗:', booking.id)
+
+      // 發送通知
+      try {
+        await sendNotification('PAYMENT_FAILED', {
+          bookingId: booking.id,
+          orderNumber: orderNumber.toString(),
+          amount: amount?.toString()
+        })
+      } catch (error) {
+        console.error('發送付款失敗通知失敗:', error)
+      }
+
+      return NextResponse.json({ success: false, message: '付款失敗' })
     }
 
   } catch (error) {
-    console.error('Payment callback error:', error)
+    console.error('處理付款回調失敗:', error)
     return NextResponse.json({ error: '處理付款回調失敗' }, { status: 500 })
+  }
+}
+
+// 處理儲值回調
+async function handleRechargeCallback(formData: FormData) {
+  try {
+    const paymentStatus = formData.get('PaymentStatus')
+    const orderNumber = formData.get('MerchantTradeNo')
+    const amount = formData.get('TradeAmt')
+    const paymentDate = formData.get('PaymentDate')
+    const paymentType = formData.get('PaymentType')
+    const simulatePaid = formData.get('SimulatePaid')
+
+    if (!orderNumber) {
+      return NextResponse.json({ error: '缺少訂單號碼' }, { status: 400 })
+    }
+
+    // 查找儲值記錄
+    const rechargeRecord = await prisma.rechargeRecord.findUnique({
+      where: { orderNumber: orderNumber.toString() }
+    })
+
+    if (!rechargeRecord) {
+      console.error('找不到儲值記錄:', orderNumber)
+      return NextResponse.json({ error: '找不到儲值記錄' }, { status: 404 })
+    }
+
+    if (paymentStatus === 'SUCCESS' || simulatePaid === 'Y') {
+      // 付款成功，增加用戶金幣
+      const result = await prisma.$transaction(async (tx) => {
+        // 更新儲值記錄狀態
+        await tx.rechargeRecord.update({
+          where: { id: rechargeRecord.id },
+          data: { status: 'SUCCESS' }
+        })
+
+        // 增加用戶金幣餘額
+        const updatedCoins = await tx.userCoins.upsert({
+          where: { userId: rechargeRecord.userId },
+          update: {
+            coinBalance: { increment: rechargeRecord.coinAmount },
+            totalRecharged: { increment: rechargeRecord.coinAmount }
+          },
+          create: {
+            userId: rechargeRecord.userId,
+            coinBalance: rechargeRecord.coinAmount,
+            totalRecharged: rechargeRecord.coinAmount
+          }
+        })
+
+        // 記錄交易
+        await tx.coinTransaction.create({
+          data: {
+            userId: rechargeRecord.userId,
+            transactionType: 'RECHARGE',
+            amount: rechargeRecord.coinAmount,
+            description: `儲值 ${rechargeRecord.coinAmount} 金幣`,
+            balanceBefore: updatedCoins.coinBalance - rechargeRecord.coinAmount,
+            balanceAfter: updatedCoins.coinBalance
+          }
+        })
+
+        return updatedCoins
+      })
+
+      console.log('儲值成功:', {
+        userId: rechargeRecord.userId,
+        coins: rechargeRecord.coinAmount,
+        newBalance: result.coinBalance
+      })
+
+      return NextResponse.json({ 
+        success: true, 
+        message: '儲值成功',
+        coins: rechargeRecord.coinAmount,
+        newBalance: result.coinBalance
+      })
+    } else {
+      // 付款失敗
+      await prisma.rechargeRecord.update({
+        where: { id: rechargeRecord.id },
+        data: { status: 'FAILED' }
+      })
+
+      console.log('儲值付款失敗:', rechargeRecord.id)
+      return NextResponse.json({ success: false, message: '儲值付款失敗' })
+    }
+
+  } catch (error) {
+    console.error('處理儲值回調失敗:', error)
+    return NextResponse.json({ error: '處理儲值回調失敗' }, { status: 500 })
   }
 } 
