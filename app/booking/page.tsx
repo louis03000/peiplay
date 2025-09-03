@@ -339,7 +339,7 @@ function BookingWizardContent() {
         const data = await response.json()
         setCreatedBooking(data.booking)
         setUserCoins(data.newBalance) // 更新金幣餘額
-        setStep(3) // 跳到完成步驟
+        setStep(onlyAvailable ? 3 : 4) // 跳到完成步驟
       } else {
         // 一般預約 - 也需要修改為金幣消費
         // ... 類似邏輯
@@ -358,7 +358,7 @@ function BookingWizardContent() {
     setSelectedTimes([])
     setSelectedDuration(1) // 重置預約時長
     if (onlyAvailable) {
-      setStep(2) // 直接跳到選擇時長步驟
+      setStep(1) // 直接跳到選擇時長步驟
     }
   }, [onlyAvailable])
 
@@ -573,7 +573,7 @@ function BookingWizardContent() {
         )}
         {((onlyAvailable && step === 2) || (!onlyAvailable && step === 3)) && selectedPartner && (
           <div>
-            <div className="text-lg text-white/90 mb-4">（4）確認預約</div>
+            <div className="text-lg text-white/90 mb-4">（3）確認預約</div>
             <div className="bg-gray-800/30 rounded-lg p-6 mb-6">
               <div className="flex items-center gap-4 mb-4">
                 <div className="w-16 h-16 rounded-full bg-indigo-500 flex items-center justify-center text-white font-bold">

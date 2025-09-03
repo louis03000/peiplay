@@ -59,12 +59,23 @@ async function main() {
   ]
 
   for (const gift of gifts) {
-    await prisma.giftItem.upsert({
-      where: { name: gift.name },
-      update: gift,
-      create: gift
+    // 檢查是否已存在
+    const existingGift = await prisma.giftItem.findFirst({
+      where: { name: gift.name }
     })
-    console.log(`✅ 禮物 ${gift.name} 創建成功`)
+    
+    if (existingGift) {
+      await prisma.giftItem.update({
+        where: { id: existingGift.id },
+        data: gift
+      })
+      console.log(`✅ 禮物 ${gift.name} 更新成功`)
+    } else {
+      await prisma.giftItem.create({
+        data: gift
+      })
+      console.log(`✅ 禮物 ${gift.name} 創建成功`)
+    }
   }
 
   console.log('🎉 所有禮物資料創建完成！')
