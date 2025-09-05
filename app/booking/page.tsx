@@ -342,8 +342,10 @@ function BookingWizardContent() {
         setUserCoins(data.newBalance) // 更新金幣餘額
         setStep(onlyAvailable ? 3 : 4) // 跳到完成步驟
       } else {
-        // 一般預約 - 也需要修改為金幣消費
-        // ... 類似邏輯
+        // 一般預約 - 暫時移除金幣消費
+        // 需要先獲取 scheduleIds，這裡暫時跳過一般預約
+        alert('一般預約功能暫時停用，請使用「現在有空」功能進行即時預約')
+        return
       }
     } catch (error) {
       console.error('預約創建失敗:', error)
