@@ -241,13 +241,24 @@ async def create_booking_text_channel(booking_id, customer_discord, partner_disc
         # 保存頻道 ID 到資料庫
         try:
             with Session() as s:
-                # 更新預約記錄，保存 Discord 頻道 ID
-                result = s.execute(
-                    text("UPDATE \"Booking\" SET \"discordTextChannelId\" = :channel_id WHERE id = :booking_id"),
-                    {"channel_id": str(text_channel.id), "booking_id": booking_id}
-                )
-                s.commit()
-                print(f"✅ 已保存文字頻道 ID {text_channel.id} 到預約 {booking_id}")
+                # 先檢查欄位是否存在
+                check_column = s.execute(text("""
+                    SELECT column_name 
+                    FROM information_schema.columns 
+                    WHERE table_name = 'Booking' 
+                    AND column_name = 'discordTextChannelId'
+                """)).fetchone()
+                
+                if check_column:
+                    # 更新預約記錄，保存 Discord 頻道 ID
+                    result = s.execute(
+                        text("UPDATE \"Booking\" SET \"discordTextChannelId\" = :channel_id WHERE id = :booking_id"),
+                        {"channel_id": str(text_channel.id), "booking_id": booking_id}
+                    )
+                    s.commit()
+                    print(f"✅ 已保存文字頻道 ID {text_channel.id} 到預約 {booking_id}")
+                else:
+                    print(f"⚠️ Discord 欄位尚未創建，跳過保存頻道 ID")
         except Exception as db_error:
             print(f"❌ 保存頻道 ID 到資料庫失敗: {db_error}")
             # 即使保存失敗，頻道仍然可以使用
@@ -476,6 +487,18 @@ async def delete_booking_channels(booking_id: str):
         
         # 從資料庫獲取頻道 ID
         with Session() as s:
+            # 先檢查欄位是否存在
+            check_columns = s.execute(text("""
+                SELECT column_name 
+                FROM information_schema.columns 
+                WHERE table_name = 'Booking' 
+                AND column_name IN ('discordTextChannelId', 'discordVoiceChannelId')
+            """)).fetchall()
+            
+            if len(check_columns) < 2:
+                print(f"⚠️ Discord 欄位尚未創建，無法獲取頻道資訊")
+                return False
+            
             result = s.execute(
                 text("SELECT \"discordTextChannelId\", \"discordVoiceChannelId\" FROM \"Booking\" WHERE id = :booking_id"),
                 {"booking_id": booking_id}
@@ -520,12 +543,23 @@ async def delete_booking_channels(booking_id: str):
         # 清除資料庫中的頻道 ID
         try:
             with Session() as s:
-                s.execute(
-                    text("UPDATE \"Booking\" SET \"discordTextChannelId\" = NULL, \"discordVoiceChannelId\" = NULL WHERE id = :booking_id"),
-                    {"booking_id": booking_id}
-                )
-                s.commit()
-                print(f"✅ 已清除預約 {booking_id} 的頻道 ID")
+                # 先檢查欄位是否存在
+                check_columns = s.execute(text("""
+                    SELECT column_name 
+                    FROM information_schema.columns 
+                    WHERE table_name = 'Booking' 
+                    AND column_name IN ('discordTextChannelId', 'discordVoiceChannelId')
+                """)).fetchall()
+                
+                if len(check_columns) >= 2:
+                    s.execute(
+                        text("UPDATE \"Booking\" SET \"discordTextChannelId\" = NULL, \"discordVoiceChannelId\" = NULL WHERE id = :booking_id"),
+                        {"booking_id": booking_id}
+                    )
+                    s.commit()
+                    print(f"✅ 已清除預約 {booking_id} 的頻道 ID")
+                else:
+                    print(f"⚠️ Discord 欄位尚未創建，跳過清除頻道 ID")
         except Exception as db_error:
             print(f"❌ 清除頻道 ID 失敗: {db_error}")
         
@@ -695,7 +729,7 @@ async def check_bookings():
             if not processed_list:
                 processed_list = []
             
-            # 查詢一般預約 - 簡化查詢，避免複雜的 NOT IN 語法
+            # 查詢一般預約 - 暫時移除 Discord 欄位檢查
             simple_query = """
             SELECT 
                 b.id, b."customerId", b."scheduleId", b.status, b."createdAt", b."updatedAt",
@@ -713,11 +747,10 @@ async def check_bookings():
             WHERE b.status IN ('CONFIRMED', 'COMPLETED', 'PARTNER_ACCEPTED')
             AND s."startTime" >= :start_time_1
             AND s."startTime" <= :start_time_2
-            AND b."discordTextChannelId" IS NULL
             """
             result = s.execute(text(simple_query), {"start_time_1": window_start, "start_time_2": window_end})
             
-            # 查詢即時預約 - 簡化查詢
+            # 查詢即時預約 - 暫時移除 Discord 欄位檢查
             simple_instant_query = """
             SELECT 
                 b.id, b."customerId", b."scheduleId", b.status, b."createdAt", b."updatedAt",
@@ -736,7 +769,6 @@ async def check_bookings():
             AND b."paymentInfo"->>'isInstantBooking' = 'true'
             AND s."startTime" >= :instant_start_time_1
             AND s."startTime" <= :instant_start_time_2
-            AND b."discordTextChannelId" IS NULL
             """
             instant_result = s.execute(text(simple_instant_query), {"instant_start_time_1": instant_window_start, "instant_start_time_2": instant_window_end})
             
