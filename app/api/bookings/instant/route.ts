@@ -45,41 +45,41 @@ export async function POST(request: NextRequest) {
     const startTime = new Date(now.getTime() + 15 * 60 * 1000) // 15分鐘後開始
     const endTime = new Date(startTime.getTime() + duration * 60 * 60 * 1000) // 加上預約時長
 
-    // 計算所需金幣 (1金幣 = 1元台幣)
+    // 計算所需金幣 (1金幣 = 1元台幣) - 暫時註解，移除金幣檢查
     const requiredCoins = Math.ceil(duration * partner.halfHourlyRate * 2) // 每小時 = 2個半小時
 
-    // 檢查用戶金幣餘額
-    const userCoins = await prisma.userCoins.findUnique({
-      where: { userId: session.user.id }
-    })
+    // 檢查用戶金幣餘額 - 暫時註解，移除金幣檢查
+    // const userCoins = await prisma.userCoins.findUnique({
+    //   where: { userId: session.user.id }
+    // })
 
-    if (!userCoins || userCoins.coinBalance < requiredCoins) {
-      return NextResponse.json({ 
-        error: '金幣不足', 
-        required: requiredCoins,
-        current: userCoins?.coinBalance || 0
-      }, { status: 400 })
-    }
+    // if (!userCoins || userCoins.coinBalance < requiredCoins) {
+    //   return NextResponse.json({ 
+    //     error: '金幣不足', 
+    //     required: requiredCoins,
+    //     current: userCoins?.coinBalance || 0
+    //   }, { status: 400 })
+    // }
 
     // 使用事務確保資料一致性
     const result = await prisma.$transaction(async (tx) => {
-      // 扣除金幣
-      const updatedCoins = await tx.userCoins.update({
-        where: { userId: session.user.id },
-        data: { coinBalance: { decrement: requiredCoins } }
-      })
+      // 扣除金幣 - 暫時註解，移除金幣扣除
+      // const updatedCoins = await tx.userCoins.update({
+      //   where: { userId: session.user.id },
+      //   data: { coinBalance: { decrement: requiredCoins } }
+      // })
 
-      // 記錄消費交易
-      await tx.coinTransaction.create({
-        data: {
-          userId: session.user.id,
-          transactionType: 'BOOKING',
-          amount: requiredCoins,
-          description: `即時預約 ${partner.name} - ${duration}小時`,
-          balanceBefore: updatedCoins.coinBalance + requiredCoins,
-          balanceAfter: updatedCoins.coinBalance
-        }
-      })
+      // 記錄消費交易 - 暫時註解，移除金幣交易記錄
+      // await tx.coinTransaction.create({
+      //   data: {
+      //     userId: session.user.id,
+      //     transactionType: 'BOOKING',
+      //     amount: requiredCoins,
+      //     description: `即時預約 ${partner.name} - ${duration}小時`,
+      //     balanceBefore: updatedCoins.coinBalance + requiredCoins,
+      //     balanceAfter: updatedCoins.coinBalance
+      //   }
+      // })
 
       // 為即時預約創建一個臨時的 schedule
       const tempSchedule = await tx.schedule.create({
@@ -122,7 +122,7 @@ export async function POST(request: NextRequest) {
         }
       })
 
-      return { booking, coinsSpent: requiredCoins, newBalance: updatedCoins.coinBalance }
+      return { booking, coinsSpent: requiredCoins, newBalance: 0 } // 暫時移除金幣餘額
     })
 
     return NextResponse.json({

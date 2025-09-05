@@ -304,14 +304,15 @@ function BookingWizardContent() {
   }
 
   const requiredCoins = calculateRequiredCoins()
-  const hasEnoughCoins = userCoins >= requiredCoins
+  const hasEnoughCoins = true // 暫時移除金幣檢查，直接設為 true
 
   // 修改確認預約函數
   const handleCreateBooking = async () => {
-    if (!hasEnoughCoins) {
-      alert(`金幣不足！需要 ${requiredCoins} 金幣，當前餘額 ${userCoins} 金幣`)
-      return
-    }
+    // 暫時移除金幣檢查
+    // if (!hasEnoughCoins) {
+    //   alert(`金幣不足！需要 ${requiredCoins} 金幣，當前餘額 ${userCoins} 金幣`)
+    //   return
+    // }
 
     try {
       setCreating(true)
@@ -387,13 +388,14 @@ function BookingWizardContent() {
   return (
     <div className="max-w-2xl mx-auto mt-36 rounded-3xl p-0 shadow-2xl bg-[#1e293b]/80 backdrop-blur-lg border border-white/10 overflow-hidden">
       {/* 顯示金幣餘額 */}
-      <div className="fixed top-4 right-4 bg-indigo-600 px-4 py-2 rounded-lg shadow-lg z-50">
+      {/* 暫時移除金幣餘額顯示 */}
+      {/* <div className="fixed top-4 right-4 bg-indigo-600 px-4 py-2 rounded-lg shadow-lg z-50">
         <div className="flex items-center space-x-2">
           <span className="text-yellow-400 text-xl">🪙</span>
           <span className="font-semibold">{loadingCoins ? '...' : userCoins}</span>
           <span className="text-sm text-indigo-200">金幣</span>
         </div>
-      </div>
+      </div> */}
 
       {/* 步驟指示器 */}
       <div className="px-4 sm:px-10 pt-6 sm:pt-10 pb-4 sm:pb-6 bg-[#334155]/20">
@@ -668,10 +670,10 @@ function BookingWizardContent() {
               </button>
               <button
                 onClick={handleCreateBooking}
-                disabled={!hasEnoughCoins || creating}
+                disabled={creating}
                 className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                                 {creating ? '處理中...' : `確認預約 (消費 ${requiredCoins} 金幣)`}
+                {creating ? '處理中...' : '確認預約'}
               </button>
             </div>
           </div>
