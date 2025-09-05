@@ -107,6 +107,8 @@ model Booking {
   orderNumber    String?
   paymentError   String?
   paymentInfo    Json?
+  discordTextChannelId String?
+  discordVoiceChannelId String?
   customer       Customer      @relation(fields: [customerId], references: [id])
   schedule       Schedule      @relation(fields: [scheduleId], references: [id])
   orders         Order[]
