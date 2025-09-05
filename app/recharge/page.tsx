@@ -63,7 +63,25 @@ export default function RechargePage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black text-white">
       <div className="max-w-4xl mx-auto py-8 px-4 pt-32">
-        <h1 className="text-4xl font-bold mb-8 text-center">🪙 儲值購金幣</h1>
+        <h1 className="text-4xl font-bold mb-8 text-center">🪙 商店</h1>
+        
+        {/* 功能選擇 */}
+        <div className="flex justify-center gap-4 mb-8">
+          <button 
+            onClick={() => window.location.href = '/recharge'}
+            className="px-6 py-3 bg-yellow-600 hover:bg-yellow-700 text-white font-bold rounded-lg transition-colors"
+          >
+            💰 儲值購金幣
+          </button>
+          <button 
+            onClick={() => window.location.href = '/gifts'}
+            className="px-6 py-3 bg-pink-600 hover:bg-pink-700 text-white font-bold rounded-lg transition-colors"
+          >
+            🎁 送禮物
+          </button>
+        </div>
+        
+        <h2 className="text-2xl font-bold mb-6 text-center">儲值購金幣</h2>
         
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
           {[
