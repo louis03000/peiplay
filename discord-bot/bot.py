@@ -18,6 +18,17 @@ TOKEN = os.getenv("DISCORD_BOT_TOKEN")
 GUILD_ID = int(os.getenv("DISCORD_GUILD_ID", "0"))
 POSTGRES_CONN = os.getenv("POSTGRES_CONN")
 ADMIN_CHANNEL_ID = int(os.getenv("ADMIN_CHANNEL_ID", "0"))
+
+# 檢查必要的環境變數
+if not TOKEN:
+    print("❌ 錯誤：未設定 DISCORD_BOT_TOKEN 環境變數")
+    print("請在 .env 檔案中設定您的 Discord bot token")
+    exit(1)
+
+if not POSTGRES_CONN:
+    print("❌ 錯誤：未設定 POSTGRES_CONN 環境變數")
+    print("請在 .env 檔案中設定資料庫連線字串")
+    exit(1)
 CHANNEL_CREATION_CHANNEL_ID = int(os.getenv("CHANNEL_CREATION_CHANNEL_ID", "1410318589348810923"))  # 創建頻道通知頻道
 CHECK_INTERVAL = int(os.getenv("CHECK_INTERVAL", "30"))  # 檢查間隔（秒）
 
@@ -623,58 +634,59 @@ async def check_bookings():
             print("❌ 找不到 Discord 伺服器")
             return
         
-                    # 查詢已確認且即將開始的預約（只創建語音頻道）
-            now = datetime.now(timezone.utc)
-            window_start = now
-            window_end = now + timedelta(minutes=5)  # 5分鐘內即將開始
-            
-            # 查詢即時預約（夥伴確認後延遲開啟）
-            instant_window_start = now
-            instant_window_end = now + timedelta(minutes=10)  # 10分鐘內即將開始
+        # 查詢已確認且即將開始的預約（只創建語音頻道）
+        now = datetime.now(timezone.utc)
+        window_start = now
+        window_end = now + timedelta(minutes=5)  # 5分鐘內即將開始
+        
+        # 查詢即時預約（夥伴確認後延遲開啟）
+        instant_window_start = now
+        instant_window_end = now + timedelta(minutes=10)  # 10分鐘內即將開始
+        
+        # 使用原生 SQL 查詢避免 orderNumber 欄位問題
+        query = """
+        SELECT 
+            b.id, b."customerId", b."scheduleId", b.status, b."createdAt", b."updatedAt",
+            c.name as customer_name, cu.discord as customer_discord,
+            p.name as partner_name, pu.discord as partner_discord,
+            s."startTime", s."endTime",
+            b."paymentInfo"->>'isInstantBooking' as is_instant_booking,
+            b."paymentInfo"->>'discordDelayMinutes' as discord_delay_minutes
+        FROM "Booking" b
+        JOIN "Schedule" s ON s.id = b."scheduleId"
+        JOIN "Customer" c ON c.id = b."customerId"
+        JOIN "User" cu ON cu.id = c."userId"
+        JOIN "Partner" p ON p.id = s."partnerId"
+        JOIN "User" pu ON pu.id = p."userId"
+        WHERE b.status IN ('CONFIRMED', 'COMPLETED', 'PARTNER_ACCEPTED')
+        AND b.id NOT IN (SELECT unnest(%(processed_list)s::text[]))
+        AND s."startTime" >= %(start_time_1)s
+        AND s."startTime" <= %(start_time_2)s
+        """
+        
+        # 即時預約查詢
+        instant_query = """
+        SELECT 
+            b.id, b."customerId", b."scheduleId", b.status, b."createdAt", b."updatedAt",
+            c.name as customer_name, cu.discord as customer_discord,
+            p.name as partner_name, pu.discord as partner_discord,
+            s."startTime", s."endTime",
+            b."paymentInfo"->>'isInstantBooking' as is_instant_booking,
+            b."paymentInfo"->>'discordDelayMinutes' as discord_delay_minutes
+        FROM "Booking" b
+        JOIN "Schedule" s ON s.id = b."scheduleId"
+        JOIN "Customer" c ON c.id = b."customerId"
+        JOIN "User" cu ON cu.id = c."userId"
+        JOIN "Partner" p ON p.id = s."partnerId"
+        JOIN "User" pu ON pu.id = p."userId"
+        WHERE b.status = 'PARTNER_ACCEPTED'
+        AND b."paymentInfo"->>'isInstantBooking' = 'true'
+        AND b.id NOT IN (SELECT unnest(%(processed_list)s::text[]))
+        AND s."startTime" >= %(instant_start_time_1)s
+        AND s."startTime" <= %(instant_start_time_2)s
+        """
         
         with Session() as s:
-            # 使用原生 SQL 查詢避免 orderNumber 欄位問題
-            query = """
-            SELECT 
-                b.id, b."customerId", b."scheduleId", b.status, b."createdAt", b."updatedAt",
-                c.name as customer_name, cu.discord as customer_discord,
-                p.name as partner_name, pu.discord as partner_discord,
-                s."startTime", s."endTime",
-                b."paymentInfo"->>'isInstantBooking' as is_instant_booking,
-                b."paymentInfo"->>'discordDelayMinutes' as discord_delay_minutes
-            FROM "Booking" b
-            JOIN "Schedule" s ON s.id = b."scheduleId"
-            JOIN "Customer" c ON c.id = b."customerId"
-            JOIN "User" cu ON cu.id = c."userId"
-            JOIN "Partner" p ON p.id = s."partnerId"
-            JOIN "User" pu ON pu.id = p."userId"
-            WHERE b.status IN ('CONFIRMED', 'COMPLETED', 'PARTNER_ACCEPTED')
-            AND b.id NOT IN (SELECT unnest(%(processed_list)s::text[]))
-            AND s."startTime" >= %(start_time_1)s
-            AND s."startTime" <= %(start_time_2)s
-            """
-            
-            # 即時預約查詢
-            instant_query = """
-            SELECT 
-                b.id, b."customerId", b."scheduleId", b.status, b."createdAt", b."updatedAt",
-                c.name as customer_name, cu.discord as customer_discord,
-                p.name as partner_name, pu.discord as partner_discord,
-                s."startTime", s."endTime",
-                b."paymentInfo"->>'isInstantBooking' as is_instant_booking,
-                b."paymentInfo"->>'discordDelayMinutes' as discord_delay_minutes
-            FROM "Booking" b
-            JOIN "Schedule" s ON s.id = b."scheduleId"
-            JOIN "Customer" c ON c.id = b."customerId"
-            JOIN "User" cu ON cu.id = c."userId"
-            JOIN "Partner" p ON p.id = s."partnerId"
-            JOIN "User" pu ON pu.id = p."userId"
-            WHERE b.status = 'PARTNER_ACCEPTED'
-            AND b."paymentInfo"->>'isInstantBooking' = 'true'
-            AND b.id NOT IN (SELECT unnest(%(processed_list)s::text[]))
-            AND s."startTime" >= %(instant_start_time_1)s
-            AND s."startTime" <= %(instant_start_time_2)s
-            """
             
             # 將 processed_bookings 轉換為列表
             processed_list = list(processed_bookings) if processed_bookings else []
