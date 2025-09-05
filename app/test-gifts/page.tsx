@@ -34,22 +34,18 @@ export default function TestGiftsPage() {
 
   const fetchData = async () => {
     try {
-      // 獲取禮物列表
-      const giftsResponse = await fetch('/api/gifts/list')
-      const giftsData = await giftsResponse.json()
-      if (giftsData.success) {
-        setGifts(giftsData.gifts)
-      }
-
-      // 獲取用戶列表（用於測試）
-      const usersResponse = await fetch('/api/admin/users')
-      const usersData = await usersResponse.json()
-      if (usersData.success) {
-        setUsers(usersData.users.filter((user: any) => user.id !== session?.user?.id))
+      // 使用新的測試API
+      const response = await fetch('/api/test-gifts')
+      const data = await response.json()
+      if (data.success) {
+        setGifts(data.gifts)
+        setUsers(data.users)
+      } else {
+        setMessage('❌ 獲取數據失敗: ' + data.error)
       }
     } catch (error) {
       console.error('獲取數據失敗:', error)
-      setMessage('❌ 獲取數據失敗')
+      setMessage('❌ 獲取數據失敗: ' + error)
     } finally {
       setLoading(false)
     }
@@ -65,15 +61,14 @@ export default function TestGiftsPage() {
     setMessage('')
 
     try {
-      const response = await fetch('/api/gifts/send', {
+      const response = await fetch('/api/test-gifts', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           receiverId: selectedUser.id,
-          giftName: selectedGift.name,
-          channelId: 'test-channel-123'
+          giftName: selectedGift.name
         }),
       })
 
