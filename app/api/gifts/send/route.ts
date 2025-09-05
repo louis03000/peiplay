@@ -25,38 +25,38 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '禮物不存在' }, { status: 404 })
     }
     
-    // 檢查用戶金幣餘額 - 暫時註解，移除金幣檢查
-    // const userCoins = await prisma.userCoins.findUnique({
-    //   where: { userId: session.user.id }
-    // })
+    // 檢查用戶金幣餘額
+    const userCoins = await prisma.userCoins.findUnique({
+      where: { userId: session.user.id }
+    })
     
-    // if (!userCoins || userCoins.coinBalance < gift.coinCost) {
-    //   return NextResponse.json({ 
-    //     error: '金幣不足',
-    //     required: gift.coinCost,
-    //     current: userCoins?.coinBalance || 0
-    //   }, { status: 400 })
-    // }
+    if (!userCoins || userCoins.coinBalance < gift.coinCost) {
+      return NextResponse.json({ 
+        error: '金幣不足',
+        required: gift.coinCost,
+        current: userCoins?.coinBalance || 0
+      }, { status: 400 })
+    }
     
     // 使用事務確保資料一致性
     const result = await prisma.$transaction(async (tx) => {
-      // 扣除發送者金幣 - 暫時註解，移除金幣扣除
-      // const updatedCoins = await tx.userCoins.update({
-      //   where: { userId: session.user.id },
-      //   data: { coinBalance: { decrement: gift.coinCost } }
-      // })
+      // 扣除發送者金幣
+      const updatedCoins = await tx.userCoins.update({
+        where: { userId: session.user.id },
+        data: { coinBalance: { decrement: gift.coinCost } }
+      })
       
-      // 記錄消費交易 - 暫時註解，移除金幣交易記錄
-      // await tx.coinTransaction.create({
-      //   data: {
-      //     userId: session.user.id,
-      //     transactionType: 'GIFT',
-      //     amount: gift.coinCost,
-      //     description: `贈送禮物 ${gift.name} 給 ${receiverId}`,
-      //     balanceBefore: updatedCoins.coinBalance + gift.coinCost,
-      //     balanceAfter: updatedCoins.coinBalance
-      //   }
-      // })
+      // 記錄消費交易
+      await tx.coinTransaction.create({
+        data: {
+          userId: session.user.id,
+          transactionType: 'GIFT',
+          amount: gift.coinCost,
+          description: `贈送禮物 ${gift.name} 給 ${receiverId}`,
+          balanceBefore: updatedCoins.coinBalance + gift.coinCost,
+          balanceAfter: updatedCoins.coinBalance
+        }
+      })
       
       // 增加接收者收益
       const partnerEarnings = await tx.partnerEarnings.upsert({
@@ -87,7 +87,7 @@ export async function POST(request: NextRequest) {
       
       return {
         giftRecord,
-        newBalance: 0, // 暫時移除金幣餘額
+        newBalance: updatedCoins.coinBalance,
         partnerEarnings: partnerEarnings
       }
     })
