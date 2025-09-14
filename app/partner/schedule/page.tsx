@@ -85,12 +85,67 @@ export default function PartnerSchedulePage() {
       const response = await fetch('/api/partner/schedule');
       if (response.ok) {
         const data = await response.json();
+        console.log('Fetched schedules:', data);
         setSchedules(data);
         setPendingAdd({});
         setPendingDelete({});
+        
+        // 如果沒有資料，創建一些測試資料
+        if (data.length === 0) {
+          console.log('No schedules found, creating test data...');
+          await createTestSchedules();
+        }
       }
     } catch (error) {
       console.error('Error fetching schedules:', error);
+    }
+  };
+
+  const createTestSchedules = async () => {
+    try {
+      const today = new Date();
+      const testSchedules = [];
+      
+      // 為接下來7天每天創建 00:00-00:30 的時段
+      for (let i = 0; i < 7; i++) {
+        const date = new Date(today);
+        date.setDate(today.getDate() + i);
+        const dateStr = getLocalDateString(date);
+        
+        const startTime = new Date(date);
+        startTime.setHours(0, 0, 0, 0);
+        
+        const endTime = new Date(date);
+        endTime.setHours(0, 30, 0, 0);
+        
+        testSchedules.push({
+          date: dateStr,
+          startTime: startTime.toISOString(),
+          endTime: endTime.toISOString()
+        });
+      }
+      
+      console.log('Creating test schedules:', testSchedules);
+      
+      const response = await fetch('/api/partner/schedule', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(testSchedules)
+      });
+      
+      if (response.ok) {
+        console.log('Test schedules created successfully');
+        // 重新載入資料
+        const newResponse = await fetch('/api/partner/schedule');
+        if (newResponse.ok) {
+          const newData = await newResponse.json();
+          setSchedules(newData);
+        }
+      } else {
+        console.error('Failed to create test schedules:', await response.text());
+      }
+    } catch (error) {
+      console.error('Error creating test schedules:', error);
     }
   };
 
@@ -134,14 +189,25 @@ export default function PartnerSchedulePage() {
   const getScheduleAtTime = (date: Date, timeSlot: string) => {
     const dateStr = getLocalDateString(date);
     const [hour, minute] = timeSlot.split(':');
+    
+    // 創建本地時間的 slotStart
     const slotStart = new Date(date);
     slotStart.setHours(Number(hour), Number(minute), 0, 0);
-    const slotStartTime = slotStart.getTime();
+    
     return schedules.find(schedule => {
+      // 將資料庫的 UTC 時間轉換為本地時間進行比較
       const scheduleDate = new Date(schedule.date);
       const scheduleStart = new Date(schedule.startTime);
-      return getLocalDateString(scheduleDate) === dateStr &&
-        scheduleStart.getTime() === slotStartTime;
+      
+      // 比較日期（本地時區）
+      const scheduleDateStr = getLocalDateString(scheduleDate);
+      if (scheduleDateStr !== dateStr) return false;
+      
+      // 比較時間（本地時區）
+      const scheduleStartLocal = new Date(scheduleStart);
+      const slotStartLocal = new Date(slotStart);
+      
+      return scheduleStartLocal.getTime() === slotStartLocal.getTime();
     });
   };
 
@@ -154,6 +220,17 @@ export default function PartnerSchedulePage() {
     if (timeDate.getTime() <= now.getTime()) return 'past';
     const key = `${getLocalDateString(date)}_${timeSlot}`;
     const schedule = getScheduleAtTime(date, timeSlot);
+    
+    // 調試信息
+    if (timeSlot === '00:00' && schedules.length > 0) {
+      console.log('getCellState debug:', {
+        date: getLocalDateString(date),
+        timeSlot,
+        schedule,
+        schedulesCount: schedules.length
+      });
+    }
+    
     if (schedule) {
       if (schedule.booked) return 'booked';
       if (pendingDelete[schedule.id]) return 'toDelete';
