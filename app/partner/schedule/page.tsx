@@ -40,13 +40,13 @@ export default function PartnerSchedulePage() {
     const style = document.createElement('style');
     style.textContent = `
       .animate-fade-in-out {
-        animation: fadeInOut 2s;
+        animation: fadeInOut 3s ease-in-out;
       }
       @keyframes fadeInOut {
-        0% { opacity: 0; }
-        10% { opacity: 1; }
-        90% { opacity: 1; }
-        100% { opacity: 0; }
+        0% { opacity: 0; transform: translate(-50%, -20px); }
+        15% { opacity: 1; transform: translate(-50%, 0); }
+        85% { opacity: 1; transform: translate(-50%, 0); }
+        100% { opacity: 0; transform: translate(-50%, -20px); }
       }
     `;
     document.head.appendChild(style);
@@ -240,7 +240,7 @@ export default function PartnerSchedulePage() {
       setPendingDelete({});
       await fetchSchedules(); // 先 fetch 最新資料再顯示成功提示
       setShowSuccess(true);
-      setTimeout(() => setShowSuccess(false), 2000);
+      setTimeout(() => setShowSuccess(false), 3000);
       // 可選：自動滾到頂部
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (e) {
@@ -262,7 +262,7 @@ export default function PartnerSchedulePage() {
     switch (state) {
       case 'empty': return 'bg-white hover:bg-green-100 cursor-pointer';
       case 'toAdd': return 'bg-green-300 border-2 border-green-600 cursor-pointer';
-      case 'saved': return 'bg-gray-600 cursor-pointer';
+      case 'saved': return 'bg-gray-500 text-white cursor-pointer hover:bg-gray-400';
       case 'toDelete': return 'bg-red-300 border-2 border-red-600 cursor-pointer';
       case 'booked': return 'bg-yellow-200 cursor-not-allowed';
       case 'past': return 'bg-gray-100 cursor-not-allowed';
@@ -300,8 +300,8 @@ export default function PartnerSchedulePage() {
   return (
     <div className="container mx-auto px-4 py-8 pt-32">
       {showSuccess && (
-        <div className="fixed top-6 left-1/2 transform -translate-x-1/2 z-50 bg-green-600 text-white px-6 py-3 rounded-lg shadow-lg font-bold text-lg animate-fade-in-out">
-          儲存成功
+        <div className="fixed top-20 left-1/2 transform -translate-x-1/2 z-50 bg-green-600 text-white px-8 py-4 rounded-lg shadow-2xl font-bold text-xl animate-fade-in-out border-2 border-green-400">
+          ✅ 儲存成功！
         </div>
       )}
       <div className="text-center mb-8">
@@ -413,8 +413,8 @@ export default function PartnerSchedulePage() {
                 <span className="text-gray-600">待儲存時段</span>
               </div>
               <div className="flex items-center space-x-2">
-                <div className="w-4 h-4 bg-gray-600"></div>
-                <span className="text-gray-600">已儲存時段</span>
+                <div className="w-4 h-4 bg-gray-500"></div>
+                <span className="text-gray-600">已儲存時段（灰色）</span>
               </div>
               <div className="flex items-center space-x-2">
                 <div className="w-4 h-4 bg-red-300 border-2 border-red-600"></div>
