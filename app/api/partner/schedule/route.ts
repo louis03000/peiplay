@@ -103,19 +103,19 @@ export async function GET(request: Request) {
     }
     const partner = await prisma.partner.findUnique({ where: { userId: session.user.id } })
     if (!partner) return NextResponse.json({ error: '不是夥伴' }, { status: 403 })
+    
+    // 簡化查詢，先不包含 bookings
     const schedules = await prisma.schedule.findMany({
       where: { partnerId: partner.id },
       orderBy: { date: 'asc' },
-      include: {
-        bookings: true,
-      },
     })
-    // 加上 booked 屬性
+    
+    // 簡化結果，暫時設為未預約
     const result = schedules.map(s => ({
       ...s,
-      booked: s.bookings ? (s.bookings.status === 'CONFIRMED' || s.bookings.status === 'PENDING') : false,
+      booked: false,
     }))
-    // 新增 debug log
+    
     console.log('[GET /api/partner/schedule]', {
       userId: session.user.id,
       partnerId: partner.id,

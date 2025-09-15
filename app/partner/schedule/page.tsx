@@ -89,65 +89,14 @@ export default function PartnerSchedulePage() {
         setSchedules(data);
         setPendingAdd({});
         setPendingDelete({});
-        
-        // 如果沒有資料，創建一些測試資料
-        if (data.length === 0) {
-          console.log('No schedules found, creating test data...');
-          await createTestSchedules();
-        }
+      } else {
+        console.error('Failed to fetch schedules:', response.status, response.statusText);
       }
     } catch (error) {
       console.error('Error fetching schedules:', error);
     }
   };
 
-  const createTestSchedules = async () => {
-    try {
-      const today = new Date();
-      const testSchedules = [];
-      
-      // 為接下來7天每天創建 00:00-00:30 的時段
-      for (let i = 0; i < 7; i++) {
-        const date = new Date(today);
-        date.setDate(today.getDate() + i);
-        const dateStr = getLocalDateString(date);
-        
-        const startTime = new Date(date);
-        startTime.setHours(0, 0, 0, 0);
-        
-        const endTime = new Date(date);
-        endTime.setHours(0, 30, 0, 0);
-        
-        testSchedules.push({
-          date: dateStr,
-          startTime: startTime.toISOString(),
-          endTime: endTime.toISOString()
-        });
-      }
-      
-      console.log('Creating test schedules:', testSchedules);
-      
-      const response = await fetch('/api/partner/schedule', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(testSchedules)
-      });
-      
-      if (response.ok) {
-        console.log('Test schedules created successfully');
-        // 重新載入資料
-        const newResponse = await fetch('/api/partner/schedule');
-        if (newResponse.ok) {
-          const newData = await newResponse.json();
-          setSchedules(newData);
-        }
-      } else {
-        console.error('Failed to create test schedules:', await response.text());
-      }
-    } catch (error) {
-      console.error('Error creating test schedules:', error);
-    }
-  };
 
   const handleViewChange = (view: 'today' | 'nextWeek') => {
     setCurrentView(view);
@@ -506,13 +455,34 @@ export default function PartnerSchedulePage() {
                 <span className="text-gray-600">過去時間</span>
               </div>
             </div>
-            <button
-              className={`px-6 py-2 rounded-lg font-bold text-white transition ${saving ? 'bg-gray-400' : 'bg-indigo-600 hover:bg-indigo-700'}`}
-              onClick={handleSave}
-              disabled={saving || (Object.keys(pendingAdd).length === 0 && Object.keys(pendingDelete).length === 0)}
-            >
-              {saving ? '儲存中...' : '儲存時段'}
-            </button>
+            <div className="flex gap-3">
+              <button
+                className="px-4 py-2 bg-green-600 text-white rounded-lg font-bold hover:bg-green-700 transition"
+                onClick={async () => {
+                  try {
+                    const response = await fetch('/api/test-schedules', { method: 'POST' })
+                    if (response.ok) {
+                      await fetchSchedules()
+                      alert('測試時段已創建！')
+                    } else {
+                      alert('創建測試時段失敗')
+                    }
+                  } catch (error) {
+                    console.error('Error creating test schedules:', error)
+                    alert('創建測試時段失敗')
+                  }
+                }}
+              >
+                創建測試時段
+              </button>
+              <button
+                className={`px-6 py-2 rounded-lg font-bold text-white transition ${saving ? 'bg-gray-400' : 'bg-indigo-600 hover:bg-indigo-700'}`}
+                onClick={handleSave}
+                disabled={saving || (Object.keys(pendingAdd).length === 0 && Object.keys(pendingDelete).length === 0)}
+              >
+                {saving ? '儲存中...' : '儲存時段'}
+              </button>
+            </div>
           </div>
         </div>
       </div>
