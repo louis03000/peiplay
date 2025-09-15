@@ -144,12 +144,6 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('即時預約創建失敗:', error)
-    console.error('錯誤詳情:', {
-      message: error instanceof Error ? error.message : 'Unknown error',
-      stack: error instanceof Error ? error.stack : undefined,
-      partnerId,
-      duration
-    })
     return NextResponse.json({ 
       error: '預約創建失敗，請重試',
       details: error instanceof Error ? error.message : 'Unknown error'
