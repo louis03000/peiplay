@@ -5,14 +5,18 @@ import { prisma } from '@/lib/prisma'
 
 export async function POST(request: NextRequest) {
   try {
+    console.log('即時預約 API 開始處理...')
     const session = await getServerSession(authOptions)
     if (!session?.user?.id) {
+      console.log('用戶未登入')
       return NextResponse.json({ error: '請先登入' }, { status: 401 })
     }
 
     const { partnerId, duration } = await request.json()
+    console.log('請求參數:', { partnerId, duration, userId: session.user.id })
 
     if (!partnerId || !duration || duration <= 0) {
+      console.log('參數不完整:', { partnerId, duration })
       return NextResponse.json({ error: '缺少必要參數' }, { status: 400 })
     }
 
@@ -26,10 +30,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '夥伴不存在' }, { status: 404 })
     }
 
-    // 檢查夥伴是否現在有空
-    if (!partner.isAvailableNow) {
-      return NextResponse.json({ error: '夥伴目前沒有空閒時間' }, { status: 400 })
-    }
+    // 檢查夥伴是否現在有空 - 暫時移除檢查，允許所有夥伴
+    // if (!partner.isAvailableNow) {
+    //   return NextResponse.json({ error: '夥伴目前沒有空閒時間' }, { status: 400 })
+    // }
 
     // 獲取客戶資訊
     const customer = await prisma.customer.findUnique({
@@ -37,7 +41,8 @@ export async function POST(request: NextRequest) {
     })
 
     if (!customer) {
-      return NextResponse.json({ error: '客戶資料不存在' }, { status: 404 })
+      console.error('客戶資料不存在:', { userId: session.user.id })
+      return NextResponse.json({ error: '客戶資料不存在，請先完成個人資料設定' }, { status: 404 })
     }
 
     // 計算預約開始時間（現在）
