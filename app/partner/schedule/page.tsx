@@ -86,6 +86,10 @@ export default function PartnerSchedulePage() {
       if (response.ok) {
         const data = await response.json();
         console.log('Fetched schedules:', data);
+        console.log('Schedules count:', data.length);
+        if (data.length > 0) {
+          console.log('First schedule:', data[0]);
+        }
         setSchedules(data);
         setPendingAdd({});
         setPendingDelete({});
@@ -455,34 +459,13 @@ export default function PartnerSchedulePage() {
                 <span className="text-gray-600">過去時間</span>
               </div>
             </div>
-            <div className="flex gap-3">
-              <button
-                className="px-4 py-2 bg-green-600 text-white rounded-lg font-bold hover:bg-green-700 transition"
-                onClick={async () => {
-                  try {
-                    const response = await fetch('/api/test-schedules', { method: 'POST' })
-                    if (response.ok) {
-                      await fetchSchedules()
-                      alert('測試時段已創建！')
-                    } else {
-                      alert('創建測試時段失敗')
-                    }
-                  } catch (error) {
-                    console.error('Error creating test schedules:', error)
-                    alert('創建測試時段失敗')
-                  }
-                }}
-              >
-                創建測試時段
-              </button>
-              <button
-                className={`px-6 py-2 rounded-lg font-bold text-white transition ${saving ? 'bg-gray-400' : 'bg-indigo-600 hover:bg-indigo-700'}`}
-                onClick={handleSave}
-                disabled={saving || (Object.keys(pendingAdd).length === 0 && Object.keys(pendingDelete).length === 0)}
-              >
-                {saving ? '儲存中...' : '儲存時段'}
-              </button>
-            </div>
+            <button
+              className={`px-6 py-2 rounded-lg font-bold text-white transition ${saving ? 'bg-gray-400' : 'bg-indigo-600 hover:bg-indigo-700'}`}
+              onClick={handleSave}
+              disabled={saving || (Object.keys(pendingAdd).length === 0 && Object.keys(pendingDelete).length === 0)}
+            >
+              {saving ? '儲存中...' : '儲存時段'}
+            </button>
           </div>
         </div>
       </div>

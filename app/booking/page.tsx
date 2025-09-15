@@ -342,9 +342,14 @@ function BookingWizardContent() {
         setUserCoins(data.newBalance) // 更新金幣餘額
         setStep(onlyAvailable ? 3 : 4) // 跳到完成步驟
       } else {
-        // 一般預約 - 暫時移除金幣消費
-        // 需要先獲取 scheduleIds，這裡暫時跳過一般預約
-        alert('一般預約功能暫時停用，請使用「現在有空」功能進行即時預約')
+        // 一般預約 - 需要先獲取 scheduleIds
+        if (!selectedTimes || selectedTimes.length === 0) {
+          alert('請先選擇預約時段')
+          return
+        }
+        
+        // 暫時停用一般預約，因為需要完整的時段選擇邏輯
+        alert('一般預約功能正在優化中，請使用「現在有空」功能進行即時預約')
         return
       }
     } catch (error) {

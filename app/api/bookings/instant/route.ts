@@ -46,7 +46,8 @@ export async function POST(request: NextRequest) {
     const endTime = new Date(startTime.getTime() + duration * 60 * 60 * 1000) // 加上預約時長
 
     // 計算所需金幣 (1金幣 = 1元台幣) - 暫時註解，移除金幣檢查
-    const requiredCoins = Math.ceil(duration * partner.halfHourlyRate * 2) // 每小時 = 2個半小時
+    const halfHourlyRate = partner.halfHourlyRate || 10 // 預設每半小時 10 金幣
+    const requiredCoins = Math.ceil(duration * halfHourlyRate * 2) // 每小時 = 2個半小時
 
     // 檢查用戶金幣餘額 - 暫時註解，移除金幣檢查
     // const userCoins = await prisma.userCoins.findUnique({
@@ -143,6 +144,15 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('即時預約創建失敗:', error)
-    return NextResponse.json({ error: '預約創建失敗，請重試' }, { status: 500 })
+    console.error('錯誤詳情:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+      partnerId,
+      duration
+    })
+    return NextResponse.json({ 
+      error: '預約創建失敗，請重試',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    }, { status: 500 })
   }
 } 
