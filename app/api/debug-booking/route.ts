@@ -20,10 +20,7 @@ export async function POST() {
       where: { userId: session.user.id }
     })
 
-    // 檢查用戶金幣
-    const userCoins = await prisma.userCoins.findUnique({
-      where: { userId: session.user.id }
-    })
+    // 移除金幣檢查
 
     return NextResponse.json({
       user: {
@@ -36,9 +33,7 @@ export async function POST() {
         name: customer.name,
         phone: customer.phone
       } : null,
-      userCoins: userCoins ? {
-        coinBalance: userCoins.coinBalance
-      } : null,
+      // 移除金幣資訊
       partners: partners.map(p => ({
         id: p.id,
         name: p.name,
