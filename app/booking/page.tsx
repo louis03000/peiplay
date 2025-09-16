@@ -93,8 +93,7 @@ function BookingWizardContent() {
   const [promoCodeError, setPromoCodeError] = useState('')
   const [isValidatingPromoCode, setIsValidatingPromoCode] = useState(false)
   const { data: session } = useSession()
-  const [userCoins, setUserCoins] = useState(0)
-  const [loadingCoins, setLoadingCoins] = useState(true)
+  // 移除金幣相關狀態
   const [creating, setCreating] = useState(false)
   const [createdBooking, setCreatedBooking] = useState<any>(null)
   
@@ -154,14 +153,11 @@ function BookingWizardContent() {
     const fetchUserCoins = async () => {
       try {
         const response = await fetch('/api/user/coins')
-        if (response.ok) {
-          const data = await response.json()
-          setUserCoins(data.coinBalance)
-        }
+        // 移除金幣餘額獲取
       } catch (error) {
         console.error('獲取金幣餘額失敗:', error)
       } finally {
-        setLoadingCoins(false)
+        // 移除金幣載入狀態
       }
     }
 
@@ -339,7 +335,7 @@ function BookingWizardContent() {
 
         const data = await response.json()
         setCreatedBooking(data.booking)
-        setUserCoins(data.newBalance) // 更新金幣餘額
+        // 移除金幣餘額更新
         setStep(onlyAvailable ? 3 : 4) // 跳到完成步驟
       } else {
         // 一般預約 - 需要先獲取 scheduleIds
@@ -394,15 +390,7 @@ function BookingWizardContent() {
 
   return (
     <div className="max-w-2xl mx-auto mt-36 rounded-3xl p-0 shadow-2xl bg-[#1e293b]/80 backdrop-blur-lg border border-white/10 overflow-hidden">
-      {/* 顯示金幣餘額 */}
-      {/* 暫時移除金幣餘額顯示 */}
-      {/* <div className="fixed top-4 right-4 bg-indigo-600 px-4 py-2 rounded-lg shadow-lg z-50">
-        <div className="flex items-center space-x-2">
-          <span className="text-yellow-400 text-xl">🪙</span>
-          <span className="font-semibold">{loadingCoins ? '...' : userCoins}</span>
-          <span className="text-sm text-indigo-200">金幣</span>
-        </div>
-      </div> */}
+      {/* 移除金幣餘額顯示 */}
 
       {/* 步驟指示器 */}
       <div className="px-4 sm:px-10 pt-6 sm:pt-10 pb-4 sm:pb-6 bg-[#334155]/20">

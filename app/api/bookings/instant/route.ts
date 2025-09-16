@@ -50,42 +50,15 @@ export async function POST(request: NextRequest) {
     const startTime = new Date(now.getTime() + 15 * 60 * 1000) // 15分鐘後開始
     const endTime = new Date(startTime.getTime() + duration * 60 * 60 * 1000) // 加上預約時長
 
-    // 計算所需金幣 (1金幣 = 1元台幣) - 暫時註解，移除金幣檢查
-    const halfHourlyRate = partner.halfHourlyRate || 10 // 預設每半小時 10 金幣
-    const requiredCoins = Math.ceil(duration * halfHourlyRate * 2) // 每小時 = 2個半小時
+    // 計算費用（直接以台幣計算）
+    const halfHourlyRate = partner.halfHourlyRate || 10 // 預設每半小時 10 元
+    const totalCost = Math.ceil(duration * halfHourlyRate * 2) // 每小時 = 2個半小時
 
-    // 檢查用戶金幣餘額 - 暫時註解，移除金幣檢查
-    // const userCoins = await prisma.userCoins.findUnique({
-    //   where: { userId: session.user.id }
-    // })
-
-    // if (!userCoins || userCoins.coinBalance < requiredCoins) {
-    //   return NextResponse.json({ 
-    //     error: '金幣不足', 
-    //     required: requiredCoins,
-    //     current: userCoins?.coinBalance || 0
-    //   }, { status: 400 })
-    // }
+    // 移除金幣檢查，改為直接標明價格
 
     // 使用事務確保資料一致性
     const result = await prisma.$transaction(async (tx) => {
-      // 扣除金幣 - 暫時註解，移除金幣扣除
-      // const updatedCoins = await tx.userCoins.update({
-      //   where: { userId: session.user.id },
-      //   data: { coinBalance: { decrement: requiredCoins } }
-      // })
-
-      // 記錄消費交易 - 暫時註解，移除金幣交易記錄
-      // await tx.coinTransaction.create({
-      //   data: {
-      //     userId: session.user.id,
-      //     transactionType: 'BOOKING',
-      //     amount: requiredCoins,
-      //     description: `即時預約 ${partner.name} - ${duration}小時`,
-      //     balanceBefore: updatedCoins.coinBalance + requiredCoins,
-      //     balanceAfter: updatedCoins.coinBalance
-      //   }
-      // })
+      // 移除金幣相關操作，改為直接標明價格
 
       // 為即時預約創建一個臨時的 schedule
       const tempSchedule = await tx.schedule.create({
@@ -105,8 +78,8 @@ export async function POST(request: NextRequest) {
           scheduleId: tempSchedule.id,
           status: 'PENDING',
           orderNumber: `INST-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-          originalAmount: requiredCoins, // 改為金幣數量
-          finalAmount: requiredCoins,
+          originalAmount: totalCost, // 改為台幣金額
+          finalAmount: totalCost,
           paymentInfo: {
             type: 'instant',
             duration: duration,
@@ -115,7 +88,7 @@ export async function POST(request: NextRequest) {
             rate: partner.halfHourlyRate,
             isInstantBooking: true,
             discordDelayMinutes: 3,
-            coinsSpent: requiredCoins
+            totalCost: totalCost
           }
         },
         include: {
@@ -128,14 +101,13 @@ export async function POST(request: NextRequest) {
         }
       })
 
-      return { booking, coinsSpent: requiredCoins, newBalance: 0 } // 暫時移除金幣餘額
+      return { booking, totalCost: totalCost }
     })
 
     return NextResponse.json({
       id: result.booking.id,
       message: '即時預約創建成功',
-      coinsSpent: result.coinsSpent,
-      newBalance: result.newBalance,
+      totalCost: result.totalCost,
       booking: {
         id: result.booking.id,
         status: result.booking.status,
@@ -143,7 +115,7 @@ export async function POST(request: NextRequest) {
         duration: duration,
         startTime: startTime.toISOString(),
         endTime: endTime.toISOString(),
-        requiredCoins: requiredCoins
+        totalCost: totalCost
       }
     })
 

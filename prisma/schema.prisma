@@ -29,12 +29,6 @@ model User {
   partner            Partner?
   reviewsReceived    Review[]  @relation("Reviewee")
   reviewsGiven       Review[]  @relation("Reviewer")
-  userCoins          UserCoins?
-  rechargeRecords    RechargeRecord[]
-  coinTransactions   CoinTransaction[]
-  giftRecordsSent    GiftRecord[] @relation("GiftSender")
-  giftRecordsReceived GiftRecord[] @relation("GiftReceiver")
-  partnerEarnings    PartnerEarnings?
 }
 
 model Partner {
@@ -153,97 +147,7 @@ model PromoCode {
   updatedAt   DateTime      @updatedAt
 }
 
-model UserCoins {
-  id              Int      @id @default(autoincrement())
-  userId          String   @unique
-  coinBalance     Int      @default(0)
-  totalRecharged  Int      @default(0)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
 
-  user            User     @relation(fields: [userId], references: [id])
-
-  @@map("UserCoins")
-}
-
-model RechargeRecord {
-  id            Int      @id @default(autoincrement())
-  userId        String
-  coinAmount    Int
-  paymentAmount Decimal  @db.Decimal(10, 2)
-  paymentMethod String?
-  status        String   @default("PENDING")
-  orderNumber   String   @unique
-  createdAt     DateTime @default(now())
-
-  user          User     @relation(fields: [userId], references: [id])
-
-  @@map("RechargeRecord")
-}
-
-model CoinTransaction {
-  id            Int      @id @default(autoincrement())
-  userId        String
-  transactionType String
-  amount        Int
-  description   String?
-  relatedId     String?
-  balanceBefore Int
-  balanceAfter  Int
-  createdAt     DateTime @default(now())
-
-  user          User     @relation(fields: [userId], references: [id])
-
-  @@map("CoinTransaction")
-}
-
-model GiftItem {
-  id            Int      @id @default(autoincrement())
-  name          String
-  emoji         String
-  coinCost      Int
-  partnerShare  Decimal  @db.Decimal(3, 2)
-  platformShare Decimal  @db.Decimal(3, 2)
-  isActive      Boolean  @default(true)
-  createdAt     DateTime @default(now())
-
-  giftRecords   GiftRecord[]
-
-  @@map("GiftItem")
-}
-
-model GiftRecord {
-  id                  Int      @id @default(autoincrement())
-  senderId            String
-  receiverId          String
-  giftId              Int
-  coinsSpent          Int
-  partnerEarnedCoins  Int
-  platformEarnedCoins Int
-  discordChannelId    String?
-  createdAt           DateTime @default(now())
-
-  sender              User     @relation("GiftSender", fields: [senderId], references: [id])
-  receiver            User     @relation("GiftReceiver", fields: [receiverId], references: [id])
-  gift                GiftItem @relation(fields: [giftId], references: [id])
-
-  @@map("GiftRecord")
-}
-
-model PartnerEarnings {
-  id                    Int       @id @default(autoincrement())
-  partnerId             String    @unique
-  totalEarnedCoins      Int       @default(0)
-  pendingEarningsCoins  Int       @default(0)
-  settledEarningsCoins  Int       @default(0)
-  lastSettlementDate    DateTime?
-  createdAt             DateTime  @default(now())
-  updatedAt             DateTime  @updatedAt
-
-  partner               User      @relation(fields: [partnerId], references: [id])
-
-  @@map("PartnerEarnings")
-}
 
 enum UserRole {
   CUSTOMER
