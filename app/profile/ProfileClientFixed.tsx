@@ -197,7 +197,7 @@ export default function ProfileClientFixed() {
               {isPartner && form.halfHourlyRate !== undefined && (
                 <div className="mt-6">
                   <div className="text-gray-300 mb-1 font-semibold">每半小時收費</div>
-                  <span className="text-white font-medium">{`${form.halfHourlyRate}金幣`}</span>
+                  <span className="text-white font-medium">{`$${form.halfHourlyRate}`}</span>
                 </div>
               )}
               {isPartner && (

@@ -63,10 +63,6 @@ export default function Navbar() {
           <Link href="/booking" className="hover:text-purple-300 transition-colors text-sm sm:text-base">預約</Link>
           <Link href="/ranking" className="hover:text-purple-300 transition-colors text-sm sm:text-base">排行榜</Link>
           <Link href="/partners" className="hover:text-purple-300 transition-colors text-sm sm:text-base">搜尋</Link>
-          <Link href="/recharge" className="hover:text-yellow-300 transition-colors text-sm sm:text-base flex items-center gap-1">
-            <span className="text-yellow-400">🪙</span>
-            商店
-          </Link>
           {!isPartner && <Link href="/join" className="hover:text-purple-300 transition-colors text-sm sm:text-base hidden sm:inline">加入我們</Link>}
           
           <div className="relative" ref={menuRef}>

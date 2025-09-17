@@ -165,7 +165,7 @@ export default function ProfileClientStable() {
               {isPartner && userData.partner?.halfHourlyRate && (
                 <div className="mt-6">
                   <div className="text-gray-300 mb-1 font-semibold">每半小時收費</div>
-                  <span className="text-white font-medium">{`${userData.partner.halfHourlyRate}金幣`}</span>
+                  <span className="text-white font-medium">{`$${userData.partner.halfHourlyRate}`}</span>
                 </div>
               )}
               

@@ -232,7 +232,7 @@ export default function AdminUsersPage() {
                           遊戲: {user.partner.games.join(", ")}
                         </div>
                         <div className="text-sm text-gray-500">
-                          收費: {user.partner.halfHourlyRate}金幣/半小時
+                          收費: ${user.partner.halfHourlyRate}/半小時
                         </div>
                       </div>
                     ) : (

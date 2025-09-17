@@ -534,7 +534,7 @@ function BookingWizardContent() {
               ))}
             </div>
                          <div className="mt-4 text-center text-sm text-gray-400">
-               費用：{(selectedDuration * selectedPartner.halfHourlyRate * 2).toFixed(0)}金幣 ({selectedPartner.halfHourlyRate}金幣/半小時)
+               費用：${(selectedDuration * selectedPartner.halfHourlyRate * 2).toFixed(0)} (${selectedPartner.halfHourlyRate}/半小時)
              </div>
           </div>
         )}
