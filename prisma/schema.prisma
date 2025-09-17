@@ -41,6 +41,7 @@ model Partner {
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
   isAvailableNow    Boolean       @default(false)
+  availableNowSince DateTime?
   userId            String        @unique
   status            PartnerStatus @default(PENDING)
   isRankBooster     Boolean       @default(false)

@@ -77,17 +77,12 @@ export async function POST(request: NextRequest) {
           customerId: customer.id,
           scheduleId: tempSchedule.id,
           status: 'PENDING',
-          orderNumber: `INST-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          orderNumber: `INST-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`,
           originalAmount: totalCost, // 改為台幣金額
           finalAmount: totalCost,
           paymentInfo: {
             type: 'instant',
             duration: duration,
-            startTime: startTime.toISOString(),
-            endTime: endTime.toISOString(),
-            rate: partner.halfHourlyRate,
-            isInstantBooking: true,
-            discordDelayMinutes: 3,
             totalCost: totalCost
           }
         },
@@ -121,9 +116,11 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('即時預約創建失敗:', error)
+    console.error('錯誤堆疊:', error instanceof Error ? error.stack : 'No stack trace')
     return NextResponse.json({ 
       error: '預約創建失敗，請重試',
-      details: error instanceof Error ? error.message : 'Unknown error'
+      details: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined
     }, { status: 500 })
   }
 } 

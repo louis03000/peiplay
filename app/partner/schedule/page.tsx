@@ -31,7 +31,12 @@ export default function PartnerSchedulePage() {
   });
   const [saving, setSaving] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
-  const [partnerStatus, setPartnerStatus] = useState<{ isAvailableNow: boolean, isRankBooster: boolean } | null>(null);
+  const [partnerStatus, setPartnerStatus] = useState<{ 
+    id: string;
+    isAvailableNow: boolean; 
+    isRankBooster: boolean; 
+    availableNowSince: string | null;
+  } | null>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -52,6 +57,38 @@ export default function PartnerSchedulePage() {
     document.head.appendChild(style);
   }, []);
 
+  // 自動關閉「現在有空」狀態的定時器
+  useEffect(() => {
+    if (!mounted || !partnerStatus?.isAvailableNow || !partnerStatus?.availableNowSince) return;
+
+    const checkAutoClose = async () => {
+      try {
+        const response = await fetch('/api/partners/auto-close-available', {
+          method: 'POST'
+        });
+        const result = await response.json();
+        
+        if (result.closedCount > 0) {
+          // 如果當前夥伴被自動關閉，更新本地狀態
+          if (result.expiredPartners.some((p: any) => p.id === partnerStatus?.id)) {
+            setPartnerStatus(prev => prev ? { ...prev, isAvailableNow: false, availableNowSince: null } : prev);
+            alert('「現在有空」狀態已自動關閉（超過30分鐘）');
+          }
+        }
+      } catch (error) {
+        console.error('檢查自動關閉時發生錯誤:', error);
+      }
+    };
+
+    // 每5分鐘檢查一次
+    const interval = setInterval(checkAutoClose, 5 * 60 * 1000);
+    
+    // 立即檢查一次
+    checkAutoClose();
+
+    return () => clearInterval(interval);
+  }, [mounted, partnerStatus?.isAvailableNow, partnerStatus?.availableNowSince, partnerStatus?.id]);
+
   useEffect(() => {
     if (mounted && status !== "loading" && !session) {
       router.replace('/auth/login');
@@ -68,8 +105,10 @@ export default function PartnerSchedulePage() {
             setHasPartner(true);
             setLoading(false);
             setPartnerStatus({
+              id: data.partner.id,
               isAvailableNow: !!data.partner.isAvailableNow,
-              isRankBooster: !!data.partner.isRankBooster
+              isRankBooster: !!data.partner.isRankBooster,
+              availableNowSince: data.partner.availableNowSince
             });
             fetchSchedules();
           } else {
@@ -280,11 +319,23 @@ export default function PartnerSchedulePage() {
   };
 
   const handleToggle = async (field: 'isAvailableNow' | 'isRankBooster', value: boolean) => {
-    setPartnerStatus(prev => prev ? { ...prev, [field]: value } : prev);
+    const updateData: any = { [field]: value };
+    
+    // 如果是開啟「現在有空」，記錄開啟時間
+    if (field === 'isAvailableNow' && value) {
+      updateData.availableNowSince = new Date().toISOString();
+    }
+    // 如果是關閉「現在有空」，清除開啟時間
+    else if (field === 'isAvailableNow' && !value) {
+      updateData.availableNowSince = null;
+    }
+    
+    setPartnerStatus(prev => prev ? { ...prev, [field]: value, availableNowSince: updateData.availableNowSince } : prev);
+    
     await fetch('/api/partners/self', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ [field]: value })
+      body: JSON.stringify(updateData)
     });
   };
 
@@ -355,18 +406,25 @@ export default function PartnerSchedulePage() {
                 </div>
               </div>
               <div className="flex items-center gap-6">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-gray-700">現在有空</span>
-                  <Switch
-                    checked={!!partnerStatus?.isAvailableNow}
-                    onChange={v => handleToggle('isAvailableNow', v)}
-                    className={`${partnerStatus?.isAvailableNow ? 'bg-green-500' : 'bg-gray-300'} relative inline-flex h-6 w-11 items-center rounded-full transition-colors`}
-                  >
-                    <span className="sr-only">現在有空</span>
-                    <span
-                      className={`${partnerStatus?.isAvailableNow ? 'translate-x-6' : 'translate-x-1'} inline-block h-4 w-4 transform rounded-full bg-white transition-transform`}
-                    />
-                  </Switch>
+                <div className="flex flex-col gap-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-gray-700">現在有空</span>
+                    <Switch
+                      checked={!!partnerStatus?.isAvailableNow}
+                      onChange={v => handleToggle('isAvailableNow', v)}
+                      className={`${partnerStatus?.isAvailableNow ? 'bg-green-500' : 'bg-gray-300'} relative inline-flex h-6 w-11 items-center rounded-full transition-colors`}
+                    >
+                      <span className="sr-only">現在有空</span>
+                      <span
+                        className={`${partnerStatus?.isAvailableNow ? 'translate-x-6' : 'translate-x-1'} inline-block h-4 w-4 transform rounded-full bg-white transition-transform`}
+                      />
+                    </Switch>
+                  </div>
+                  {partnerStatus?.isAvailableNow && (
+                    <div className="text-xs text-orange-600 font-medium">
+                      ⏰ 每30分鐘會自動關閉
+                    </div>
+                  )}
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-sm text-gray-700">我是上分高手</span>
