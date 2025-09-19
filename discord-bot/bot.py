@@ -656,6 +656,103 @@ async def check_new_bookings():
     except Exception as e:
         print(f"❌ 檢查新預約時發生錯誤: {e}")
 
+# --- 清理過期頻道任務 ---
+@tasks.loop(seconds=300)  # 每5分鐘檢查一次
+async def cleanup_expired_channels():
+    """清理已過期的預約頻道"""
+    await bot.wait_until_ready()
+    
+    try:
+        guild = bot.get_guild(GUILD_ID)
+        if not guild:
+            print("❌ 找不到 Discord 伺服器")
+            return
+        
+        # 查詢已結束但仍有頻道的預約
+        now = datetime.now(timezone.utc)
+        
+        with Session() as s:
+            # 查詢已結束的預約
+            expired_query = """
+            SELECT 
+                b.id, b."discordTextChannelId", b."discordVoiceChannelId",
+                s."endTime", b.status
+            FROM "Booking" b
+            JOIN "Schedule" s ON s.id = b."scheduleId"
+            WHERE (b."discordTextChannelId" IS NOT NULL OR b."discordVoiceChannelId" IS NOT NULL)
+            AND s."endTime" < :now_time
+            AND b.status IN ('COMPLETED', 'CANCELLED', 'REJECTED')
+            """
+            
+            expired_bookings = s.execute(text(expired_query), {"now_time": now}).fetchall()
+            
+            for booking in expired_bookings:
+                booking_id = booking.id
+                text_channel_id = booking.discordTextChannelId
+                voice_channel_id = booking.discordVoiceChannelId
+                
+                deleted_channels = []
+                
+                # 刪除文字頻道
+                if text_channel_id:
+                    try:
+                        text_channel = guild.get_channel(int(text_channel_id))
+                        if text_channel:
+                            await text_channel.delete()
+                            deleted_channels.append(f"文字頻道 {text_channel.name}")
+                            print(f"✅ 已清理過期文字頻道: {text_channel.name}")
+                    except Exception as e:
+                        print(f"❌ 清理文字頻道失敗: {e}")
+                
+                # 刪除語音頻道
+                if voice_channel_id:
+                    try:
+                        voice_channel = guild.get_channel(int(voice_channel_id))
+                        if voice_channel:
+                            await voice_channel.delete()
+                            deleted_channels.append(f"語音頻道 {voice_channel.name}")
+                            print(f"✅ 已清理過期語音頻道: {voice_channel.name}")
+                    except Exception as e:
+                        print(f"❌ 清理語音頻道失敗: {e}")
+                
+                # 清除資料庫中的頻道 ID
+                if deleted_channels:
+                    try:
+                        s.execute(
+                            text("UPDATE \"Booking\" SET \"discordTextChannelId\" = NULL, \"discordVoiceChannelId\" = NULL WHERE id = :booking_id"),
+                            {"booking_id": booking_id}
+                        )
+                        s.commit()
+                        print(f"✅ 已清除預約 {booking_id} 的頻道 ID")
+                    except Exception as e:
+                        print(f"❌ 清除頻道 ID 失敗: {e}")
+        
+        # 清理 active_voice_channels 中已結束的頻道
+        current_time = datetime.now(timezone.utc)
+        expired_vc_ids = []
+        
+        for vc_id, vc_data in active_voice_channels.items():
+            if vc_data['remaining'] <= 0:
+                expired_vc_ids.append(vc_id)
+        
+        for vc_id in expired_vc_ids:
+            try:
+                vc_data = active_voice_channels[vc_id]
+                if 'vc' in vc_data:
+                    await vc_data['vc'].delete()
+                if 'text_channel' in vc_data:
+                    await vc_data['text_channel'].delete()
+                del active_voice_channels[vc_id]
+                print(f"✅ 已清理過期活躍頻道: {vc_id}")
+            except Exception as e:
+                print(f"❌ 清理活躍頻道失敗: {e}")
+                # 即使刪除失敗，也要從字典中移除
+                if vc_id in active_voice_channels:
+                    del active_voice_channels[vc_id]
+        
+    except Exception as e:
+        print(f"❌ 清理過期頻道時發生錯誤: {e}")
+
 # --- 自動檢查預約任務 ---
 @tasks.loop(seconds=CHECK_INTERVAL)
 async def check_bookings():
@@ -678,6 +775,7 @@ async def check_bookings():
         instant_window_end = now + timedelta(minutes=10)  # 10分鐘內即將開始
         
         # 使用原生 SQL 查詢避免 orderNumber 欄位問題
+        # 添加檢查：只處理還沒有 Discord 頻道的預約
         query = """
         SELECT 
             b.id, b."customerId", b."scheduleId", b.status, b."createdAt", b."updatedAt",
@@ -696,6 +794,7 @@ async def check_bookings():
         AND b.id NOT IN (SELECT unnest(ARRAY[%(processed_list)s]))
         AND s."startTime" >= %(start_time_1)s
         AND s."startTime" <= %(start_time_2)s
+        AND (b."discordTextChannelId" IS NULL AND b."discordVoiceChannelId" IS NULL)
         """
         
         # 即時預約查詢
@@ -718,6 +817,7 @@ async def check_bookings():
         AND b.id NOT IN (SELECT unnest(ARRAY[%(processed_list)s]))
         AND s."startTime" >= %(instant_start_time_1)s
         AND s."startTime" <= %(instant_start_time_2)s
+        AND (b."discordTextChannelId" IS NULL AND b."discordVoiceChannelId" IS NULL)
         """
         
         with Session() as s:
@@ -1052,10 +1152,13 @@ class RatingModal(Modal, title="匿名評分與留言"):
 
     async def on_submit(self, interaction: discord.Interaction):
         try:
+            print(f"🔍 收到評價提交: record_id={self.record_id}, rating={self.rating}, comment={self.comment}")
+            
             # 使用新的 session 來避免連接問題
             with Session() as s:
                 record = s.get(PairingRecord, self.record_id)
                 if not record:
+                    print(f"❌ 找不到配對記錄: {self.record_id}")
                     await interaction.response.send_message("❌ 找不到配對記錄", ephemeral=True)
                     return
                 
@@ -1063,24 +1166,33 @@ class RatingModal(Modal, title="匿名評分與留言"):
                 user1_id = record.user1_id
                 user2_id = record.user2_id
                 
+                print(f"🔍 配對記錄資訊: user1_id={user1_id}, user2_id={user2_id}")
+                
                 record.rating = int(str(self.rating))
                 record.comment = str(self.comment)
                 s.commit()
+                print(f"✅ 評價已保存到資料庫")
             
             await interaction.response.send_message("✅ 感謝你的匿名評價！", ephemeral=True)
 
             if self.record_id not in pending_ratings:
                 pending_ratings[self.record_id] = []
-            pending_ratings[self.record_id].append({
+            
+            rating_data = {
                 'rating': int(str(self.rating)),
                 'comment': str(self.comment),
                 'user1': str(interaction.user.id),
                 'user2': str(user2_id if str(interaction.user.id) == user1_id else user1_id)
-            })
+            }
+            pending_ratings[self.record_id].append(rating_data)
+            print(f"✅ 評價已添加到待處理列表: {rating_data}")
 
             evaluated_records.add(self.record_id)
+            print(f"✅ 評價流程完成")
         except Exception as e:
             print(f"❌ 評分提交錯誤: {e}")
+            import traceback
+            traceback.print_exc()
             try:
                 await interaction.response.send_message("❌ 提交失敗，請稍後再試", ephemeral=True)
             except:
@@ -1114,8 +1226,10 @@ async def on_ready():
         # 啟動自動檢查任務
         check_bookings.start()
         check_new_bookings.start()
+        cleanup_expired_channels.start()
         print(f"✅ 自動檢查預約任務已啟動，檢查間隔：{CHECK_INTERVAL} 秒")
         print(f"✅ 新預約文字頻道檢查任務已啟動，檢查間隔：60 秒")
+        print(f"✅ 清理過期頻道任務已啟動，檢查間隔：300 秒")
     except Exception as e:
         print(f"❌ 指令同步失敗: {e}")
 
@@ -1130,6 +1244,12 @@ async def on_message(message):
 # --- 倒數邏輯 ---
 async def countdown(vc_id, animal_channel_name, text_channel, vc, interaction, mentioned, record_id):
     try:
+        print(f"🔍 開始倒數計時: vc_id={vc_id}, record_id={record_id}")
+        
+        # 檢查 record_id 是否有效
+        if not record_id:
+            print(f"❌ 警告: record_id 為 None，評價系統可能無法正常工作")
+        
         # 移動用戶到語音頻道（如果是自動創建的，mentioned 已經包含用戶）
         if mentioned:
             for user in mentioned:
@@ -1147,15 +1267,17 @@ async def countdown(vc_id, animal_channel_name, text_channel, vc, interaction, m
             active_voice_channels[vc_id]['remaining'] -= 1
 
         await vc.delete()
+        print(f"🎯 語音頻道已刪除，開始評價流程: record_id={record_id}")
         await text_channel.send("📝 請點擊以下按鈕進行匿名評分。")
 
         class SubmitButton(View):
             def __init__(self):
-                super().__init__(timeout=300)
+                super().__init__(timeout=600)  # 延長到10分鐘
                 self.clicked = False
 
             @discord.ui.button(label="匿名評分", style=discord.ButtonStyle.success)
             async def submit(self, interaction: discord.Interaction, button: Button):
+                print(f"🔍 用戶 {interaction.user.id} 點擊了評價按鈕")
                 if self.clicked:
                     await interaction.response.send_message("❗ 已提交過評價。", ephemeral=True)
                     return
@@ -1163,8 +1285,10 @@ async def countdown(vc_id, animal_channel_name, text_channel, vc, interaction, m
                 await interaction.response.send_modal(RatingModal(record_id))
 
         await text_channel.send(view=SubmitButton())
-        await asyncio.sleep(300)
+        print(f"⏰ 評價按鈕已發送，等待 600 秒後刪除文字頻道")
+        await asyncio.sleep(600)  # 延長到10分鐘，給用戶更多時間評價
         await text_channel.delete()
+        print(f"🗑️ 文字頻道已刪除，評價流程結束")
 
         # 使用新的 session 來更新記錄
         with Session() as s:
