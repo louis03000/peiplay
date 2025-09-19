@@ -4,11 +4,6 @@ import { PrismaClient } from '@prisma/client'
 export function createPrismaClient() {
   return new PrismaClient({
     log: process.env.NODE_ENV === 'development' ? ['error', 'warn'] : ['error'],
-    datasources: {
-      db: {
-        url: process.env.DATABASE_URL,
-      },
-    },
   })
 }
 
@@ -19,9 +14,18 @@ export async function withDatabase<T>(
   const prisma = createPrismaClient()
   
   try {
+    // 確保連接
+    await prisma.$connect()
     const result = await operation(prisma)
     return result
+  } catch (error) {
+    console.error('資料庫操作錯誤:', error)
+    throw error
   } finally {
-    await prisma.$disconnect()
+    try {
+      await prisma.$disconnect()
+    } catch (disconnectError) {
+      console.error('關閉資料庫連接時發生錯誤:', disconnectError)
+    }
   }
 }
