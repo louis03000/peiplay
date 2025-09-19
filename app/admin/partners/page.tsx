@@ -217,15 +217,21 @@ export default function AdminPartnersPage() {
                   </div>
                   
                   {/* 銀行資訊 */}
-                  {(p.bankCode || p.bankAccountNumber) && (
-                    <div className="text-sm">
-                      <span className="font-medium text-gray-700">銀行資訊:</span>
-                      <div className="mt-1">
-                        {p.bankCode && <div>銀行代碼: {p.bankCode}</div>}
-                        {p.bankAccountNumber && <div>帳戶號碼: {p.bankAccountNumber}</div>}
-                      </div>
+                  <div className="text-sm">
+                    <span className="font-medium text-gray-700">銀行資訊:</span>
+                    <div className="mt-1">
+                      {p.bankCode ? (
+                        <div className="text-gray-900">銀行代碼: {p.bankCode}</div>
+                      ) : (
+                        <div className="text-red-500">❌ 未填寫銀行代碼</div>
+                      )}
+                      {p.bankAccountNumber ? (
+                        <div className="text-gray-900">帳戶號碼: {p.bankAccountNumber}</div>
+                      ) : (
+                        <div className="text-red-500">❌ 未填寫帳戶號碼</div>
+                      )}
                     </div>
-                  )}
+                  </div>
                   
                   {/* 客戶訊息 */}
                   {p.customerMessage && (

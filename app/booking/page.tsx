@@ -344,9 +344,33 @@ function BookingWizardContent() {
           return
         }
         
-        // 暫時停用一般預約，因為需要完整的時段選擇邏輯
-        alert('一般預約功能正在優化中，請使用「現在有空」功能進行即時預約')
-        return
+        // 獲取選中時段的 scheduleIds
+        const scheduleIds = selectedTimes.map(time => {
+          // 從時間字串中提取 scheduleId
+          // 格式: "scheduleId|startTime|endTime"
+          return time.split('|')[0]
+        }).filter(id => id)
+        
+        if (scheduleIds.length === 0) {
+          alert('無法獲取時段資訊，請重新選擇')
+          return
+        }
+        
+        // 發送一般預約請求
+        const response = await fetch('/api/bookings', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ scheduleIds })
+        })
+        
+        if (!response.ok) {
+          const errorData = await response.json()
+          throw new Error(errorData.error || '預約創建失敗')
+        }
+        
+        const data = await response.json()
+        setCreatedBooking(data)
+        setStep(4) // 跳到完成步驟
       }
     } catch (error) {
       console.error('預約創建失敗:', error)
