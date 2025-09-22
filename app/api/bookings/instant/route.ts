@@ -57,6 +57,54 @@ export async function POST(request: NextRequest) {
     const halfHourlyRate = partner.halfHourlyRate || 10 // 預設每半小時 10 元
     const totalCost = Math.ceil(duration * halfHourlyRate * 2) // 每小時 = 2個半小時
 
+    // 檢查時間衝突 - 檢查夥伴是否有其他預約與新預約時間重疊
+    const conflictingBookings = await prisma.booking.findMany({
+      where: {
+        schedule: {
+          partnerId: partnerId
+        },
+        status: {
+          in: ['PENDING', 'CONFIRMED', 'IN_PROGRESS', 'PARTNER_ACCEPTED']
+        },
+        OR: [
+          // 新預約開始時間在現有預約期間內
+          {
+            schedule: {
+              startTime: { lte: startTime },
+              endTime: { gt: startTime }
+            }
+          },
+          // 新預約結束時間在現有預約期間內
+          {
+            schedule: {
+              startTime: { lt: endTime },
+              endTime: { gte: endTime }
+            }
+          },
+          // 新預約完全包含現有預約
+          {
+            schedule: {
+              startTime: { gte: startTime },
+              endTime: { lte: endTime }
+            }
+          }
+        ]
+      },
+      include: {
+        schedule: true
+      }
+    })
+
+    if (conflictingBookings.length > 0) {
+      await prisma.$disconnect()
+      const conflictTimes = conflictingBookings.map(b => 
+        `${b.schedule.startTime.toLocaleString('zh-TW')} - ${b.schedule.endTime.toLocaleString('zh-TW')}`
+      ).join(', ')
+      return NextResponse.json({ 
+        error: `時間衝突！該夥伴在以下時段已有預約：${conflictTimes}` 
+      }, { status: 409 })
+    }
+
     // 使用事務確保資料一致性
     const result = await prisma.$transaction(async (tx) => {
       // 為即時預約創建一個臨時的 schedule

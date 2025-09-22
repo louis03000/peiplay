@@ -1324,6 +1324,7 @@ async def cleanup_duplicate_channels():
     except Exception as e:
         print(f"❌ 清理重複頻道時發生錯誤: {e}")
 
+@bot.event
 async def on_ready():
     print(f"✅ Bot 上線：{bot.user}")
     try:
