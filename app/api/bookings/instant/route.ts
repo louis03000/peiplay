@@ -38,7 +38,8 @@ export async function POST(request: NextRequest) {
 
     // 獲取客戶資訊
     const customer = await prisma.customer.findUnique({
-      where: { userId: session.user.id }
+      where: { userId: session.user.id },
+      include: { user: true }
     })
 
     if (!customer) {

@@ -2,7 +2,7 @@ import nodemailer from 'nodemailer';
 
 // 創建 Gmail SMTP 傳輸器
 const createTransporter = () => {
-  return nodemailer.createTransporter({
+  return nodemailer.createTransport({
     service: 'gmail',
     auth: {
       user: process.env.EMAIL_USER, // Gmail 地址
