@@ -252,7 +252,7 @@ async def create_booking_text_channel(booking_id, customer_discord, partner_disc
                 if check_column:
                     # 更新預約記錄，保存 Discord 頻道 ID
                     result = s.execute(
-                        text("UPDATE \"Booking\" SET \"discordTextChannelId\" = :channel_id WHERE id = :booking_id"),
+                        text("UPDATE \"Booking\" SET \"discordTextChannelId\" = %(channel_id)s WHERE id = %(booking_id)s"),
                         {"channel_id": str(text_channel.id), "booking_id": booking_id}
                     )
                     s.commit()
@@ -500,7 +500,7 @@ async def delete_booking_channels(booking_id: str):
                 return False
             
             result = s.execute(
-                text("SELECT \"discordTextChannelId\", \"discordVoiceChannelId\" FROM \"Booking\" WHERE id = :booking_id"),
+                text("SELECT \"discordTextChannelId\", \"discordVoiceChannelId\" FROM \"Booking\" WHERE id = %(booking_id)s"),
                 {"booking_id": booking_id}
             )
             row = result.fetchone()
@@ -553,7 +553,7 @@ async def delete_booking_channels(booking_id: str):
                 
                 if len(check_columns) >= 2:
                     s.execute(
-                        text("UPDATE \"Booking\" SET \"discordTextChannelId\" = NULL, \"discordVoiceChannelId\" = NULL WHERE id = :booking_id"),
+                        text("UPDATE \"Booking\" SET \"discordTextChannelId\" = NULL, \"discordVoiceChannelId\" = NULL WHERE id = %(booking_id)s"),
                         {"booking_id": booking_id}
                     )
                     s.commit()
@@ -598,6 +598,8 @@ async def check_new_bookings():
             
             if processed_list:
                 # 如果有已處理的預約，使用 NOT IN 查詢
+                # 將 processed_list 轉換為 PostgreSQL 陣列格式
+                processed_array = "{" + ",".join(map(str, processed_list)) + "}"
                 query = """
                 SELECT 
                     b.id, b."customerId", b."scheduleId", b.status, b."createdAt", b."updatedAt",
@@ -611,10 +613,10 @@ async def check_new_bookings():
                 JOIN "Partner" p ON p.id = s."partnerId"
                 JOIN "User" pu ON pu.id = p."userId"
                                  WHERE b.status IN ('PAID_WAITING_PARTNER_CONFIRMATION', 'PARTNER_ACCEPTED', 'CONFIRMED')
-                 AND b."createdAt" >= :recent_time
-                 AND b.id NOT IN (SELECT unnest(ARRAY[%(processed_list)s]))
+                 AND b."createdAt" >= %(recent_time)s
+                 AND b.id NOT IN (SELECT unnest(%(processed_array)s::int[]))
                 """
-                result = s.execute(text(query), {"recent_time": recent_time, "processed_list": processed_list})
+                result = s.execute(text(query), {"recent_time": recent_time, "processed_array": processed_array})
             else:
                 # 如果沒有已處理的預約，簡化查詢
                 simple_query = """
@@ -630,7 +632,7 @@ async def check_new_bookings():
                 JOIN "Partner" p ON p.id = s."partnerId"
                 JOIN "User" pu ON pu.id = p."userId"
                                  WHERE b.status IN ('PAID_WAITING_PARTNER_CONFIRMATION', 'PARTNER_ACCEPTED', 'CONFIRMED')
-                 AND b."createdAt" >= :recent_time
+                 AND b."createdAt" >= %(recent_time)s
                 """
                 result = s.execute(text(simple_query), {"recent_time": recent_time})
             
@@ -680,7 +682,7 @@ async def cleanup_expired_channels():
             FROM "Booking" b
             JOIN "Schedule" s ON s.id = b."scheduleId"
             WHERE (b."discordTextChannelId" IS NOT NULL OR b."discordVoiceChannelId" IS NOT NULL)
-            AND s."endTime" < :now_time
+            AND s."endTime" < %(now_time)s
             AND b.status IN ('COMPLETED', 'CANCELLED', 'REJECTED')
             """
             
@@ -719,7 +721,7 @@ async def cleanup_expired_channels():
                 if deleted_channels:
                     try:
                         s.execute(
-                            text("UPDATE \"Booking\" SET \"discordTextChannelId\" = NULL, \"discordVoiceChannelId\" = NULL WHERE id = :booking_id"),
+                            text("UPDATE \"Booking\" SET \"discordTextChannelId\" = NULL, \"discordVoiceChannelId\" = NULL WHERE id = %(booking_id)s"),
                             {"booking_id": booking_id}
                         )
                         s.commit()
@@ -791,7 +793,6 @@ async def check_bookings():
         JOIN "Partner" p ON p.id = s."partnerId"
         JOIN "User" pu ON pu.id = p."userId"
         WHERE b.status IN ('CONFIRMED', 'COMPLETED', 'PARTNER_ACCEPTED')
-        AND b.id NOT IN (SELECT unnest(ARRAY[%(processed_list)s]))
         AND s."startTime" >= %(start_time_1)s
         AND s."startTime" <= %(start_time_2)s
         AND (b."discordTextChannelId" IS NULL AND b."discordVoiceChannelId" IS NULL)
@@ -814,63 +815,17 @@ async def check_bookings():
         JOIN "User" pu ON pu.id = p."userId"
         WHERE b.status = 'PARTNER_ACCEPTED'
         AND b."paymentInfo"->>'isInstantBooking' = 'true'
-        AND b.id NOT IN (SELECT unnest(ARRAY[%(processed_list)s]))
         AND s."startTime" >= %(instant_start_time_1)s
         AND s."startTime" <= %(instant_start_time_2)s
         AND (b."discordTextChannelId" IS NULL AND b."discordVoiceChannelId" IS NULL)
         """
         
         with Session() as s:
+            # 查詢一般預約
+            result = s.execute(text(query), {"start_time_1": window_start, "start_time_2": window_end})
             
-            # 將 processed_bookings 轉換為列表，確保不重複處理
-            processed_list = list(processed_bookings) if processed_bookings else []
-            
-            # 如果沒有已處理的預約，使用空列表
-            if not processed_list:
-                processed_list = []
-            
-            # 查詢一般預約 - 暫時移除 Discord 欄位檢查
-            simple_query = """
-            SELECT 
-                b.id, b."customerId", b."scheduleId", b.status, b."createdAt", b."updatedAt",
-                c.name as customer_name, cu.discord as customer_discord,
-                p.name as partner_name, pu.discord as partner_discord,
-                s."startTime", s."endTime",
-                b."paymentInfo"->>'isInstantBooking' as is_instant_booking,
-                b."paymentInfo"->>'discordDelayMinutes' as discord_delay_minutes
-            FROM "Booking" b
-            JOIN "Schedule" s ON s.id = b."scheduleId"
-            JOIN "Customer" c ON c.id = b."customerId"
-            JOIN "User" cu ON cu.id = c."userId"
-            JOIN "Partner" p ON p.id = s."partnerId"
-            JOIN "User" pu ON pu.id = p."userId"
-            WHERE b.status IN ('CONFIRMED', 'COMPLETED', 'PARTNER_ACCEPTED')
-            AND s."startTime" >= :start_time_1
-            AND s."startTime" <= :start_time_2
-            """
-            result = s.execute(text(simple_query), {"start_time_1": window_start, "start_time_2": window_end})
-            
-            # 查詢即時預約 - 暫時移除 Discord 欄位檢查
-            simple_instant_query = """
-            SELECT 
-                b.id, b."customerId", b."scheduleId", b.status, b."createdAt", b."updatedAt",
-                c.name as customer_name, cu.discord as customer_discord,
-                p.name as partner_name, pu.discord as partner_discord,
-                s."startTime", s."endTime",
-                b."paymentInfo"->>'isInstantBooking' as is_instant_booking,
-                b."paymentInfo"->>'discordDelayMinutes' as discord_delay_minutes
-            FROM "Booking" b
-            JOIN "Schedule" s ON s.id = b."scheduleId"
-            JOIN "Customer" c ON c.id = b."customerId"
-            JOIN "User" cu ON cu.id = c."userId"
-            JOIN "Partner" p ON p.id = s."partnerId"
-            JOIN "User" pu ON pu.id = p."userId"
-            WHERE b.status = 'PARTNER_ACCEPTED'
-            AND b."paymentInfo"->>'isInstantBooking' = 'true'
-            AND s."startTime" >= :instant_start_time_1
-            AND s."startTime" <= :instant_start_time_2
-            """
-            instant_result = s.execute(text(simple_instant_query), {"instant_start_time_1": instant_window_start, "instant_start_time_2": instant_window_end})
+            # 查詢即時預約
+            instant_result = s.execute(text(instant_query), {"instant_start_time_1": instant_window_start, "instant_start_time_2": instant_window_end})
             
             # 合併兩種預約
             all_bookings = []

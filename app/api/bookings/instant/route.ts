@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { sendBookingNotificationToPartner } from '@/lib/email'
 
 export async function POST(request: NextRequest) {
   try {
@@ -98,6 +99,26 @@ export async function POST(request: NextRequest) {
 
     // 關閉資料庫連接
     await prisma.$disconnect()
+
+    // 發送 email 通知給夥伴
+    try {
+      await sendBookingNotificationToPartner(
+        partner.user.email,
+        partner.user.name || '夥伴',
+        customer.user.name || '客戶',
+        {
+          duration: duration,
+          startTime: result.startTime.toISOString(),
+          endTime: result.endTime.toISOString(),
+          totalCost: result.totalCost,
+          isInstantBooking: true
+        }
+      )
+      console.log('✅ 預約通知 email 已發送給夥伴')
+    } catch (emailError) {
+      console.error('❌ 發送預約通知 email 失敗:', emailError)
+      // 不影響預約創建，只記錄錯誤
+    }
 
     return NextResponse.json({
       id: result.booking.id,

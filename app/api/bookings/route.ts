@@ -2,6 +2,7 @@ import { NextResponse, NextRequest } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { sendBookingNotificationToPartner } from '@/lib/email';
 
 export const dynamic = 'force-dynamic';
 
@@ -150,6 +151,44 @@ export async function POST(request: Request) {
 
       return createdBookings;
     });
+
+    // 發送 email 通知給夥伴
+    try {
+      // 獲取第一個預約的詳細資訊來發送通知
+      const firstBooking = await prisma.booking.findUnique({
+        where: { id: result[0].id },
+        include: {
+          customer: { include: { user: true } },
+          schedule: { 
+            include: { 
+              partner: { include: { user: true } } 
+            } 
+          }
+        }
+      });
+
+      if (firstBooking && firstBooking.schedule.partner.user.email) {
+        const duration = Math.round((new Date(firstBooking.schedule.endTime).getTime() - new Date(firstBooking.schedule.startTime).getTime()) / (1000 * 60));
+        const totalCost = firstBooking.finalAmount || 0;
+
+        await sendBookingNotificationToPartner(
+          firstBooking.schedule.partner.user.email,
+          firstBooking.schedule.partner.user.name || '夥伴',
+          firstBooking.customer.user.name || '客戶',
+          {
+            duration: duration,
+            startTime: firstBooking.schedule.startTime.toISOString(),
+            endTime: firstBooking.schedule.endTime.toISOString(),
+            totalCost: totalCost,
+            isInstantBooking: false
+          }
+        );
+        console.log('✅ 一般預約通知 email 已發送給夥伴');
+      }
+    } catch (emailError) {
+      console.error('❌ 發送一般預約通知 email 失敗:', emailError);
+      // 不影響預約創建，只記錄錯誤
+    }
 
     return NextResponse.json(result[0]); // 返回第一個預約的 ID
   } catch (error) {
