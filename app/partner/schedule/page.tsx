@@ -57,37 +57,35 @@ export default function PartnerSchedulePage() {
     document.head.appendChild(style);
   }, []);
 
-  // 自動關閉「現在有空」狀態的定時器
+  // 定期更新夥伴狀態（包括自動關閉檢查）
   useEffect(() => {
-    if (!mounted || !partnerStatus?.isAvailableNow || !partnerStatus?.availableNowSince) return;
+    if (!mounted) return;
 
-    const checkAutoClose = async () => {
+    const updatePartnerStatus = async () => {
       try {
-        const response = await fetch('/api/partners/auto-close-available', {
-          method: 'POST'
-        });
-        const result = await response.json();
-        
-        if (result.closedCount > 0) {
-          // 如果當前夥伴被自動關閉，更新本地狀態
-          if (result.expiredPartners.some((p: any) => p.id === partnerStatus?.id)) {
-            setPartnerStatus(prev => prev ? { ...prev, isAvailableNow: false, availableNowSince: null } : prev);
-            alert('「現在有空」狀態已自動關閉（超過30分鐘）');
-          }
+        const response = await fetch('/api/partners/self');
+        if (response.ok) {
+          const data = await response.json();
+          setPartnerStatus({
+            id: data.partner.id,
+            isAvailableNow: !!data.partner.isAvailableNow,
+            isRankBooster: !!data.partner.isRankBooster,
+            availableNowSince: data.partner.availableNowSince
+          });
         }
       } catch (error) {
-        console.error('檢查自動關閉時發生錯誤:', error);
+        console.error('更新夥伴狀態時發生錯誤:', error);
       }
     };
 
-    // 每5分鐘檢查一次
-    const interval = setInterval(checkAutoClose, 5 * 60 * 1000);
+    // 每2分鐘更新一次狀態（檢查是否被後台自動關閉）
+    const interval = setInterval(updatePartnerStatus, 2 * 60 * 1000);
     
-    // 立即檢查一次
-    checkAutoClose();
+    // 立即更新一次
+    updatePartnerStatus();
 
     return () => clearInterval(interval);
-  }, [mounted, partnerStatus?.isAvailableNow, partnerStatus?.availableNowSince, partnerStatus?.id]);
+  }, [mounted]);
 
   useEffect(() => {
     if (mounted && status !== "loading" && !session) {

@@ -238,6 +238,44 @@ async def create_booking_text_channel(booking_id, customer_discord, partner_disc
         
         await text_channel.send(embed=embed)
         
+        # 發送預約通知到指定頻道
+        notification_channel = bot.get_channel(1419585779432423546)
+        if notification_channel:
+            notification_embed = discord.Embed(
+                title="🎉 新預約通知",
+                description=f"新的預約已創建！",
+                color=0x00ff00
+            )
+            notification_embed.add_field(
+                name="📅 預約時間",
+                value=f"{start_time_str} - {end_time_str}",
+                inline=True
+            )
+            notification_embed.add_field(
+                name="👤 參與者",
+                value=f"{customer_member.mention} × {partner_member.mention}",
+                inline=True
+            )
+            notification_embed.add_field(
+                name="💬 溝通頻道",
+                value=f"{text_channel.mention}",
+                inline=True
+            )
+            notification_embed.add_field(
+                name="⏰ 時長",
+                value=f"{duration_minutes} 分鐘",
+                inline=True
+            )
+            notification_embed.add_field(
+                name="🎤 語音頻道",
+                value="將在預約開始前 5 分鐘自動創建",
+                inline=True
+            )
+            notification_embed.set_footer(text=f"預約ID: {booking_id}")
+            
+            await notification_channel.send(embed=notification_embed)
+            print(f"✅ 已發送預約通知到指定頻道 (ID: 1419585779432423546)")
+        
         # 保存頻道 ID 到資料庫
         try:
             with Session() as s:
@@ -252,7 +290,7 @@ async def create_booking_text_channel(booking_id, customer_discord, partner_disc
                 if check_column:
                     # 更新預約記錄，保存 Discord 頻道 ID
                     result = s.execute(
-                        text("UPDATE \"Booking\" SET \"discordTextChannelId\" = %(channel_id)s WHERE id = %(booking_id)s"),
+                        text("UPDATE \"Booking\" SET \"discordTextChannelId\" = :channel_id WHERE id = :booking_id"),
                         {"channel_id": str(text_channel.id), "booking_id": booking_id}
                     )
                     s.commit()
@@ -352,11 +390,12 @@ async def create_booking_voice_channel(booking_id, customer_discord, partner_dis
             category=category
         )
         
-        text_channel = await guild.create_text_channel(
-            name="🔒匿名文字區", 
-            overwrites=overwrites, 
-            category=category
-        )
+        # 不創建文字頻道，因為 check_new_bookings 已經創建了
+        # text_channel = await guild.create_text_channel(
+        #     name="🔒匿名文字區", 
+        #     overwrites=overwrites, 
+        #     category=category
+        # )
         
         # 創建配對記錄
         user1_id = str(customer_member.id)
@@ -384,7 +423,7 @@ async def create_booking_voice_channel(booking_id, customer_discord, partner_dis
         
         # 初始化頻道狀態
         active_voice_channels[vc.id] = {
-            'text_channel': text_channel,
+            'text_channel': None,  # 文字頻道由 check_new_bookings 創建
             'remaining': duration_minutes * 60,
             'extended': 0,
             'record_id': record_id,
@@ -417,14 +456,14 @@ async def create_booking_voice_channel(booking_id, customer_discord, partner_dis
                     # 檢查預約狀態是否仍然是 PARTNER_ACCEPTED
                     with Session() as check_s:
                         current_booking = check_s.execute(
-                            text("SELECT status FROM \"Booking\" WHERE id = %(booking_id)s"),
+                            text("SELECT status FROM \"Booking\" WHERE id = :booking_id"),
                             {"booking_id": booking_id}
                         ).fetchone()
                         
                         if current_booking and current_booking.status == 'PARTNER_ACCEPTED':
                             # 開啟語音頻道
                             await vc.set_permissions(guild.default_role, view_channel=True)
-                            await text_channel.set_permissions(guild.default_role, view_channel=True)
+                            # 文字頻道由 check_new_bookings 創建，這裡不需要處理
                             
                             # 發送開啟通知
                             embed = discord.Embed(
@@ -436,7 +475,7 @@ async def create_booking_voice_channel(booking_id, customer_discord, partner_dis
                             embed.add_field(name="⏰ 預約時長", value=f"{duration_minutes} 分鐘", inline=True)
                             embed.add_field(name="💰 費用", value=f"${duration_minutes * 2 * 150}", inline=True)  # 假設每半小時150元
                             
-                            await text_channel.send(embed=embed)
+                            # 文字頻道由 check_new_bookings 創建，這裡不需要發送通知
                             print(f"✅ 即時預約語音頻道已開啟: {channel_name}")
                         else:
                             print(f"⚠️ 預約 {booking_id} 狀態已改變，取消延遲開啟")
@@ -462,9 +501,11 @@ async def create_booking_voice_channel(booking_id, customer_discord, partner_dis
             
             # 啟動倒數
             if record_id:
-                bot.loop.create_task(
-                    countdown(vc.id, channel_name, text_channel, vc, None, [customer_member, partner_member], record_id)
-                )
+                # 文字頻道由 check_new_bookings 創建，這裡先不啟動倒數
+                # bot.loop.create_task(
+                #     countdown(vc.id, channel_name, text_channel, vc, None, [customer_member, partner_member], record_id)
+                # )
+                pass
             
             print(f"✅ 自動創建頻道成功: {channel_name} for booking {booking_id}")
         
@@ -500,7 +541,7 @@ async def delete_booking_channels(booking_id: str):
                 return False
             
             result = s.execute(
-                text("SELECT \"discordTextChannelId\", \"discordVoiceChannelId\" FROM \"Booking\" WHERE id = %(booking_id)s"),
+                text("SELECT \"discordTextChannelId\", \"discordVoiceChannelId\" FROM \"Booking\" WHERE id = :booking_id"),
                 {"booking_id": booking_id}
             )
             row = result.fetchone()
@@ -553,7 +594,7 @@ async def delete_booking_channels(booking_id: str):
                 
                 if len(check_columns) >= 2:
                     s.execute(
-                        text("UPDATE \"Booking\" SET \"discordTextChannelId\" = NULL, \"discordVoiceChannelId\" = NULL WHERE id = %(booking_id)s"),
+                        text("UPDATE \"Booking\" SET \"discordTextChannelId\" = NULL, \"discordVoiceChannelId\" = NULL WHERE id = :booking_id"),
                         {"booking_id": booking_id}
                     )
                     s.commit()
@@ -612,9 +653,9 @@ async def check_new_bookings():
                 JOIN "User" cu ON cu.id = c."userId"
                 JOIN "Partner" p ON p.id = s."partnerId"
                 JOIN "User" pu ON pu.id = p."userId"
-                                 WHERE b.status IN ('PAID_WAITING_PARTNER_CONFIRMATION', 'PARTNER_ACCEPTED', 'CONFIRMED')
-                 AND b."createdAt" >= %(recent_time)s
-                 AND b.id NOT IN (SELECT unnest(%(processed_array)s::int[]))
+                WHERE b.status IN ('PAID_WAITING_PARTNER_CONFIRMATION', 'PARTNER_ACCEPTED', 'CONFIRMED')
+                 AND b."createdAt" >= :recent_time
+                 AND b.id NOT IN (SELECT unnest(:processed_array::int[]))
                 """
                 result = s.execute(text(query), {"recent_time": recent_time, "processed_array": processed_array})
             else:
@@ -631,13 +672,30 @@ async def check_new_bookings():
                 JOIN "User" cu ON cu.id = c."userId"
                 JOIN "Partner" p ON p.id = s."partnerId"
                 JOIN "User" pu ON pu.id = p."userId"
-                                 WHERE b.status IN ('PAID_WAITING_PARTNER_CONFIRMATION', 'PARTNER_ACCEPTED', 'CONFIRMED')
-                 AND b."createdAt" >= %(recent_time)s
+                WHERE b.status IN ('PAID_WAITING_PARTNER_CONFIRMATION', 'PARTNER_ACCEPTED', 'CONFIRMED')
+                 AND b."createdAt" >= :recent_time
                 """
                 result = s.execute(text(simple_query), {"recent_time": recent_time})
             
             for row in result:
                 try:
+                    # 檢查是否已經創建過文字頻道
+                    if row.id in processed_text_channels:
+                        print(f"⚠️ 預約 {row.id} 已經創建過文字頻道，跳過")
+                        continue
+                    
+                    # 檢查資料庫中是否已經有文字頻道ID
+                    with Session() as check_s:
+                        existing_channel = check_s.execute(
+                            text("SELECT \"discordTextChannelId\" FROM \"Booking\" WHERE id = :booking_id"),
+                            {"booking_id": row.id}
+                        ).fetchone()
+                        
+                        if existing_channel and existing_channel[0]:
+                            print(f"⚠️ 預約 {row.id} 在資料庫中已有文字頻道ID，跳過")
+                            processed_text_channels.add(row.id)
+                            continue
+                    
                     # 創建文字頻道
                     text_channel = await create_booking_text_channel(
                         row.id, 
@@ -650,6 +708,7 @@ async def check_new_bookings():
                     if text_channel:
                         # 標記為已處理
                         processed_text_channels.add(row.id)
+                        print(f"✅ 已標記預約 {row.id} 為已處理")
                         
                 except Exception as e:
                     print(f"❌ 處理新預約 {row.id} 時發生錯誤: {e}")
@@ -657,6 +716,48 @@ async def check_new_bookings():
                     
     except Exception as e:
         print(f"❌ 檢查新預約時發生錯誤: {e}")
+
+# --- 自動關閉「現在有空」狀態任務 ---
+@tasks.loop(seconds=60)  # 每1分鐘檢查一次
+async def auto_close_available_now():
+    """自動關閉開啟超過30分鐘的「現在有空」狀態"""
+    await bot.wait_until_ready()
+    
+    try:
+        # 計算30分鐘前的時間
+        thirty_minutes_ago = datetime.now(timezone.utc) - timedelta(minutes=30)
+        
+        with Session() as s:
+            # 查詢開啟「現在有空」超過30分鐘的夥伴
+            expired_query = """
+            SELECT id, name, "availableNowSince"
+            FROM "Partner"
+            WHERE "isAvailableNow" = true
+            AND "availableNowSince" < :thirty_minutes_ago
+            """
+            
+            expired_partners = s.execute(text(expired_query), {"thirty_minutes_ago": thirty_minutes_ago}).fetchall()
+            
+            if expired_partners:
+                # 批量關閉過期的「現在有空」狀態
+                update_query = """
+                UPDATE "Partner"
+                SET "isAvailableNow" = false, "availableNowSince" = NULL
+                WHERE "isAvailableNow" = true
+                AND "availableNowSince" < :thirty_minutes_ago
+                """
+                
+                result = s.execute(text(update_query), {"thirty_minutes_ago": thirty_minutes_ago})
+                s.commit()
+                
+                print(f"🕐 自動關閉了 {len(expired_partners)} 個夥伴的「現在有空」狀態")
+                for partner in expired_partners:
+                    print(f"   - {partner.name} (ID: {partner.id})")
+            else:
+                print("🕐 沒有需要自動關閉的「現在有空」狀態")
+                
+    except Exception as e:
+        print(f"❌ 自動關閉「現在有空」狀態時發生錯誤: {e}")
 
 # --- 清理過期頻道任務 ---
 @tasks.loop(seconds=300)  # 每5分鐘檢查一次
@@ -682,7 +783,7 @@ async def cleanup_expired_channels():
             FROM "Booking" b
             JOIN "Schedule" s ON s.id = b."scheduleId"
             WHERE (b."discordTextChannelId" IS NOT NULL OR b."discordVoiceChannelId" IS NOT NULL)
-            AND s."endTime" < %(now_time)s
+            AND s."endTime" < :now_time
             AND b.status IN ('COMPLETED', 'CANCELLED', 'REJECTED')
             """
             
@@ -721,7 +822,7 @@ async def cleanup_expired_channels():
                 if deleted_channels:
                     try:
                         s.execute(
-                            text("UPDATE \"Booking\" SET \"discordTextChannelId\" = NULL, \"discordVoiceChannelId\" = NULL WHERE id = %(booking_id)s"),
+                            text("UPDATE \"Booking\" SET \"discordTextChannelId\" = NULL, \"discordVoiceChannelId\" = NULL WHERE id = :booking_id"),
                             {"booking_id": booking_id}
                         )
                         s.commit()
@@ -742,7 +843,7 @@ async def cleanup_expired_channels():
                 vc_data = active_voice_channels[vc_id]
                 if 'vc' in vc_data:
                     await vc_data['vc'].delete()
-                if 'text_channel' in vc_data:
+                if 'text_channel' in vc_data and vc_data['text_channel']:
                     await vc_data['text_channel'].delete()
                 del active_voice_channels[vc_id]
                 print(f"✅ 已清理過期活躍頻道: {vc_id}")
@@ -793,8 +894,8 @@ async def check_bookings():
         JOIN "Partner" p ON p.id = s."partnerId"
         JOIN "User" pu ON pu.id = p."userId"
         WHERE b.status IN ('CONFIRMED', 'COMPLETED', 'PARTNER_ACCEPTED')
-        AND s."startTime" >= %(start_time_1)s
-        AND s."startTime" <= %(start_time_2)s
+        AND s."startTime" >= :start_time_1
+        AND s."startTime" <= :start_time_2
         AND (b."discordTextChannelId" IS NULL AND b."discordVoiceChannelId" IS NULL)
         """
         
@@ -815,8 +916,8 @@ async def check_bookings():
         JOIN "User" pu ON pu.id = p."userId"
         WHERE b.status = 'PARTNER_ACCEPTED'
         AND b."paymentInfo"->>'isInstantBooking' = 'true'
-        AND s."startTime" >= %(instant_start_time_1)s
-        AND s."startTime" <= %(instant_start_time_2)s
+        AND s."startTime" >= :instant_start_time_1
+        AND s."startTime" <= :instant_start_time_2
         AND (b."discordTextChannelId" IS NULL AND b."discordVoiceChannelId" IS NULL)
         """
         
@@ -968,11 +1069,12 @@ async def check_bookings():
                         category=category
                     )
                     
-                    text_channel = await guild.create_text_channel(
-                        name="🔒匿名文字區", 
-                        overwrites=overwrites, 
-                        category=category
-                    )
+                    # 不創建文字頻道，因為 check_new_bookings 已經創建了
+                    # text_channel = await guild.create_text_channel(
+                    #     name="🔒匿名文字區", 
+                    #     overwrites=overwrites, 
+                    #     category=category
+                    # )
                     
                     # 創建配對記錄
                     user1_id = str(customer_member.id)
@@ -994,7 +1096,7 @@ async def check_bookings():
                      
                                         # 初始化頻道狀態
                     active_voice_channels[vc.id] = {
-                        'text_channel': text_channel,
+                        'text_channel': None,  # 文字頻道由 check_new_bookings 創建
                         'remaining': duration_minutes * 60,
                         'extended': 0,
                         'record_id': record_id,  # 使用保存的 ID
@@ -1030,14 +1132,14 @@ async def check_bookings():
                                 # 檢查預約狀態是否仍然是 PARTNER_ACCEPTED
                                 with Session() as check_s:
                                     current_booking = check_s.execute(
-                                        text("SELECT status FROM \"Booking\" WHERE id = %(booking_id)s"),
+                                        text("SELECT status FROM \"Booking\" WHERE id = :booking_id"),
                                         {"booking_id": booking.id}
                                     ).fetchone()
                                     
                                     if current_booking and current_booking.status == 'PARTNER_ACCEPTED':
                                         # 開啟語音頻道
                                         await vc.set_permissions(guild.default_role, view_channel=True)
-                                        await text_channel.set_permissions(guild.default_role, view_channel=True)
+                                        # 文字頻道由 check_new_bookings 創建，這裡不需要處理
                                         
                                         # 發送開啟通知
                                         embed = discord.Embed(
@@ -1049,7 +1151,7 @@ async def check_bookings():
                                         embed.add_field(name="⏰ 預約時長", value=f"{duration_minutes} 分鐘", inline=True)
                                         embed.add_field(name="💰 費用", value=f"${duration_minutes * 2 * 150}", inline=True)  # 假設每半小時150元
                                         
-                                        await text_channel.send(embed=embed)
+                                        # 文字頻道由 check_new_bookings 創建，這裡不需要發送通知
                                         print(f"✅ 即時預約語音頻道已開啟: {channel_name}")
                                     else:
                                         print(f"⚠️ 預約 {booking.id} 狀態已改變，取消延遲開啟")
@@ -1082,10 +1184,10 @@ async def check_bookings():
                                  f"🎮 頻道: {vc.mention}"
                              )
                         
-                        # 啟動倒數
-                        bot.loop.create_task(
-                            countdown(vc.id, channel_name, text_channel, vc, None, [customer_member, partner_member], record_id)
-                        )
+                        # 文字頻道由 check_new_bookings 創建，這裡先不啟動倒數
+                        # bot.loop.create_task(
+                        #     countdown(vc.id, channel_name, text_channel, vc, None, [customer_member, partner_member], record_id)
+                        # )
                          
                         print(f"✅ 自動創建頻道成功: {channel_name} for booking {booking.id}")
                     
@@ -1171,6 +1273,57 @@ class ExtendView(View):
 
 # --- Bot 啟動 ---
 @bot.event
+async def cleanup_duplicate_channels():
+    """清理重複的頻道"""
+    try:
+        guild = bot.get_guild(GUILD_ID)
+        if not guild:
+            print("❌ 找不到 Discord 伺服器")
+            return
+        
+        print("🔍 開始清理重複頻道...")
+        
+        # 獲取所有文字頻道
+        text_channels = [ch for ch in guild.channels if isinstance(ch, discord.TextChannel)]
+        
+        # 統計頻道名稱
+        channel_names = {}
+        for channel in text_channels:
+            name = channel.name
+            if name not in channel_names:
+                channel_names[name] = []
+            channel_names[name].append(channel)
+        
+        # 找出重複的頻道
+        duplicate_channels = []
+        for name, channels in channel_names.items():
+            if len(channels) > 1:
+                print(f"🔍 發現重複頻道: {name} (共 {len(channels)} 個)")
+                # 保留第一個，刪除其他的
+                for i, channel in enumerate(channels[1:], 1):
+                    duplicate_channels.append(channel)
+                    print(f"  - 將刪除: {channel.name} (ID: {channel.id})")
+        
+        if not duplicate_channels:
+            print("✅ 沒有發現重複頻道")
+        else:
+            print(f"🗑️ 準備刪除 {len(duplicate_channels)} 個重複頻道...")
+            
+            # 刪除重複頻道
+            deleted_count = 0
+            for channel in duplicate_channels:
+                try:
+                    await channel.delete()
+                    deleted_count += 1
+                    print(f"✅ 已刪除頻道: {channel.name}")
+                except Exception as e:
+                    print(f"❌ 刪除頻道失敗 {channel.name}: {e}")
+            
+            print(f"🎉 清理完成！共刪除 {deleted_count} 個重複頻道")
+            
+    except Exception as e:
+        print(f"❌ 清理重複頻道時發生錯誤: {e}")
+
 async def on_ready():
     print(f"✅ Bot 上線：{bot.user}")
     try:
@@ -1178,13 +1331,18 @@ async def on_ready():
         synced = await bot.tree.sync(guild=guild)
         print(f"✅ Slash 指令已同步：{len(synced)} 個指令")
         
+        # 清理重複頻道
+        await cleanup_duplicate_channels()
+        
         # 啟動自動檢查任務
         check_bookings.start()
         check_new_bookings.start()
         cleanup_expired_channels.start()
+        auto_close_available_now.start()
         print(f"✅ 自動檢查預約任務已啟動，檢查間隔：{CHECK_INTERVAL} 秒")
         print(f"✅ 新預約文字頻道檢查任務已啟動，檢查間隔：60 秒")
         print(f"✅ 清理過期頻道任務已啟動，檢查間隔：300 秒")
+        print(f"✅ 自動關閉「現在有空」任務已啟動，檢查間隔：60 秒")
     except Exception as e:
         print(f"❌ 指令同步失敗: {e}")
 
