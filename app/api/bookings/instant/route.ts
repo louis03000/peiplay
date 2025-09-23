@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
           partnerId: partnerId
         },
         status: {
-          in: ['PENDING', 'CONFIRMED', 'IN_PROGRESS', 'PARTNER_ACCEPTED']
+          in: ['PENDING', 'CONFIRMED', 'PARTNER_ACCEPTED']
         },
         OR: [
           // 新預約開始時間在現有預約期間內

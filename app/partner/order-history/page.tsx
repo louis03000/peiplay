@@ -115,7 +115,6 @@ export default function OrderHistoryPage() {
       'PENDING': { text: '待確認', className: 'bg-yellow-100 text-yellow-800' },
       'CONFIRMED': { text: '已確認', className: 'bg-blue-100 text-blue-800' },
       'PARTNER_ACCEPTED': { text: '夥伴已接受', className: 'bg-green-100 text-green-800' },
-      'IN_PROGRESS': { text: '進行中', className: 'bg-purple-100 text-purple-800' },
       'COMPLETED': { text: '已完成', className: 'bg-gray-100 text-gray-800' },
       'CANCELLED': { text: '已取消', className: 'bg-red-100 text-red-800' },
       'REJECTED': { text: '已拒絕', className: 'bg-red-100 text-red-800' }
@@ -219,7 +218,6 @@ export default function OrderHistoryPage() {
                 <option value="PENDING">待確認</option>
                 <option value="CONFIRMED">已確認</option>
                 <option value="PARTNER_ACCEPTED">夥伴已接受</option>
-                <option value="IN_PROGRESS">進行中</option>
                 <option value="COMPLETED">已完成</option>
                 <option value="CANCELLED">已取消</option>
                 <option value="REJECTED">已拒絕</option>

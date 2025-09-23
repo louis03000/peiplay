@@ -9,7 +9,7 @@ export async function POST() {
     const allBookings = await prisma.booking.findMany({
       where: {
         status: {
-          in: ['PENDING', 'CONFIRMED', 'IN_PROGRESS', 'PARTNER_ACCEPTED']
+          in: ['PENDING', 'CONFIRMED', 'PARTNER_ACCEPTED']
         }
       },
       include: {

@@ -122,7 +122,7 @@ export async function GET(request: NextRequest) {
           partnerId: partner.id
         },
         status: {
-          in: ['COMPLETED', 'CONFIRMED', 'IN_PROGRESS']
+          in: ['COMPLETED', 'CONFIRMED']
         }
       },
       _sum: {
