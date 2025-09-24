@@ -17,7 +17,7 @@ load_dotenv()
 TOKEN = os.getenv("DISCORD_BOT_TOKEN")
 GUILD_ID = int(os.getenv("DISCORD_GUILD_ID", "0"))
 POSTGRES_CONN = os.getenv("POSTGRES_CONN")
-ADMIN_CHANNEL_ID = int(os.getenv("ADMIN_CHANNEL_ID", "0"))
+ADMIN_CHANNEL_ID = int(os.getenv("ADMIN_CHANNEL_ID", "1419601068110778450"))
 
 # 檢查必要的環境變數
 if not TOKEN:
@@ -863,6 +863,7 @@ async def check_bookings():
     await bot.wait_until_ready()
     
     try:
+        print(f"🔍 check_bookings 函數開始執行")
         guild = bot.get_guild(GUILD_ID)
         if not guild:
             print("❌ 找不到 Discord 伺服器")
@@ -870,11 +871,11 @@ async def check_bookings():
         
         # 查詢已確認且即將開始的預約（只創建語音頻道）
         now = datetime.now(timezone.utc)
-        window_start = now
+        window_start = now - timedelta(minutes=10)  # 擴展到過去10分鐘，處理延遲的情況
         window_end = now + timedelta(minutes=5)  # 5分鐘內即將開始
         
         # 查詢即時預約（夥伴確認後延遲開啟）
-        instant_window_start = now
+        instant_window_start = now - timedelta(minutes=10)  # 擴展到過去10分鐘
         instant_window_end = now + timedelta(minutes=10)  # 10分鐘內即將開始
         
         # 使用原生 SQL 查詢避免 orderNumber 欄位問題
@@ -928,11 +929,18 @@ async def check_bookings():
             # 查詢即時預約
             instant_result = s.execute(text(instant_query), {"instant_start_time_1": instant_window_start, "instant_start_time_2": instant_window_end})
             
+            # 添加調試信息
+            print(f"🔍 檢查預約時間窗口: {window_start} 到 {window_end}")
+            print(f"🔍 即時預約時間窗口: {instant_window_start} 到 {instant_window_end}")
+            print(f"🔍 當前時間: {now}")
+            
             # 合併兩種預約
             all_bookings = []
             
             # 處理一般預約
+            general_count = 0
             for row in result:
+                general_count += 1
                 booking = type('Booking', (), {
                     'id': row.id,
                     'customerId': row.customerId,
@@ -960,7 +968,9 @@ async def check_bookings():
                 all_bookings.append(booking)
             
             # 處理即時預約
+            instant_count = 0
             for row in instant_result:
+                instant_count += 1
                 booking = type('Booking', (), {
                     'id': row.id,
                     'customerId': row.customerId,
@@ -989,8 +999,12 @@ async def check_bookings():
             
             bookings = all_bookings
             
+            print(f"🔍 找到 {general_count} 個一般預約，{instant_count} 個即時預約，總共 {len(bookings)} 個預約需要處理")
+            
             for booking in bookings:
                 try:
+                    print(f"🔍 處理預約 {booking.id}: 狀態={booking.status}, 開始時間={booking.schedule.startTime}, 結束時間={booking.schedule.endTime}")
+                    
                     # 獲取顧客和夥伴的 Discord 名稱
                     customer_discord = booking.customer.user.discord if booking.customer and booking.customer.user else None
                     partner_discord = booking.schedule.partner.user.discord if booking.schedule and booking.schedule.partner and booking.schedule.partner.user else None
@@ -1198,6 +1212,76 @@ async def check_bookings():
     except Exception as e:
         print(f"❌ 檢查預約時發生錯誤: {e}")
 
+# --- 發送評價到管理員頻道 ---
+async def send_rating_to_admin(record_id, rating_data, user1_id, user2_id):
+    """發送評價結果到管理員頻道"""
+    try:
+        admin_channel = bot.get_channel(ADMIN_CHANNEL_ID)
+        if not admin_channel:
+            print(f"❌ 找不到管理員頻道 (ID: {ADMIN_CHANNEL_ID})")
+            return
+        
+        # 獲取用戶資訊
+        try:
+            from_user = await bot.fetch_user(int(rating_data['user1']))
+            from_user_display = from_user.display_name
+        except:
+            from_user_display = f"用戶 {rating_data['user1']}"
+        
+        try:
+            to_user = await bot.fetch_user(int(rating_data['user2']))
+            to_user_display = to_user.display_name
+        except:
+            to_user_display = f"用戶 {rating_data['user2']}"
+        
+        # 創建評價嵌入訊息
+        embed = discord.Embed(
+            title="⭐ 新評價回饋",
+            color=0x00ff00,
+            timestamp=datetime.now(timezone.utc)
+        )
+        
+        embed.add_field(
+            name="👤 評價者",
+            value=from_user_display,
+            inline=True
+        )
+        
+        embed.add_field(
+            name="👤 被評價者", 
+            value=to_user_display,
+            inline=True
+        )
+        
+        embed.add_field(
+            name="⭐ 評分",
+            value="⭐" * rating_data['rating'],
+            inline=True
+        )
+        
+        if rating_data['comment']:
+            embed.add_field(
+                name="💬 留言",
+                value=rating_data['comment'],
+                inline=False
+            )
+        
+        embed.add_field(
+            name="📋 配對記錄ID",
+            value=f"`{record_id}`",
+            inline=True
+        )
+        
+        embed.set_footer(text="PeiPlay 評價系統")
+        
+        await admin_channel.send(embed=embed)
+        print(f"✅ 評價已發送到管理員頻道: {from_user_display} → {to_user_display} ({rating_data['rating']}⭐)")
+        
+    except Exception as e:
+        print(f"❌ 發送評價到管理員頻道失敗: {e}")
+        import traceback
+        traceback.print_exc()
+
 # --- 評分 Modal ---
 class RatingModal(Modal, title="匿名評分與留言"):
     rating = TextInput(label="給予評分（1～5 星）", required=True)
@@ -1243,6 +1327,9 @@ class RatingModal(Modal, title="匿名評分與留言"):
             }
             pending_ratings[self.record_id].append(rating_data)
             print(f"✅ 評價已添加到待處理列表: {rating_data}")
+
+            # 立即發送評價到管理員頻道
+            await send_rating_to_admin(self.record_id, rating_data, user1_id, user2_id)
 
             evaluated_records.add(self.record_id)
             print(f"✅ 評價流程完成")
@@ -1382,14 +1469,29 @@ async def countdown(vc_id, animal_channel_name, text_channel, vc, interaction, m
 
         await vc.delete()
         print(f"🎯 語音頻道已刪除，開始評價流程: record_id={record_id}")
-        await text_channel.send("📝 請點擊以下按鈕進行匿名評分。")
+        
+        # 發送評價提示訊息
+        embed = discord.Embed(
+            title="⭐ 預約結束 - 請進行評價",
+            description="感謝您使用 PeiPlay 服務！請花一點時間為您的夥伴進行匿名評價。",
+            color=0xffd700
+        )
+        embed.add_field(
+            name="📝 評價說明",
+            value="• 評分範圍：1-5 星\n• 留言為選填項目\n• 評價完全匿名\n• 評價結果會回報給管理員",
+            inline=False
+        )
+        embed.set_footer(text="評價有助於我們提供更好的服務品質")
+        
+        await text_channel.send(embed=embed)
+        await text_channel.send("📝 請點擊以下按鈕進行匿名評分：")
 
         class SubmitButton(View):
             def __init__(self):
                 super().__init__(timeout=600)  # 延長到10分鐘
                 self.clicked = False
 
-            @discord.ui.button(label="匿名評分", style=discord.ButtonStyle.success)
+            @discord.ui.button(label="⭐ 匿名評分", style=discord.ButtonStyle.success, emoji="⭐")
             async def submit(self, interaction: discord.Interaction, button: Button):
                 print(f"🔍 用戶 {interaction.user.id} 點擊了評價按鈕")
                 if self.clicked:
