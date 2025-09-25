@@ -637,45 +637,23 @@ async def check_new_bookings():
             # 檢查是否已創建文字頻道
             processed_list = list(processed_text_channels)
             
-            if processed_list:
-                # 如果有已處理的預約，使用 NOT IN 查詢
-                # 將 processed_list 轉換為 PostgreSQL 陣列格式
-                processed_array = "{" + ",".join(map(str, processed_list)) + "}"
-                query = """
-                SELECT 
-                    b.id, b."customerId", b."scheduleId", b.status, b."createdAt", b."updatedAt",
-                    c.name as customer_name, cu.discord as customer_discord,
-                    p.name as partner_name, pu.discord as partner_discord,
-                    s."startTime", s."endTime"
-                FROM "Booking" b
-                JOIN "Schedule" s ON s.id = b."scheduleId"
-                JOIN "Customer" c ON c.id = b."customerId"
-                JOIN "User" cu ON cu.id = c."userId"
-                JOIN "Partner" p ON p.id = s."partnerId"
-                JOIN "User" pu ON pu.id = p."userId"
-                WHERE b.status IN ('PAID_WAITING_PARTNER_CONFIRMATION', 'PARTNER_ACCEPTED', 'CONFIRMED')
-                 AND b."createdAt" >= :recent_time
-                 AND b.id NOT IN (SELECT unnest(:processed_array::int[]))
-                """
-                result = s.execute(text(query), {"recent_time": recent_time, "processed_array": processed_array})
-            else:
-                # 如果沒有已處理的預約，簡化查詢
-                simple_query = """
-                SELECT 
-                    b.id, b."customerId", b."scheduleId", b.status, b."createdAt", b."updatedAt",
-                    c.name as customer_name, cu.discord as customer_discord,
-                    p.name as partner_name, pu.discord as partner_discord,
-                    s."startTime", s."endTime"
-                FROM "Booking" b
-                JOIN "Schedule" s ON s.id = b."scheduleId"
-                JOIN "Customer" c ON c.id = b."customerId"
-                JOIN "User" cu ON cu.id = c."userId"
-                JOIN "Partner" p ON p.id = s."partnerId"
-                JOIN "User" pu ON pu.id = p."userId"
-                WHERE b.status IN ('PAID_WAITING_PARTNER_CONFIRMATION', 'PARTNER_ACCEPTED', 'CONFIRMED')
-                 AND b."createdAt" >= :recent_time
-                """
-                result = s.execute(text(simple_query), {"recent_time": recent_time})
+            # 使用簡化的查詢，在 Python 中過濾已處理的預約
+            query = """
+            SELECT 
+                b.id, b."customerId", b."scheduleId", b.status, b."createdAt", b."updatedAt",
+                c.name as customer_name, cu.discord as customer_discord,
+                p.name as partner_name, pu.discord as partner_discord,
+                s."startTime", s."endTime"
+            FROM "Booking" b
+            JOIN "Schedule" s ON s.id = b."scheduleId"
+            JOIN "Customer" c ON c.id = b."customerId"
+            JOIN "User" cu ON cu.id = c."userId"
+            JOIN "Partner" p ON p.id = s."partnerId"
+            JOIN "User" pu ON pu.id = p."userId"
+            WHERE b.status IN ('PAID_WAITING_PARTNER_CONFIRMATION', 'PARTNER_ACCEPTED', 'CONFIRMED')
+             AND b."createdAt" >= :recent_time
+            """
+            result = s.execute(text(query), {"recent_time": recent_time})
             
             for row in result:
                 try:
@@ -784,7 +762,7 @@ async def cleanup_expired_channels():
             JOIN "Schedule" s ON s.id = b."scheduleId"
             WHERE (b."discordTextChannelId" IS NOT NULL OR b."discordVoiceChannelId" IS NOT NULL)
             AND s."endTime" < :now_time
-            AND b.status IN ('COMPLETED', 'CANCELLED', 'REJECTED')
+            AND b.status IN ('COMPLETED', 'CANCELLED', 'REJECTED', 'CONFIRMED')
             """
             
             expired_bookings = s.execute(text(expired_query), {"now_time": now}).fetchall()
@@ -871,8 +849,8 @@ async def check_bookings():
         
         # 查詢已確認且即將開始的預約（只創建語音頻道）
         now = datetime.now(timezone.utc)
-        window_start = now - timedelta(minutes=10)  # 擴展到過去10分鐘，處理延遲的情況
-        window_end = now + timedelta(minutes=5)  # 5分鐘內即將開始
+        window_start = now - timedelta(minutes=30)  # 擴展到過去30分鐘，處理延遲的情況
+        window_end = now + timedelta(minutes=10)  # 10分鐘內即將開始
         
         # 查詢即時預約（夥伴確認後延遲開啟）
         instant_window_start = now - timedelta(minutes=10)  # 擴展到過去10分鐘
@@ -897,7 +875,8 @@ async def check_bookings():
         WHERE b.status IN ('CONFIRMED', 'COMPLETED', 'PARTNER_ACCEPTED')
         AND s."startTime" >= :start_time_1
         AND s."startTime" <= :start_time_2
-        AND (b."discordTextChannelId" IS NULL AND b."discordVoiceChannelId" IS NULL)
+        AND b."discordVoiceChannelId" IS NULL
+        AND s."endTime" > :current_time
         """
         
         # 即時預約查詢
@@ -919,12 +898,12 @@ async def check_bookings():
         AND b."paymentInfo"->>'isInstantBooking' = 'true'
         AND s."startTime" >= :instant_start_time_1
         AND s."startTime" <= :instant_start_time_2
-        AND (b."discordTextChannelId" IS NULL AND b."discordVoiceChannelId" IS NULL)
+        AND b."discordVoiceChannelId" IS NULL
         """
         
         with Session() as s:
             # 查詢一般預約
-            result = s.execute(text(query), {"start_time_1": window_start, "start_time_2": window_end})
+            result = s.execute(text(query), {"start_time_1": window_start, "start_time_2": window_end, "current_time": now})
             
             # 查詢即時預約
             instant_result = s.execute(text(instant_query), {"instant_start_time_1": instant_window_start, "instant_start_time_2": instant_window_end})
@@ -1050,7 +1029,23 @@ async def check_bookings():
                     end_time_str = tw_end_time.strftime("%H:%M")
                      
                     # 創建統一的頻道名稱（與文字頻道相同）
-                    cute_item = random.choice(CUTE_ITEMS)
+                    # 嘗試從文字頻道名稱中提取相同的 emoji
+                    cute_item = "🎀"  # 預設 emoji
+                    try:
+                        # 查找對應的文字頻道來獲取相同的 emoji
+                        time_pattern = f"{date_str} {start_time_str}-{end_time_str}"
+                        for channel in guild.text_channels:
+                            if time_pattern in channel.name:
+                                # 從文字頻道名稱中提取 emoji
+                                import re
+                                emoji_match = re.search(r'[🎀🦁🐻🐱🐶🐰🐼🦄🍀⭐🎈🍭🌈🦋🐯🐸🦊🐨🐮🐷]', channel.name)
+                                if emoji_match:
+                                    cute_item = emoji_match.group()
+                                    print(f"✅ 從文字頻道 {channel.name} 提取 emoji: {cute_item}")
+                                break
+                    except Exception as e:
+                        print(f"⚠️ 提取 emoji 失敗，使用預設: {e}")
+                    
                     if is_instant_booking:
                         channel_name = f"⚡即時{date_str} {start_time_str}-{end_time_str} {cute_item}"
                     else:
@@ -1117,6 +1112,30 @@ async def check_bookings():
                         'vc': vc,
                         'booking_id': booking.id
                     }
+                    
+                    # 保存語音頻道 ID 到資料庫
+                    try:
+                        with Session() as save_s:
+                            # 先檢查欄位是否存在
+                            check_column = save_s.execute(text("""
+                                SELECT column_name 
+                                FROM information_schema.columns 
+                                WHERE table_name = 'Booking' 
+                                AND column_name = 'discordVoiceChannelId'
+                            """)).fetchone()
+                            
+                            if check_column:
+                                # 更新預約記錄，保存 Discord 語音頻道 ID
+                                save_s.execute(
+                                    text("UPDATE \"Booking\" SET \"discordVoiceChannelId\" = :channel_id WHERE id = :booking_id"),
+                                    {"channel_id": str(vc.id), "booking_id": booking.id}
+                                )
+                                save_s.commit()
+                                print(f"✅ 已保存語音頻道 ID {vc.id} 到預約 {booking.id}")
+                            else:
+                                print(f"⚠️ Discord 語音頻道欄位尚未創建，跳過保存頻道 ID")
+                    except Exception as db_error:
+                        print(f"❌ 保存語音頻道 ID 到資料庫失敗: {db_error}")
                     
                     # 標記為已處理
                     processed_bookings.add(booking.id)
@@ -1198,10 +1217,27 @@ async def check_bookings():
                                  f"🎮 頻道: {vc.mention}"
                              )
                         
-                        # 文字頻道由 check_new_bookings 創建，這裡先不啟動倒數
-                        # bot.loop.create_task(
-                        #     countdown(vc.id, channel_name, text_channel, vc, None, [customer_member, partner_member], record_id)
-                        # )
+                        # 啟動倒數計時 - 需要找到對應的文字頻道
+                        # 查找對應的文字頻道
+                        text_channel = None
+                        # 使用更靈活的匹配方式
+                        time_pattern = f"{date_str} {start_time_str}-{end_time_str}"
+                        
+                        for channel in guild.text_channels:
+                            # 檢查頻道名稱是否包含時間模式
+                            if time_pattern in channel.name:
+                                text_channel = channel
+                                print(f"✅ 找到對應的文字頻道: {channel.name}")
+                                break
+                        
+                        if text_channel:
+                            # 啟動倒數計時
+                            bot.loop.create_task(
+                                countdown(vc.id, channel_name, text_channel, vc, None, [customer_member, partner_member], record_id)
+                            )
+                            print(f"✅ 已啟動倒數計時: {channel_name}")
+                        else:
+                            print(f"⚠️ 找不到對應的文字頻道: {channel_name}")
                          
                         print(f"✅ 自動創建頻道成功: {channel_name} for booking {booking.id}")
                     

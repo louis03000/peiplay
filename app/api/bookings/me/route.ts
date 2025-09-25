@@ -50,6 +50,9 @@ export async function GET() {
     const bookings = await prisma.booking.findMany({
       where: {
         customerId: customer.id,
+        schedule: { 
+          startTime: { gt: now }  // 只顯示未來的預約
+        },
       },
       include: {
         schedule: { include: { partner: { select: { name: true } } } },
