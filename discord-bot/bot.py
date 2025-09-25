@@ -732,7 +732,8 @@ async def auto_close_available_now():
                 for partner in expired_partners:
                     print(f"   - {partner.name} (ID: {partner.id})")
             else:
-                print("🕐 沒有需要自動關閉的「現在有空」狀態")
+                # print("🕐 沒有需要自動關閉的「現在有空」狀態")  # 減少日誌輸出
+                pass
                 
     except Exception as e:
         print(f"❌ 自動關閉「現在有空」狀態時發生錯誤: {e}")
@@ -841,7 +842,7 @@ async def check_bookings():
     await bot.wait_until_ready()
     
     try:
-        print(f"🔍 check_bookings 函數開始執行")
+        # print(f"🔍 check_bookings 函數開始執行")  # 減少日誌輸出
         guild = bot.get_guild(GUILD_ID)
         if not guild:
             print("❌ 找不到 Discord 伺服器")
@@ -908,10 +909,10 @@ async def check_bookings():
             # 查詢即時預約
             instant_result = s.execute(text(instant_query), {"instant_start_time_1": instant_window_start, "instant_start_time_2": instant_window_end})
             
-            # 添加調試信息
-            print(f"🔍 檢查預約時間窗口: {window_start} 到 {window_end}")
-            print(f"🔍 即時預約時間窗口: {instant_window_start} 到 {instant_window_end}")
-            print(f"🔍 當前時間: {now}")
+            # 添加調試信息（只在有預約時顯示）
+            # print(f"🔍 檢查預約時間窗口: {window_start} 到 {window_end}")
+            # print(f"🔍 即時預約時間窗口: {instant_window_start} 到 {instant_window_end}")
+            # print(f"🔍 當前時間: {now}")
             
             # 合併兩種預約
             all_bookings = []
@@ -978,7 +979,9 @@ async def check_bookings():
             
             bookings = all_bookings
             
-            print(f"🔍 找到 {general_count} 個一般預約，{instant_count} 個即時預約，總共 {len(bookings)} 個預約需要處理")
+            # 只在有預約需要處理時才顯示
+            if len(bookings) > 0:
+                print(f"🔍 找到 {general_count} 個一般預約，{instant_count} 個即時預約，總共 {len(bookings)} 個預約需要處理")
             
             for booking in bookings:
                 try:
@@ -1231,13 +1234,33 @@ async def check_bookings():
                                 break
                         
                         if text_channel:
-                            # 啟動倒數計時
+                            # 啟動倒數計時和評價系統
                             bot.loop.create_task(
-                                countdown(vc.id, channel_name, text_channel, vc, None, [customer_member, partner_member], record_id)
+                                countdown_with_rating(vc.id, channel_name, text_channel, vc, None, [customer_member, partner_member], record_id, booking.id)
                             )
-                            print(f"✅ 已啟動倒數計時: {channel_name}")
+                            print(f"✅ 已啟動倒數計時和評價系統: {channel_name}")
                         else:
                             print(f"⚠️ 找不到對應的文字頻道: {channel_name}")
+                            # 如果找不到文字頻道，創建一個臨時的
+                            try:
+                                text_channel = await guild.create_text_channel(
+                                    name=f"📝{date_str}-{start_time_str}-{end_time_str}",
+                                    overwrites={
+                                        guild.default_role: discord.PermissionOverwrite(view_channel=False),
+                                        customer_member: discord.PermissionOverwrite(view_channel=True, send_messages=True, read_message_history=True),
+                                        partner_member: discord.PermissionOverwrite(view_channel=True, send_messages=True, read_message_history=True),
+                                    },
+                                    category=category
+                                )
+                                print(f"✅ 創建臨時文字頻道: {text_channel.name}")
+                                
+                                # 啟動倒數計時和評價系統
+                                bot.loop.create_task(
+                                    countdown_with_rating(vc.id, channel_name, text_channel, vc, None, [customer_member, partner_member], record_id, booking.id)
+                                )
+                                print(f"✅ 已啟動倒數計時和評價系統: {channel_name}")
+                            except Exception as e:
+                                print(f"❌ 創建臨時文字頻道失敗: {e}")
                          
                         print(f"✅ 自動創建頻道成功: {channel_name} for booking {booking.id}")
                     
@@ -1380,6 +1403,126 @@ class RatingModal(Modal, title="匿名評分與留言"):
                 pass
 
 # --- 延長按鈕 ---
+class RatingView(View):
+    def __init__(self, booking_id):
+        super().__init__(timeout=600)  # 10 分鐘超時
+        self.booking_id = booking_id
+        self.ratings = {}  # 儲存用戶的評分
+
+    @discord.ui.button(label="⭐ 1星", style=discord.ButtonStyle.secondary, custom_id="rating_1")
+    async def rate_1_star(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await self.handle_rating(interaction, 1)
+
+    @discord.ui.button(label="⭐⭐ 2星", style=discord.ButtonStyle.secondary, custom_id="rating_2")
+    async def rate_2_star(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await self.handle_rating(interaction, 2)
+
+    @discord.ui.button(label="⭐⭐⭐ 3星", style=discord.ButtonStyle.secondary, custom_id="rating_3")
+    async def rate_3_star(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await self.handle_rating(interaction, 3)
+
+    @discord.ui.button(label="⭐⭐⭐⭐ 4星", style=discord.ButtonStyle.secondary, custom_id="rating_4")
+    async def rate_4_star(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await self.handle_rating(interaction, 4)
+
+    @discord.ui.button(label="⭐⭐⭐⭐⭐ 5星", style=discord.ButtonStyle.secondary, custom_id="rating_5")
+    async def rate_5_star(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await self.handle_rating(interaction, 5)
+
+    async def handle_rating(self, interaction: discord.Interaction, rating: int):
+        user_id = interaction.user.id
+        self.ratings[user_id] = rating
+        
+        # 更新按鈕樣式
+        for item in self.children:
+            if isinstance(item, discord.ui.Button):
+                if item.custom_id == f"rating_{rating}":
+                    item.style = discord.ButtonStyle.success
+                    item.label = f"✅ {item.label}"
+                else:
+                    item.style = discord.ButtonStyle.secondary
+                    # 移除其他按鈕的 ✅ 標記
+                    if item.label.startswith("✅ "):
+                        item.label = item.label[2:]
+        
+        await interaction.response.edit_message(view=self)
+        
+        # 發送評論輸入提示
+        await interaction.followup.send(
+            f"✅ 您已選擇 {rating} 星評分！\n"
+            f"請在下方輸入您的評論：",
+            ephemeral=True
+        )
+
+    @discord.ui.button(label="💬 提交評論", style=discord.ButtonStyle.primary, custom_id="submit_comment")
+    async def submit_comment(self, interaction: discord.Interaction, button: discord.ui.Button):
+        user_id = interaction.user.id
+        if user_id not in self.ratings:
+            await interaction.response.send_message("❌ 請先選擇星等評分！", ephemeral=True)
+            return
+        
+        # 創建模態對話框來輸入評論
+        modal = CommentModal(self.ratings[user_id], self.booking_id)
+        await interaction.response.send_modal(modal)
+
+class CommentModal(discord.ui.Modal):
+    def __init__(self, rating: int, booking_id: str):
+        super().__init__(title="提交評價")
+        self.rating = rating
+        self.booking_id = booking_id
+        
+        self.comment_input = discord.ui.TextInput(
+            label="評論內容",
+            placeholder="請輸入您對這次遊戲體驗的評論...",
+            style=discord.TextStyle.paragraph,
+            required=False,
+            max_length=500
+        )
+        self.add_item(self.comment_input)
+
+    async def on_submit(self, interaction: discord.Interaction):
+        comment = self.comment_input.value or "無評論"
+        
+        # 獲取顧客和夥伴信息
+        try:
+            with Session() as s:
+                result = s.execute(text("""
+                    SELECT 
+                        c.name as customer_name, p.name as partner_name,
+                        cu.discord as customer_discord, pu.discord as partner_discord
+                    FROM "Booking" b
+                    JOIN "Schedule" s ON s.id = b."scheduleId"
+                    JOIN "Customer" c ON c.id = b."customerId"
+                    JOIN "User" cu ON cu.id = c."userId"
+                    JOIN "Partner" p ON p.id = s."partnerId"
+                    JOIN "User" pu ON pu.id = p."userId"
+                    WHERE b.id = :booking_id
+                """), {"booking_id": self.booking_id}).fetchone()
+                
+                if result:
+                    # 發送到管理員頻道
+                    admin_channel = bot.get_channel(1419601068110778450)  # 管理員頻道 ID
+                    if admin_channel:
+                        await admin_channel.send(
+                            f"**{result.customer_name}** 評價 **{result.partner_name}**\n"
+                            f"⭐ {'⭐' * self.rating}\n"
+                            f"💬 {comment}"
+                        )
+                        print(f"✅ 評價已發送到管理員頻道: {result.customer_name} → {result.partner_name} ({self.rating}⭐)")
+                    
+                    # 確認收到評價
+                    await interaction.response.send_message(
+                        f"✅ 感謝您的評價！\n"
+                        f"評分：{'⭐' * self.rating}\n"
+                        f"評論：{comment}",
+                        ephemeral=True
+                    )
+                else:
+                    await interaction.response.send_message("❌ 找不到對應的預約記錄", ephemeral=True)
+        except Exception as e:
+            print(f"❌ 處理評價提交失敗: {e}")
+            await interaction.response.send_message("❌ 處理評價時發生錯誤，請稍後再試", ephemeral=True)
+
 class ExtendView(View):
     def __init__(self, vc_id):
         super().__init__(timeout=None)
@@ -1474,11 +1617,74 @@ async def on_ready():
 async def on_message(message):
     if message.author == bot.user:
         return
+    
+    # 評價系統現在使用按鈕和模態對話框，不需要處理文字訊息
+    
     if message.content == "!ping":
         await message.channel.send("Pong!")
     await bot.process_commands(message)
 
+
 # --- 倒數邏輯 ---
+async def countdown_with_rating(vc_id, channel_name, text_channel, vc, mentioned, members, record_id, booking_id):
+    """倒數計時函數，包含評價系統"""
+    try:
+        # 計算預約結束時間
+        now = datetime.now(timezone.utc)
+        
+        # 從資料庫獲取預約結束時間
+        with Session() as s:
+            result = s.execute(text("""
+                SELECT s."endTime" 
+                FROM "Booking" b
+                JOIN "Schedule" s ON s.id = b."scheduleId"
+                WHERE b.id = :booking_id
+            """), {"booking_id": booking_id}).fetchone()
+            
+            if not result:
+                print(f"❌ 找不到預約 {booking_id} 的結束時間")
+                return
+                
+            end_time = result[0]
+            if end_time.tzinfo is None:
+                end_time = end_time.replace(tzinfo=timezone.utc)
+        
+        # 計算等待時間
+        wait_seconds = (end_time - now).total_seconds()
+        
+        if wait_seconds > 0:
+            print(f"⏰ 等待 {wait_seconds} 秒後開始評價系統...")
+            await asyncio.sleep(wait_seconds)
+        
+        # 預約時間結束，關閉語音頻道
+        try:
+            await vc.delete()
+            print(f"✅ 已關閉語音頻道: {channel_name}")
+        except Exception as e:
+            print(f"❌ 關閉語音頻道失敗: {e}")
+        
+        # 在文字頻道顯示評價系統
+        view = RatingView(booking_id)
+        await text_channel.send(
+            "🎉 預約時間結束！\n"
+            "請為您的遊戲夥伴評分：\n\n"
+            "點擊下方按鈕選擇星等，然後在評論框中輸入您的評論。",
+            view=view
+        )
+        
+        # 等待 10 分鐘讓用戶填寫評價
+        await asyncio.sleep(600)  # 10 分鐘 = 600 秒
+        
+        # 10 分鐘後關閉文字頻道
+        try:
+            await text_channel.delete()
+            print(f"✅ 已關閉文字頻道: {text_channel.name}")
+        except Exception as e:
+            print(f"❌ 關閉文字頻道失敗: {e}")
+            
+    except Exception as e:
+        print(f"❌ countdown_with_rating 函數錯誤: {e}")
+
 async def countdown(vc_id, animal_channel_name, text_channel, vc, interaction, mentioned, record_id):
     try:
         print(f"🔍 開始倒數計時: vc_id={vc_id}, record_id={record_id}")

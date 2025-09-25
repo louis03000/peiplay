@@ -130,7 +130,7 @@ export async function POST(request: NextRequest) {
 
       return NextResponse.json({
         message: `已取消 ${toCancel.length} 個衝突的預約`,
-        cancelledBookings: toCancel.map(b => ({
+        cancelledBookings: toCancel.map((b: any) => ({
           id: b.id,
           customerName: b.customer?.user?.name,
           startTime: b.schedule.startTime,

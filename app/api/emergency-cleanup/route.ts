@@ -57,7 +57,7 @@ export async function POST() {
           startTime: bookings[0].schedule.startTime,
           endTime: bookings[0].schedule.endTime,
           totalCount: bookings.length,
-          bookings: bookings.map(b => ({
+          bookings: bookings.map((b: any) => ({
             id: b.id,
             customerName: b.customer.user.name,
             status: b.status,

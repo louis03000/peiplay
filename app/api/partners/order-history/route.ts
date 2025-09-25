@@ -111,7 +111,7 @@ export async function GET(request: NextRequest) {
         createdAt: booking.createdAt.toISOString(),
         updatedAt: booking.updatedAt.toISOString(),
         paymentInfo: booking.paymentInfo,
-        isInstantBooking: booking.paymentInfo?.type === 'instant'
+        isInstantBooking: (booking.paymentInfo as any)?.type === 'instant'
       }
     })
 
