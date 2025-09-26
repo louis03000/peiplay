@@ -19,6 +19,10 @@ GUILD_ID = int(os.getenv("DISCORD_GUILD_ID", "0"))
 POSTGRES_CONN = os.getenv("POSTGRES_CONN")
 ADMIN_CHANNEL_ID = int(os.getenv("ADMIN_CHANNEL_ID", "1419601068110778450"))
 
+# 調試資訊
+print(f"🔍 環境變數檢查:")
+print(f"   ADMIN_CHANNEL_ID: {ADMIN_CHANNEL_ID}")
+
 # 檢查必要的環境變數
 if not TOKEN:
     print("❌ 錯誤：未設定 DISCORD_BOT_TOKEN 環境變數")
@@ -968,7 +972,7 @@ async def check_withdrawal_requests():
         # 查詢新的提領申請
         with engine.connect() as conn:
             result = conn.execute(text("""
-        SELECT 
+                SELECT 
                     wr.id, wr.amount, wr."requestedAt",
                     p.name as partner_name, u.email as partner_email,
                     u.discord as partner_discord
@@ -976,11 +980,12 @@ async def check_withdrawal_requests():
                 JOIN "Partner" p ON p.id = wr."partnerId"
                 JOIN "User" u ON u.id = p."userId"
                 WHERE wr.status = 'PENDING'
-                AND wr.id NOT IN (SELECT unnest(:processed_array::text[]))
                 ORDER BY wr."requestedAt" ASC
-            """), {"processed_array": list(processed_withdrawals)})
+            """))
             
-            withdrawals = result.fetchall()
+            all_withdrawals = result.fetchall()
+            # 在 Python 中過濾已處理的提領申請
+            withdrawals = [w for w in all_withdrawals if w[0] not in processed_withdrawals]
             
             for withdrawal in withdrawals:
                 withdrawal_id = withdrawal[0]
@@ -1550,7 +1555,7 @@ async def check_bookings():
                         
                         if text_channel:
                             # 啟動倒數計時和評價系統
-                        bot.loop.create_task(
+                            bot.loop.create_task(
                                 countdown_with_rating(vc.id, channel_name, text_channel, vc, None, [customer_member, partner_member], record_id, booking.id)
                             )
                             # 已啟動倒數計時和評價系統，減少日誌輸出

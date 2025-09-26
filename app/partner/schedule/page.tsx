@@ -92,63 +92,6 @@ export default function PartnerSchedulePage() {
       }
     };
 
-    const handleImageUpload = async (index: number, file: File) => {
-      if (!file) return;
-
-      // 驗證文件類型
-      if (!file.type.startsWith('image/')) {
-        alert('請選擇圖片文件');
-        return;
-      }
-
-      // 驗證文件大小 (5MB)
-      if (file.size > 5 * 1024 * 1024) {
-        alert('圖片大小不能超過5MB');
-        return;
-      }
-
-      setUploadingImages(prev => {
-        const newState = [...prev];
-        newState[index] = true;
-        return newState;
-      });
-
-      try {
-        // 這裡應該上傳到圖片存儲服務（如 Cloudinary, AWS S3 等）
-        // 為了演示，我們使用一個模擬的URL
-        const mockImageUrl = `https://via.placeholder.com/300x300/4F46E5/FFFFFF?text=段位證明${index + 1}`;
-        
-        // 更新圖片陣列
-        const newImages = [...rankBoosterImages];
-        newImages[index] = mockImageUrl;
-        setRankBoosterImages(newImages);
-
-        // 保存到後端
-        const response = await fetch('/api/partners/rank-booster-images', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            images: newImages.filter(img => img) // 只保存非空的圖片
-          })
-        });
-
-        if (!response.ok) {
-          throw new Error('保存圖片失敗');
-        }
-
-      } catch (error) {
-        console.error('上傳圖片失敗:', error);
-        alert('上傳圖片失敗，請重試');
-      } finally {
-        setUploadingImages(prev => {
-          const newState = [...prev];
-          newState[index] = false;
-          return newState;
-        });
-      }
-    };
 
     // 每2分鐘更新一次狀態（檢查是否被後台自動關閉）
     const interval = setInterval(updatePartnerStatus, 2 * 60 * 1000);
@@ -159,6 +102,64 @@ export default function PartnerSchedulePage() {
 
     return () => clearInterval(interval);
   }, [mounted]);
+
+  const handleImageUpload = async (index: number, file: File) => {
+    if (!file) return;
+
+    // 驗證文件類型
+    if (!file.type.startsWith('image/')) {
+      alert('請選擇圖片文件');
+      return;
+    }
+
+    // 驗證文件大小 (5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      alert('圖片大小不能超過5MB');
+      return;
+    }
+
+    setUploadingImages(prev => {
+      const newState = [...prev];
+      newState[index] = true;
+      return newState;
+    });
+
+    try {
+      // 這裡應該上傳到圖片存儲服務（如 Cloudinary, AWS S3 等）
+      // 為了演示，我們使用一個模擬的URL
+      const mockImageUrl = `https://via.placeholder.com/300x300/4F46E5/FFFFFF?text=段位證明${index + 1}`;
+      
+      // 更新圖片陣列
+      const newImages = [...rankBoosterImages];
+      newImages[index] = mockImageUrl;
+      setRankBoosterImages(newImages);
+
+      // 保存到後端
+      const response = await fetch('/api/partners/rank-booster-images', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          images: newImages.filter(img => img) // 只保存非空的圖片
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('保存圖片失敗');
+      }
+
+    } catch (error) {
+      console.error('上傳圖片失敗:', error);
+      alert('上傳圖片失敗，請重試');
+    } finally {
+      setUploadingImages(prev => {
+        const newState = [...prev];
+        newState[index] = false;
+        return newState;
+      });
+    }
+  };
 
   useEffect(() => {
     if (mounted && status !== "loading" && !session) {
