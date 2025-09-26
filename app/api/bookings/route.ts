@@ -43,7 +43,12 @@ export async function POST(request: Request) {
       if (!s.isAvailable) return true;
       
       // 如果有預約記錄且狀態不是 CANCELLED 或 REJECTED，則時段不可用
-      if (s.bookings && s.bookings.status !== 'CANCELLED' && s.bookings.status !== 'REJECTED') return true;
+      if (s.bookings && s.bookings.length > 0) {
+        const hasActiveBooking = s.bookings.some(booking => 
+          booking.status !== 'CANCELLED' && booking.status !== 'REJECTED'
+        );
+        if (hasActiveBooking) return true;
+      }
       
       return false;
     });

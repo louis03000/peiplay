@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
           partnerId: partnerId
         },
         status: {
-          in: ['PENDING', 'CONFIRMED', 'PARTNER_ACCEPTED']
+          in: ['PENDING', 'CONFIRMED', 'PARTNER_ACCEPTED', 'PAID_WAITING_PARTNER_CONFIRMATION']
         },
         OR: [
           // 新預約開始時間在現有預約期間內
@@ -107,6 +107,15 @@ export async function POST(request: NextRequest) {
 
     // 使用事務確保資料一致性
     const result = await prisma.$transaction(async (tx) => {
+      // 立即關閉夥伴的「現在有空」狀態，防止重複預約
+      await tx.partner.update({
+        where: { id: partnerId },
+        data: {
+          isAvailableNow: false,
+          availableNowSince: null
+        }
+      })
+
       // 為即時預約創建一個臨時的 schedule
       const tempSchedule = await tx.schedule.create({
         data: {

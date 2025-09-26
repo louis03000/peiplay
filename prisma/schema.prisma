@@ -57,6 +57,7 @@ model Partner {
   contractFile      String?
   user              User          @relation(fields: [userId], references: [id])
   schedules         Schedule[]
+  withdrawalRequests WithdrawalRequest[]
 }
 
 model Customer {
@@ -148,6 +149,19 @@ model PromoCode {
   updatedAt   DateTime      @updatedAt
 }
 
+model WithdrawalRequest {
+  id          String              @id @default(cuid())
+  partnerId   String
+  amount      Float
+  status      WithdrawalStatus    @default(PENDING)
+  requestedAt DateTime            @default(now())
+  processedAt DateTime?
+  adminNote   String?
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+  partner     Partner             @relation(fields: [partnerId], references: [id])
+}
+
 
 
 enum UserRole {
@@ -178,4 +192,11 @@ enum BookingStatus {
 enum PromoCodeType {
   PERCENTAGE
   FIXED
+}
+
+enum WithdrawalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  COMPLETED
 }

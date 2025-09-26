@@ -126,6 +126,8 @@ evaluated_records = set()
 pending_ratings = {}
 processed_bookings = set()  # 記錄已處理的預約
 processed_text_channels = set()  # 記錄已創建文字頻道的預約
+rating_sent_bookings = set()  # 追蹤已發送評價系統的預約
+processed_withdrawals = set()  # 記錄已處理的提領申請
 
 # 可愛的動物和物品列表
 CUTE_ITEMS = ["🦊 狐狸", "🐱 貓咪", "🐶 小狗", "🐻 熊熊", "🐼 貓熊", "🐯 老虎", "🦁 獅子", "🐸 青蛙", "🐵 猴子", "🐰 兔子", "🦄 獨角獸", "🐙 章魚", "🦋 蝴蝶", "🌸 櫻花", "⭐ 星星", "🌈 彩虹", "🍀 幸運草", "🎀 蝴蝶結", "🍭 棒棒糖", "🎈 氣球"]
@@ -243,16 +245,19 @@ async def create_booking_text_channel(booking_id, customer_discord, partner_disc
         if notification_channel:
             notification_embed = discord.Embed(
                 title="🎉 新預約通知",
-                description=f"新的預約已創建！",
-                color=0x00ff00
+                description="新的預約已創建！",
+                color=0x00ff00,
+                timestamp=datetime.now(timezone.utc)
             )
+            
+            # 第一行：時間和參與者
             notification_embed.add_field(
                 name="📅 預約時間",
-                value=f"{start_time_str} - {end_time_str}",
+                value=f"`{start_time_str} - {end_time_str}`",
                 inline=True
             )
             notification_embed.add_field(
-                name="👤 參與者",
+                name="👥 參與者",
                 value=f"{customer_member.mention} × {partner_member.mention}",
                 inline=True
             )
@@ -261,17 +266,23 @@ async def create_booking_text_channel(booking_id, customer_discord, partner_disc
                 value=f"{text_channel.mention}",
                 inline=True
             )
+            
+            # 第二行：時長和語音頻道
             notification_embed.add_field(
                 name="⏰ 時長",
-                value=f"{duration_minutes} 分鐘",
+                value=f"`{duration_minutes} 分鐘`",
                 inline=True
             )
             notification_embed.add_field(
                 name="🎤 語音頻道",
-                value="將在預約開始前 5 分鐘自動創建",
+                value="`將在預約開始前 5 分鐘自動創建`",
                 inline=True
             )
-            notification_embed.set_footer(text=f"預約ID: {booking_id}")
+            notification_embed.add_field(
+                name="🆔 預約ID",
+                value=f"`{booking_id}`",
+                inline=True
+            )
             
             await notification_channel.send(embed=notification_embed)
             print(f"✅ 已發送預約通知到指定頻道 (ID: 1419585779432423546)")
@@ -438,16 +449,54 @@ async def create_booking_voice_channel(booking_id, customer_discord, partner_dis
             # 通知創建頻道頻道
             channel_creation_channel = bot.get_channel(CHANNEL_CREATION_CHANNEL_ID)
             if channel_creation_channel:
-                await channel_creation_channel.send(
-                    f"⚡ 即時預約語音頻道已創建：\n"
-                    f"📋 預約ID: {booking_id}\n"
-                    f"👤 顧客: {customer_member.mention} ({customer_discord})\n"
-                    f"👥 夥伴: {partner_member.mention} ({partner_discord})\n"
-                    f"⏰ 開始時間: {tw_start_time.strftime('%Y/%m/%d %H:%M')}\n"
-                    f"⏱️ 時長: {duration_minutes} 分鐘\n"
-                    f"🎮 頻道: {vc.mention}\n"
-                    f"⏳ 將在 {discord_delay_minutes} 分鐘後自動開啟"
+                instant_embed = discord.Embed(
+                    title="⚡ 即時預約語音頻道已創建",
+                    color=0xff6b35,
+                    timestamp=datetime.now(timezone.utc)
                 )
+                
+                # 第一行：預約ID和顧客
+                instant_embed.add_field(
+                    name="🆔 預約ID",
+                    value=f"`{booking_id}`",
+                    inline=True
+                )
+                instant_embed.add_field(
+                    name="👤 顧客",
+                    value=f"{customer_member.mention}\n`{customer_discord}`",
+                    inline=True
+                )
+                instant_embed.add_field(
+                    name="👥 夥伴",
+                    value=f"{partner_member.mention}\n`{partner_discord}`",
+                    inline=True
+                )
+                
+                # 第二行：時間和頻道
+                instant_embed.add_field(
+                    name="⏰ 開始時間",
+                    value=f"`{tw_start_time.strftime('%Y/%m/%d %H:%M')}`",
+                    inline=True
+                )
+                instant_embed.add_field(
+                    name="⏱️ 時長",
+                    value=f"`{duration_minutes} 分鐘`",
+                    inline=True
+                )
+                instant_embed.add_field(
+                    name="🎮 頻道",
+                    value=f"{vc.mention}",
+                    inline=True
+                )
+                
+                # 第三行：延遲時間
+                instant_embed.add_field(
+                    name="⏳ 自動開啟",
+                    value=f"`將在 {discord_delay_minutes} 分鐘後自動開啟`",
+                    inline=False
+                )
+                
+                await channel_creation_channel.send(embed=instant_embed)
             
             # 延遲開啟語音頻道
             async def delayed_open_voice():
@@ -639,19 +688,19 @@ async def check_new_bookings():
             
             # 使用簡化的查詢，在 Python 中過濾已處理的預約
             query = """
-            SELECT 
-                b.id, b."customerId", b."scheduleId", b.status, b."createdAt", b."updatedAt",
-                c.name as customer_name, cu.discord as customer_discord,
-                p.name as partner_name, pu.discord as partner_discord,
-                s."startTime", s."endTime"
-            FROM "Booking" b
-            JOIN "Schedule" s ON s.id = b."scheduleId"
-            JOIN "Customer" c ON c.id = b."customerId"
-            JOIN "User" cu ON cu.id = c."userId"
-            JOIN "Partner" p ON p.id = s."partnerId"
-            JOIN "User" pu ON pu.id = p."userId"
-            WHERE b.status IN ('PAID_WAITING_PARTNER_CONFIRMATION', 'PARTNER_ACCEPTED', 'CONFIRMED')
-             AND b."createdAt" >= :recent_time
+                SELECT 
+                    b.id, b."customerId", b."scheduleId", b.status, b."createdAt", b."updatedAt",
+                    c.name as customer_name, cu.discord as customer_discord,
+                    p.name as partner_name, pu.discord as partner_discord,
+                    s."startTime", s."endTime"
+                FROM "Booking" b
+                JOIN "Schedule" s ON s.id = b."scheduleId"
+                JOIN "Customer" c ON c.id = b."customerId"
+                JOIN "User" cu ON cu.id = c."userId"
+                JOIN "Partner" p ON p.id = s."partnerId"
+                JOIN "User" pu ON pu.id = p."userId"
+                                 WHERE b.status IN ('PAID_WAITING_PARTNER_CONFIRMATION', 'PARTNER_ACCEPTED', 'CONFIRMED')
+                 AND b."createdAt" >= :recent_time
             """
             result = s.execute(text(query), {"recent_time": recent_time})
             
@@ -732,8 +781,7 @@ async def auto_close_available_now():
                 for partner in expired_partners:
                     print(f"   - {partner.name} (ID: {partner.id})")
             else:
-                # print("🕐 沒有需要自動關閉的「現在有空」狀態")  # 減少日誌輸出
-                pass
+                pass  # 沒有需要關閉的狀態，不輸出日誌
                 
     except Exception as e:
         print(f"❌ 自動關閉「現在有空」狀態時發生錯誤: {e}")
@@ -756,11 +804,11 @@ async def cleanup_expired_channels():
         with Session() as s:
             # 查詢已結束的預約
             expired_query = """
-            SELECT 
+        SELECT 
                 b.id, b."discordTextChannelId", b."discordVoiceChannelId",
                 s."endTime", b.status
-            FROM "Booking" b
-            JOIN "Schedule" s ON s.id = b."scheduleId"
+        FROM "Booking" b
+        JOIN "Schedule" s ON s.id = b."scheduleId"
             WHERE (b."discordTextChannelId" IS NOT NULL OR b."discordVoiceChannelId" IS NOT NULL)
             AND s."endTime" < :now_time
             AND b.status IN ('COMPLETED', 'CANCELLED', 'REJECTED', 'CONFIRMED')
@@ -835,6 +883,236 @@ async def cleanup_expired_channels():
     except Exception as e:
         print(f"❌ 清理過期頻道時發生錯誤: {e}")
 
+# --- 檢查遺失評價任務 ---
+@tasks.loop(seconds=300)  # 每5分鐘檢查一次
+async def check_missing_ratings():
+    """檢查遺失的評價並自動提交"""
+    await bot.wait_until_ready()
+    
+    try:
+        with Session() as s:
+            # 查找已結束但沒有評價記錄的預約
+            now = datetime.now(timezone.utc)
+            
+            # 查找所有已結束的預約（放寬時間條件）
+            missing_ratings = s.execute(text("""
+        SELECT 
+                    b.id, c.name as customer_name, p.name as partner_name,
+                    s."endTime"
+        FROM "Booking" b
+        JOIN "Schedule" s ON s.id = b."scheduleId"
+        JOIN "Customer" c ON c.id = b."customerId"
+        JOIN "Partner" p ON p.id = s."partnerId"
+                WHERE b.status = 'CONFIRMED'
+                AND s."endTime" < :now
+                AND s."endTime" >= :recent_time
+                AND (b."discordVoiceChannelId" IS NOT NULL OR b."discordTextChannelId" IS NOT NULL)
+            """), {
+                "now": now,
+                "recent_time": now - timedelta(hours=48)  # 檢查最近48小時的預約
+            }).fetchall()
+            
+            if missing_ratings:
+                print(f"🔍 處理 {len(missing_ratings)} 個遺失評價")
+                
+                admin_channel = bot.get_channel(ADMIN_CHANNEL_ID)
+                if admin_channel:
+                    for booking in missing_ratings:
+                        try:
+                            # 計算結束時間
+                            end_time = booking.endTime
+                            if end_time.tzinfo is None:
+                                end_time = end_time.replace(tzinfo=timezone.utc)
+                            
+                            time_since_end = (now - end_time).total_seconds() / 60  # 分鐘
+                            
+                            await admin_channel.send(
+                                f"**{booking.customer_name}** 評價 **{booking.partner_name}**\n"
+                                f"⭐ 未評價\n"
+                                f"💬 顧客未填寫評價（預約已結束 {time_since_end:.0f} 分鐘）"
+                            )
+                            print(f"✅ 已發送遺失評價: {booking.customer_name} → {booking.partner_name}")
+                        except Exception as e:
+                            print(f"❌ 發送遺失評價失敗: {e}")
+                
+                # 清除頻道記錄，避免重複處理
+                booking_ids = [b.id for b in missing_ratings]
+                s.execute(text("""
+                    UPDATE "Booking" 
+                    SET "discordVoiceChannelId" = NULL, "discordTextChannelId" = NULL
+                    WHERE id = ANY(:booking_ids)
+                """), {"booking_ids": booking_ids})
+                s.commit()
+                
+    except Exception as e:
+        print(f"❌ 檢查遺失評價時發生錯誤: {e}")
+
+# --- 檢查提領申請任務 ---
+@tasks.loop(seconds=60)  # 每分鐘檢查一次
+async def check_withdrawal_requests_task():
+    """定期檢查新的提領申請並通知管理員"""
+    await bot.wait_until_ready()
+    await check_withdrawal_requests()
+
+async def check_withdrawal_requests():
+    """檢查新的提領申請並通知管理員"""
+    try:
+        guild = bot.get_guild(GUILD_ID)
+        if not guild:
+            return
+        
+        admin_channel = guild.get_channel(ADMIN_CHANNEL_ID)
+        if not admin_channel:
+            print("❌ 找不到管理員頻道")
+            return
+        
+        # 查詢新的提領申請
+        with engine.connect() as conn:
+            result = conn.execute(text("""
+                SELECT 
+                    wr.id, wr.amount, wr."requestedAt",
+                    p.name as partner_name, u.email as partner_email,
+                    u.discord as partner_discord
+                FROM "WithdrawalRequest" wr
+                JOIN "Partner" p ON p.id = wr."partnerId"
+                JOIN "User" u ON u.id = p."userId"
+                WHERE wr.status = 'PENDING'
+                AND wr.id NOT IN (SELECT unnest(:processed_array::text[]))
+                ORDER BY wr."requestedAt" ASC
+            """), {"processed_array": list(processed_withdrawals)})
+            
+            withdrawals = result.fetchall()
+            
+            for withdrawal in withdrawals:
+                withdrawal_id = withdrawal[0]
+                amount = withdrawal[1]
+                requested_at = withdrawal[2]
+                partner_name = withdrawal[3]
+                partner_email = withdrawal[4]
+                partner_discord = withdrawal[5]
+                
+                # 獲取夥伴的詳細統計
+                stats_result = conn.execute(text("""
+                    SELECT 
+                        COALESCE(SUM(b."finalAmount"), 0) as total_earnings,
+                        COUNT(b.id) as total_orders
+                    FROM "Booking" b
+                    JOIN "Schedule" s ON s.id = b."scheduleId"
+                    WHERE s."partnerId" = (
+                        SELECT "partnerId" FROM "WithdrawalRequest" WHERE id = :withdrawal_id
+                    )
+                    AND b.status IN ('COMPLETED', 'CONFIRMED')
+                """), {"withdrawal_id": withdrawal_id})
+                
+                stats = stats_result.fetchone()
+                total_earnings = stats[0] if stats else 0
+                total_orders = stats[1] if stats else 0
+                
+                # 計算已提領總額
+                withdrawn_result = conn.execute(text("""
+                    SELECT COALESCE(SUM(amount), 0) as total_withdrawn
+                    FROM "WithdrawalRequest"
+                    WHERE "partnerId" = (
+                        SELECT "partnerId" FROM "WithdrawalRequest" WHERE id = :withdrawal_id
+                    )
+                    AND status IN ('APPROVED', 'COMPLETED')
+                """), {"withdrawal_id": withdrawal_id})
+                
+                total_withdrawn = withdrawn_result.fetchone()[0] if withdrawn_result.fetchone() else 0
+                available_balance = total_earnings - total_withdrawn
+                
+                # 獲取最近5筆訂單
+                recent_orders_result = conn.execute(text("""
+                    SELECT 
+                        b."orderNumber", b."finalAmount", b."createdAt",
+                        c.name as customer_name,
+                        s."startTime", s."endTime"
+                    FROM "Booking" b
+                    JOIN "Schedule" s ON s.id = b."scheduleId"
+                    JOIN "Customer" c ON c.id = b."customerId"
+                    WHERE s."partnerId" = (
+                        SELECT "partnerId" FROM "WithdrawalRequest" WHERE id = :withdrawal_id
+                    )
+                    AND b.status IN ('COMPLETED', 'CONFIRMED')
+                    ORDER BY b."createdAt" DESC
+                    LIMIT 5
+                """), {"withdrawal_id": withdrawal_id})
+                
+                recent_orders = recent_orders_result.fetchall()
+                
+                # 創建 Discord Embed
+                embed = discord.Embed(
+                    title="💰 新的提領申請",
+                    color=0xff6b35,
+                    timestamp=datetime.now(timezone.utc)
+                )
+                
+                # 第一行：基本資訊
+                embed.add_field(
+                    name="👤 夥伴資訊",
+                    value=f"**{partner_name}**\n`{partner_email}`\n`{partner_discord}`",
+                    inline=True
+                )
+                embed.add_field(
+                    name="💵 提領金額",
+                    value=f"**NT$ {amount:,.0f}**",
+                    inline=True
+                )
+                embed.add_field(
+                    name="📅 申請時間",
+                    value=f"`{requested_at.strftime('%Y/%m/%d %H:%M')}`",
+                    inline=True
+                )
+                
+                # 第二行：統計資訊
+                embed.add_field(
+                    name="📊 收入統計",
+                    value=f"**總收入：** NT$ {total_earnings:,.0f}\n**總接單：** {total_orders} 筆\n**可提領：** NT$ {available_balance:,.0f}",
+                    inline=True
+                )
+                embed.add_field(
+                    name="🆔 提領ID",
+                    value=f"`{withdrawal_id}`",
+                    inline=True
+                )
+                embed.add_field(
+                    name="✅ 狀態",
+                    value="`待審核`",
+                    inline=True
+                )
+                
+                # 第三行：最近訂單
+                if recent_orders:
+                    recent_orders_text = ""
+                    for order in recent_orders[:3]:  # 只顯示最近3筆
+                        order_number = order[0] or "無編號"
+                        order_amount = order[1]
+                        order_date = order[2].strftime('%m/%d %H:%M')
+                        customer_name = order[3]
+                        recent_orders_text += f"• {order_number}: NT$ {order_amount:,.0f} ({customer_name}) - {order_date}\n"
+                    
+                    embed.add_field(
+                        name="📋 最近訂單",
+                        value=recent_orders_text or "無訂單記錄",
+                        inline=False
+                    )
+                
+                # 添加審核提醒
+                embed.add_field(
+                    name="⚠️ 審核提醒",
+                    value="請檢查夥伴的接單記錄和收入統計，確認提領金額是否合理。",
+                    inline=False
+                )
+                
+                await admin_channel.send(embed=embed)
+                
+                # 標記為已處理
+                processed_withdrawals.add(withdrawal_id)
+                print(f"✅ 已發送提領申請通知: {partner_name} - NT$ {amount:,.0f}")
+                
+    except Exception as e:
+        print(f"❌ 檢查提領申請時發生錯誤: {e}")
+
 # --- 自動檢查預約任務 ---
 @tasks.loop(seconds=CHECK_INTERVAL)
 async def check_bookings():
@@ -842,7 +1120,7 @@ async def check_bookings():
     await bot.wait_until_ready()
     
     try:
-        # print(f"🔍 check_bookings 函數開始執行")  # 減少日誌輸出
+        # 減少日誌輸出
         guild = bot.get_guild(GUILD_ID)
         if not guild:
             print("❌ 找不到 Discord 伺服器")
@@ -860,45 +1138,45 @@ async def check_bookings():
         # 使用原生 SQL 查詢避免 orderNumber 欄位問題
         # 添加檢查：只處理還沒有 Discord 頻道的預約
         query = """
-        SELECT 
-            b.id, b."customerId", b."scheduleId", b.status, b."createdAt", b."updatedAt",
-            c.name as customer_name, cu.discord as customer_discord,
-            p.name as partner_name, pu.discord as partner_discord,
-            s."startTime", s."endTime",
-            b."paymentInfo"->>'isInstantBooking' as is_instant_booking,
-            b."paymentInfo"->>'discordDelayMinutes' as discord_delay_minutes
-        FROM "Booking" b
-        JOIN "Schedule" s ON s.id = b."scheduleId"
-        JOIN "Customer" c ON c.id = b."customerId"
-        JOIN "User" cu ON cu.id = c."userId"
-        JOIN "Partner" p ON p.id = s."partnerId"
-        JOIN "User" pu ON pu.id = p."userId"
-        WHERE b.status IN ('CONFIRMED', 'COMPLETED', 'PARTNER_ACCEPTED')
-        AND s."startTime" >= :start_time_1
-        AND s."startTime" <= :start_time_2
+            SELECT 
+                b.id, b."customerId", b."scheduleId", b.status, b."createdAt", b."updatedAt",
+                c.name as customer_name, cu.discord as customer_discord,
+                p.name as partner_name, pu.discord as partner_discord,
+                s."startTime", s."endTime",
+                b."paymentInfo"->>'isInstantBooking' as is_instant_booking,
+                b."paymentInfo"->>'discordDelayMinutes' as discord_delay_minutes
+            FROM "Booking" b
+            JOIN "Schedule" s ON s.id = b."scheduleId"
+            JOIN "Customer" c ON c.id = b."customerId"
+            JOIN "User" cu ON cu.id = c."userId"
+            JOIN "Partner" p ON p.id = s."partnerId"
+            JOIN "User" pu ON pu.id = p."userId"
+            WHERE b.status IN ('CONFIRMED', 'COMPLETED', 'PARTNER_ACCEPTED')
+            AND s."startTime" >= :start_time_1
+            AND s."startTime" <= :start_time_2
         AND b."discordVoiceChannelId" IS NULL
         AND s."endTime" > :current_time
-        """
-        
+            """
+            
         # 即時預約查詢
         instant_query = """
-        SELECT 
-            b.id, b."customerId", b."scheduleId", b.status, b."createdAt", b."updatedAt",
-            c.name as customer_name, cu.discord as customer_discord,
-            p.name as partner_name, pu.discord as partner_discord,
-            s."startTime", s."endTime",
-            b."paymentInfo"->>'isInstantBooking' as is_instant_booking,
-            b."paymentInfo"->>'discordDelayMinutes' as discord_delay_minutes
-        FROM "Booking" b
-        JOIN "Schedule" s ON s.id = b."scheduleId"
-        JOIN "Customer" c ON c.id = b."customerId"
-        JOIN "User" cu ON cu.id = c."userId"
-        JOIN "Partner" p ON p.id = s."partnerId"
-        JOIN "User" pu ON pu.id = p."userId"
-        WHERE b.status = 'PARTNER_ACCEPTED'
-        AND b."paymentInfo"->>'isInstantBooking' = 'true'
-        AND s."startTime" >= :instant_start_time_1
-        AND s."startTime" <= :instant_start_time_2
+            SELECT 
+                b.id, b."customerId", b."scheduleId", b.status, b."createdAt", b."updatedAt",
+                c.name as customer_name, cu.discord as customer_discord,
+                p.name as partner_name, pu.discord as partner_discord,
+                s."startTime", s."endTime",
+                b."paymentInfo"->>'isInstantBooking' as is_instant_booking,
+                b."paymentInfo"->>'discordDelayMinutes' as discord_delay_minutes
+            FROM "Booking" b
+            JOIN "Schedule" s ON s.id = b."scheduleId"
+            JOIN "Customer" c ON c.id = b."customerId"
+            JOIN "User" cu ON cu.id = c."userId"
+            JOIN "Partner" p ON p.id = s."partnerId"
+            JOIN "User" pu ON pu.id = p."userId"
+            WHERE b.status = 'PARTNER_ACCEPTED'
+            AND b."paymentInfo"->>'isInstantBooking' = 'true'
+            AND s."startTime" >= :instant_start_time_1
+            AND s."startTime" <= :instant_start_time_2
         AND b."discordVoiceChannelId" IS NULL
         """
         
@@ -1150,16 +1428,54 @@ async def check_bookings():
                         # 通知創建頻道頻道
                         channel_creation_channel = bot.get_channel(CHANNEL_CREATION_CHANNEL_ID)
                         if channel_creation_channel:
-                            await channel_creation_channel.send(
-                                f"⚡ 即時預約語音頻道已創建：\n"
-                                f"📋 預約ID: {booking.id}\n"
-                                f"👤 顧客: {customer_member.mention} ({customer_discord})\n"
-                                f"👥 夥伴: {partner_member.mention} ({partner_discord})\n"
-                                f"⏰ 開始時間: {tw_start_time.strftime('%Y/%m/%d %H:%M')}\n"
-                                f"⏱️ 時長: {duration_minutes} 分鐘\n"
-                                f"🎮 頻道: {vc.mention}\n"
-                                f"⏳ 將在 {discord_delay_minutes} 分鐘後自動開啟"
+                            instant_embed = discord.Embed(
+                                title="⚡ 即時預約語音頻道已創建",
+                                color=0xff6b35,
+                                timestamp=datetime.now(timezone.utc)
                             )
+                            
+                            # 第一行：預約ID和顧客
+                            instant_embed.add_field(
+                                name="🆔 預約ID",
+                                value=f"`{booking.id}`",
+                                inline=True
+                            )
+                            instant_embed.add_field(
+                                name="👤 顧客",
+                                value=f"{customer_member.mention}\n`{customer_discord}`",
+                                inline=True
+                            )
+                            instant_embed.add_field(
+                                name="👥 夥伴",
+                                value=f"{partner_member.mention}\n`{partner_discord}`",
+                                inline=True
+                            )
+                            
+                            # 第二行：時間和頻道
+                            instant_embed.add_field(
+                                name="⏰ 開始時間",
+                                value=f"`{tw_start_time.strftime('%Y/%m/%d %H:%M')}`",
+                                inline=True
+                            )
+                            instant_embed.add_field(
+                                name="⏱️ 時長",
+                                value=f"`{duration_minutes} 分鐘`",
+                                inline=True
+                            )
+                            instant_embed.add_field(
+                                name="🎮 頻道",
+                                value=f"{vc.mention}",
+                                inline=True
+                            )
+                            
+                            # 第三行：延遲時間
+                            instant_embed.add_field(
+                                name="⏳ 自動開啟",
+                                value=f"`將在 {discord_delay_minutes} 分鐘後自動開啟`",
+                                inline=False
+                            )
+                            
+                            await channel_creation_channel.send(embed=instant_embed)
                         
                         # 延遲開啟語音頻道
                         async def delayed_open_voice():
@@ -1403,11 +1719,71 @@ class RatingModal(Modal, title="匿名評分與留言"):
                 pass
 
 # --- 延長按鈕 ---
+class Extend5MinView(View):
+    def __init__(self, booking_id, vc, channel_name, text_channel):
+        super().__init__(timeout=300)  # 5分鐘超時
+        self.booking_id = booking_id
+        self.vc = vc
+        self.channel_name = channel_name
+        self.text_channel = text_channel
+        self.extended = False  # 追蹤是否已延長
+
+    @discord.ui.button(label="⏰ 延長 5 分鐘", style=discord.ButtonStyle.success, custom_id="extend_5min")
+    async def extend_5_minutes(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if self.extended:
+            await interaction.response.send_message("❌ 已經延長過了，無法再次延長！", ephemeral=True)
+            return
+        
+        try:
+            # 更新資料庫中的預約結束時間
+            with Session() as s:
+                # 延長5分鐘
+                s.execute(text("""
+                    UPDATE "Schedule" 
+                    SET "endTime" = "endTime" + INTERVAL '5 minutes'
+                    WHERE id = (
+                        SELECT "scheduleId" FROM "Booking" WHERE id = :booking_id
+                    )
+                """), {"booking_id": self.booking_id})
+                s.commit()
+            
+            # 標記為已延長
+            self.extended = True
+            
+            # 更新按鈕狀態
+            button.label = "✅ 已延長 5 分鐘"
+            button.style = discord.ButtonStyle.secondary
+            button.disabled = True
+            
+            await interaction.response.edit_message(view=self)
+            
+            # 發送確認訊息
+            await interaction.followup.send(
+                "✅ **預約時間已延長 5 分鐘！**\n"
+                "新的結束時間已更新，語音頻道和文字頻道將多留存 5 分鐘。",
+                ephemeral=False
+            )
+            
+            print(f"✅ 預約 {self.booking_id} 已延長 5 分鐘")
+            
+            # 重新啟動倒數計時，但這次是延長後的時間
+            bot.loop.create_task(
+                countdown_with_rating_extended(
+                    self.vc.id, self.channel_name, self.text_channel, 
+                    self.vc, None, [], None, self.booking_id
+                )
+            )
+            
+        except Exception as e:
+            print(f"❌ 延長預約時間失敗: {e}")
+            await interaction.response.send_message("❌ 延長時間時發生錯誤，請稍後再試", ephemeral=True)
+
 class RatingView(View):
     def __init__(self, booking_id):
         super().__init__(timeout=600)  # 10 分鐘超時
         self.booking_id = booking_id
         self.ratings = {}  # 儲存用戶的評分
+        self.submitted_users = set()  # 儲存已提交評價的用戶
 
     @discord.ui.button(label="⭐ 1星", style=discord.ButtonStyle.secondary, custom_id="rating_1")
     async def rate_1_star(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -1433,44 +1809,30 @@ class RatingView(View):
         user_id = interaction.user.id
         self.ratings[user_id] = rating
         
-        # 更新按鈕樣式
-        for item in self.children:
-            if isinstance(item, discord.ui.Button):
-                if item.custom_id == f"rating_{rating}":
-                    item.style = discord.ButtonStyle.success
-                    item.label = f"✅ {item.label}"
-                else:
-                    item.style = discord.ButtonStyle.secondary
-                    # 移除其他按鈕的 ✅ 標記
-                    if item.label.startswith("✅ "):
-                        item.label = item.label[2:]
-        
-        await interaction.response.edit_message(view=self)
-        
-        # 發送評論輸入提示
-        await interaction.followup.send(
-            f"✅ 您已選擇 {rating} 星評分！\n"
-            f"請在下方輸入您的評論：",
-            ephemeral=True
-        )
-
-    @discord.ui.button(label="💬 提交評論", style=discord.ButtonStyle.primary, custom_id="submit_comment")
-    async def submit_comment(self, interaction: discord.Interaction, button: discord.ui.Button):
-        user_id = interaction.user.id
-        if user_id not in self.ratings:
-            await interaction.response.send_message("❌ 請先選擇星等評分！", ephemeral=True)
-            return
-        
-        # 創建模態對話框來輸入評論
-        modal = CommentModal(self.ratings[user_id], self.booking_id)
+        # 直接彈出包含星等和評論的模態對話框
+        modal = RatingModal(rating, self.booking_id, self)
         await interaction.response.send_modal(modal)
 
-class CommentModal(discord.ui.Modal):
-    def __init__(self, rating: int, booking_id: str):
+
+class RatingModal(discord.ui.Modal):
+    def __init__(self, rating: int, booking_id: str, parent_view):
         super().__init__(title="提交評價")
         self.rating = rating
         self.booking_id = booking_id
+        self.parent_view = parent_view
         
+        # 星等顯示
+        self.rating_display = discord.ui.TextInput(
+            label="評分",
+            default=f"{'⭐' * rating} ({rating} 星)",
+            style=discord.TextStyle.short,
+            required=False,
+            max_length=20
+        )
+        self.rating_display.disabled = True  # 設為只讀
+        self.add_item(self.rating_display)
+        
+        # 評論輸入
         self.comment_input = discord.ui.TextInput(
             label="評論內容",
             placeholder="請輸入您對這次遊戲體驗的評論...",
@@ -1501,7 +1863,7 @@ class CommentModal(discord.ui.Modal):
                 
                 if result:
                     # 發送到管理員頻道
-                    admin_channel = bot.get_channel(1419601068110778450)  # 管理員頻道 ID
+                    admin_channel = bot.get_channel(ADMIN_CHANNEL_ID)
                     if admin_channel:
                         await admin_channel.send(
                             f"**{result.customer_name}** 評價 **{result.partner_name}**\n"
@@ -1509,6 +1871,9 @@ class CommentModal(discord.ui.Modal):
                             f"💬 {comment}"
                         )
                         print(f"✅ 評價已發送到管理員頻道: {result.customer_name} → {result.partner_name} ({self.rating}⭐)")
+                    
+                    # 標記用戶已提交評價
+                    self.parent_view.submitted_users.add(interaction.user.id)
                     
                     # 確認收到評價
                     await interaction.response.send_message(
@@ -1522,6 +1887,7 @@ class CommentModal(discord.ui.Modal):
         except Exception as e:
             print(f"❌ 處理評價提交失敗: {e}")
             await interaction.response.send_message("❌ 處理評價時發生錯誤，請稍後再試", ephemeral=True)
+
 
 class ExtendView(View):
     def __init__(self, vc_id):
@@ -1606,10 +1972,9 @@ async def on_ready():
         check_new_bookings.start()
         cleanup_expired_channels.start()
         auto_close_available_now.start()
-        print(f"✅ 自動檢查預約任務已啟動，檢查間隔：{CHECK_INTERVAL} 秒")
-        print(f"✅ 新預約文字頻道檢查任務已啟動，檢查間隔：60 秒")
-        print(f"✅ 清理過期頻道任務已啟動，檢查間隔：300 秒")
-        print(f"✅ 自動關閉「現在有空」任務已啟動，檢查間隔：60 秒")
+        check_missing_ratings.start()
+        check_withdrawal_requests_task.start()
+        print(f"✅ 所有自動任務已啟動")
     except Exception as e:
         print(f"❌ 指令同步失敗: {e}")
 
@@ -1654,6 +2019,160 @@ async def countdown_with_rating(vc_id, channel_name, text_channel, vc, mentioned
         
         if wait_seconds > 0:
             print(f"⏰ 等待 {wait_seconds} 秒後開始評價系統...")
+            
+            # 檢查是否需要在結束前5分鐘提醒
+            if wait_seconds > 300:  # 如果還有超過5分鐘
+                # 等待到結束前5分鐘
+                await asyncio.sleep(wait_seconds - 300)
+                
+                # 發送5分鐘提醒和延長按鈕
+                await send_5min_reminder(text_channel, booking_id, vc, channel_name)
+                
+                # 等待剩餘的5分鐘
+                await asyncio.sleep(300)
+            else:
+                # 如果已經少於5分鐘，直接等待結束
+                await asyncio.sleep(wait_seconds)
+        
+        # 預約時間結束，關閉語音頻道
+        try:
+            await vc.delete()
+            print(f"✅ 已關閉語音頻道: {channel_name}")
+        except Exception as e:
+            print(f"❌ 關閉語音頻道失敗: {e}")
+        
+        # 檢查是否已經發送過評價系統
+        if booking_id not in rating_sent_bookings:
+            # 在文字頻道顯示評價系統
+            view = RatingView(booking_id)
+            await text_channel.send(
+                "🎉 預約時間結束！\n"
+                "請為您的遊戲夥伴評分：\n\n"
+                "點擊下方按鈕選擇星等，系統會彈出評價表單讓您填寫評論。",
+                view=view
+            )
+            # 標記為已發送評價系統
+            rating_sent_bookings.add(booking_id)
+            print(f"✅ 已發送評價系統: {booking_id}")
+        else:
+            print(f"⚠️ 預約 {booking_id} 已發送過評價系統，跳過")
+        
+        # 等待 10 分鐘讓用戶填寫評價
+        await asyncio.sleep(600)  # 10 分鐘 = 600 秒
+        
+        # 10 分鐘後自動提交未完成的評價
+        await submit_auto_rating(booking_id, text_channel)
+        
+        # 關閉文字頻道
+        try:
+            await text_channel.delete()
+            print(f"✅ 已關閉文字頻道: {text_channel.name}")
+        except Exception as e:
+            print(f"❌ 關閉文字頻道失敗: {e}")
+            
+    except Exception as e:
+        print(f"❌ countdown_with_rating 函數錯誤: {e}")
+
+async def send_5min_reminder(text_channel, booking_id, vc, channel_name):
+    """發送5分鐘提醒和延長按鈕"""
+    try:
+        view = Extend5MinView(booking_id, vc, channel_name, text_channel)
+        await text_channel.send(
+            "⏰ **預約時間提醒**\n"
+            "距離預約結束還有 **5 分鐘**！\n\n"
+            "如果您需要更多時間，可以點擊下方按鈕延長 5 分鐘。",
+            view=view
+        )
+        print(f"✅ 已發送5分鐘提醒: {channel_name}")
+    except Exception as e:
+        print(f"❌ 發送5分鐘提醒失敗: {e}")
+
+async def submit_auto_rating(booking_id: str, text_channel):
+    """10分鐘後自動提交未完成的評價"""
+    try:
+        # 獲取顧客和夥伴信息
+        with Session() as s:
+            result = s.execute(text("""
+                SELECT 
+                    c.name as customer_name, p.name as partner_name,
+                    cu.discord as customer_discord, pu.discord as partner_discord
+                FROM "Booking" b
+                JOIN "Schedule" s ON s.id = b."scheduleId"
+                JOIN "Customer" c ON c.id = b."customerId"
+                JOIN "User" cu ON cu.id = c."userId"
+                JOIN "Partner" p ON p.id = s."partnerId"
+                JOIN "User" pu ON pu.id = p."userId"
+                WHERE b.id = :booking_id
+            """), {"booking_id": booking_id}).fetchone()
+            
+            if result:
+                # 檢查是否有 RatingView 實例
+                rating_view = None
+                for view in bot.views:
+                    if hasattr(view, 'booking_id') and view.booking_id == booking_id:
+                        rating_view = view
+                        break
+                
+                # 發送到管理員頻道 - 未評價
+                admin_channel = bot.get_channel(ADMIN_CHANNEL_ID)
+                if admin_channel:
+                    # 檢查是否有用戶已經提交了評價
+                    if rating_view and rating_view.submitted_users:
+                        # 有部分用戶已提交，只為未提交的用戶發送
+                        await admin_channel.send(
+                            f"**{result.customer_name}** 評價 **{result.partner_name}**\n"
+                            f"⭐ 部分用戶未評價\n"
+                            f"💬 部分顧客未填寫評價"
+                        )
+                        print(f"✅ 自動提交部分未評價到管理員頻道: {result.customer_name} → {result.partner_name}")
+                    else:
+                        # 沒有用戶提交評價
+                        await admin_channel.send(
+                            f"**{result.customer_name}** 評價 **{result.partner_name}**\n"
+                            f"⭐ 未評價\n"
+                            f"💬 顧客未填寫評價"
+                        )
+                        print(f"✅ 自動提交未評價到管理員頻道: {result.customer_name} → {result.partner_name}")
+                
+                # 在文字頻道發送通知
+                await text_channel.send(
+                    "⏰ 評價時間已結束，感謝您的使用！\n"
+                    "如果您想提供評價，請聯繫管理員。"
+                )
+            else:
+                print(f"❌ 找不到預約 {booking_id} 的記錄")
+                
+    except Exception as e:
+        print(f"❌ 自動提交評價失敗: {e}")
+
+async def countdown_with_rating_extended(vc_id, channel_name, text_channel, vc, mentioned, members, record_id, booking_id):
+    """延長後的倒數計時函數，包含評價系統"""
+    try:
+        # 計算延長後的預約結束時間
+        now = datetime.now(timezone.utc)
+        
+        # 從資料庫獲取延長後的預約結束時間
+        with Session() as s:
+            result = s.execute(text("""
+                SELECT s."endTime" 
+                FROM "Booking" b
+                JOIN "Schedule" s ON s.id = b."scheduleId"
+                WHERE b.id = :booking_id
+            """), {"booking_id": booking_id}).fetchone()
+            
+            if not result:
+                print(f"❌ 找不到預約 {booking_id} 的結束時間")
+                return
+                
+            end_time = result[0]
+            if end_time.tzinfo is None:
+                end_time = end_time.replace(tzinfo=timezone.utc)
+        
+        # 計算等待時間（延長後的時間）
+        wait_seconds = (end_time - now).total_seconds()
+        
+        if wait_seconds > 0:
+            print(f"⏰ 延長後等待 {wait_seconds} 秒後開始評價系統...")
             await asyncio.sleep(wait_seconds)
         
         # 預約時間結束，關閉語音頻道
@@ -1663,19 +2182,29 @@ async def countdown_with_rating(vc_id, channel_name, text_channel, vc, mentioned
         except Exception as e:
             print(f"❌ 關閉語音頻道失敗: {e}")
         
-        # 在文字頻道顯示評價系統
-        view = RatingView(booking_id)
-        await text_channel.send(
-            "🎉 預約時間結束！\n"
-            "請為您的遊戲夥伴評分：\n\n"
-            "點擊下方按鈕選擇星等，然後在評論框中輸入您的評論。",
-            view=view
-        )
+        # 檢查是否已經發送過評價系統
+        if booking_id not in rating_sent_bookings:
+            # 在文字頻道顯示評價系統
+            view = RatingView(booking_id)
+            await text_channel.send(
+                "🎉 預約時間結束！\n"
+                "請為您的遊戲夥伴評分：\n\n"
+                "點擊下方按鈕選擇星等，系統會彈出評價表單讓您填寫評論。",
+                view=view
+            )
+            # 標記為已發送評價系統
+            rating_sent_bookings.add(booking_id)
+            print(f"✅ 已發送評價系統: {booking_id}")
+        else:
+            print(f"⚠️ 預約 {booking_id} 已發送過評價系統，跳過")
         
         # 等待 10 分鐘讓用戶填寫評價
         await asyncio.sleep(600)  # 10 分鐘 = 600 秒
         
-        # 10 分鐘後關閉文字頻道
+        # 10 分鐘後自動提交未完成的評價
+        await submit_auto_rating(booking_id, text_channel)
+        
+        # 關閉文字頻道
         try:
             await text_channel.delete()
             print(f"✅ 已關閉文字頻道: {text_channel.name}")
@@ -1683,7 +2212,7 @@ async def countdown_with_rating(vc_id, channel_name, text_channel, vc, mentioned
             print(f"❌ 關閉文字頻道失敗: {e}")
             
     except Exception as e:
-        print(f"❌ countdown_with_rating 函數錯誤: {e}")
+        print(f"❌ countdown_with_rating_extended 函數錯誤: {e}")
 
 async def countdown(vc_id, animal_channel_name, text_channel, vc, interaction, mentioned, record_id):
     try:

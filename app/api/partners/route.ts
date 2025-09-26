@@ -74,8 +74,14 @@ export async function GET(request: Request) {
             endTime: true,
             isAvailable: true,
             bookings: {
+              where: {
+                status: {
+                  notIn: ['CANCELLED', 'REJECTED']
+                }
+              },
               select: {
-                status: true
+                status: true,
+                id: true
               }
             }
           },
@@ -90,6 +96,25 @@ export async function GET(request: Request) {
       // 只有在沒有篩選條件時才過濾掉沒有時段的夥伴
       partnersWithSchedules = partners.filter(partner => partner.schedules.length > 0);
     }
+
+    // 過濾掉已預約的時段，只保留可用的時段
+    partnersWithSchedules = partnersWithSchedules.map(partner => ({
+      ...partner,
+      schedules: partner.schedules.filter(schedule => {
+        // 如果時段本身不可用，則過濾掉
+        if (!schedule.isAvailable) return false;
+        
+        // 如果有預約記錄且狀態不是 CANCELLED 或 REJECTED，則時段不可用
+        if (schedule.bookings && schedule.bookings.length > 0) {
+          const hasActiveBooking = schedule.bookings.some(booking => 
+            booking.status !== 'CANCELLED' && booking.status !== 'REJECTED'
+          );
+          if (hasActiveBooking) return false;
+        }
+        
+        return true;
+      })
+    })).filter(partner => partner.schedules.length > 0); // 過濾掉沒有可用時段的夥伴
 
     // 過濾掉被停權的夥伴
     partnersWithSchedules = partnersWithSchedules.filter(partner => {
