@@ -285,7 +285,7 @@ async def create_booking_text_channel(booking_id, customer_discord, partner_disc
             )
             
             await notification_channel.send(embed=notification_embed)
-            print(f"✅ 已發送預約通知到指定頻道 (ID: 1419585779432423546)")
+            # 已發送預約通知，減少日誌輸出
         
         # 保存頻道 ID 到資料庫
         try:
@@ -305,7 +305,7 @@ async def create_booking_text_channel(booking_id, customer_discord, partner_disc
                         {"channel_id": str(text_channel.id), "booking_id": booking_id}
                     )
                     s.commit()
-                    print(f"✅ 已保存文字頻道 ID {text_channel.id} 到預約 {booking_id}")
+                    # 已保存文字頻道ID，減少日誌輸出
                 else:
                     print(f"⚠️ Discord 欄位尚未創建，跳過保存頻道 ID")
         except Exception as db_error:
@@ -324,7 +324,7 @@ async def create_booking_text_channel(booking_id, customer_discord, partner_disc
                 f"💬 頻道: {text_channel.mention}"
             )
         
-        print(f"✅ 預約文字頻道創建成功: {channel_name} for booking {booking_id}")
+        # 頻道創建成功，減少日誌輸出
         return text_channel
         
     except Exception as e:
@@ -413,7 +413,7 @@ async def create_booking_voice_channel(booking_id, customer_discord, partner_dis
         user2_id = str(partner_member.id)
         
         # 添加調試信息
-        print(f"🔍 自動創建配對記錄: {user1_id} × {user2_id}")
+        # 自動創建配對記錄，減少日誌輸出
         
         with Session() as s:
             try:
@@ -427,7 +427,7 @@ async def create_booking_voice_channel(booking_id, customer_discord, partner_dis
                 s.add(record)
                 s.commit()
                 record_id = record.id
-                print(f"✅ 配對記錄創建成功，ID: {record_id}")
+                # 配對記錄創建成功，減少日誌輸出
             except Exception as e:
                 print(f"❌ 創建配對記錄失敗: {e}")
                 record_id = None
@@ -525,7 +525,7 @@ async def create_booking_voice_channel(booking_id, customer_discord, partner_dis
                             embed.add_field(name="💰 費用", value=f"${duration_minutes * 2 * 150}", inline=True)  # 假設每半小時150元
                             
                             # 文字頻道由 check_new_bookings 創建，這裡不需要發送通知
-                            print(f"✅ 即時預約語音頻道已開啟: {channel_name}")
+                            # 即時預約語音頻道已開啟，減少日誌輸出
                         else:
                             print(f"⚠️ 預約 {booking_id} 狀態已改變，取消延遲開啟")
                 except Exception as e:
@@ -556,7 +556,7 @@ async def create_booking_voice_channel(booking_id, customer_discord, partner_dis
                 # )
                 pass
             
-            print(f"✅ 自動創建頻道成功: {channel_name} for booking {booking_id}")
+            # 自動創建頻道成功，減少日誌輸出
         
         return vc
         
@@ -611,7 +611,7 @@ async def delete_booking_channels(booking_id: str):
                 if text_channel:
                     await text_channel.delete()
                     deleted_channels.append(f"文字頻道 {text_channel.name}")
-                    print(f"✅ 已刪除文字頻道: {text_channel.name}")
+                    # 已刪除文字頻道，減少日誌輸出
                 else:
                     print(f"⚠️ 文字頻道 {text_channel_id} 不存在")
             except Exception as text_error:
@@ -624,7 +624,7 @@ async def delete_booking_channels(booking_id: str):
                 if voice_channel:
                     await voice_channel.delete()
                     deleted_channels.append(f"語音頻道 {voice_channel.name}")
-                    print(f"✅ 已刪除語音頻道: {voice_channel.name}")
+                    # 已刪除語音頻道，減少日誌輸出
                 else:
                     print(f"⚠️ 語音頻道 {voice_channel_id} 不存在")
             except Exception as voice_error:
@@ -647,7 +647,7 @@ async def delete_booking_channels(booking_id: str):
                         {"booking_id": booking_id}
                     )
                     s.commit()
-                    print(f"✅ 已清除預約 {booking_id} 的頻道 ID")
+                    # 已清除預約的頻道ID，減少日誌輸出
                 else:
                     print(f"⚠️ Discord 欄位尚未創建，跳過清除頻道 ID")
         except Exception as db_error:
@@ -708,8 +708,7 @@ async def check_new_bookings():
                 try:
                     # 檢查是否已經創建過文字頻道
                     if row.id in processed_text_channels:
-                        print(f"⚠️ 預約 {row.id} 已經創建過文字頻道，跳過")
-                        continue
+                        continue  # 靜默跳過，不輸出日誌
                     
                     # 檢查資料庫中是否已經有文字頻道ID
                     with Session() as check_s:
@@ -735,7 +734,7 @@ async def check_new_bookings():
                     if text_channel:
                         # 標記為已處理
                         processed_text_channels.add(row.id)
-                        print(f"✅ 已標記預約 {row.id} 為已處理")
+                        # 已標記預約為已處理，減少日誌輸出
                         
                 except Exception as e:
                     print(f"❌ 處理新預約 {row.id} 時發生錯誤: {e}")
@@ -830,7 +829,7 @@ async def cleanup_expired_channels():
                         if text_channel:
                             await text_channel.delete()
                             deleted_channels.append(f"文字頻道 {text_channel.name}")
-                            print(f"✅ 已清理過期文字頻道: {text_channel.name}")
+                            # 已清理過期文字頻道，減少日誌輸出
                     except Exception as e:
                         print(f"❌ 清理文字頻道失敗: {e}")
                 
@@ -841,7 +840,7 @@ async def cleanup_expired_channels():
                         if voice_channel:
                             await voice_channel.delete()
                             deleted_channels.append(f"語音頻道 {voice_channel.name}")
-                            print(f"✅ 已清理過期語音頻道: {voice_channel.name}")
+                            # 已清理過期語音頻道，減少日誌輸出
                     except Exception as e:
                         print(f"❌ 清理語音頻道失敗: {e}")
                 
@@ -853,7 +852,7 @@ async def cleanup_expired_channels():
                             {"booking_id": booking_id}
                         )
                         s.commit()
-                        print(f"✅ 已清除預約 {booking_id} 的頻道 ID")
+                        # 已清除預約的頻道ID，減少日誌輸出
                     except Exception as e:
                         print(f"❌ 清除頻道 ID 失敗: {e}")
         
@@ -873,7 +872,7 @@ async def cleanup_expired_channels():
                 if 'text_channel' in vc_data and vc_data['text_channel']:
                     await vc_data['text_channel'].delete()
                 del active_voice_channels[vc_id]
-                print(f"✅ 已清理過期活躍頻道: {vc_id}")
+                # 已清理過期活躍頻道，減少日誌輸出
             except Exception as e:
                 print(f"❌ 清理活躍頻道失敗: {e}")
                 # 即使刪除失敗，也要從字典中移除
@@ -931,7 +930,7 @@ async def check_missing_ratings():
                                 f"⭐ 未評價\n"
                                 f"💬 顧客未填寫評價（預約已結束 {time_since_end:.0f} 分鐘）"
                             )
-                            print(f"✅ 已發送遺失評價: {booking.customer_name} → {booking.partner_name}")
+                            # 已發送遺失評價，減少日誌輸出
                         except Exception as e:
                             print(f"❌ 發送遺失評價失敗: {e}")
                 
@@ -969,7 +968,7 @@ async def check_withdrawal_requests():
         # 查詢新的提領申請
         with engine.connect() as conn:
             result = conn.execute(text("""
-                SELECT 
+        SELECT 
                     wr.id, wr.amount, wr."requestedAt",
                     p.name as partner_name, u.email as partner_email,
                     u.discord as partner_discord
@@ -1027,9 +1026,9 @@ async def check_withdrawal_requests():
                         b."orderNumber", b."finalAmount", b."createdAt",
                         c.name as customer_name,
                         s."startTime", s."endTime"
-                    FROM "Booking" b
-                    JOIN "Schedule" s ON s.id = b."scheduleId"
-                    JOIN "Customer" c ON c.id = b."customerId"
+        FROM "Booking" b
+        JOIN "Schedule" s ON s.id = b."scheduleId"
+        JOIN "Customer" c ON c.id = b."customerId"
                     WHERE s."partnerId" = (
                         SELECT "partnerId" FROM "WithdrawalRequest" WHERE id = :withdrawal_id
                     )
@@ -1108,7 +1107,7 @@ async def check_withdrawal_requests():
                 
                 # 標記為已處理
                 processed_withdrawals.add(withdrawal_id)
-                print(f"✅ 已發送提領申請通知: {partner_name} - NT$ {amount:,.0f}")
+                # 已發送提領申請通知，減少日誌輸出
                 
     except Exception as e:
         print(f"❌ 檢查提領申請時發生錯誤: {e}")
@@ -1371,7 +1370,7 @@ async def check_bookings():
                     user2_id = str(partner_member.id)
                     
                     # 添加調試信息
-                    print(f"🔍 自動創建配對記錄: {user1_id} × {user2_id}")
+                    # 自動創建配對記錄，減少日誌輸出
                     
                     record = PairingRecord(
                         user1_id=user1_id,
@@ -1412,7 +1411,7 @@ async def check_bookings():
                                     {"channel_id": str(vc.id), "booking_id": booking.id}
                                 )
                                 save_s.commit()
-                                print(f"✅ 已保存語音頻道 ID {vc.id} 到預約 {booking.id}")
+                                # 已保存語音頻道ID，減少日誌輸出
                             else:
                                 print(f"⚠️ Discord 語音頻道欄位尚未創建，跳過保存頻道 ID")
                     except Exception as db_error:
@@ -1504,7 +1503,7 @@ async def check_bookings():
                                         embed.add_field(name="💰 費用", value=f"${duration_minutes * 2 * 150}", inline=True)  # 假設每半小時150元
                                         
                                         # 文字頻道由 check_new_bookings 創建，這裡不需要發送通知
-                                        print(f"✅ 即時預約語音頻道已開啟: {channel_name}")
+                                        # 即時預約語音頻道已開啟，減少日誌輸出
                                     else:
                                         print(f"⚠️ 預約 {booking.id} 狀態已改變，取消延遲開啟")
                             except Exception as e:
@@ -1551,10 +1550,10 @@ async def check_bookings():
                         
                         if text_channel:
                             # 啟動倒數計時和評價系統
-                            bot.loop.create_task(
+                        bot.loop.create_task(
                                 countdown_with_rating(vc.id, channel_name, text_channel, vc, None, [customer_member, partner_member], record_id, booking.id)
                             )
-                            print(f"✅ 已啟動倒數計時和評價系統: {channel_name}")
+                            # 已啟動倒數計時和評價系統，減少日誌輸出
                         else:
                             print(f"⚠️ 找不到對應的文字頻道: {channel_name}")
                             # 如果找不到文字頻道，創建一個臨時的
@@ -1568,13 +1567,13 @@ async def check_bookings():
                                     },
                                     category=category
                                 )
-                                print(f"✅ 創建臨時文字頻道: {text_channel.name}")
+                                # 創建臨時文字頻道成功，減少日誌輸出
                                 
                                 # 啟動倒數計時和評價系統
                                 bot.loop.create_task(
                                     countdown_with_rating(vc.id, channel_name, text_channel, vc, None, [customer_member, partner_member], record_id, booking.id)
                                 )
-                                print(f"✅ 已啟動倒數計時和評價系統: {channel_name}")
+                                # 已啟動倒數計時和評價系統，減少日誌輸出
                             except Exception as e:
                                 print(f"❌ 創建臨時文字頻道失敗: {e}")
                          
@@ -1682,12 +1681,12 @@ class RatingModal(Modal, title="匿名評分與留言"):
                 user1_id = record.user1_id
                 user2_id = record.user2_id
                 
-                print(f"🔍 配對記錄資訊: user1_id={user1_id}, user2_id={user2_id}")
+                # 配對記錄資訊，減少日誌輸出
                 
                 record.rating = int(str(self.rating))
                 record.comment = str(self.comment)
                 s.commit()
-                print(f"✅ 評價已保存到資料庫")
+                # 評價已保存到資料庫，減少日誌輸出
             
             await interaction.response.send_message("✅ 感謝你的匿名評價！", ephemeral=True)
 
@@ -1947,7 +1946,7 @@ async def cleanup_duplicate_channels():
                 try:
                     await channel.delete()
                     deleted_count += 1
-                    print(f"✅ 已刪除頻道: {channel.name}")
+                    # 已刪除頻道，減少日誌輸出
                 except Exception as e:
                     print(f"❌ 刪除頻道失敗 {channel.name}: {e}")
             
@@ -2018,7 +2017,7 @@ async def countdown_with_rating(vc_id, channel_name, text_channel, vc, mentioned
         wait_seconds = (end_time - now).total_seconds()
         
         if wait_seconds > 0:
-            print(f"⏰ 等待 {wait_seconds} 秒後開始評價系統...")
+            # 移除冗餘的等待日誌
             
             # 檢查是否需要在結束前5分鐘提醒
             if wait_seconds > 300:  # 如果還有超過5分鐘
@@ -2083,7 +2082,7 @@ async def send_5min_reminder(text_channel, booking_id, vc, channel_name):
             "如果您需要更多時間，可以點擊下方按鈕延長 5 分鐘。",
             view=view
         )
-        print(f"✅ 已發送5分鐘提醒: {channel_name}")
+        # 移除冗餘的提醒日誌
     except Exception as e:
         print(f"❌ 發送5分鐘提醒失敗: {e}")
 
@@ -2172,7 +2171,7 @@ async def countdown_with_rating_extended(vc_id, channel_name, text_channel, vc, 
         wait_seconds = (end_time - now).total_seconds()
         
         if wait_seconds > 0:
-            print(f"⏰ 延長後等待 {wait_seconds} 秒後開始評價系統...")
+            # 移除冗餘的延長等待日誌
             await asyncio.sleep(wait_seconds)
         
         # 預約時間結束，關閉語音頻道

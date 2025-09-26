@@ -106,11 +106,8 @@ export async function GET(request: Request) {
         if (!schedule.isAvailable) return false;
         
         // 如果有預約記錄且狀態不是 CANCELLED 或 REJECTED，則時段不可用
-        if (schedule.bookings && schedule.bookings.length > 0) {
-          const hasActiveBooking = schedule.bookings.some(booking => 
-            booking.status !== 'CANCELLED' && booking.status !== 'REJECTED'
-          );
-          if (hasActiveBooking) return false;
+        if (schedule.bookings && schedule.bookings.status !== 'CANCELLED' && schedule.bookings.status !== 'REJECTED') {
+          return false;
         }
         
         return true;

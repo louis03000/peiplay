@@ -34,10 +34,10 @@ export async function GET() {
     // 2. 檢查每個夥伴是否有時間衝突
     const conflicts = []
     for (const partner of availableNowPartners) {
-      const activeBookings = partner.schedules.flatMap(schedule => 
-        schedule.bookings.filter(booking => 
-          booking.status !== 'CANCELLED' && booking.status !== 'REJECTED'
-        )
+      const activeBookings = partner.schedules.filter(schedule => 
+        schedule.bookings && 
+        schedule.bookings.status !== 'CANCELLED' && 
+        schedule.bookings.status !== 'REJECTED'
       )
 
       if (activeBookings.length > 0) {
