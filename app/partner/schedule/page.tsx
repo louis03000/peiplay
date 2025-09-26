@@ -37,6 +37,8 @@ export default function PartnerSchedulePage() {
     isRankBooster: boolean; 
     availableNowSince: string | null;
   } | null>(null);
+  const [rankBoosterImages, setRankBoosterImages] = useState<string[]>([]);
+  const [uploadingImages, setUploadingImages] = useState<boolean[]>(new Array(5).fill(false));
 
   useEffect(() => {
     setMounted(true);
@@ -78,11 +80,82 @@ export default function PartnerSchedulePage() {
       }
     };
 
+    const fetchRankBoosterImages = async () => {
+      try {
+        const response = await fetch('/api/partners/rank-booster-images');
+        if (response.ok) {
+          const data = await response.json();
+          setRankBoosterImages(data.rankBoosterImages || []);
+        }
+      } catch (error) {
+        console.error('獲取段位證明圖片失敗:', error);
+      }
+    };
+
+    const handleImageUpload = async (index: number, file: File) => {
+      if (!file) return;
+
+      // 驗證文件類型
+      if (!file.type.startsWith('image/')) {
+        alert('請選擇圖片文件');
+        return;
+      }
+
+      // 驗證文件大小 (5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        alert('圖片大小不能超過5MB');
+        return;
+      }
+
+      setUploadingImages(prev => {
+        const newState = [...prev];
+        newState[index] = true;
+        return newState;
+      });
+
+      try {
+        // 這裡應該上傳到圖片存儲服務（如 Cloudinary, AWS S3 等）
+        // 為了演示，我們使用一個模擬的URL
+        const mockImageUrl = `https://via.placeholder.com/300x300/4F46E5/FFFFFF?text=段位證明${index + 1}`;
+        
+        // 更新圖片陣列
+        const newImages = [...rankBoosterImages];
+        newImages[index] = mockImageUrl;
+        setRankBoosterImages(newImages);
+
+        // 保存到後端
+        const response = await fetch('/api/partners/rank-booster-images', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            images: newImages.filter(img => img) // 只保存非空的圖片
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error('保存圖片失敗');
+        }
+
+      } catch (error) {
+        console.error('上傳圖片失敗:', error);
+        alert('上傳圖片失敗，請重試');
+      } finally {
+        setUploadingImages(prev => {
+          const newState = [...prev];
+          newState[index] = false;
+          return newState;
+        });
+      }
+    };
+
     // 每2分鐘更新一次狀態（檢查是否被後台自動關閉）
     const interval = setInterval(updatePartnerStatus, 2 * 60 * 1000);
     
     // 立即更新一次
     updatePartnerStatus();
+    fetchRankBoosterImages();
 
     return () => clearInterval(interval);
   }, [mounted]);
@@ -377,7 +450,7 @@ export default function PartnerSchedulePage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 pt-32">
+    <div className="container mx-auto px-4 py-8 pt-8">
       {showSuccess && (
         <div className="fixed top-20 left-1/2 transform -translate-x-1/2 z-50 bg-green-600 text-white px-8 py-4 rounded-lg shadow-2xl font-bold text-xl animate-fade-in-out border-2 border-green-400">
           ✅ 儲存成功！
@@ -442,6 +515,75 @@ export default function PartnerSchedulePage() {
                 </div>
               </div>
             </div>
+            
+            {/* 上分高手圖片上傳區域 */}
+            {partnerStatus?.isRankBooster && (
+              <div className="p-4 bg-indigo-50 border border-indigo-200 rounded-lg mt-4">
+                <h3 className="text-lg font-semibold text-indigo-800 mb-3">🏆 段位證明圖片</h3>
+                <p className="text-sm text-indigo-600 mb-4">
+                  請上傳您的遊戲段位截圖作為證明（最多5張圖片）
+                </p>
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                  {[1, 2, 3, 4, 5].map((index) => (
+                    <div key={index} className="relative">
+                      {rankBoosterImages[index - 1] ? (
+                        <div className="aspect-square border-2 border-indigo-300 rounded-lg overflow-hidden bg-white">
+                          <img 
+                            src={rankBoosterImages[index - 1]} 
+                            alt={`段位證明 ${index}`}
+                            className="w-full h-full object-cover"
+                          />
+                          <div className="absolute inset-0 bg-black bg-opacity-0 hover:bg-opacity-30 transition-all duration-200 flex items-center justify-center">
+                            <button
+                              onClick={() => {
+                                const newImages = [...rankBoosterImages];
+                                newImages[index - 1] = '';
+                                setRankBoosterImages(newImages);
+                              }}
+                              className="opacity-0 hover:opacity-100 bg-red-500 text-white rounded-full p-1 transition-opacity"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                              </svg>
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <label className="aspect-square border-2 border-dashed border-indigo-300 rounded-lg flex items-center justify-center bg-white hover:border-indigo-400 transition-colors cursor-pointer">
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                handleImageUpload(index - 1, file);
+                              }
+                            }}
+                            disabled={uploadingImages[index - 1]}
+                          />
+                          <div className="text-center">
+                            {uploadingImages[index - 1] ? (
+                              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500 mx-auto"></div>
+                            ) : (
+                              <>
+                                <svg className="mx-auto h-8 w-8 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                                </svg>
+                                <p className="text-xs text-indigo-500 mt-1">上傳圖片</p>
+                              </>
+                            )}
+                          </div>
+                        </label>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-3 text-xs text-indigo-500">
+                  💡 建議上傳：遊戲內段位截圖、排行榜截圖、戰績截圖等
+                </div>
+              </div>
+            )}
           </div>
           <div className="w-full overflow-x-auto">
             <div className="min-w-full">

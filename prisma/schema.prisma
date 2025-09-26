@@ -47,6 +47,7 @@ model Partner {
   isRankBooster     Boolean       @default(false)
   rankBoosterNote   String?
   rankBoosterRank   String?
+  rankBoosterImages String[]      @default([])
   customerMessage   String?
   halfHourlyRate    Float
   images            String[]      @default([])

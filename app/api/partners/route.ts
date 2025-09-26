@@ -56,6 +56,7 @@ export async function GET(request: Request) {
         isRankBooster: true,
         rankBoosterNote: true,
         rankBoosterRank: true,
+        rankBoosterImages: true,
         customerMessage: true,
         user: {
           select: {
