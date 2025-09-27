@@ -274,7 +274,7 @@ export default function AdminPromoCodesPage() {
                   type="text"
                   value={formData.code}
                   onChange={(e) => setFormData({...formData, code: e.target.value.toUpperCase()})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
                   placeholder="例如：WELCOME20"
                 />
               </div>
@@ -286,7 +286,7 @@ export default function AdminPromoCodesPage() {
                 <select
                   value={formData.type}
                   onChange={(e) => setFormData({...formData, type: e.target.value as 'PERCENTAGE' | 'FIXED'})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
                 >
                   <option value="FIXED">固定金額減免</option>
                   <option value="PERCENTAGE">百分比折扣</option>
@@ -301,7 +301,7 @@ export default function AdminPromoCodesPage() {
                   type="number"
                   value={formData.value}
                   onChange={(e) => setFormData({...formData, value: parseFloat(e.target.value)})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
                   placeholder={formData.type === 'PERCENTAGE' ? '例如：20 (20%)' : '例如：50 ($50)'}
                 />
               </div>
@@ -314,7 +314,7 @@ export default function AdminPromoCodesPage() {
                   type="number"
                   value={formData.maxUses}
                   onChange={(e) => setFormData({...formData, maxUses: parseInt(e.target.value)})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
                   placeholder="-1 表示無限制"
                 />
               </div>
@@ -327,7 +327,7 @@ export default function AdminPromoCodesPage() {
                   type="datetime-local"
                   value={formData.validFrom}
                   onChange={(e) => setFormData({...formData, validFrom: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
                 />
               </div>
               
@@ -339,7 +339,7 @@ export default function AdminPromoCodesPage() {
                   type="datetime-local"
                   value={formData.validUntil}
                   onChange={(e) => setFormData({...formData, validUntil: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
                 />
               </div>
               
@@ -351,7 +351,7 @@ export default function AdminPromoCodesPage() {
                   type="text"
                   value={formData.description}
                   onChange={(e) => setFormData({...formData, description: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
                   placeholder="例如：新用戶專屬優惠"
                 />
               </div>

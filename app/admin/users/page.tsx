@@ -29,11 +29,14 @@ export default function AdminUsersPage() {
   const session = sessionData.data;
   const status = sessionData.status;
   const [users, setUsers] = useState<User[]>([]);
+  const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [suspendingUser, setSuspendingUser] = useState<string | null>(null);
   const [suspensionReason, setSuspensionReason] = useState("");
   const [deletingUser, setDeletingUser] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [roleFilter, setRoleFilter] = useState("ALL");
 
   useEffect(() => {
     if (status === "loading") return;
@@ -44,12 +47,36 @@ export default function AdminUsersPage() {
     fetchUsers();
   }, [session, status, router]);
 
+  // 搜尋和篩選功能
+  useEffect(() => {
+    let filtered = users;
+
+    // 角色篩選
+    if (roleFilter !== "ALL") {
+      filtered = filtered.filter(user => user.role === roleFilter);
+    }
+
+    // 搜尋功能
+    if (searchTerm.trim()) {
+      filtered = filtered.filter(user => 
+        user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (user.partner && user.partner.games.some(game => 
+          game.toLowerCase().includes(searchTerm.toLowerCase())
+        ))
+      );
+    }
+
+    setFilteredUsers(filtered);
+  }, [searchTerm, roleFilter, users]);
+
   const fetchUsers = async () => {
     try {
       const res = await fetch("/api/admin/users");
       if (res.ok) {
         const data = await res.json();
         setUsers(data);
+        setFilteredUsers(data);
       } else {
         setError("載入用戶失敗");
       }
@@ -170,6 +197,84 @@ export default function AdminUsersPage() {
           返回夥伴審核
         </a>
       </div>
+
+      {/* 搜尋框 */}
+      <div className="mb-6">
+        <div className="relative">
+          <input
+            type="text"
+            placeholder="搜尋用戶名字、Email 或遊戲類型..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full px-4 py-2 pl-10 pr-4 text-gray-700 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          />
+          <div className="absolute inset-y-0 left-0 flex items-center pl-3">
+            <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          </div>
+        </div>
+        {/* 角色篩選按鈕 */}
+        <div className="mt-4 flex gap-2">
+          <button
+            onClick={() => setRoleFilter("ALL")}
+            className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
+              roleFilter === "ALL" 
+                ? "bg-blue-600 text-white" 
+                : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+            }`}
+          >
+            全部
+          </button>
+          <button
+            onClick={() => setRoleFilter("CUSTOMER")}
+            className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
+              roleFilter === "CUSTOMER" 
+                ? "bg-green-600 text-white" 
+                : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+            }`}
+          >
+            顧客
+          </button>
+          <button
+            onClick={() => setRoleFilter("PARTNER")}
+            className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
+              roleFilter === "PARTNER" 
+                ? "bg-blue-600 text-white" 
+                : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+            }`}
+          >
+            夥伴
+          </button>
+          <button
+            onClick={() => setRoleFilter("ADMIN")}
+            className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
+              roleFilter === "ADMIN" 
+                ? "bg-red-600 text-white" 
+                : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+            }`}
+          >
+            管理員
+          </button>
+        </div>
+
+        {(searchTerm || roleFilter !== "ALL") && (
+          <div className="mt-2 flex items-center justify-between">
+            <div className="text-sm text-gray-600">
+              找到 {filteredUsers.length} 個用戶
+            </div>
+            <button
+              onClick={() => {
+                setSearchTerm("");
+                setRoleFilter("ALL");
+              }}
+              className="text-sm text-blue-600 hover:text-blue-800"
+            >
+              清空篩選
+            </button>
+          </div>
+        )}
+      </div>
       
       <div className="bg-white shadow-lg rounded-lg overflow-hidden">
         <div className="overflow-x-auto">
@@ -197,7 +302,14 @@ export default function AdminUsersPage() {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {users.map((user) => (
+              {filteredUsers.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
+                    {searchTerm ? `沒有找到包含 "${searchTerm}" 的用戶` : "沒有用戶資料"}
+                  </td>
+                </tr>
+              ) : (
+                filteredUsers.map((user) => (
                 <tr key={user.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div>
@@ -285,7 +397,8 @@ export default function AdminUsersPage() {
                     </div>
                   </td>
                 </tr>
-              ))}
+                ))
+              )}
             </tbody>
           </table>
         </div>

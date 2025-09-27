@@ -14,43 +14,47 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
     }
 
-            // 取得所有消費紀錄（訂單），包含完整的關聯資料
-    const orders = await prisma.order.findMany({
+    // 取得所有已完成的預約（消費紀錄），按夥伴分組
+    const bookings = await prisma.booking.findMany({
+      where: {
+        status: {
+          in: ['CONFIRMED', 'COMPLETED']
+        }
+      },
       include: {
-            customer: { 
+        customer: { 
+          select: { 
+            name: true, 
+            phone: true,
+            user: {
+              select: {
+                email: true
+              }
+            }
+          } 
+        },
+        schedule: {
+          include: { 
+            partner: { 
               select: { 
                 name: true, 
                 phone: true,
+                halfHourlyRate: true,
                 user: {
                   select: {
-                    email: true
+                    email: true,
+                    discord: true
                   }
                 }
               } 
-            },
-        booking: {
-          include: {
-            schedule: {
-                  include: { 
-                    partner: { 
-                      select: { 
-                        name: true, 
-                        phone: true,
-                        halfHourlyRate: true,
-                        user: {
-                          select: {
-                            email: true,
-                            discord: true
-                          }
-                        }
-                      } 
-                    } 
-                  }
-            }
+            } 
           }
         }
       },
-      orderBy: { createdAt: 'desc' }
+      orderBy: [
+        { schedule: { partner: { name: 'asc' } } },
+        { createdAt: 'desc' }
+      ]
     });
 
     // 建立 Excel 檔案
@@ -91,12 +95,12 @@ export async function GET(request: NextRequest) {
     // 按夥伴分組統計
     const partnerStats = new Map();
     
-    for (const order of orders) {
-      const partner = order.booking?.schedule?.partner;
+    for (const booking of bookings) {
+      const partner = booking.schedule?.partner;
       if (!partner) continue;
       
       const partnerId = partner.name; // 使用夥伴姓名作為分組鍵
-      const schedule = order.booking?.schedule;
+      const schedule = booking.schedule;
       const start = schedule?.startTime ? new Date(schedule.startTime) : null;
       const end = schedule?.endTime ? new Date(schedule.endTime) : null;
       const duration = start && end ? Math.round((end.getTime() - start.getTime()) / 60000) : 0;
@@ -118,8 +122,8 @@ export async function GET(request: NextRequest) {
       const stats = partnerStats.get(partnerId);
       stats.totalOrders++;
       stats.totalDuration += duration;
-      stats.totalIncome += order.amount;
-      stats.orders.push(order);
+      stats.totalIncome += booking.finalAmount;
+      stats.orders.push(booking);
     }
 
     // 添加總覽資料
@@ -238,9 +242,9 @@ export async function GET(request: NextRequest) {
         };
       }
 
-              // 添加該夥伴的所有訂單
-        for (const order of stats.orders) {
-          const schedule = order.booking?.schedule;
+              // 添加該夥伴的所有預約
+        for (const booking of stats.orders) {
+          const schedule = booking.schedule;
           const start = schedule?.startTime ? new Date(schedule.startTime) : null;
           const end = schedule?.endTime ? new Date(schedule.endTime) : null;
           const duration = start && end ? Math.round((end.getTime() - start.getTime()) / 60000) : 0;
@@ -248,20 +252,20 @@ export async function GET(request: NextRequest) {
           
           detailSheet.addRow({
             partnerName: partner?.name || '',
-            bookingId: order.booking?.id || '',
-            orderNumber: order.booking?.orderNumber || '',
+            bookingId: booking.id || '',
+            orderNumber: booking.orderNumber || '',
             date: start ? start.toLocaleDateString('zh-TW') : '',
             start: start ? start.toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit', hour12: false }) : '',
             end: end ? end.toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit', hour12: false }) : '',
             duration: duration,
             rate: partner?.halfHourlyRate || '',
-            amount: order.amount,
-            bookingStatus: order.booking?.status || '未知',
-            customerName: order.customer?.name || '',
-            customerEmail: order.customer?.user?.email || '',
-            customerPhone: order.customer?.phone || '',
-            created: order.createdAt ? new Date(order.createdAt).toLocaleString('zh-TW') : '',
-            notes: order.booking?.rejectReason || ''
+            amount: booking.finalAmount,
+            bookingStatus: booking.status || '未知',
+            customerName: booking.customer?.name || '',
+            customerEmail: booking.customer?.user?.email || '',
+            customerPhone: booking.customer?.phone || '',
+            created: booking.createdAt ? new Date(booking.createdAt).toLocaleString('zh-TW') : '',
+            notes: booking.rejectReason || ''
           });
         }
 
@@ -315,8 +319,8 @@ export async function GET(request: NextRequest) {
     // 按月份和夥伴分組統計
     const monthlyStats = new Map();
 
-    for (const order of orders) {
-      const schedule = order.booking?.schedule;
+    for (const booking of bookings) {
+      const schedule = booking.schedule;
       const partner = schedule?.partner;
       if (!partner) continue;
       
@@ -342,7 +346,7 @@ export async function GET(request: NextRequest) {
       const stats = monthlyStats.get(monthKey);
       stats.orderCount++;
       stats.totalHours += duration;
-      stats.totalIncome += order.amount;
+      stats.totalIncome += booking.finalAmount;
     }
 
     // 添加時間統計資料
