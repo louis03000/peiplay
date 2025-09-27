@@ -308,6 +308,7 @@ export default function BookingsPage() {
                     <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                       booking.status === 'CONFIRMED' ? 'bg-green-600 text-white' :
                       booking.status === 'PENDING' ? 'bg-yellow-600 text-white' :
+                      booking.status === 'PAID_WAITING_PARTNER_CONFIRMATION' ? 'bg-orange-600 text-white' :
                       booking.status === 'REJECTED' ? 'bg-red-500 text-white' :
                       booking.status === 'CANCELLED' ? 'bg-red-600 text-white' :
                       booking.status === 'COMPLETED' ? 'bg-blue-600 text-white' :
@@ -344,7 +345,7 @@ export default function BookingsPage() {
                   )}
                   {tab === 'partner' && (
                     <td className="py-4 px-6">
-                      {booking.status === 'PENDING' && (
+                      {(booking.status === 'PENDING' || booking.status === 'PAID_WAITING_PARTNER_CONFIRMATION') && (
                         <div className="flex gap-2">
                           <button
                             className="px-3 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 transition-colors"

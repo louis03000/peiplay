@@ -684,19 +684,20 @@ async def delete_booking_channels(booking_id: str):
 # --- 檢查新預約並創建文字頻道任務 ---
 @tasks.loop(seconds=60)  # 每分鐘檢查一次
 async def check_new_bookings():
-    """檢查新預約並創建文字頻道"""
+    """檢查預約開始前 2 小時的預約並創建文字頻道"""
     await bot.wait_until_ready()
     
     try:
         with Session() as s:
-            # 查詢最近 10 分鐘內創建的已確認預約
+            # 查詢預約開始前 2 小時的已確認預約
             now = datetime.now(timezone.utc)
-            recent_time = now - timedelta(minutes=10)
+            # 檢查預約開始時間在 2 小時內且還沒有創建文字頻道的預約
+            two_hours_from_now = now + timedelta(hours=2)
             
             # 檢查是否已創建文字頻道
             processed_list = list(processed_text_channels)
             
-            # 使用簡化的查詢，在 Python 中過濾已處理的預約
+            # 查詢預約開始時間在 2 小時內且還沒有創建文字頻道的已確認預約
             query = """
                 SELECT 
                     b.id, b."customerId", b."scheduleId", b.status, b."createdAt", b."updatedAt",
@@ -709,10 +710,15 @@ async def check_new_bookings():
                 JOIN "User" cu ON cu.id = c."userId"
                 JOIN "Partner" p ON p.id = s."partnerId"
                 JOIN "User" pu ON pu.id = p."userId"
-                                 WHERE b.status IN ('PAID_WAITING_PARTNER_CONFIRMATION', 'PARTNER_ACCEPTED', 'CONFIRMED')
-                 AND b."createdAt" >= :recent_time
+                WHERE b.status = 'CONFIRMED'
+                AND s."startTime" <= :two_hours_from_now
+                AND s."startTime" > :now
+                AND b."discordTextChannelId" IS NULL
             """
-            result = s.execute(text(query), {"recent_time": recent_time})
+            result = s.execute(text(query), {
+                "two_hours_from_now": two_hours_from_now,
+                "now": now
+            })
             
             for row in result:
                 try:
@@ -733,7 +739,8 @@ async def check_new_bookings():
                             processed_text_channels.add(row.id)
                             continue
                     
-                    # 創建文字頻道
+                    # 創建文字頻道（預約開始前 2 小時）
+                    print(f"🔍 預約 {row.id} 將在 2 小時內開始，創建文字頻道")
                     text_channel = await create_booking_text_channel(
                         row.id, 
                         row.customer_discord, 
@@ -1162,7 +1169,7 @@ async def check_bookings():
             JOIN "User" cu ON cu.id = c."userId"
             JOIN "Partner" p ON p.id = s."partnerId"
             JOIN "User" pu ON pu.id = p."userId"
-            WHERE b.status IN ('CONFIRMED', 'COMPLETED', 'PARTNER_ACCEPTED')
+            WHERE b.status IN ('CONFIRMED', 'COMPLETED')
             AND s."startTime" >= :start_time_1
             AND s."startTime" <= :start_time_2
         AND b."discordVoiceChannelId" IS NULL
@@ -2128,10 +2135,15 @@ async def submit_auto_rating(booking_id: str, text_channel):
             if result:
                 # 檢查是否有 RatingView 實例
                 rating_view = None
-                for view in bot.views:
-                    if hasattr(view, 'booking_id') and view.booking_id == booking_id:
-                        rating_view = view
-                        break
+                # 使用 persistent_views 或直接跳過檢查
+                try:
+                    for view in bot.persistent_views:
+                        if hasattr(view, 'booking_id') and view.booking_id == booking_id:
+                            rating_view = view
+                            break
+                except AttributeError:
+                    # 如果 persistent_views 不存在，直接跳過
+                    rating_view = None
                 
                 # 發送到管理員頻道 - 未評價
                 admin_channel = bot.get_channel(ADMIN_CHANNEL_ID)

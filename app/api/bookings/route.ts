@@ -83,7 +83,7 @@ export async function POST(request: Request) {
             data: {
               customerId: customer.id,
               scheduleId: scheduleId,
-              status: 'CONFIRMED' as any,
+              status: 'PAID_WAITING_PARTNER_CONFIRMATION' as any,
               originalAmount: 0, // 暫時設為 0，後續會更新
               finalAmount: 0,    // 暫時設為 0，後續會更新
             },
