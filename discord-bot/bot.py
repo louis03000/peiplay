@@ -1,6 +1,7 @@
 import os 
 import asyncio
 import random
+import time
 import discord
 from discord.ext import commands, tasks
 from discord import app_commands
@@ -434,7 +435,12 @@ async def create_booking_voice_channel(booking_id, customer_discord, partner_dis
                 # 配對記錄創建成功，減少日誌輸出
             except Exception as e:
                 print(f"❌ 創建配對記錄失敗: {e}")
-                record_id = None
+                # 如果表不存在，使用預設的 record_id
+                if "relation \"pairing_records\" does not exist" in str(e):
+                    record_id = "temp_" + str(int(time.time()))
+                    print(f"⚠️ 使用臨時 record_id: {record_id}")
+                else:
+                    record_id = None
         
         # 初始化頻道狀態
         active_voice_channels[vc.id] = {
@@ -712,6 +718,7 @@ async def check_new_bookings():
                 try:
                     # 檢查是否已經創建過文字頻道
                     if row.id in processed_text_channels:
+                        print(f"⚠️ 預約 {row.id} 已在記憶體中標記為已處理，跳過")
                         continue  # 靜默跳過，不輸出日誌
                     
                     # 檢查資料庫中是否已經有文字頻道ID
@@ -1377,16 +1384,25 @@ async def check_bookings():
                     # 添加調試信息
                     # 自動創建配對記錄，減少日誌輸出
                     
-                    record = PairingRecord(
-                        user1_id=user1_id,
-                        user2_id=user2_id,
-                        duration=duration_minutes * 60,
-                        animal_name="預約頻道",  # 修正未定義的 animal 變數
-                        booking_id=booking.id
-                    )
-                    s.add(record)
-                    s.commit()
-                    record_id = record.id  # 保存 ID，避免 Session 關閉後無法訪問
+                    try:
+                        record = PairingRecord(
+                            user1_id=user1_id,
+                            user2_id=user2_id,
+                            duration=duration_minutes * 60,
+                            animal_name="預約頻道",  # 修正未定義的 animal 變數
+                            booking_id=booking.id
+                        )
+                        s.add(record)
+                        s.commit()
+                        record_id = record.id  # 保存 ID，避免 Session 關閉後無法訪問
+                    except Exception as e:
+                        print(f"❌ 創建配對記錄失敗: {e}")
+                        # 如果表不存在，使用預設的 record_id
+                        if "relation \"pairing_records\" does not exist" in str(e):
+                            record_id = "temp_" + str(int(time.time()))
+                            print(f"⚠️ 使用臨時 record_id: {record_id}")
+                        else:
+                            record_id = None
                      
                                         # 初始化頻道狀態
                     active_voice_channels[vc.id] = {
