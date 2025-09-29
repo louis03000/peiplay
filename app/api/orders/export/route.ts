@@ -60,18 +60,25 @@ export async function GET(request: NextRequest) {
     // 建立 Excel 檔案
     const workbook = new ExcelJS.Workbook();
     
-    // 1. 總覽工作表
+    // 1. 總覽工作表（包含所有單筆接單記錄）
     const overviewSheet = workbook.addWorksheet('消費紀錄總覽');
     overviewSheet.columns = [
-      { header: '夥伴姓名', key: 'partnerName', width: 20 },
+      { header: '訂單編號', key: 'orderNumber', width: 25 },
+      { header: '客戶姓名', key: 'customerName', width: 15 },
+      { header: '預約日期', key: 'date', width: 12 },
+      { header: '服務時段', key: 'timeSlot', width: 20 },
+      { header: '時長', key: 'duration', width: 10 },
+      { header: '收入', key: 'amount', width: 15 },
+      { header: '接單時間', key: 'created', width: 20 },
+      { header: '夥伴姓名', key: 'partnerName', width: 15 },
       { header: '夥伴Email', key: 'partnerEmail', width: 25 },
       { header: '夥伴電話', key: 'partnerPhone', width: 15 },
       { header: 'Discord ID', key: 'partnerDiscord', width: 20 },
-      { header: '每半小時收費', key: 'halfHourlyRate', width: 15 },
-      { header: '總接單數', key: 'totalOrders', width: 12 },
-      { header: '總時長(分鐘)', key: 'totalDuration', width: 15 },
-      { header: '總收入', key: 'totalIncome', width: 15 },
-      { header: '平均每單收入', key: 'avgIncome', width: 15 },
+      { header: '每半小時收費', key: 'rate', width: 15 },
+      { header: '客戶Email', key: 'customerEmail', width: 25 },
+      { header: '客戶電話', key: 'customerPhone', width: 15 },
+      { header: '預約ID', key: 'bookingId', width: 15 },
+      { header: '備註', key: 'notes', width: 30 },
     ];
 
     // 2. 夥伴收入結算工作表（重點工作表）
@@ -126,18 +133,41 @@ export async function GET(request: NextRequest) {
       stats.orders.push(booking);
     }
 
-    // 添加總覽資料
-    for (const [partnerId, stats] of Array.from(partnerStats)) {
+    // 添加總覽資料（所有單筆接單記錄）
+    for (const booking of bookings) {
+      const partner = booking.schedule?.partner;
+      if (!partner) continue;
+      
+      const schedule = booking.schedule;
+      const start = schedule?.startTime ? new Date(schedule.startTime) : null;
+      const end = schedule?.endTime ? new Date(schedule.endTime) : null;
+      const duration = start && end ? Math.round((end.getTime() - start.getTime()) / 60000) : 0;
+      
+      // 格式化服務時段
+      let timeSlot = '';
+      if (start && end) {
+        const startTime = start.toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit', hour12: true });
+        const endTime = end.toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit', hour12: true });
+        timeSlot = `${startTime} - ${endTime}`;
+      }
+      
       overviewSheet.addRow({
-        partnerName: stats.partnerName,
-        partnerEmail: stats.partnerEmail,
-        partnerPhone: stats.partnerPhone,
-        partnerDiscord: stats.partnerDiscord,
-        halfHourlyRate: stats.halfHourlyRate,
-        totalOrders: stats.totalOrders,
-        totalDuration: stats.totalDuration,
-        totalIncome: stats.totalIncome,
-        avgIncome: stats.totalOrders > 0 ? Math.round(stats.totalIncome / stats.totalOrders) : 0
+        orderNumber: booking.orderNumber || '',
+        customerName: booking.customer?.name || '',
+        date: start ? start.toLocaleDateString('zh-TW') : '',
+        timeSlot: timeSlot,
+        duration: `${duration} 分鐘`,
+        amount: `NT$ ${booking.finalAmount}`,
+        created: booking.createdAt ? new Date(booking.createdAt).toLocaleDateString('zh-TW') : '',
+        partnerName: partner.name,
+        partnerEmail: partner.user?.email || '',
+        partnerPhone: partner.phone,
+        partnerDiscord: partner.user?.discord || '',
+        rate: partner.halfHourlyRate,
+        customerEmail: booking.customer?.user?.email || '',
+        customerPhone: booking.customer?.phone || '',
+        bookingId: booking.id,
+        notes: booking.rejectReason || ''
       });
     }
 

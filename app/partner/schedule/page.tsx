@@ -465,7 +465,7 @@ export default function PartnerSchedulePage() {
           <div className="p-6 border-b border-gray-200">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-4">
-                <h2 className="text-xl font-bold text-gray-800">未來7天時段管理</h2>
+                <h2 className="text-xl font-bold text-gray-900">未來7天時段管理</h2>
                 <div className="flex space-x-2">
                   <button
                     onClick={() => handleViewChange('today')}

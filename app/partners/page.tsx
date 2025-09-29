@@ -31,7 +31,20 @@ export type Partner = {
   halfHourlyRate: number;
   coverImage?: string;
   images?: string[];
-  schedules: { id: string; date: string; startTime: string; endTime: string, isAvailable: boolean }[];
+  schedules: { 
+    id: string; 
+    date: string; 
+    startTime: string; 
+    endTime: string; 
+    isAvailable: boolean;
+    bookings?: { status: string } | null;
+    searchTimeRestriction?: {
+      startTime: string;
+      endTime: string;
+      startDate: string;
+      endDate: string;
+    };
+  }[];
   isAvailableNow: boolean;
   isRankBooster: boolean;
   customerMessage?: string;
@@ -49,9 +62,10 @@ export default function PartnersPage() {
     availableNow: false,
     rankBooster: false,
     startDate: '',
-    endDate: ''
+    endDate: '',
+    startTime: '',
+    endTime: ''
   });
-  const [showCards, setShowCards] = useState(false);
   const [flippedCards, setFlippedCards] = useState<Set<string>>(new Set());
 
   // 使用防抖的搜尋詞和篩選選項
@@ -100,29 +114,54 @@ export default function PartnersPage() {
       setError('')
       
       try {
-        const params = new URLSearchParams()
-        
-        if (debouncedFilterOptions.availableNow) {
-          params.append('availableNow', 'true')
-        }
-        if (debouncedFilterOptions.rankBooster) {
-          params.append('rankBooster', 'true')
-        }
-        if (debouncedFilterOptions.startDate) {
+        // 如果有日期和時段篩選，使用新的時段搜尋API
+        if (debouncedFilterOptions.startDate && debouncedFilterOptions.endDate && 
+            debouncedFilterOptions.startTime && debouncedFilterOptions.endTime) {
+          const params = new URLSearchParams()
           params.append('startDate', debouncedFilterOptions.startDate)
-        }
-        if (debouncedFilterOptions.endDate) {
           params.append('endDate', debouncedFilterOptions.endDate)
+          params.append('startTime', debouncedFilterOptions.startTime)
+          params.append('endTime', debouncedFilterOptions.endTime)
+          
+          if (debouncedSearchTerm) {
+            params.append('game', debouncedSearchTerm)
+          }
+          
+          const response = await fetch(`/api/partners/search-by-time?${params}`)
+          if (!response.ok) {
+            throw new Error('Failed to fetch partners by time')
+          }
+          
+          const data = await response.json()
+          setPartners(data)
+        } else {
+          // 使用原有的夥伴API
+          const params = new URLSearchParams()
+          
+          if (debouncedFilterOptions.availableNow) {
+            params.append('availableNow', 'true')
+          }
+          if (debouncedFilterOptions.rankBooster) {
+            params.append('rankBooster', 'true')
+          }
+          if (debouncedFilterOptions.startDate) {
+            params.append('startDate', debouncedFilterOptions.startDate)
+          }
+          if (debouncedFilterOptions.endDate) {
+            params.append('endDate', debouncedFilterOptions.endDate)
+          }
+          if (debouncedSearchTerm) {
+            params.append('game', debouncedSearchTerm)
+          }
+          
+          const response = await fetch(`/api/partners?${params.toString()}`)
+          if (!response.ok) {
+            throw new Error('Failed to fetch partners')
+          }
+          
+          const data = await response.json()
+          setPartners(data)
         }
-        
-        const response = await fetch(`/api/partners?${params.toString()}`)
-        if (!response.ok) {
-          throw new Error('Failed to fetch partners')
-        }
-        
-        const data = await response.json()
-        setPartners(data)
-        setShowCards(true)
       } catch (err) {
         setError('載入夥伴資料失敗')
         console.error('Error fetching partners:', err)
@@ -132,21 +171,38 @@ export default function PartnersPage() {
     }
 
     fetchPartners()
-  }, [debouncedFilterOptions])
+  }, [debouncedFilterOptions, debouncedSearchTerm])
 
   // 篩選夥伴
   const filteredPartners = useMemo(() => {
-    if (!debouncedSearchTerm) return partners
+    // 如果有時段篩選，直接返回partners（已經在API層面篩選過了）
+    if (debouncedFilterOptions.startDate && debouncedFilterOptions.endDate && 
+        debouncedFilterOptions.startTime && debouncedFilterOptions.endTime) {
+      return partners
+    }
+    
+    // 沒有搜尋詞時不顯示任何夥伴
+    if (!debouncedSearchTerm) return []
     
     const searchLower = debouncedSearchTerm.toLowerCase()
     return partners.filter(partner => 
       partner.name.toLowerCase().includes(searchLower) ||
       partner.games.some(game => game.toLowerCase().includes(searchLower))
     )
-  }, [partners, debouncedSearchTerm])
+  }, [partners, debouncedSearchTerm, debouncedFilterOptions])
 
-  const handleFilter = useCallback((options: any) => {
-    setFilterOptions(options)
+  const handleFilter = useCallback((startDate: string, endDate: string, game?: string, startTime?: string, endTime?: string) => {
+    setFilterOptions({
+      availableNow: false,
+      rankBooster: false,
+      startDate,
+      endDate,
+      startTime: startTime || '',
+      endTime: endTime || ''
+    })
+    if (game) {
+      setSearchTerm(game)
+    }
   }, [])
 
   const handleQuickBook = useCallback((partnerId: string) => {
@@ -201,7 +257,7 @@ export default function PartnersPage() {
             <div className="text-center py-12">
               <div className="text-gray-400 text-6xl mb-4">🔍</div>
               <p className="text-gray-500 text-lg mb-2">
-                {searchTerm ? '搜尋無結果' : '目前沒有夥伴'}
+                {searchTerm ? '搜尋無結果' : '請輸入搜尋條件來尋找夥伴'}
               </p>
               {searchTerm && (
                 <button 
@@ -213,20 +269,18 @@ export default function PartnersPage() {
               )}
             </div>
           ) : (
-            showCards && (
-              <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
-                {filteredPartners.map(partner => (
-                  <PartnerCard 
-                    key={partner.id} 
-                    partner={partner} 
-                    onQuickBook={handleQuickBook} 
-                    showNextStep={true}
-                    flipped={flippedCards.has(partner.id)}
-                    onFlip={() => handleCardFlip(partner.id)}
-                  />
-                ))}
-              </div>
-            )
+            <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
+              {filteredPartners.map(partner => (
+                <PartnerCard 
+                  key={partner.id} 
+                  partner={partner} 
+                  onQuickBook={handleQuickBook} 
+                  showNextStep={true}
+                  flipped={flippedCards.has(partner.id)}
+                  onFlip={() => handleCardFlip(partner.id)}
+                />
+              ))}
+            </div>
           )}
         </div>
       </div>

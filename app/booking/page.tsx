@@ -60,6 +60,12 @@ export type Partner = {
     endTime: string; 
     isAvailable: boolean;
     bookings?: { status: string } | null;
+    searchTimeRestriction?: {
+      startTime: string;
+      endTime: string;
+      startDate: string;
+      endDate: string;
+    };
   }[];
   isAvailableNow: boolean;
   isRankBooster: boolean;
@@ -279,6 +285,21 @@ function BookingWizardContent() {
       const scheduleDate = new Date(schedule.date)
       if (!isSameDay(scheduleDate, selectedDate)) return false;
       if (new Date(schedule.startTime) <= now) return false;
+      
+      // 如果有搜尋時段限制，檢查時段是否與搜尋時段重疊
+      if (schedule.searchTimeRestriction) {
+        const restriction = schedule.searchTimeRestriction;
+        const scheduleStart = schedule.startTime;
+        const scheduleEnd = schedule.endTime;
+        const searchStart = restriction.startTime;
+        const searchEnd = restriction.endTime;
+        
+        // 檢查時段是否與搜尋時段重疊
+        if (scheduleEnd <= searchStart || scheduleStart >= searchEnd) {
+          return false;
+        }
+      }
+      
       const timeSlotIdentifier = `${schedule.startTime}-${schedule.endTime}`
       if (seenTimeSlots.has(timeSlotIdentifier)) {
         return false
