@@ -41,14 +41,7 @@ export async function GET(request: Request) {
             endTime: {
               gte: endTime, // 時段結束時間不早於搜尋結束時間
             },
-            isAvailable: true,
-            bookings: {
-              none: {
-                status: {
-                  notIn: ['CANCELLED', 'REJECTED']
-                }
-              }
-            }
+            isAvailable: true
           }
         },
         // 遊戲篩選
@@ -79,14 +72,7 @@ export async function GET(request: Request) {
             endTime: {
               gte: endTime,
             },
-            isAvailable: true,
-            bookings: {
-              none: {
-                status: {
-                  notIn: ['CANCELLED', 'REJECTED']
-                }
-              }
-            }
+            isAvailable: true
           },
           include: {
             bookings: {
@@ -119,10 +105,17 @@ export async function GET(request: Request) {
 
     // 只返回有可用時段的夥伴，並為每個時段添加搜尋時段限制
     const partnersWithAvailableSchedules = availablePartners
-      .filter(partner => partner.schedules.length > 0)
       .map(partner => ({
         ...partner,
-        schedules: partner.schedules.map(schedule => ({
+        schedules: partner.schedules.filter(schedule => {
+          // 過濾掉已被預約的時段（排除已取消和已拒絕的預約）
+          if (schedule.bookings && schedule.bookings.status && 
+              schedule.bookings.status !== 'CANCELLED' && 
+              schedule.bookings.status !== 'REJECTED') {
+            return false;
+          }
+          return true;
+        }).map(schedule => ({
           ...schedule,
           // 添加搜尋時段限制信息
           searchTimeRestriction: {
@@ -133,6 +126,7 @@ export async function GET(request: Request) {
           }
         }))
       }))
+      .filter(partner => partner.schedules.length > 0)
 
     return NextResponse.json(partnersWithAvailableSchedules)
   } catch (error) {
