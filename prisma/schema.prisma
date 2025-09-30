@@ -163,6 +163,21 @@ model WithdrawalRequest {
   partner     Partner             @relation(fields: [partnerId], references: [id])
 }
 
+model PairingRecord {
+  id            String   @id @default(cuid())
+  user1Id       String
+  user2Id       String
+  timestamp     DateTime @default(now())
+  extendedTimes Int      @default(0)
+  duration      Int
+  rating        Int?
+  comment       String?
+  animalName    String
+  bookingId     String   @unique
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
 
 
 enum UserRole {

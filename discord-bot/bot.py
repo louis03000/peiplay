@@ -38,7 +38,15 @@ CHANNEL_CREATION_CHANNEL_ID = int(os.getenv("CHANNEL_CREATION_CHANNEL_ID", "1410
 CHECK_INTERVAL = int(os.getenv("CHECK_INTERVAL", "30"))  # 檢查間隔（秒）
 
 Base = declarative_base()
-engine = create_engine(POSTGRES_CONN)
+# 添加連接池設置和重連機制
+engine = create_engine(
+    POSTGRES_CONN,
+    pool_size=5,
+    max_overflow=10,
+    pool_pre_ping=True,  # 自動重連
+    pool_recycle=3600,   # 1小時後回收連接
+    echo=False
+)
 Session = sessionmaker(bind=engine)
 session = Session()
 
@@ -1198,25 +1206,26 @@ async def check_bookings():
         AND b."discordVoiceChannelId" IS NULL
         """
         
-        with Session() as s:
-            # 查詢一般預約
-            result = s.execute(text(query), {"start_time_1": window_start, "start_time_2": window_end, "current_time": now})
-            
-            # 查詢即時預約
-            instant_result = s.execute(text(instant_query), {"instant_start_time_1": instant_window_start, "instant_start_time_2": instant_window_end})
-            
-            # 添加調試信息（只在有預約時顯示）
-            # print(f"🔍 檢查預約時間窗口: {window_start} 到 {window_end}")
-            # print(f"🔍 即時預約時間窗口: {instant_window_start} 到 {instant_window_end}")
-            # print(f"🔍 當前時間: {now}")
-            
-            # 合併兩種預約
-            all_bookings = []
-            
-            # 處理一般預約
-            general_count = 0
-            for row in result:
-                general_count += 1
+        try:
+            with Session() as s:
+                # 查詢一般預約
+                result = s.execute(text(query), {"start_time_1": window_start, "start_time_2": window_end, "current_time": now})
+                
+                # 查詢即時預約
+                instant_result = s.execute(text(instant_query), {"instant_start_time_1": instant_window_start, "instant_start_time_2": instant_window_end})
+                
+                # 添加調試信息（只在有預約時顯示）
+                # print(f"🔍 檢查預約時間窗口: {window_start} 到 {window_end}")
+                # print(f"🔍 即時預約時間窗口: {instant_window_start} 到 {instant_window_end}")
+                # print(f"🔍 當前時間: {now}")
+                
+                # 合併兩種預約
+                all_bookings = []
+                
+                # 處理一般預約
+                general_count = 0
+                for row in result:
+                    general_count += 1
                 booking = type('Booking', (), {
                     'id': row.id,
                     'customerId': row.customerId,
@@ -1610,6 +1619,17 @@ async def check_bookings():
                 except Exception as e:
                     print(f"❌ 處理預約 {booking.id} 時發生錯誤: {e}")
                     continue
+                    
+        except Exception as db_error:
+            print(f"❌ 資料庫查詢失敗: {db_error}")
+            # 嘗試重新建立連接
+            try:
+                engine.dispose()
+                print("🔄 重新建立資料庫連接...")
+                return  # 跳過這次檢查，等待下次重試
+            except Exception as reconnect_error:
+                print(f"❌ 重新連接失敗: {reconnect_error}")
+                return
                     
     except Exception as e:
         print(f"❌ 檢查預約時發生錯誤: {e}")

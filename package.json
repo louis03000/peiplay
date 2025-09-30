@@ -10,7 +10,10 @@
     "postinstall": "prisma generate",
     "bot:install": "cd discord-bot && pip install -r requirements.txt",
     "bot:start": "cd discord-bot && python bot.py",
-    "bot:dev": "cd discord-bot && python bot.py"
+    "bot:dev": "cd discord-bot && python bot.py",
+    "db:backup": "node scripts/backup_database.js",
+    "db:check": "node scripts/check_database_status.js",
+    "db:seed": "prisma db seed"
   },
   "prisma": {
     "seed": "node prisma/seed.js"
