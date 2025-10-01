@@ -202,7 +202,6 @@ export async function sendBookingNotification(
     title,
     content,
     data: {
-      bookingId: bookingData.bookingId,
       ...bookingData,
     },
   });
