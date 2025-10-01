@@ -1,0 +1,15 @@
+[
+  {
+    "timestamp": "2025-09-30T15:28:35.038Z",
+    "counts": {
+      "users": 1,
+      "partners": 0,
+      "customers": 0,
+      "bookings": 0,
+      "schedules": 0,
+      "reviews": 0,
+      "orders": 0
+    },
+    "status": "healthy"
+  }
+]

@@ -1,0 +1,30 @@
+{
+  "timestamp": "2025-09-30T15:27:57.476Z",
+  "users": [
+    {
+      "id": "cmg6oyw6w0000l99dw28q5jlt",
+      "email": "test@example.com",
+      "password": "$2b$10$ME1cjtN6F2dD.Yypvz.JdOHv7Wj/XnNVytpoa9DnAEDr0UH2m.oD2",
+      "name": "測試用戶",
+      "birthday": "1990-01-01T00:00:00.000Z",
+      "phone": "0900000000",
+      "role": "CUSTOMER",
+      "createdAt": "2025-09-30T15:07:43.352Z",
+      "updatedAt": "2025-09-30T15:07:43.352Z",
+      "isTwoFactorEnabled": false,
+      "lockUntil": null,
+      "loginAttempts": 0,
+      "twoFactorSecret": null,
+      "discord": null,
+      "isSuspended": false,
+      "suspensionEndsAt": null,
+      "suspensionReason": null
+    }
+  ],
+  "partners": [],
+  "customers": [],
+  "bookings": [],
+  "schedules": [],
+  "reviews": [],
+  "orders": []
+}

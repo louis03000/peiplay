@@ -1,4 +1,5 @@
 import nodemailer from 'nodemailer';
+import { MessageType, NotificationType } from './messaging';
 
 // 創建 Gmail SMTP 傳輸器
 const createTransporter = () => {
@@ -280,6 +281,272 @@ export async function sendBookingCancellationNotification(
     return true;
   } catch (error) {
     console.error('❌ 發送預約取消通知失敗:', error);
+    return false;
+  }
+}
+
+// 發送信箱訊息到 Email
+export async function sendMessageToEmail(
+  receiverEmail: string,
+  receiverName: string,
+  senderName: string,
+  messageData: {
+    subject: string;
+    content: string;
+    type: MessageType;
+    createdAt: string;
+  }
+) {
+  try {
+    const transporter = createTransporter();
+    
+    const typeText = {
+      'PRIVATE': '私信',
+      'SYSTEM': '系統通知',
+      'BOOKING': '預約相關',
+      'ADMIN': '管理員廣播'
+    }[messageData.type] || '訊息';
+    
+    const subject = `📧 ${typeText} - ${messageData.subject}`;
+    
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; text-align: center; border-radius: 10px 10px 0 0;">
+          <h1 style="margin: 0; font-size: 24px;">📧 PeiPlay 信箱通知</h1>
+        </div>
+        
+        <div style="background: #f8f9fa; padding: 30px; border-radius: 0 0 10px 10px;">
+          <h2 style="color: #333; margin-top: 0;">親愛的 ${receiverName}，</h2>
+          
+          <p style="color: #666; font-size: 16px; line-height: 1.6;">
+            您收到了一封新的 ${typeText}，來自 ${senderName}：
+          </p>
+          
+          <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+            <h3 style="color: #333; margin-top: 0;">📋 訊息詳情</h3>
+            <table style="width: 100%; border-collapse: collapse;">
+              <tr>
+                <td style="padding: 8px 0; color: #666; width: 120px;"><strong>發送者：</strong></td>
+                <td style="padding: 8px 0; color: #333;">${senderName}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; color: #666;"><strong>類型：</strong></td>
+                <td style="padding: 8px 0; color: #333;">${typeText}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; color: #666;"><strong>主旨：</strong></td>
+                <td style="padding: 8px 0; color: #333;">${messageData.subject}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; color: #666;"><strong>發送時間：</strong></td>
+                <td style="padding: 8px 0; color: #333;">${new Date(messageData.createdAt).toLocaleString('zh-TW')}</td>
+              </tr>
+            </table>
+            
+            <div style="margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px;">
+              <h4 style="color: #333; margin-top: 0;">訊息內容：</h4>
+              <p style="color: #666; line-height: 1.6; margin: 0;">${messageData.content.replace(/\n/g, '<br>')}</p>
+            </div>
+          </div>
+          
+          <div style="background: #e3f2fd; padding: 15px; border-radius: 8px; margin: 20px 0; text-align: center;">
+            <a href="${process.env.NEXTAUTH_URL || 'http://localhost:3004'}/messages" 
+               style="display: inline-block; background: #667eea; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">
+              📧 前往信箱查看
+            </a>
+          </div>
+          
+          <p style="color: #666; font-size: 14px; margin-top: 30px;">
+            此郵件是 PeiPlay 信箱系統的自動通知。<br>
+            請登入系統查看完整訊息內容。
+          </p>
+        </div>
+        
+        <div style="text-align: center; margin-top: 20px; color: #999; font-size: 12px;">
+          <p>此郵件由 PeiPlay 系統自動發送，請勿回覆。</p>
+        </div>
+      </div>
+    `;
+    
+    await transporter.sendMail({
+      from: `"PeiPlay 信箱系統" <${process.env.EMAIL_USER}>`,
+      to: receiverEmail,
+      subject,
+      html
+    });
+    
+    console.log(`✅ 信箱訊息 Email 通知已發送: ${receiverEmail}`);
+    return true;
+  } catch (error) {
+    console.error('❌ 發送信箱訊息 Email 通知失敗:', error);
+    return false;
+  }
+}
+
+// 發送系統通知到 Email
+export async function sendNotificationToEmail(
+  userEmail: string,
+  userName: string,
+  notificationData: {
+    type: NotificationType;
+    title: string;
+    content: string;
+    createdAt: string;
+    data?: any;
+  }
+) {
+  try {
+    const transporter = createTransporter();
+    
+    const typeText = {
+      'BOOKING_CREATED': '新預約',
+      'BOOKING_CONFIRMED': '預約確認',
+      'BOOKING_CANCELLED': '預約取消',
+      'BOOKING_REMINDER': '預約提醒',
+      'PAYMENT_SUCCESS': '付款成功',
+      'PAYMENT_FAILED': '付款失敗',
+      'PARTNER_APPLICATION': '夥伴申請',
+      'SYSTEM_ANNOUNCEMENT': '系統公告',
+      'MESSAGE_RECEIVED': '新訊息'
+    }[notificationData.type] || '系統通知';
+    
+    const subject = `🔔 ${typeText} - ${notificationData.title}`;
+    
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <div style="background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%); color: white; padding: 20px; text-align: center; border-radius: 10px 10px 0 0;">
+          <h1 style="margin: 0; font-size: 24px;">🔔 PeiPlay 系統通知</h1>
+        </div>
+        
+        <div style="background: #f8f9fa; padding: 30px; border-radius: 0 0 10px 10px;">
+          <h2 style="color: #333; margin-top: 0;">親愛的 ${userName}，</h2>
+          
+          <p style="color: #666; font-size: 16px; line-height: 1.6;">
+            您收到了一個新的系統通知：
+          </p>
+          
+          <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+            <h3 style="color: #333; margin-top: 0;">📋 通知詳情</h3>
+            <table style="width: 100%; border-collapse: collapse;">
+              <tr>
+                <td style="padding: 8px 0; color: #666; width: 120px;"><strong>類型：</strong></td>
+                <td style="padding: 8px 0; color: #333;">${typeText}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; color: #666;"><strong>標題：</strong></td>
+                <td style="padding: 8px 0; color: #333;">${notificationData.title}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; color: #666;"><strong>時間：</strong></td>
+                <td style="padding: 8px 0; color: #333;">${new Date(notificationData.createdAt).toLocaleString('zh-TW')}</td>
+              </tr>
+            </table>
+            
+            <div style="margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px;">
+              <h4 style="color: #333; margin-top: 0;">通知內容：</h4>
+              <p style="color: #666; line-height: 1.6; margin: 0;">${notificationData.content}</p>
+            </div>
+          </div>
+          
+          <div style="background: #e3f2fd; padding: 15px; border-radius: 8px; margin: 20px 0; text-align: center;">
+            <a href="${process.env.NEXTAUTH_URL || 'http://localhost:3004'}/messages" 
+               style="display: inline-block; background: #f39c12; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">
+              🔔 查看所有通知
+            </a>
+          </div>
+          
+          <p style="color: #666; font-size: 14px; margin-top: 30px;">
+            此郵件是 PeiPlay 系統的自動通知。<br>
+            請登入系統查看完整通知內容。
+          </p>
+        </div>
+        
+        <div style="text-align: center; margin-top: 20px; color: #999; font-size: 12px;">
+          <p>此郵件由 PeiPlay 系統自動發送，請勿回覆。</p>
+        </div>
+      </div>
+    `;
+    
+    await transporter.sendMail({
+      from: `"PeiPlay 系統通知" <${process.env.EMAIL_USER}>`,
+      to: userEmail,
+      subject,
+      html
+    });
+    
+    console.log(`✅ 系統通知 Email 已發送: ${userEmail}`);
+    return true;
+  } catch (error) {
+    console.error('❌ 發送系統通知 Email 失敗:', error);
+    return false;
+  }
+}
+
+// 發送密碼重設 Email
+export async function sendPasswordResetEmail(
+  userEmail: string,
+  userName: string,
+  resetToken: string
+) {
+  try {
+    const transporter = createTransporter();
+    
+    const resetUrl = `${process.env.NEXTAUTH_URL || 'http://localhost:3004'}/auth/reset-password?token=${resetToken}`;
+    
+    const subject = `🔐 PeiPlay 密碼重設請求`;
+    
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <div style="background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%); color: white; padding: 20px; text-align: center; border-radius: 10px 10px 0 0;">
+          <h1 style="margin: 0; font-size: 24px;">🔐 密碼重設</h1>
+        </div>
+        
+        <div style="background: #f8f9fa; padding: 30px; border-radius: 0 0 10px 10px;">
+          <h2 style="color: #333; margin-top: 0;">親愛的 ${userName}，</h2>
+          
+          <p style="color: #666; font-size: 16px; line-height: 1.6;">
+            我們收到了您的密碼重設請求。請點擊下方按鈕重設您的密碼：
+          </p>
+          
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="${resetUrl}" 
+               style="display: inline-block; background: #e74c3c; color: white; padding: 15px 30px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px;">
+              🔐 重設密碼
+            </a>
+          </div>
+          
+          <div style="background: #fff3cd; padding: 15px; border-radius: 8px; margin: 20px 0;">
+            <p style="margin: 0; color: #856404; font-weight: bold;">
+              ⚠️ 安全提醒：<br>
+              • 此連結將在 1 小時後失效<br>
+              • 如果您沒有請求重設密碼，請忽略此郵件<br>
+              • 請勿將此連結分享給他人
+            </p>
+          </div>
+          
+          <p style="color: #666; font-size: 14px; margin-top: 30px;">
+            如果按鈕無法點擊，請複製以下連結到瀏覽器：<br>
+            <a href="${resetUrl}" style="color: #667eea; word-break: break-all;">${resetUrl}</a>
+          </p>
+        </div>
+        
+        <div style="text-align: center; margin-top: 20px; color: #999; font-size: 12px;">
+          <p>此郵件由 PeiPlay 系統自動發送，請勿回覆。</p>
+        </div>
+      </div>
+    `;
+    
+    await transporter.sendMail({
+      from: `"PeiPlay 安全中心" <${process.env.EMAIL_USER}>`,
+      to: userEmail,
+      subject,
+      html
+    });
+    
+    console.log(`✅ 密碼重設 Email 已發送: ${userEmail}`);
+    return true;
+  } catch (error) {
+    console.error('❌ 發送密碼重設 Email 失敗:', error);
     return false;
   }
 }

@@ -1,64 +1,101 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { sendBookingNotificationToPartner, sendChannelCreatedNotificationToCustomer } from '@/lib/email'
+import { NextRequest, NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
+import { sendMessageToEmail, sendNotificationToEmail } from '@/lib/email';
 
 export async function POST(request: NextRequest) {
   try {
-    console.log('🧪 測試 Email 通知功能...')
-    
-    const { type, email } = await request.json()
-    
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: '未授權' }, { status: 401 });
+    }
+
+    const body = await request.json();
+    const { type, email, testType = 'message' } = body;
+
     if (!email) {
-      return NextResponse.json({ error: '請提供 email 地址' }, { status: 400 })
+      return NextResponse.json(
+        { error: '請提供測試 Email 地址' },
+        { status: 400 }
+      );
     }
-    
-    if (type === 'booking') {
-      // 測試預約通知
-      const success = await sendBookingNotificationToPartner(
+
+    let result = false;
+
+    if (testType === 'message') {
+      // 測試訊息 Email
+      result = await sendMessageToEmail(
         email,
-        '測試夥伴',
-        '測試客戶',
+        '測試用戶',
+        session.user.name || '系統管理員',
         {
-          duration: 120,
-          startTime: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
-          endTime: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(),
-          totalCost: 200,
-          isInstantBooking: true
+          subject: '📧 Email 功能測試',
+          content: '這是一封測試郵件，用於驗證 PeiPlay 信箱系統的 Email 功能是否正常運作。\n\n如果您收到這封郵件，表示 Email 通知功能已成功設置！',
+          type: 'SYSTEM',
+          createdAt: new Date().toISOString(),
         }
-      )
-      
-      if (success) {
-        return NextResponse.json({ message: '預約通知測試成功' })
-      } else {
-        return NextResponse.json({ error: '預約通知測試失敗' }, { status: 500 })
-      }
-    } else if (type === 'channel') {
-      // 測試頻道創建通知
-      const success = await sendChannelCreatedNotificationToCustomer(
+      );
+    } else if (testType === 'notification') {
+      // 測試通知 Email
+      result = await sendNotificationToEmail(
         email,
-        '測試客戶',
-        '測試夥伴',
+        '測試用戶',
         {
-          textChannelId: '123456789',
-          voiceChannelId: '987654321',
-          startTime: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
-          endTime: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString()
+          type: 'SYSTEM_ANNOUNCEMENT',
+          title: '🔔 Email 通知測試',
+          content: '這是一封測試通知郵件，用於驗證 PeiPlay 系統通知的 Email 功能是否正常運作。',
+          createdAt: new Date().toISOString(),
         }
-      )
-      
-      if (success) {
-        return NextResponse.json({ message: '頻道創建通知測試成功' })
-      } else {
-        return NextResponse.json({ error: '頻道創建通知測試失敗' }, { status: 500 })
-      }
+      );
+    } else if (testType === 'booking') {
+      // 測試預約通知 Email
+      result = await sendNotificationToEmail(
+        email,
+        '測試用戶',
+        {
+          type: 'BOOKING_CREATED',
+          title: '🎮 預約通知測試',
+          content: '這是一封測試預約通知郵件，用於驗證預約相關 Email 功能是否正常運作。',
+          createdAt: new Date().toISOString(),
+          data: {
+            bookingId: 'test-booking-id',
+            partnerName: '測試夥伴',
+            startTime: new Date().toISOString(),
+            endTime: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(),
+          },
+        }
+      );
+    }
+
+    if (result) {
+      return NextResponse.json({
+        success: true,
+        message: `${testType} 測試郵件已發送到 ${email}`,
+      });
     } else {
-      return NextResponse.json({ error: '無效的測試類型' }, { status: 400 })
+      return NextResponse.json(
+        { error: '發送測試郵件失敗' },
+        { status: 500 }
+      );
     }
-    
   } catch (error) {
-    console.error('Email 測試失敗:', error)
-    return NextResponse.json({ 
-      error: 'Email 測試失敗',
-      details: error instanceof Error ? error.message : 'Unknown error'
-    }, { status: 500 })
+    console.error('Email 測試失敗:', error);
+    return NextResponse.json(
+      { error: 'Email 測試失敗' },
+      { status: 500 }
+    );
   }
+}
+
+export async function GET() {
+  return NextResponse.json({
+    message: 'Email 測試 API',
+    usage: {
+      method: 'POST',
+      body: {
+        email: 'test@example.com',
+        testType: 'message | notification | booking',
+      },
+    },
+  });
 }

@@ -13,6 +13,7 @@
     "bot:dev": "cd discord-bot && python bot.py",
     "db:backup": "node scripts/backup_database.js",
     "db:check": "node scripts/check_database_status.js",
+    "db:monitor": "node scripts/monitor_database.js",
     "db:seed": "prisma db seed"
   },
   "prisma": {

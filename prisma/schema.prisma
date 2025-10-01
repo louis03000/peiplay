@@ -29,6 +29,9 @@ model User {
   partner            Partner?
   reviewsReceived    Review[]  @relation("Reviewee")
   reviewsGiven       Review[]  @relation("Reviewer")
+  sentMessages       Message[] @relation("SentMessages")
+  receivedMessages   Message[] @relation("ReceivedMessages")
+  notifications      Notification[]
 }
 
 model Partner {
@@ -178,12 +181,64 @@ model PairingRecord {
   updatedAt     DateTime @updatedAt
 }
 
+model Message {
+  id          String      @id @default(cuid())
+  senderId    String
+  receiverId  String
+  subject     String
+  content     String
+  type        MessageType @default(PRIVATE)
+  isRead      Boolean     @default(false)
+  isDeleted   Boolean     @default(false)
+  relatedId   String?     // 相關的預約ID或其他關聯ID
+  attachments String[]    @default([])
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  
+  sender      User        @relation("SentMessages", fields: [senderId], references: [id])
+  receiver    User        @relation("ReceivedMessages", fields: [receiverId], references: [id])
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  type      NotificationType
+  title     String
+  content   String
+  isRead    Boolean          @default(false)
+  isDeleted Boolean          @default(false)
+  data      Json?            // 額外的通知數據
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+  
+  user      User             @relation(fields: [userId], references: [id])
+}
+
 
 
 enum UserRole {
   CUSTOMER
   PARTNER
   ADMIN
+}
+
+enum MessageType {
+  PRIVATE      // 私信
+  SYSTEM       // 系統通知
+  BOOKING      // 預約相關
+  ADMIN        // 管理員廣播
+}
+
+enum NotificationType {
+  BOOKING_CREATED
+  BOOKING_CONFIRMED
+  BOOKING_CANCELLED
+  BOOKING_REMINDER
+  PAYMENT_SUCCESS
+  PAYMENT_FAILED
+  PARTNER_APPLICATION
+  SYSTEM_ANNOUNCEMENT
+  MESSAGE_RECEIVED
 }
 
 enum PartnerStatus {
