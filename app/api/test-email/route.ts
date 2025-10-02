@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { sendMessageToEmail, sendNotificationToEmail } from '@/lib/email';
+import { sendNotificationToEmail } from '@/lib/email';
 
 
 export const dynamic = 'force-dynamic';
@@ -24,20 +24,7 @@ export async function POST(request: NextRequest) {
 
     let result = false;
 
-    if (testType === 'message') {
-      // 測試訊息 Email
-      result = await sendMessageToEmail(
-        email,
-        '測試用戶',
-        session.user.name || '系統管理員',
-        {
-          subject: '📧 Email 功能測試',
-          content: '這是一封測試郵件，用於驗證 PeiPlay 信箱系統的 Email 功能是否正常運作。\n\n如果您收到這封郵件，表示 Email 通知功能已成功設置！',
-          type: 'SYSTEM',
-          createdAt: new Date().toISOString(),
-        }
-      );
-    } else if (testType === 'notification') {
+    if (testType === 'notification') {
       // 測試通知 Email
       result = await sendNotificationToEmail(
         email,
@@ -96,7 +83,7 @@ export async function GET() {
       method: 'POST',
       body: {
         email: 'test@example.com',
-        testType: 'message | notification | booking',
+        testType: 'notification | booking',
       },
     },
   });

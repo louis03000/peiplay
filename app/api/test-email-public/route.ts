@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { sendMessageToEmail, sendNotificationToEmail } from '@/lib/email';
+import { sendNotificationToEmail } from '@/lib/email';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,20 +17,7 @@ export async function POST(request: NextRequest) {
 
     let result = false;
 
-    if (testType === 'message') {
-      // 測試訊息 Email
-      result = await sendMessageToEmail(
-        email,
-        '測試用戶',
-        'PeiPlay 系統',
-        {
-          subject: '📧 Email 功能測試',
-          content: '這是一封測試郵件，用於驗證 PeiPlay 信箱系統的 Email 功能是否正常運作。\n\n如果您收到這封郵件，表示 Email 通知功能已成功設置！\n\n測試時間：' + new Date().toLocaleString('zh-TW'),
-          type: 'SYSTEM',
-          createdAt: new Date().toISOString(),
-        }
-      );
-    } else if (testType === 'notification') {
+    if (testType === 'notification') {
       // 測試通知 Email
       result = await sendNotificationToEmail(
         email,
@@ -72,11 +59,11 @@ export async function GET() {
       method: 'POST',
       body: {
         email: 'your-email@gmail.com',
-        testType: 'message | notification',
+        testType: 'notification',
       },
     },
     example: {
-      message: 'curl -X POST https://peiplay.vercel.app/api/test-email-public -H "Content-Type: application/json" -d \'{"email": "your-email@gmail.com", "testType": "message"}\'',
+      message: 'curl -X POST https://peiplay.vercel.app/api/test-email-public -H "Content-Type: application/json" -d \'{"email": "your-email@gmail.com", "testType": "notification"}\'',
     },
   });
 }
