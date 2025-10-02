@@ -76,6 +76,13 @@ export default function JoinPage() {
             setValue('name', data.user.name || '');
             setValue('birthday', data.user.birthday ? data.user.birthday.slice(0, 10) : '');
             setValue('phone', data.user.phone || '');
+            
+            // 檢查是否已有夥伴身份
+            if (data.user.partner) {
+              setError('您已經有夥伴身份了！如需修改資料，請前往個人資料頁面。');
+              setLoading(false);
+              return;
+            }
           }
           setLoading(false);
         })

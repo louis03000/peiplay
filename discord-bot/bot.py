@@ -2347,7 +2347,7 @@ async def countdown(vc_id, animal_channel_name, text_channel, vc, interaction, m
                 user1_id = record.user1Id
                 user2_id = record.user2Id
                 duration = record.duration
-                    extended_times = record.extendedTimes
+                extended_times = record.extendedTimes
                 booking_id = record.bookingId
 
         admin = bot.get_channel(ADMIN_CHANNEL_ID)
