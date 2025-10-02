@@ -3,6 +3,8 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
+export const dynamic = 'force-dynamic';
+
 // 獲取用戶列表（用於發送訊息時選擇接收者）
 export async function GET(request: NextRequest) {
   try {

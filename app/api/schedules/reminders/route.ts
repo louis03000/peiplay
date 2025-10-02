@@ -4,6 +4,8 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { addHours } from 'date-fns'
 
+
+export const dynamic = 'force-dynamic';
 interface Reminder {
   scheduleId: string
   bookingId: string

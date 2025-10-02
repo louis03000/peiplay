@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
+
+export const dynamic = 'force-dynamic';
 export async function POST() {
   try {
     const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000)

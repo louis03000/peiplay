@@ -3,6 +3,8 @@ import { prisma } from '@/lib/prisma'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 
+
+export const dynamic = 'force-dynamic';
 // 洗錢風險檢測規則
 const RISK_RULES = {
   // 短時間內大量交易

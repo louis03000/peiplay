@@ -3,6 +3,8 @@ import { getServerSession } from 'next-auth/next'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 
+
+export const dynamic = 'force-dynamic';
 // 上傳圖片
 export async function POST(request: Request) {
   try {

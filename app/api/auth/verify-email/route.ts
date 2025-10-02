@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { sendEmailVerificationCode } from '@/lib/email';
 
+export const dynamic = 'force-dynamic';
+
 // 發送 Email 驗證碼
 export async function POST(request: NextRequest) {
   try {

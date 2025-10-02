@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
+
+export const dynamic = 'force-dynamic';
 export async function POST() {
   try {
     console.log('🚨 開始緊急清理重複預約...')

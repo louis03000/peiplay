@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
+
+export const dynamic = 'force-dynamic';
 export async function GET() {
   try {
     console.log('🔍 開始檢查防重複預約機制...')

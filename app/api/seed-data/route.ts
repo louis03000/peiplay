@@ -3,6 +3,8 @@ import { prisma } from '@/lib/prisma'
 import { DatabaseManager } from '@/lib/db-utils'
 import bcrypt from 'bcryptjs'
 
+
+export const dynamic = 'force-dynamic';
 export async function POST() {
   try {
     // 檢查環境
