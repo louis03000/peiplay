@@ -52,51 +52,51 @@ export class InputValidator {
     return emailRegex.test(email) && email.length <= 254;
   }
 
-  // 驗證密碼強度（友善版本）
+  // 驗證密碼強度（自定義版本）
   static validatePassword(password: string): {
     isValid: boolean;
     errors: string[];
   } {
     const errors: string[] = [];
     
-    // 基本長度要求
-    if (password.length < 6) {
-      errors.push('密碼長度至少 6 個字符');
+    // 基本長度要求：至少8個字符
+    if (password.length < 8) {
+      errors.push('密碼長度至少 8 個字符');
     }
     
     if (password.length > 128) {
       errors.push('密碼長度不能超過 128 個字符');
     }
     
+    // 檢查是否包含至少一個英文字母
+    if (!/[a-zA-Z]/.test(password)) {
+      errors.push('密碼必須包含至少一個英文字母');
+    }
+    
+    // 檢查是否包含至少一個數字
+    if (!/\d/.test(password)) {
+      errors.push('密碼必須包含至少一個數字');
+    }
+    
     // 檢查常見弱密碼（主要安全風險）
     const commonPasswords = [
       'password', '123456', '123456789', 'qwerty', 'abc123',
       'password123', 'admin', 'letmein', 'welcome', 'monkey',
-      'peiplay2025', 'peiplay', 'admin123', '12345678'
+      'peiplay2025', 'peiplay', 'admin123', '12345678',
+      'abcdefgh', 'abcdefg1', '1234567a', 'asdfghjk'
     ];
     
     if (commonPasswords.includes(password.toLowerCase())) {
       errors.push('密碼過於常見，請選擇更安全的密碼');
     }
     
-    // 可選的強度建議（不強制）
-    const suggestions: string[] = [];
-    if (password.length < 8) {
-      suggestions.push('建議密碼長度至少 8 個字符');
-    }
-    if (!/[a-z]/.test(password)) {
-      suggestions.push('建議包含小寫字母');
-    }
-    if (!/[A-Z]/.test(password)) {
-      suggestions.push('建議包含大寫字母');
-    }
-    if (!/\d/.test(password)) {
-      suggestions.push('建議包含數字');
+    // 檢查是否為純數字或純字母
+    if (/^\d+$/.test(password)) {
+      errors.push('密碼不能只包含數字');
     }
     
-    // 如果密碼太簡單，給出友善建議
-    if (suggestions.length >= 3) {
-      errors.push('密碼強度較弱，建議包含字母、數字和特殊字符');
+    if (/^[a-zA-Z]+$/.test(password)) {
+      errors.push('密碼不能只包含英文字母');
     }
     
     return {

@@ -30,8 +30,18 @@ export default function SecuritySettingsPage() {
       return;
     }
 
-    if (newPassword.length < 6) {
-      toast.error('密碼長度至少 6 個字符');
+    if (newPassword.length < 8) {
+      toast.error('密碼長度至少 8 個字符');
+      return;
+    }
+
+    if (!/[a-zA-Z]/.test(newPassword)) {
+      toast.error('密碼必須包含至少一個英文字母');
+      return;
+    }
+
+    if (!/\d/.test(newPassword)) {
+      toast.error('密碼必須包含至少一個數字');
       return;
     }
 
@@ -67,15 +77,21 @@ export default function SecuritySettingsPage() {
     if (password.length === 0) return { strength: 0, text: '', color: '' };
     
     let strength = 0;
-    if (password.length >= 6) strength += 1;
-    if (password.length >= 8) strength += 1;
-    if (/[a-z]/.test(password)) strength += 1;
-    if (/[A-Z]/.test(password)) strength += 1;
-    if (/\d/.test(password)) strength += 1;
-    if (/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) strength += 1;
+    
+    // 長度檢查
+    if (password.length >= 8) strength += 2; // 8字符以上給2分
+    if (password.length >= 12) strength += 1; // 12字符以上額外加1分
+    
+    // 字符類型檢查
+    if (/[a-zA-Z]/.test(password)) strength += 1; // 有英文字母
+    if (/\d/.test(password)) strength += 1; // 有數字
+    if (/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) strength += 1; // 有特殊字符
+    
+    // 大小寫混合
+    if (/[a-z]/.test(password) && /[A-Z]/.test(password)) strength += 1;
 
-    if (strength <= 2) return { strength, text: '較弱', color: 'bg-red-500' };
-    if (strength <= 4) return { strength, text: '中等', color: 'bg-yellow-500' };
+    if (strength <= 3) return { strength, text: '較弱', color: 'bg-red-500' };
+    if (strength <= 5) return { strength, text: '中等', color: 'bg-yellow-500' };
     return { strength, text: '強', color: 'bg-green-500' };
   };
 
@@ -195,8 +211,9 @@ export default function SecuritySettingsPage() {
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
             <h3 className="text-lg font-medium text-blue-900 mb-2">💡 安全提示</h3>
             <ul className="text-sm text-blue-800 space-y-1">
-              <li>• 密碼長度至少 6 個字符（建議 8 個以上）</li>
-              <li>• 建議包含字母、數字和特殊字符</li>
+              <li>• 密碼長度至少 8 個字符</li>
+              <li>• 必須包含至少一個英文字母和一個數字</li>
+              <li>• 例如：s1234567 或 asdfghj1</li>
               <li>• 避免使用常見密碼如 "123456" 或 "password"</li>
               <li>• 定期更新密碼有助於保護帳號安全</li>
               <li>• 不要在公共場所輸入密碼</li>

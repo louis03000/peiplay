@@ -23,23 +23,43 @@ export async function POST(request: NextRequest) {
     }
 
     // 基本密碼驗證
-    if (newPassword.length < 6) {
-      return NextResponse.json({ error: '新密碼長度至少 6 個字符' }, { status: 400 });
+    if (newPassword.length < 8) {
+      return NextResponse.json({ error: '新密碼長度至少 8 個字符' }, { status: 400 });
     }
 
     if (newPassword.length > 128) {
       return NextResponse.json({ error: '密碼長度不能超過 128 個字符' }, { status: 400 });
     }
 
+    // 檢查是否包含至少一個英文字母
+    if (!/[a-zA-Z]/.test(newPassword)) {
+      return NextResponse.json({ error: '密碼必須包含至少一個英文字母' }, { status: 400 });
+    }
+
+    // 檢查是否包含至少一個數字
+    if (!/\d/.test(newPassword)) {
+      return NextResponse.json({ error: '密碼必須包含至少一個數字' }, { status: 400 });
+    }
+
     // 檢查常見弱密碼
     const commonPasswords = [
       'password', '123456', '123456789', 'qwerty', 'abc123',
       'password123', 'admin', 'letmein', 'welcome', 'monkey',
-      'peiplay2025', 'peiplay', 'admin123', '12345678'
+      'peiplay2025', 'peiplay', 'admin123', '12345678',
+      'abcdefgh', 'abcdefg1', '1234567a', 'asdfghjk'
     ];
 
     if (commonPasswords.includes(newPassword.toLowerCase())) {
       return NextResponse.json({ error: '密碼過於常見，請選擇更安全的密碼' }, { status: 400 });
+    }
+
+    // 檢查是否為純數字或純字母
+    if (/^\d+$/.test(newPassword)) {
+      return NextResponse.json({ error: '密碼不能只包含數字' }, { status: 400 });
+    }
+
+    if (/^[a-zA-Z]+$/.test(newPassword)) {
+      return NextResponse.json({ error: '密碼不能只包含英文字母' }, { status: 400 });
     }
 
     // 獲取用戶資料
@@ -119,14 +139,19 @@ export async function POST(request: NextRequest) {
 function getPasswordStrength(password: string): string {
   let strength = 0;
   
-  if (password.length >= 6) strength += 1;
-  if (password.length >= 8) strength += 1;
-  if (/[a-z]/.test(password)) strength += 1;
-  if (/[A-Z]/.test(password)) strength += 1;
-  if (/\d/.test(password)) strength += 1;
-  if (/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) strength += 1;
+  // 長度檢查
+  if (password.length >= 8) strength += 2; // 8字符以上給2分
+  if (password.length >= 12) strength += 1; // 12字符以上額外加1分
+  
+  // 字符類型檢查
+  if (/[a-zA-Z]/.test(password)) strength += 1; // 有英文字母
+  if (/\d/.test(password)) strength += 1; // 有數字
+  if (/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) strength += 1; // 有特殊字符
+  
+  // 大小寫混合
+  if (/[a-z]/.test(password) && /[A-Z]/.test(password)) strength += 1;
 
-  if (strength <= 2) return 'weak';
-  if (strength <= 4) return 'medium';
+  if (strength <= 3) return 'weak';
+  if (strength <= 5) return 'medium';
   return 'strong';
 }
