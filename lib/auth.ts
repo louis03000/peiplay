@@ -5,6 +5,7 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import { compare } from "bcryptjs";
 import LineProvider from 'next-auth/providers/line'
 import { getServerSession } from 'next-auth/next'
+import { SecurityLogger, IPFilter } from './security'
 
 declare module 'next-auth' {
   interface User {
@@ -41,23 +42,49 @@ export const authOptions: NextAuthOptions = {
       },
       async authorize(credentials) {
         if (!credentials) return null;
-        const user = await prisma.user.findUnique({ where: { email: credentials.email } });
-        if (!user) throw new Error('尚未註冊，請先註冊');
         
-        // 檢查 Email 是否已驗證（管理員帳號除外）
-        if (!user.emailVerified && user.role !== 'ADMIN') {
-          throw new Error('請先完成 Email 驗證才能登入');
+        // 獲取客戶端 IP（如果可用）
+        const clientIP = 'unknown'; // 在 authorize 中無法直接獲取 IP
+        
+        try {
+          const user = await prisma.user.findUnique({ where: { email: credentials.email } });
+          if (!user) {
+            SecurityLogger.logFailedLogin(credentials.email, clientIP, 'unknown');
+            throw new Error('尚未註冊，請先註冊');
+          }
+          
+          // 檢查 Email 是否已驗證（管理員帳號除外）
+          if (!(user as any).emailVerified && user.role !== 'ADMIN') {
+            SecurityLogger.logFailedLogin(credentials.email, clientIP, 'email_not_verified');
+            throw new Error('請先完成 Email 驗證才能登入');
+          }
+          
+          const isValid = await compare(credentials.password, user.password);
+          if (!isValid) {
+            SecurityLogger.logFailedLogin(credentials.email, clientIP, 'invalid_password');
+            return null;
+          }
+          
+          // 記錄成功登入
+          SecurityLogger.logSuccessfulLogin(user.id, user.email, clientIP);
+          
+          return {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            role: user.role,
+            provider: 'credentials',
+          };
+        } catch (error) {
+          SecurityLogger.logSecurityEvent('LOGIN_ERROR', {
+            ip: clientIP,
+            additionalInfo: { 
+              email: credentials.email,
+              error: error instanceof Error ? error.message : 'Unknown error' 
+            }
+          });
+          throw error;
         }
-        
-        const isValid = await compare(credentials.password, user.password);
-        if (!isValid) return null;
-        return {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          role: user.role,
-          provider: 'credentials',
-        };
       }
     })
   ],
