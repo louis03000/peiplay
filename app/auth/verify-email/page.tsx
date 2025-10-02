@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 
-export default function VerifyEmailPage() {
+function VerifyEmailContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const email = searchParams.get('email');
@@ -228,5 +228,33 @@ export default function VerifyEmailPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+// 載入中組件
+function LoadingFallback() {
+  return (
+    <div className="min-h-screen bg-gray-50 pt-20">
+      <div className="max-w-md mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="bg-white rounded-lg shadow-md p-8">
+          <div className="text-center">
+            <div className="mx-auto w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mb-4">
+              <span className="text-2xl">📧</span>
+            </div>
+            <h1 className="text-2xl font-bold text-gray-900">Email 驗證</h1>
+            <p className="mt-2 text-gray-600">載入中...</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// 主組件，使用 Suspense 包裝
+export default function VerifyEmailPage() {
+  return (
+    <Suspense fallback={<LoadingFallback />}>
+      <VerifyEmailContent />
+    </Suspense>
   );
 }
