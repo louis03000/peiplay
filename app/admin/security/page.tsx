@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
+import { toast } from 'react-toastify';
 
 interface SecurityAudit {
   userSecurity: {
@@ -31,12 +32,31 @@ interface SecurityAudit {
   recommendations: string[];
 }
 
+interface SecurityTask {
+  id: string;
+  name: string;
+  description: string;
+  estimatedTime: string;
+}
+
+interface SecurityAction {
+  id: string;
+  name: string;
+  description: string;
+  requiresReason: boolean;
+  severity: 'low' | 'medium' | 'high' | 'critical';
+}
+
 export default function SecurityPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const [auditData, setAuditData] = useState<SecurityAudit | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [availableTasks, setAvailableTasks] = useState<SecurityTask[]>([]);
+  const [availableActions, setAvailableActions] = useState<SecurityAction[]>([]);
+  const [taskLoading, setTaskLoading] = useState<string | null>(null);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   useEffect(() => {
     if (status === 'loading') return;
@@ -47,6 +67,8 @@ export default function SecurityPage() {
     }
 
     fetchSecurityAudit();
+    fetchAvailableTasks();
+    fetchAvailableActions();
   }, [session, status, router]);
 
   const fetchSecurityAudit = async () => {
@@ -63,6 +85,90 @@ export default function SecurityPage() {
       setError('安全審計失敗');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchAvailableTasks = async () => {
+    try {
+      const response = await fetch('/api/admin/security-tasks');
+      if (response.ok) {
+        const data = await response.json();
+        setAvailableTasks(data.availableTasks);
+      }
+    } catch (error) {
+      console.error('獲取安全任務失敗:', error);
+    }
+  };
+
+  const fetchAvailableActions = async () => {
+    try {
+      const response = await fetch('/api/admin/security-actions');
+      if (response.ok) {
+        const data = await response.json();
+        setAvailableActions(data.availableActions);
+      }
+    } catch (error) {
+      console.error('獲取安全操作失敗:', error);
+    }
+  };
+
+  const executeSecurityTask = async (taskId: string) => {
+    setTaskLoading(taskId);
+    try {
+      const response = await fetch('/api/admin/security-tasks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ taskType: taskId })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        toast.success(`安全任務 "${taskId}" 執行成功`);
+        console.log('任務結果:', data.result);
+        // 如果是完整檢查，刷新審計數據
+        if (taskId === 'full_check') {
+          fetchSecurityAudit();
+        }
+      } else {
+        const errorData = await response.json();
+        toast.error(`任務執行失敗: ${errorData.error}`);
+      }
+    } catch (error) {
+      console.error('執行安全任務失敗:', error);
+      toast.error('執行安全任務失敗');
+    } finally {
+      setTaskLoading(null);
+    }
+  };
+
+  const executeSecurityAction = async (actionId: string, targetUserId: string, reason?: string) => {
+    setActionLoading(actionId);
+    try {
+      const response = await fetch('/api/admin/security-actions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          actionType: actionId, 
+          targetUserId,
+          reason: reason || '管理員操作'
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        toast.success(`安全操作 "${actionId}" 執行成功`);
+        console.log('操作結果:', data.result);
+        // 刷新審計數據
+        fetchSecurityAudit();
+      } else {
+        const errorData = await response.json();
+        toast.error(`操作執行失敗: ${errorData.error}`);
+      }
+    } catch (error) {
+      console.error('執行安全操作失敗:', error);
+      toast.error('執行安全操作失敗');
+    } finally {
+      setActionLoading(null);
     }
   };
 
@@ -215,6 +321,75 @@ export default function SecurityPage() {
                 ) : (
                   <p className="text-green-600">✅ 系統安全狀態良好，無需特別關注的問題</p>
                 )}
+              </div>
+            </div>
+
+            {/* 安全任務面板 */}
+            <div className="bg-white shadow rounded-lg">
+              <div className="px-6 py-4 border-b border-gray-200">
+                <h2 className="text-xl font-semibold text-gray-900">🔧 安全任務</h2>
+                <p className="text-sm text-gray-600 mt-1">執行自動化安全檢查和維護任務</p>
+              </div>
+              <div className="p-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {availableTasks.map((task) => (
+                    <div key={task.id} className="border border-gray-200 rounded-lg p-4">
+                      <h3 className="font-medium text-gray-900 mb-2">{task.name}</h3>
+                      <p className="text-sm text-gray-600 mb-3">{task.description}</p>
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs text-gray-500">{task.estimatedTime}</span>
+                        <button
+                          onClick={() => executeSecurityTask(task.id)}
+                          disabled={taskLoading === task.id}
+                          className={`px-3 py-1 rounded text-sm ${
+                            taskLoading === task.id
+                              ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                              : 'bg-blue-600 text-white hover:bg-blue-700'
+                          }`}
+                        >
+                          {taskLoading === task.id ? '執行中...' : '執行'}
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* 安全操作面板 */}
+            <div className="bg-white shadow rounded-lg">
+              <div className="px-6 py-4 border-b border-gray-200">
+                <h2 className="text-xl font-semibold text-gray-900">⚡ 安全操作</h2>
+                <p className="text-sm text-gray-600 mt-1">對用戶執行安全相關操作</p>
+              </div>
+              <div className="p-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {availableActions.map((action) => (
+                    <div key={action.id} className="border border-gray-200 rounded-lg p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <h3 className="font-medium text-gray-900">{action.name}</h3>
+                        <span className={`px-2 py-1 rounded text-xs ${
+                          action.severity === 'critical' ? 'bg-red-100 text-red-800' :
+                          action.severity === 'high' ? 'bg-orange-100 text-orange-800' :
+                          action.severity === 'medium' ? 'bg-yellow-100 text-yellow-800' :
+                          'bg-green-100 text-green-800'
+                        }`}>
+                          {action.severity}
+                        </span>
+                      </div>
+                      <p className="text-sm text-gray-600 mb-3">{action.description}</p>
+                      <div className="text-xs text-gray-500">
+                        {action.requiresReason ? '需要操作原因' : '無需額外原因'}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <p className="text-sm text-yellow-800">
+                    ⚠️ <strong>注意：</strong>安全操作會直接影響用戶帳號，請謹慎使用。
+                    所有操作都會記錄在安全日誌中。
+                  </p>
+                </div>
               </div>
             </div>
 
