@@ -302,11 +302,11 @@ function generateRecommendations(securityCheck: any): string[] {
   }
 
   if (securityCheck.weakPasswords.weakPasswordUsers.length > 0) {
-    recommendations.push('發現弱密碼用戶，建議強制重置密碼');
+    recommendations.push('發現弱密碼用戶，建議友善提醒更新密碼');
   }
 
   if (securityCheck.expiredPasswords.expiredUsers.length > 0) {
-    recommendations.push('有密碼過期用戶，建議通知更新密碼');
+    recommendations.push('有密碼長期未更新用戶，可考慮友善提醒');
   }
 
   if (securityCheck.unverifiedUsers.unverifiedUsers.length > 0) {
@@ -342,11 +342,11 @@ function getPriorityActions(securityCheck: any): string[] {
   }
 
   if (securityCheck.weakPasswords.weakPasswordUsers.length > 0) {
-    actions.push('強制重置弱密碼用戶');
+    actions.push('友善提醒弱密碼用戶');
   }
 
   if (securityCheck.expiredPasswords.expiredUsers.length > 0) {
-    actions.push('通知密碼過期用戶');
+    actions.push('友善提醒長期未更新密碼用戶');
   }
 
   if (securityCheck.suspiciousActivity.suspiciousActivities.length > 0) {

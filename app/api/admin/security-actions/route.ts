@@ -115,25 +115,15 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// 強制密碼重設
+// 友善密碼提醒（不強制重設）
 async function forcePasswordReset(userId: string, reason: string) {
-  // 生成新的驗證碼
-  const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
-  const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24小時後過期
-
-  await prisma.user.update({
-    where: { id: userId },
-    data: {
-      emailVerificationCode: verificationCode,
-      emailVerificationExpires: expiresAt,
-      emailVerified: false // 需要重新驗證
-    }
-  });
-
+  // 這裡只是記錄提醒，不強制用戶重設密碼
+  // 實際應用中可以發送友善的提醒 Email
+  
   return {
-    message: '已強制用戶重設密碼，需要重新驗證 Email',
-    verificationCode,
-    expiresAt
+    message: '已記錄密碼提醒，用戶可選擇是否更新密碼',
+    note: '這是一個友善提醒，不會強制用戶重設密碼',
+    reason
   };
 }
 
@@ -290,10 +280,10 @@ export async function GET() {
     availableActions: [
       {
         id: 'force_password_reset',
-        name: '強制密碼重設',
-        description: '強制用戶重設密碼並重新驗證',
+        name: '友善密碼提醒',
+        description: '友善提醒用戶更新密碼（不強制）',
         requiresReason: true,
-        severity: 'medium'
+        severity: 'low'
       },
       {
         id: 'suspend_user',

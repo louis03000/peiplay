@@ -13,7 +13,7 @@ export interface SecurityConfig {
 export const defaultSecurityConfig: SecurityConfig = {
   maxFailedLogins: 5,
   lockoutDuration: 30,
-  passwordExpiryDays: 90,
+  passwordExpiryDays: 365, // 改為1年，不強制過期
   sessionTimeoutMinutes: 60,
   maxConcurrentSessions: 3
 };
@@ -58,7 +58,7 @@ export class SecurityMonitor {
     return { weakPasswordUsers, recommendations };
   }
 
-  // 檢查過期密碼
+  // 檢查長期未更新密碼（僅提醒，不強制）
   static async checkExpiredPasswords(): Promise<{
     expiredUsers: Array<{ id: string; email: string; daysSinceUpdate: number }>;
     recommendations: string[];
@@ -88,7 +88,7 @@ export class SecurityMonitor {
     }
 
     if (expiredUsers.length > 0) {
-      recommendations.push(`${expiredUsers.length} 個用戶密碼已過期，建議強制更新`);
+      recommendations.push(`${expiredUsers.length} 個用戶密碼超過1年未更新，可考慮友善提醒`);
     }
 
     return { expiredUsers, recommendations };

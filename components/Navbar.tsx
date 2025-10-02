@@ -121,6 +121,13 @@ export default function Navbar() {
                   </Link>
                 </div>
                 
+                {/* 安全設定 */}
+                <div className="mt-2">
+                  <Link href="/profile/security-settings" className="block w-full px-3 sm:px-4 py-2 text-xs sm:text-sm text-gray-900 hover:text-indigo-600 hover:bg-indigo-50 transition-colors text-center">
+                    🔒 安全設定
+                  </Link>
+                </div>
+                
                 {/* 管理員功能 */}
                 {session?.user?.role === 'ADMIN' && (
                   <>
