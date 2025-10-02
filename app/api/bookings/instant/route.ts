@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { sendBookingNotificationToPartner } from '@/lib/email'
+import { sendBookingNotification } from '@/lib/messaging'
 
 
 export const dynamic = 'force-dynamic';
@@ -160,8 +161,9 @@ export async function POST(request: NextRequest) {
     // 關閉資料庫連接
     await prisma.$disconnect()
 
-    // 發送 email 通知給夥伴
+    // 發送 email 通知和站內通知給夥伴
     try {
+      // 發送 Email 通知
       await sendBookingNotificationToPartner(
         partner.user.email,
         partner.user.name || '夥伴',
@@ -174,9 +176,23 @@ export async function POST(request: NextRequest) {
           isInstantBooking: true
         }
       )
-      console.log('✅ 預約通知 email 已發送給夥伴')
+      console.log('✅ 即時預約通知 email 已發送給夥伴')
+
+      // 發送站內通知
+      await sendBookingNotification(
+        partner.userId,
+        'BOOKING_CREATED',
+        {
+          bookingId: result.booking.id,
+          customerName: customer.user.name || '客戶',
+          startTime: result.startTime.toLocaleString('zh-TW'),
+          endTime: result.endTime.toLocaleString('zh-TW'),
+          amount: result.totalCost
+        }
+      )
+      console.log('✅ 即時預約站內通知已發送給夥伴')
     } catch (emailError) {
-      console.error('❌ 發送預約通知 email 失敗:', emailError)
+      console.error('❌ 發送即時預約通知失敗:', emailError)
       // 不影響預約創建，只記錄錯誤
     }
 
