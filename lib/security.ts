@@ -248,7 +248,8 @@ export class DatabaseSecurity {
   static sanitizeQuery(query: string): string {
     // 移除潛在的 SQL 注入字符
     return query
-      .replace(/[';--]/g, '')
+      .replace(/[';]/g, '')  // 修復正則表達式：移除單引號和分號
+      .replace(/--/g, '')    // 單獨處理 SQL 註釋
       .replace(/union/gi, '')
       .replace(/select/gi, '')
       .replace(/insert/gi, '')
