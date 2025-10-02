@@ -178,7 +178,7 @@ export async function POST(request: NextRequest) {
       )
       console.log('✅ 即時預約通知 email 已發送給夥伴')
 
-      // 發送站內通知
+      // 發送 Email 通知
       await sendBookingNotification(
         partner.userId,
         'BOOKING_CREATED',
@@ -190,7 +190,7 @@ export async function POST(request: NextRequest) {
           amount: result.totalCost
         }
       )
-      console.log('✅ 即時預約站內通知已發送給夥伴')
+      console.log('✅ 即時預約 Email 通知已發送給夥伴')
     } catch (emailError) {
       console.error('❌ 發送即時預約通知失敗:', emailError)
       // 不影響預約創建，只記錄錯誤

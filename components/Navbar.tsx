@@ -106,12 +106,6 @@ export default function Navbar() {
                   </Link>
                 </div>
                 
-                {/* 信箱 - 所有用戶都可以訪問 */}
-                <div className="mt-2">
-                  <Link href="/messages" className="block w-full px-3 sm:px-4 py-2 text-xs sm:text-sm text-gray-900 hover:text-indigo-600 hover:bg-indigo-50 transition-colors text-center">
-                    📧 信箱
-                  </Link>
-                </div>
                 
                 {/* 個人資料 */}
                 <div className="mt-2">

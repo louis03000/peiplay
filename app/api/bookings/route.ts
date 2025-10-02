@@ -189,7 +189,7 @@ export async function POST(request: Request) {
         );
         console.log('✅ 一般預約通知 email 已發送給夥伴');
 
-        // 發送站內通知
+        // 發送 Email 通知
         await sendBookingNotification(
           firstBooking.schedule.partner.userId,
           'BOOKING_CREATED',
@@ -201,7 +201,7 @@ export async function POST(request: Request) {
             amount: totalCost
           }
         );
-        console.log('✅ 一般預約站內通知已發送給夥伴');
+        console.log('✅ 一般預約 Email 通知已發送給夥伴');
       }
     } catch (emailError) {
       console.error('❌ 發送一般預約通知失敗:', emailError);
