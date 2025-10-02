@@ -107,7 +107,7 @@ class Booking(Base):
 
 class PairingRecord(Base):
     __tablename__ = 'pairing_records'
-    id = Column(Integer, primary_key=True)
+    id = Column(String, primary_key=True)  # 改為 String 類型，對應 Prisma 的 cuid
     user1_id = Column(String)
     user2_id = Column(String)
     timestamp = Column(DateTime, default=datetime.utcnow)
@@ -117,6 +117,8 @@ class PairingRecord(Base):
     comment = Column(String, nullable=True)
     animal_name = Column(String)
     booking_id = Column(String, nullable=True)  # 關聯到預約ID
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 class BlockRecord(Base):
     __tablename__ = 'block_records'
@@ -430,7 +432,12 @@ async def create_booking_voice_channel(booking_id, customer_discord, partner_dis
         
         with Session() as s:
             try:
+                # 生成唯一的 ID（類似 Prisma 的 cuid）
+                import uuid
+                record_id = f"pair_{uuid.uuid4().hex[:12]}"
+                
                 record = PairingRecord(
+                    id=record_id,
                     user1_id=user1_id,
                     user2_id=user2_id,
                     duration=duration_minutes * 60,
@@ -439,8 +446,7 @@ async def create_booking_voice_channel(booking_id, customer_discord, partner_dis
                 )
                 s.add(record)
                 s.commit()
-                record_id = record.id
-                # 配對記錄創建成功，減少日誌輸出
+                print(f"✅ 配對記錄已創建: {record_id}")
             except Exception as e:
                 print(f"❌ 創建配對記錄失敗: {e}")
                 # 如果表不存在，使用預設的 record_id
