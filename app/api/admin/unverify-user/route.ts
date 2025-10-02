@@ -5,7 +5,7 @@ import { prisma } from '@/lib/prisma';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET(request: NextRequest) {
+export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
     
@@ -17,25 +17,33 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: '權限不足' }, { status: 403 });
     }
 
-    const users = await prisma.user.findMany({
+    const body = await request.json();
+    const { userId } = body;
+
+    if (!userId) {
+      return NextResponse.json({ error: '缺少用戶ID' }, { status: 400 });
+    }
+
+    const user = await prisma.user.update({
+      where: { id: userId },
+      data: { emailVerified: false },
       select: {
         id: true,
         email: true,
         name: true,
         emailVerified: true,
-        role: true,
-        createdAt: true,
-      },
-      orderBy: {
-        createdAt: 'desc',
       },
     });
 
-    return NextResponse.json(users);
+    return NextResponse.json({
+      success: true,
+      message: '用戶 Email 驗證已撤銷',
+      user,
+    });
   } catch (error) {
-    console.error('獲取用戶列表失敗:', error);
+    console.error('撤銷驗證失敗:', error);
     return NextResponse.json(
-      { error: '獲取用戶列表失敗' },
+      { error: '撤銷驗證失敗' },
       { status: 500 }
     );
   }

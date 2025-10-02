@@ -121,6 +121,20 @@ export default function Navbar() {
                   </Link>
                 </div>
                 
+                {/* 管理員功能 */}
+                {session?.user?.role === 'ADMIN' && (
+                  <>
+                    <div className="border-t border-white/40 mt-2 pt-2">
+                      <div className="px-3 sm:px-4 py-1 text-xs text-gray-500 font-medium">管理員功能</div>
+                    </div>
+                    <div className="mt-2">
+                      <Link href="/admin/verify-users" className="block w-full px-3 sm:px-4 py-2 text-xs sm:text-sm text-gray-900 hover:text-indigo-600 hover:bg-indigo-50 transition-colors text-center">
+                        ✅ 用戶驗證管理
+                      </Link>
+                    </div>
+                  </>
+                )}
+                
                 <div className="border-t border-white/40 mt-2">
                   <button 
                     onClick={() => signOut()} 
