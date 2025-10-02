@@ -139,6 +139,7 @@ export class SecurityLogger {
     event: string,
     details: {
       userId?: string;
+      email?: string;
       ip?: string;
       userAgent?: string;
       additionalInfo?: any;
