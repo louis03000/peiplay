@@ -550,3 +550,69 @@ export async function sendPasswordResetEmail(
     return false;
   }
 }
+
+// 發送 Email 驗證碼
+export async function sendEmailVerificationCode(
+  userEmail: string,
+  userName: string,
+  verificationCode: string
+) {
+  try {
+    const transporter = createTransporter();
+    
+    const subject = `🔐 PeiPlay Email 驗證碼`;
+    
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; text-align: center; border-radius: 10px 10px 0 0;">
+          <h1 style="margin: 0; font-size: 24px;">🔐 Email 驗證</h1>
+        </div>
+        
+        <div style="background: #f8f9fa; padding: 30px; border-radius: 0 0 10px 10px;">
+          <h2 style="color: #333; margin-top: 0;">親愛的 ${userName}，</h2>
+          
+          <p style="color: #666; font-size: 16px; line-height: 1.6;">
+            歡迎加入 PeiPlay！請使用以下驗證碼來驗證您的 Email 地址：
+          </p>
+          
+          <div style="text-align: center; margin: 30px 0;">
+            <div style="display: inline-block; background: #667eea; color: white; padding: 20px 40px; border-radius: 10px; font-size: 32px; font-weight: bold; letter-spacing: 5px;">
+              ${verificationCode}
+            </div>
+          </div>
+          
+          <div style="background: #fff3cd; padding: 15px; border-radius: 8px; margin: 20px 0;">
+            <p style="margin: 0; color: #856404; font-weight: bold;">
+              ⚠️ 重要提醒：<br>
+              • 此驗證碼將在 10 分鐘後失效<br>
+              • 請勿將此驗證碼分享給他人<br>
+              • 如果您沒有註冊 PeiPlay 帳號，請忽略此郵件
+            </p>
+          </div>
+          
+          <p style="color: #666; font-size: 14px; margin-top: 30px;">
+            驗證完成後，您就可以開始使用 PeiPlay 的所有功能了！<br>
+            如有任何問題，請聯繫我們的客服團隊。
+          </p>
+        </div>
+        
+        <div style="text-align: center; margin-top: 20px; color: #999; font-size: 12px;">
+          <p>此郵件由 PeiPlay 系統自動發送，請勿回覆。</p>
+        </div>
+      </div>
+    `;
+    
+    await transporter.sendMail({
+      from: `"PeiPlay 驗證中心" <${process.env.EMAIL_USER}>`,
+      to: userEmail,
+      subject,
+      html
+    });
+    
+    console.log(`✅ Email 驗證碼已發送: ${userEmail}`);
+    return true;
+  } catch (error) {
+    console.error('❌ 發送 Email 驗證碼失敗:', error);
+    return false;
+  }
+}

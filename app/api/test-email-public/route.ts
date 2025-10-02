@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Email 測試失敗:', error);
     return NextResponse.json(
-      { error: 'Email 測試失敗: ' + error.message },
+      { error: 'Email 測試失敗: ' + (error instanceof Error ? error.message : '未知錯誤') },
       { status: 500 }
     );
   }

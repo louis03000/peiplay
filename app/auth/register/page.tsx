@@ -93,7 +93,9 @@ export default function RegisterPage() {
         return
       }
   
-      setIsSuccess(true)
+      // 註冊成功，跳轉到 Email 驗證頁面
+      const formData = await response.json()
+      router.push(`/auth/verify-email?email=${encodeURIComponent(formData.email || '')}`)
     } catch (error) {
       console.error(error)
       setErrorMsg(error instanceof Error ? error.message : '註冊失敗')

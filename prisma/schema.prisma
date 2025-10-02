@@ -25,6 +25,9 @@ model User {
   isSuspended        Boolean   @default(false)
   suspensionEndsAt   DateTime?
   suspensionReason   String?
+  emailVerified      Boolean   @default(false)
+  emailVerificationCode String?
+  emailVerificationExpires DateTime?
   customer           Customer?
   partner            Partner?
   reviewsReceived    Review[]  @relation("Reviewee")
