@@ -41,7 +41,7 @@ async function performSecurityAudit() {
     passwordSecurity: await auditPasswordSecurity(),
     emailSecurity: await auditEmailSecurity(),
     systemSecurity: await auditSystemSecurity(),
-    recommendations: []
+    recommendations: [] as string[]  // 明確指定類型為 string[]
   };
 
   // 生成建議
