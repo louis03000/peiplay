@@ -35,7 +35,7 @@ export async function POST(
     if (!isPartner && !isAdmin) {
       return NextResponse.json({ error: '沒有權限接受此預約' }, { status: 403 });
     }
-    if (booking.status !== 'PENDING') {
+    if (booking.status !== 'PENDING' && booking.status !== 'PAID_WAITING_PARTNER_CONFIRMATION') {
       return NextResponse.json({ error: '此預約無法接受' }, { status: 400 });
     }
     // 更新狀態為 CONFIRMED

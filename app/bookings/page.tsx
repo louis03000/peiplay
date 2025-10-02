@@ -145,9 +145,12 @@ export default function BookingsPage() {
 
   // 取得狀態中文說明
   function getStatusText(status: string) {
+    // 根據用戶角色和分頁顯示不同的狀態文字
+    const isPartnerView = tab === 'partner';
+    
     const statusMap: { [key: string]: string } = {
       'PENDING': '待確認',
-      'PAID_WAITING_PARTNER_CONFIRMATION': '等待夥伴確認',
+      'PAID_WAITING_PARTNER_CONFIRMATION': isPartnerView ? '待確認' : '等待夥伴確認',
       'PARTNER_ACCEPTED': '夥伴已接受',
       'PARTNER_REJECTED': '夥伴已拒絕',
       'CONFIRMED': '已確認',
