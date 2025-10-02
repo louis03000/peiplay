@@ -106,19 +106,19 @@ class Booking(Base):
     schedule = relationship("Schedule")
 
 class PairingRecord(Base):
-    __tablename__ = 'pairing_records'
+    __tablename__ = 'PairingRecord'
     id = Column(String, primary_key=True)  # 改為 String 類型，對應 Prisma 的 cuid
-    user1_id = Column(String)
-    user2_id = Column(String)
+    user1Id = Column('user1Id', String)
+    user2Id = Column('user2Id', String)
     timestamp = Column(DateTime, default=datetime.utcnow)
-    extended_times = Column(Integer, default=0)
+    extendedTimes = Column('extendedTimes', Integer, default=0)
     duration = Column(Integer, default=0)
     rating = Column(Integer, nullable=True)
     comment = Column(String, nullable=True)
-    animal_name = Column(String)
-    booking_id = Column(String, nullable=True)  # 關聯到預約ID
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    animalName = Column('animalName', String)
+    bookingId = Column('bookingId', String, nullable=True)  # 關聯到預約ID
+    createdAt = Column('createdAt', DateTime, default=datetime.utcnow)
+    updatedAt = Column('updatedAt', DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 class BlockRecord(Base):
     __tablename__ = 'block_records'
@@ -438,11 +438,11 @@ async def create_booking_voice_channel(booking_id, customer_discord, partner_dis
                 
                 record = PairingRecord(
                     id=record_id,
-                    user1_id=user1_id,
-                    user2_id=user2_id,
+                    user1Id=user1_id,
+                    user2Id=user2_id,
                     duration=duration_minutes * 60,
-                    animal_name="預約頻道",
-                    booking_id=booking_id
+                    animalName="預約頻道",
+                    bookingId=booking_id
                 )
                 s.add(record)
                 s.commit()
@@ -450,7 +450,7 @@ async def create_booking_voice_channel(booking_id, customer_discord, partner_dis
             except Exception as e:
                 print(f"❌ 創建配對記錄失敗: {e}")
                 # 如果表不存在，使用預設的 record_id
-                if "relation \"pairing_records\" does not exist" in str(e):
+                if "relation \"PairingRecord\" does not exist" in str(e):
                     record_id = "temp_" + str(int(time.time()))
                     print(f"⚠️ 使用臨時 record_id: {record_id}")
                 else:
@@ -1408,11 +1408,11 @@ async def check_bookings():
                     
                     try:
                         record = PairingRecord(
-                            user1_id=user1_id,
-                            user2_id=user2_id,
+                            user1Id=user1_id,
+                            user2Id=user2_id,
                             duration=duration_minutes * 60,
-                            animal_name="預約頻道",  # 修正未定義的 animal 變數
-                            booking_id=booking.id
+                            animalName="預約頻道",  # 修正未定義的 animal 變數
+                            bookingId=booking.id
                         )
                         s.add(record)
                         s.commit()
@@ -1420,7 +1420,7 @@ async def check_bookings():
                     except Exception as e:
                         print(f"❌ 創建配對記錄失敗: {e}")
                         # 如果表不存在，使用預設的 record_id
-                        if "relation \"pairing_records\" does not exist" in str(e):
+                        if "relation \"PairingRecord\" does not exist" in str(e):
                             record_id = "temp_" + str(int(time.time()))
                             print(f"⚠️ 使用臨時 record_id: {record_id}")
                         else:
@@ -1732,8 +1732,8 @@ class RatingModal(Modal, title="匿名評分與留言"):
                     return
                 
                 # 在 session 內獲取需要的資料
-                user1_id = record.user1_id
-                user2_id = record.user2_id
+                user1_id = record.user1Id
+                user2_id = record.user2Id
                 
                 # 配對記錄資訊，減少日誌輸出
                 
@@ -2339,16 +2339,16 @@ async def countdown(vc_id, animal_channel_name, text_channel, vc, interaction, m
         with Session() as s:
             record = s.get(PairingRecord, record_id)
             if record:
-                record.extended_times = active_voice_channels[vc_id]['extended']
-                record.duration += record.extended_times * 600
+                record.extendedTimes = active_voice_channels[vc_id]['extended']
+                record.duration += record.extendedTimes * 600
                 s.commit()
                 
                 # 獲取更新後的記錄資訊
-                user1_id = record.user1_id
-                user2_id = record.user2_id
+                user1_id = record.user1Id
+                user2_id = record.user2Id
                 duration = record.duration
-                extended_times = record.extended_times
-                booking_id = record.booking_id
+                    extended_times = record.extendedTimes
+                booking_id = record.bookingId
 
         admin = bot.get_channel(ADMIN_CHANNEL_ID)
         if admin:
@@ -2464,10 +2464,10 @@ async def createvc(interaction: discord.Interaction, members: str, minutes: int,
             print(f"🔍 創建配對記錄: {user1_id} × {user2_id}")
             
             record = PairingRecord(
-                user1_id=user1_id,
-                user2_id=user2_id,
+                user1Id=user1_id,
+                user2Id=user2_id,
                 duration=minutes * 60,
-                animal_name=animal
+                animalName=animal
             )
             s.add(record)
             s.commit()
@@ -2519,7 +2519,7 @@ async def report(interaction: discord.Interaction, member: discord.Member, reaso
 @bot.tree.command(name="mystats", description="查詢自己的配對統計", guild=discord.Object(id=GUILD_ID))
 async def mystats(interaction: discord.Interaction):
     with Session() as s:
-        records = s.query(PairingRecord).filter((PairingRecord.user1_id==str(interaction.user.id)) | (PairingRecord.user2_id==str(interaction.user.id))).all()
+        records = s.query(PairingRecord).filter((PairingRecord.user1Id==str(interaction.user.id)) | (PairingRecord.user2Id==str(interaction.user.id))).all()
     count = len(records)
     ratings = [r.rating for r in records if r.rating]
     comments = [r.comment for r in records if r.comment]
@@ -2533,7 +2533,7 @@ async def stats(interaction: discord.Interaction, member: discord.Member):
         await interaction.response.send_message("❌ 僅限管理員查詢。", ephemeral=True)
         return
     with Session() as s:
-        records = s.query(PairingRecord).filter((PairingRecord.user1_id==str(member.id)) | (PairingRecord.user2_id==str(member.id))).all()
+        records = s.query(PairingRecord).filter((PairingRecord.user1Id==str(member.id)) | (PairingRecord.user2Id==str(member.id))).all()
     count = len(records)
     ratings = [r.rating for r in records if r.rating]
     comments = [r.comment for r in records if r.comment]
