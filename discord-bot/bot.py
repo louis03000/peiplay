@@ -698,20 +698,20 @@ async def delete_booking_channels(booking_id: str):
 # --- 檢查新預約並創建文字頻道任務 ---
 @tasks.loop(seconds=60)  # 每分鐘檢查一次
 async def check_new_bookings():
-    """檢查預約開始前 2 小時的預約並創建文字頻道"""
+    """檢查預約開始前 5 分鐘的預約並創建文字頻道"""
     await bot.wait_until_ready()
     
     try:
         with Session() as s:
-            # 查詢預約開始前 2 小時的已確認預約
+            # 查詢預約開始前 5 分鐘的已確認預約
             now = datetime.now(timezone.utc)
-            # 檢查預約開始時間在 2 小時內且還沒有創建文字頻道的預約
-            two_hours_from_now = now + timedelta(hours=2)
+            # 檢查預約開始時間在 5 分鐘內且還沒有創建文字頻道的預約
+            five_minutes_from_now = now + timedelta(minutes=5)
             
             # 檢查是否已創建文字頻道
             processed_list = list(processed_text_channels)
             
-            # 查詢預約開始時間在 2 小時內且還沒有創建文字頻道的已確認預約
+            # 查詢預約開始時間在 5 分鐘內且還沒有創建文字頻道的已確認預約
             query = """
                 SELECT 
                     b.id, b."customerId", b."scheduleId", b.status, b."createdAt", b."updatedAt",
@@ -725,12 +725,12 @@ async def check_new_bookings():
                 JOIN "Partner" p ON p.id = s."partnerId"
                 JOIN "User" pu ON pu.id = p."userId"
                 WHERE b.status = 'CONFIRMED'
-                AND s."startTime" <= :two_hours_from_now
+                AND s."startTime" <= :five_minutes_from_now
                 AND s."startTime" > :now
                 AND b."discordTextChannelId" IS NULL
             """
             result = s.execute(text(query), {
-                "two_hours_from_now": two_hours_from_now,
+                "five_minutes_from_now": five_minutes_from_now,
                 "now": now
             })
             
@@ -754,7 +754,7 @@ async def check_new_bookings():
                             continue
                     
                     # 創建文字頻道（預約開始前 2 小時）
-                    print(f"🔍 預約 {row.id} 將在 2 小時內開始，創建文字頻道")
+                    print(f"🔍 預約 {row.id} 將在 5 分鐘內開始，創建文字頻道")
                     text_channel = await create_booking_text_channel(
                         row.id, 
                         row.customer_discord, 
@@ -1160,12 +1160,12 @@ async def check_bookings():
         
         # 查詢已確認且即將開始的預約（只創建語音頻道）
         now = datetime.now(timezone.utc)
-        window_start = now - timedelta(minutes=30)  # 擴展到過去30分鐘，處理延遲的情況
-        window_end = now + timedelta(minutes=10)  # 10分鐘內即將開始
+        window_start = now - timedelta(minutes=10)  # 擴展到過去10分鐘，處理延遲的情況
+        window_end = now + timedelta(minutes=5)  # 5分鐘內即將開始
         
         # 查詢即時預約（夥伴確認後延遲開啟）
-        instant_window_start = now - timedelta(minutes=10)  # 擴展到過去10分鐘
-        instant_window_end = now + timedelta(minutes=10)  # 10分鐘內即將開始
+        instant_window_start = now - timedelta(minutes=5)  # 擴展到過去5分鐘
+        instant_window_end = now + timedelta(minutes=5)  # 5分鐘內即將開始
         
         # 使用原生 SQL 查詢避免 orderNumber 欄位問題
         # 添加檢查：只處理還沒有 Discord 頻道的預約
