@@ -43,6 +43,12 @@ export const authOptions: NextAuthOptions = {
         if (!credentials) return null;
         const user = await prisma.user.findUnique({ where: { email: credentials.email } });
         if (!user) throw new Error('尚未註冊，請先註冊');
+        
+        // 檢查 Email 是否已驗證
+        if (!user.emailVerified) {
+          throw new Error('請先完成 Email 驗證才能登入');
+        }
+        
         const isValid = await compare(credentials.password, user.password);
         if (!isValid) return null;
         return {

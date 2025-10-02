@@ -219,7 +219,11 @@ function VerifyEmailContent() {
           {/* 返回登入 */}
           <div className="mt-6 text-center">
             <button
-              onClick={() => router.push('/auth/login')}
+              onClick={() => {
+                if (confirm('您尚未完成 Email 驗證，確定要離開嗎？未驗證的帳號將無法登入。')) {
+                  router.push('/auth/login');
+                }
+              }}
               className="text-sm text-purple-600 hover:text-purple-500"
             >
               ← 返回登入

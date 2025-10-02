@@ -26,6 +26,21 @@ const registerSchema = z.object({
 }).refine((data) => data.password === data.confirmPassword, {
   message: '密碼不一致',
   path: ['confirmPassword'],
+}).refine((data) => {
+  const today = new Date();
+  const birthDate = new Date(data.birthday);
+  const age = today.getFullYear() - birthDate.getFullYear();
+  const monthDiff = today.getMonth() - birthDate.getMonth();
+  
+  // 如果還沒到生日，年齡減1
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+    return age - 1 >= 18;
+  }
+  
+  return age >= 18;
+}, {
+  message: '您必須年滿18歲才能註冊',
+  path: ['birthday'],
 })
 
 type RegisterFormData = z.infer<typeof registerSchema>
@@ -157,12 +172,15 @@ export default function RegisterPage() {
               {errors.phone && (
                 <p className="text-red-400 text-sm">{errors.phone.message}</p>
               )}
-              <input
-                className="w-full px-4 py-2 rounded bg-gray-900 text-white placeholder-gray-400 border border-gray-700"
-                placeholder="生日"
-                type="date"
-                {...register('birthday')}
-              />
+              <div>
+                <input
+                  className="w-full px-4 py-2 rounded bg-gray-900 text-white placeholder-gray-400 border border-gray-700"
+                  placeholder="生日"
+                  type="date"
+                  {...register('birthday')}
+                />
+                <p className="text-gray-400 text-xs mt-1">⚠️ 必須年滿18歲才能註冊</p>
+              </div>
               {errors.birthday && (
                 <p className="text-red-400 text-sm">{errors.birthday.message}</p>
               )}
