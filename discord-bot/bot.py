@@ -1232,31 +1232,31 @@ async def check_bookings():
                 general_count = 0
                 for row in result:
                     general_count += 1
-                booking = type('Booking', (), {
-                    'id': row.id,
-                    'customerId': row.customerId,
-                    'scheduleId': row.scheduleId,
-                    'status': row.status,
-                    'createdAt': row.createdAt,
-                    'updatedAt': row.updatedAt,
-                    'customer': type('Customer', (), {
-                        'user': type('User', (), {
-                            'discord': row.customer_discord
-                        })()
-                    })(),
-                    'schedule': type('Schedule', (), {
-                        'startTime': row.startTime,
-                        'endTime': row.endTime,
-                        'partner': type('Partner', (), {
+                    booking = type('Booking', (), {
+                        'id': row.id,
+                        'customerId': row.customerId,
+                        'scheduleId': row.scheduleId,
+                        'status': row.status,
+                        'createdAt': row.createdAt,
+                        'updatedAt': row.updatedAt,
+                        'customer': type('Customer', (), {
                             'user': type('User', (), {
-                                'discord': row.partner_discord
+                                'discord': row.customer_discord
                             })()
-                        })()
-                    })(),
-                    'isInstantBooking': getattr(row, 'is_instant_booking', None),
-                    'discordDelayMinutes': getattr(row, 'discord_delay_minutes', None)
-                })()
-                all_bookings.append(booking)
+                        })(),
+                        'schedule': type('Schedule', (), {
+                            'startTime': row.startTime,
+                            'endTime': row.endTime,
+                            'partner': type('Partner', (), {
+                                'user': type('User', (), {
+                                    'discord': row.partner_discord
+                                })()
+                            })()
+                        })(),
+                        'isInstantBooking': getattr(row, 'is_instant_booking', None),
+                        'discordDelayMinutes': getattr(row, 'discord_delay_minutes', None)
+                    })()
+                    all_bookings.append(booking)
             
             # 處理即時預約
             instant_count = 0
