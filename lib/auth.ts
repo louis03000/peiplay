@@ -44,8 +44,8 @@ export const authOptions: NextAuthOptions = {
         const user = await prisma.user.findUnique({ where: { email: credentials.email } });
         if (!user) throw new Error('尚未註冊，請先註冊');
         
-        // 檢查 Email 是否已驗證
-        if (!user.emailVerified) {
+        // 檢查 Email 是否已驗證（管理員帳號除外）
+        if (!user.emailVerified && user.role !== 'ADMIN') {
           throw new Error('請先完成 Email 驗證才能登入');
         }
         
