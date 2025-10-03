@@ -197,10 +197,14 @@ export class SecurityMonitor {
     };
     recommendations: string[];
   }> {
-    const healthStatus = {
-      database: 'healthy' as const,
-      email: 'healthy' as const,
-      storage: 'healthy' as const
+    const healthStatus: {
+      database: 'healthy' | 'warning' | 'critical';
+      email: 'healthy' | 'warning' | 'critical';
+      storage: 'healthy' | 'warning' | 'critical';
+    } = {
+      database: 'healthy',
+      email: 'healthy',
+      storage: 'healthy'
     };
     const recommendations: string[] = [];
 
