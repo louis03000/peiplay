@@ -149,6 +149,7 @@ export class SecurityLogger {
       ip?: string;
       userAgent?: string;
       activity?: string;
+      path?: string;
       additionalInfo?: any;
     }
   ) {
