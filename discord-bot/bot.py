@@ -1976,28 +1976,28 @@ class RatingModal(discord.ui.Modal):
                         raise db_error  # 最後一次嘗試失敗，拋出錯誤
                 
             if result:
-                    # 發送到管理員頻道
-                    admin_channel = bot.get_channel(ADMIN_CHANNEL_ID)
-                    if admin_channel:
-                        await admin_channel.send(
-                            f"**{result.customer_name}** 評價 **{result.partner_name}**\n"
-                            f"⭐ {'⭐' * self.rating}\n"
-                            f"💬 {comment}"
-                        )
-                        print(f"✅ 評價已發送到管理員頻道: {result.customer_name} → {result.partner_name} ({self.rating}⭐)")
-                    
-                    # 標記用戶已提交評價
-                    self.parent_view.submitted_users.add(interaction.user.id)
-                    
-                    # 確認收到評價
-                    await interaction.response.send_message(
-                        f"✅ 感謝您的評價！\n"
-                        f"評分：{'⭐' * self.rating}\n"
-                        f"評論：{comment}",
-                        ephemeral=True
+                # 發送到管理員頻道
+                admin_channel = bot.get_channel(ADMIN_CHANNEL_ID)
+                if admin_channel:
+                    await admin_channel.send(
+                        f"**{result.customer_name}** 評價 **{result.partner_name}**\n"
+                        f"⭐ {'⭐' * self.rating}\n"
+                        f"💬 {comment}"
                     )
-                else:
-                    await interaction.response.send_message("❌ 找不到對應的預約記錄", ephemeral=True)
+                    print(f"✅ 評價已發送到管理員頻道: {result.customer_name} → {result.partner_name} ({self.rating}⭐)")
+                
+                # 標記用戶已提交評價
+                self.parent_view.submitted_users.add(interaction.user.id)
+                
+                # 確認收到評價
+                await interaction.response.send_message(
+                    f"✅ 感謝您的評價！\n"
+                    f"評分：{'⭐' * self.rating}\n"
+                    f"評論：{comment}",
+                    ephemeral=True
+                )
+            else:
+                await interaction.response.send_message("❌ 找不到對應的預約記錄", ephemeral=True)
         except Exception as e:
             print(f"❌ 處理評價提交失敗: {e}")
             await interaction.response.send_message("❌ 處理評價時發生錯誤，請稍後再試", ephemeral=True)
