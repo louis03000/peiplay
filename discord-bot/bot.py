@@ -2009,7 +2009,7 @@ class ExtendView(View):
         self.vc_id = vc_id
 
     @discord.ui.button(label="🔁 延長 10 分鐘", style=discord.ButtonStyle.primary)
-    async def extend_button(self, interaction: discord.Interaction, button: Button):
+    async def extend_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         if self.vc_id not in active_voice_channels:
             await interaction.response.send_message("❗ 頻道資訊不存在或已刪除。", ephemeral=True)
             return
@@ -2354,7 +2354,7 @@ async def countdown(vc_id, animal_channel_name, text_channel, vc, interaction, m
                     await user.move_to(vc)
 
         view = ExtendView(vc.id)
-        await text_channel.send(f"🎉 語音頻道 {animal_channel_name} 已開啟！\n⏳ 可延長10分鐘 ( 為了您有更好的遊戲體驗，請到最後需要時再點選 ) 。", view=view)
+        await text_channel.send(f"🎉 語音頻道 {vc.name} 已開啟！\n⏳ 可延長10分鐘 ( 為了您有更好的遊戲體驗，請到最後需要時再點選 ) 。", view=view)
 
         while active_voice_channels[vc_id]['remaining'] > 0:
             remaining = active_voice_channels[vc_id]['remaining']
@@ -2383,7 +2383,7 @@ async def countdown(vc_id, animal_channel_name, text_channel, vc, interaction, m
                 category = discord.utils.get(guild.categories, name="語音頻道")
             
             # 創建臨時評價頻道
-            evaluation_channel_name = f"📝評價-{animal_channel_name.replace('📅', '').replace('⚡即時', '')}"
+            evaluation_channel_name = f"📝評價-{vc.name.replace('📅', '').replace('⚡即時', '')}"
             
             # 設置頻道權限
             overwrites = {
