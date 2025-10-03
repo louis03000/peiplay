@@ -28,6 +28,13 @@ model User {
   emailVerified      Boolean   @default(false)
   emailVerificationCode String?
   emailVerificationExpires DateTime?
+  // 用戶設定
+  emailNotifications Boolean  @default(true)
+  messageNotifications Boolean @default(true)
+  bookingNotifications Boolean @default(true)
+  twoFactorEnabled   Boolean  @default(false)
+  loginAlerts        Boolean  @default(true)
+  securityAlerts     Boolean  @default(true)
   customer           Customer?
   partner            Partner?
   reviewsReceived    Review[]  @relation("Reviewee")

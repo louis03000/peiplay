@@ -114,17 +114,10 @@ export default function Navbar() {
                   </Link>
                 </div>
                 
-                {/* Email 設定 */}
+                {/* 設定 */}
                 <div className="mt-2">
-                  <Link href="/profile/email-settings" className="block w-full px-3 sm:px-4 py-2 text-xs sm:text-sm text-gray-900 hover:text-indigo-600 hover:bg-indigo-50 transition-colors text-center">
-                    📧 Email 設定
-                  </Link>
-                </div>
-                
-                {/* 安全設定 */}
-                <div className="mt-2">
-                  <Link href="/profile/security-settings" className="block w-full px-3 sm:px-4 py-2 text-xs sm:text-sm text-gray-900 hover:text-indigo-600 hover:bg-indigo-50 transition-colors text-center">
-                    🔒 安全設定
+                  <Link href="/profile/settings" className="block w-full px-3 sm:px-4 py-2 text-xs sm:text-sm text-gray-900 hover:text-indigo-600 hover:bg-indigo-50 transition-colors text-center">
+                    ⚙️ 設定
                   </Link>
                 </div>
                 
