@@ -1392,12 +1392,28 @@ async def check_bookings():
                         category=category
                     )
                     
-                    # 不創建文字頻道，因為 check_new_bookings 已經創建了
-                    # text_channel = await guild.create_text_channel(
-                    #     name="🔒匿名文字區", 
-                    #     overwrites=overwrites, 
-                    #     category=category
-                    # )
+                    # 刪除對應的文字頻道（預約開始時文字頻道已完成溝通目的）
+                    text_channel = None
+                    try:
+                        # 查找對應的文字頻道
+                        text_channel_name = f"📅{date_str} {start_time_str}-{end_time_str} {cute_item}"
+                        text_channel = discord.utils.get(guild.text_channels, name=text_channel_name)
+                        
+                        if text_channel:
+                            await text_channel.delete()
+                            print(f"🗑️ 文字頻道已刪除: {text_channel_name} (預約開始，溝通目的已完成)")
+                            
+                            # 更新資料庫中的文字頻道ID為null
+                            with Session() as update_s:
+                                update_s.execute(
+                                    text("UPDATE \"Booking\" SET \"discordTextChannelId\" = NULL WHERE id = :booking_id"),
+                                    {"booking_id": booking.id}
+                                )
+                                update_s.commit()
+                        else:
+                            print(f"⚠️ 找不到對應的文字頻道: {text_channel_name}")
+                    except Exception as e:
+                        print(f"❌ 刪除文字頻道失敗: {e}")
                     
                     # 創建配對記錄
                     user1_id = str(customer_member.id)
@@ -1538,7 +1554,28 @@ async def check_bookings():
                                     if current_booking and current_booking.status == 'PARTNER_ACCEPTED':
                                         # 開啟語音頻道
                                         await vc.set_permissions(guild.default_role, view_channel=True)
-                                        # 文字頻道由 check_new_bookings 創建，這裡不需要處理
+                                        
+                                        # 刪除對應的文字頻道（即時預約開始時文字頻道已完成溝通目的）
+                                        try:
+                                            # 查找對應的文字頻道
+                                            text_channel_name = f"📅{date_str} {start_time_str}-{end_time_str} {cute_item}"
+                                            text_channel = discord.utils.get(guild.text_channels, name=text_channel_name)
+                                            
+                                            if text_channel:
+                                                await text_channel.delete()
+                                                print(f"🗑️ 即時預約文字頻道已刪除: {text_channel_name} (預約開始，溝通目的已完成)")
+                                                
+                                                # 更新資料庫中的文字頻道ID為null
+                                                with Session() as update_s:
+                                                    update_s.execute(
+                                                        text("UPDATE \"Booking\" SET \"discordTextChannelId\" = NULL WHERE id = :booking_id"),
+                                                        {"booking_id": booking.id}
+                                                    )
+                                                    update_s.commit()
+                                            else:
+                                                print(f"⚠️ 找不到對應的即時預約文字頻道: {text_channel_name}")
+                                        except Exception as e:
+                                            print(f"❌ 刪除即時預約文字頻道失敗: {e}")
                                         
                                         # 發送開啟通知
                                         embed = discord.Embed(
@@ -2323,21 +2360,49 @@ async def countdown(vc_id, animal_channel_name, text_channel, vc, interaction, m
         await vc.delete()
         print(f"🎯 語音頻道已刪除，開始評價流程: record_id={record_id}")
         
-        # 發送評價提示訊息
-        embed = discord.Embed(
-            title="⭐ 預約結束 - 請進行評價",
-            description="感謝您使用 PeiPlay 服務！請花一點時間為您的夥伴進行匿名評價。",
-            color=0xffd700
-        )
-        embed.add_field(
-            name="📝 評價說明",
-            value="• 評分範圍：1-5 星\n• 留言為選填項目\n• 評價完全匿名\n• 評價結果會回報給管理員",
-            inline=False
-        )
-        embed.set_footer(text="評價有助於我們提供更好的服務品質")
-        
-        await text_channel.send(embed=embed)
-        await text_channel.send("📝 請點擊以下按鈕進行匿名評分：")
+        # 創建臨時評價頻道（因為預約前的溝通頻道已經被刪除）
+        try:
+            # 查找語音頻道所屬的分類
+            category = vc.category if vc.category else None
+            if not category:
+                category = discord.utils.get(guild.categories, name="Voice Channels")
+            if not category:
+                category = discord.utils.get(guild.categories, name="語音頻道")
+            
+            # 創建臨時評價頻道
+            evaluation_channel_name = f"📝評價-{animal_channel_name.replace('📅', '').replace('⚡即時', '')}"
+            evaluation_channel = await guild.create_text_channel(
+                name=evaluation_channel_name,
+                category=category,
+                overwrites={
+                    guild.default_role: discord.PermissionOverwrite(view_channel=False),
+                    customer_member: discord.PermissionOverwrite(view_channel=True, send_messages=True),
+                    partner_member: discord.PermissionOverwrite(view_channel=True, send_messages=True),
+                }
+            )
+            
+            # 發送評價提示訊息
+            embed = discord.Embed(
+                title="⭐ 預約結束 - 請進行評價",
+                description="感謝您使用 PeiPlay 服務！請花一點時間為您的夥伴進行匿名評價。",
+                color=0xffd700
+            )
+            embed.add_field(
+                name="📝 評價說明",
+                value="• 評分範圍：1-5 星\n• 留言為選填項目\n• 評價完全匿名\n• 評價結果會回報給管理員",
+                inline=False
+            )
+            embed.set_footer(text="評價有助於我們提供更好的服務品質")
+            
+            await evaluation_channel.send(embed=embed)
+            await evaluation_channel.send("📝 請點擊以下按鈕進行匿名評分：")
+            
+            # 更新 text_channel 變數為新的評價頻道
+            text_channel = evaluation_channel
+            
+        except Exception as e:
+            print(f"❌ 創建評價頻道失敗: {e}")
+            return
 
         class SubmitButton(View):
             def __init__(self):
