@@ -1998,9 +1998,9 @@ class RatingModal(discord.ui.Modal):
                     )
                 else:
                     await interaction.response.send_message("❌ 找不到對應的預約記錄", ephemeral=True)
-            except Exception as e:
-                print(f"❌ 處理評價提交失敗: {e}")
-                await interaction.response.send_message("❌ 處理評價時發生錯誤，請稍後再試", ephemeral=True)
+        except Exception as e:
+            print(f"❌ 處理評價提交失敗: {e}")
+            await interaction.response.send_message("❌ 處理評價時發生錯誤，請稍後再試", ephemeral=True)
 
 
 class ExtendView(View):
@@ -2267,6 +2267,12 @@ async def submit_auto_rating(booking_id: str, text_channel):
 async def countdown_with_rating_extended(vc_id, channel_name, text_channel, vc, mentioned, members, record_id, booking_id):
     """延長後的倒數計時函數，包含評價系統"""
     try:
+        # 獲取 guild 對象
+        guild = bot.get_guild(GUILD_ID)
+        if not guild:
+            print(f"❌ 找不到 Guild ID: {GUILD_ID}")
+            return
+        
         # 計算延長後的預約結束時間
         now = datetime.now(timezone.utc)
         
