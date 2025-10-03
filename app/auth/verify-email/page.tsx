@@ -145,6 +145,11 @@ function VerifyEmailContent() {
               >
                 {sending ? '發送中...' : '發送驗證碼'}
               </button>
+              <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-md">
+                <p className="text-xs text-blue-700 text-center">
+                  📧 <strong>溫馨提示：</strong>驗證碼將發送到您的 Email，如果沒有收到，請檢查垃圾郵件資料夾。PeiPlay 的驗證郵件可能會被自動分類到垃圾郵件中。
+                </p>
+              </div>
             </div>
           )}
 
@@ -155,6 +160,11 @@ function VerifyEmailContent() {
                 <strong>驗證碼已發送</strong><br />
                 剩餘時間：<span className="font-mono text-lg">{formatTime(timeLeft)}</span>
               </p>
+              <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-md">
+                <p className="text-xs text-blue-700 text-center">
+                  💡 <strong>小提醒：</strong>如果沒有收到驗證碼，請檢查您的垃圾郵件資料夾。PeiPlay 的驗證郵件可能會被自動分類到垃圾郵件中。
+                </p>
+              </div>
             </div>
           )}
 
