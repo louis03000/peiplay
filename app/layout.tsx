@@ -4,6 +4,8 @@ import './globals.css'
 import Providers from './providers'
 import ClientNavbar from './components/ClientNavbar'
 import SuspensionNotice from './components/SuspensionNotice'
+import { ToastContainer } from 'react-toastify'
+import 'react-toastify/dist/ReactToastify.css'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -26,6 +28,18 @@ export default function RootLayout({
             <ClientNavbar />
             {children}
           </div>
+          <ToastContainer
+            position="top-right"
+            autoClose={3000}
+            hideProgressBar={false}
+            newestOnTop={false}
+            closeOnClick
+            rtl={false}
+            pauseOnFocusLoss
+            draggable
+            pauseOnHover
+            theme="dark"
+          />
         </Providers>
       </body>
     </html>
