@@ -24,7 +24,7 @@ export async function sendBookingNotification(
     endTime?: string;
     amount?: number;
   }
-) {
+): Promise<boolean> {
   let title = '';
   let content = '';
 
@@ -66,7 +66,7 @@ export async function sendBookingNotification(
     });
 
     if (user?.email) {
-      await sendNotificationToEmail(
+      const emailSent = await sendNotificationToEmail(
         user.email,
         user.name || '用戶',
         {
@@ -77,12 +77,21 @@ export async function sendBookingNotification(
           data: bookingData,
         }
       );
-      console.log(`✅ 預約通知 Email 已發送給用戶 ${user.email}: ${title}`);
+      
+      if (emailSent) {
+        console.log(`✅ 預約通知 Email 已發送給用戶 ${user.email}: ${title}`);
+        return true;
+      } else {
+        console.error(`❌ 發送預約通知 Email 失敗給用戶 ${user.email}`);
+        return false;
+      }
     } else {
       console.warn(`⚠️ 用戶 ${userId} 沒有 Email 地址，無法發送通知`);
+      return false;
     }
   } catch (error) {
     console.error('❌ 發送預約通知 Email 失敗:', error);
+    return false;
   }
 }
 
