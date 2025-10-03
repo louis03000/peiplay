@@ -148,6 +148,7 @@ export class SecurityLogger {
       email?: string;
       ip?: string;
       userAgent?: string;
+      activity?: string;
       additionalInfo?: any;
     }
   ) {
