@@ -88,13 +88,16 @@ async function registerHandler(request: Request) {
     // 加密密碼
     const hashedPassword = await bcrypt.hash(sanitizedData.password, 12) // 增加 salt rounds
 
+    // 檢查是否為管理員帳號
+    const isAdminEmail = sanitizedData.email === 'peiplay2025@gmail.com';
+    
     // 生成 6 位數驗證碼
     const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
     
     // 設定過期時間（10分鐘後）
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
-    // 創建用戶（但 emailVerified 為 false）
+    // 創建用戶
     const user = await prisma.user.create({
       data: {
         email: sanitizedData.email,
@@ -103,10 +106,10 @@ async function registerHandler(request: Request) {
         birthday: new Date(sanitizedData.birthday),
         phone: sanitizedData.phone,
         discord: sanitizedData.discord,
-        role: 'CUSTOMER',
-        emailVerified: false,
-        emailVerificationCode: verificationCode,
-        emailVerificationExpires: expiresAt,
+        role: isAdminEmail ? 'ADMIN' : 'CUSTOMER',
+        emailVerified: isAdminEmail, // 管理員帳號直接設為已驗證
+        emailVerificationCode: isAdminEmail ? null : verificationCode,
+        emailVerificationExpires: isAdminEmail ? null : expiresAt,
       },
     })
 
@@ -117,7 +120,16 @@ async function registerHandler(request: Request) {
       additionalInfo: { registrationTime: new Date().toISOString() }
     });
 
-    // 發送驗證碼 Email
+    // 如果是管理員帳號，直接返回成功
+    if (isAdminEmail) {
+      return NextResponse.json({ 
+        message: '管理員帳號註冊成功，可直接登入',
+        email: sanitizedData.email,
+        isAdmin: true
+      })
+    }
+
+    // 發送驗證碼 Email（僅限非管理員帳號）
     const emailSent = await sendEmailVerificationCode(
       sanitizedData.email,
       sanitizedData.name,
