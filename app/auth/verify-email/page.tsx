@@ -187,7 +187,7 @@ function VerifyEmailContent() {
                   value={verificationCode}
                   onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
                   placeholder="請輸入 6 位數驗證碼"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500 text-center text-2xl font-mono tracking-widest"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500 text-center text-2xl font-mono tracking-widest text-gray-900 placeholder-gray-400"
                   maxLength={6}
                   required
                 />
@@ -211,8 +211,8 @@ function VerifyEmailContent() {
           )}
 
           {error && (
-            <div className="mt-4 p-4 bg-red-50 rounded-lg">
-              <p className="text-sm text-red-800">{error}</p>
+            <div className="mt-4 p-4 bg-red-100 border border-red-200 rounded-lg">
+              <p className="text-sm text-red-900 font-medium">{error}</p>
             </div>
           )}
 
