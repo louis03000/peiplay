@@ -818,7 +818,7 @@ async def auto_close_available_now():
         print(f"❌ 自動關閉「現在有空」狀態時發生錯誤: {e}")
 
 # --- 清理過期頻道任務 ---
-@tasks.loop(seconds=300)  # 每5分鐘檢查一次
+@tasks.loop(seconds=60)  # 每1分鐘檢查一次
 async def cleanup_expired_channels():
     """清理已過期的預約頻道"""
     await bot.wait_until_ready()
@@ -1777,6 +1777,7 @@ class Extend5MinView(View):
         super().__init__(timeout=300)  # 5分鐘超時
         self.booking_id = booking_id
         self.vc = vc
+        self.vc_id = vc.id  # 添加 vc_id 屬性
         self.channel_name = channel_name
         self.text_channel = text_channel
         self.extended = False  # 追蹤是否已延長
@@ -1802,6 +1803,12 @@ class Extend5MinView(View):
             
             # 標記為已延長
             self.extended = True
+            
+            # 更新 active_voice_channels 中的剩餘時間（延長5分鐘 = 300秒）
+            if hasattr(self, 'vc_id') and self.vc_id in active_voice_channels:
+                active_voice_channels[self.vc_id]['remaining'] += 300  # 延長5分鐘
+                active_voice_channels[self.vc_id]['extended'] += 1
+                print(f"✅ 已更新 active_voice_channels 中的頻道 {self.vc_id}，延長5分鐘")
             
             # 更新按鈕狀態
             button.label = "✅ 已延長 5 分鐘"
