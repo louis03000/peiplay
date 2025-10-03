@@ -267,8 +267,8 @@ async function generateSecuritySummary() {
   });
 
   // 計算安全指標
-  const verificationRate = totalUsers > 0 ? (verifiedUsers / totalUsers * 100).toFixed(2) : 0;
-  const adminRatio = totalUsers > 0 ? (adminUsers / totalUsers * 100).toFixed(2) : 0;
+  const verificationRate = totalUsers > 0 ? (verifiedUsers / totalUsers * 100).toFixed(2) : '0.00';
+  const adminRatio = totalUsers > 0 ? (adminUsers / totalUsers * 100).toFixed(2) : '0.00';
 
   return {
     generatedAt: new Date().toISOString(),
