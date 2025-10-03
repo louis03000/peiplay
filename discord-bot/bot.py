@@ -1998,9 +1998,9 @@ class RatingModal(discord.ui.Modal):
                     )
                 else:
                     await interaction.response.send_message("❌ 找不到對應的預約記錄", ephemeral=True)
-        except Exception as e:
-            print(f"❌ 處理評價提交失敗: {e}")
-            await interaction.response.send_message("❌ 處理評價時發生錯誤，請稍後再試", ephemeral=True)
+            except Exception as e:
+                print(f"❌ 處理評價提交失敗: {e}")
+                await interaction.response.send_message("❌ 處理評價時發生錯誤，請稍後再試", ephemeral=True)
 
 
 class ExtendView(View):
@@ -2362,6 +2362,13 @@ async def countdown(vc_id, animal_channel_name, text_channel, vc, interaction, m
         
         # 創建臨時評價頻道（因為預約前的溝通頻道已經被刪除）
         try:
+            # 從 members 中提取 customer_member 和 partner_member
+            customer_member = None
+            partner_member = None
+            if members and len(members) >= 2:
+                customer_member = members[0]  # 假設第一個是顧客
+                partner_member = members[1]   # 假設第二個是夥伴
+            
             # 查找語音頻道所屬的分類
             category = vc.category if vc.category else None
             if not category:
@@ -2371,14 +2378,22 @@ async def countdown(vc_id, animal_channel_name, text_channel, vc, interaction, m
             
             # 創建臨時評價頻道
             evaluation_channel_name = f"📝評價-{animal_channel_name.replace('📅', '').replace('⚡即時', '')}"
+            
+            # 設置頻道權限
+            overwrites = {
+                guild.default_role: discord.PermissionOverwrite(view_channel=False),
+            }
+            
+            # 添加成員權限（如果成員存在）
+            if customer_member:
+                overwrites[customer_member] = discord.PermissionOverwrite(view_channel=True, send_messages=True)
+            if partner_member:
+                overwrites[partner_member] = discord.PermissionOverwrite(view_channel=True, send_messages=True)
+            
             evaluation_channel = await guild.create_text_channel(
                 name=evaluation_channel_name,
                 category=category,
-                overwrites={
-                    guild.default_role: discord.PermissionOverwrite(view_channel=False),
-                    customer_member: discord.PermissionOverwrite(view_channel=True, send_messages=True),
-                    partner_member: discord.PermissionOverwrite(view_channel=True, send_messages=True),
-                }
+                overwrites=overwrites
             )
             
             # 發送評價提示訊息
