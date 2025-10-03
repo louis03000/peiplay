@@ -1407,7 +1407,12 @@ async def check_bookings():
                     # 自動創建配對記錄，減少日誌輸出
                     
                     try:
+                        # 生成唯一的 ID
+                        import uuid
+                        record_id = str(uuid.uuid4())
+                        
                         record = PairingRecord(
+                            id=record_id,
                             user1Id=user1_id,
                             user2Id=user2_id,
                             duration=duration_minutes * 60,
@@ -1907,21 +1912,33 @@ class RatingModal(discord.ui.Modal):
         
         # 獲取顧客和夥伴信息
         try:
-            with Session() as s:
-                result = s.execute(text("""
-                    SELECT 
-                        c.name as customer_name, p.name as partner_name,
-                        cu.discord as customer_discord, pu.discord as partner_discord
-                    FROM "Booking" b
-                    JOIN "Schedule" s ON s.id = b."scheduleId"
-                    JOIN "Customer" c ON c.id = b."customerId"
-                    JOIN "User" cu ON cu.id = c."userId"
-                    JOIN "Partner" p ON p.id = s."partnerId"
-                    JOIN "User" pu ON pu.id = p."userId"
-                    WHERE b.id = :booking_id
-                """), {"booking_id": self.booking_id}).fetchone()
+            # 重試機制處理資料庫連接問題
+            max_retries = 3
+            for attempt in range(max_retries):
+                try:
+                    with Session() as s:
+                        result = s.execute(text("""
+                            SELECT 
+                                c.name as customer_name, p.name as partner_name,
+                                cu.discord as customer_discord, pu.discord as partner_discord
+                            FROM "Booking" b
+                            JOIN "Schedule" s ON s.id = b."scheduleId"
+                            JOIN "Customer" c ON c.id = b."customerId"
+                            JOIN "User" cu ON cu.id = c."userId"
+                            JOIN "Partner" p ON p.id = s."partnerId"
+                            JOIN "User" pu ON pu.id = p."userId"
+                            WHERE b.id = :booking_id
+                        """), {"booking_id": self.booking_id}).fetchone()
+                        break  # 成功則跳出重試循環
+                except Exception as db_error:
+                    print(f"❌ 資料庫查詢失敗 (嘗試 {attempt + 1}/{max_retries}): {db_error}")
+                    if attempt < max_retries - 1:
+                        await asyncio.sleep(1)  # 等待1秒後重試
+                        continue
+                    else:
+                        raise db_error  # 最後一次嘗試失敗，拋出錯誤
                 
-                if result:
+            if result:
                     # 發送到管理員頻道
                     admin_channel = bot.get_channel(ADMIN_CHANNEL_ID)
                     if admin_channel:

@@ -62,6 +62,11 @@ export async function GET(request: Request) {
             suspensionEndsAt: true,
           }
         },
+        reviews: {
+          select: {
+            rating: true
+          }
+        },
         schedules: {
           where: {
             date: {
@@ -105,29 +110,39 @@ export async function GET(request: Request) {
       return true
     })
 
-    // 只返回有可用時段的夥伴，並為每個時段添加搜尋時段限制
+    // 只返回有可用時段的夥伴，並為每個時段添加搜尋時段限制，同時計算平均星等
     const partnersWithAvailableSchedules = availablePartners
-      .map(partner => ({
-        ...partner,
-        schedules: partner.schedules.filter(schedule => {
-          // 過濾掉已被預約的時段（排除已取消和已拒絕的預約）
-          if (schedule.bookings && schedule.bookings.status && 
-              schedule.bookings.status !== 'CANCELLED' && 
-              schedule.bookings.status !== 'REJECTED') {
-            return false;
-          }
-          return true;
-        }).map(schedule => ({
-          ...schedule,
-          // 添加搜尋時段限制信息
-          searchTimeRestriction: {
-            startTime,
-            endTime,
-            startDate,
-            endDate
-          }
-        }))
-      }))
+      .map(partner => {
+        // 計算平均星等
+        const reviews = (partner as any).reviews || [];
+        const averageRating = reviews.length > 0 
+          ? reviews.reduce((sum: number, review: any) => sum + review.rating, 0) / reviews.length
+          : 0;
+        
+        return {
+          ...partner,
+          averageRating: Math.round(averageRating * 10) / 10, // 保留一位小數
+          totalReviews: reviews.length,
+          schedules: partner.schedules.filter(schedule => {
+            // 過濾掉已被預約的時段（排除已取消和已拒絕的預約）
+            if (schedule.bookings && schedule.bookings.status && 
+                schedule.bookings.status !== 'CANCELLED' && 
+                schedule.bookings.status !== 'REJECTED') {
+              return false;
+            }
+            return true;
+          }).map(schedule => ({
+            ...schedule,
+            // 添加搜尋時段限制信息
+            searchTimeRestriction: {
+              startTime,
+              endTime,
+              startDate,
+              endDate
+            }
+          }))
+        };
+      })
       .filter(partner => partner.schedules.length > 0)
 
     return NextResponse.json(partnersWithAvailableSchedules)

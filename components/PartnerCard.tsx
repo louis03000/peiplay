@@ -15,6 +15,8 @@ interface Partner {
   isAvailableNow: boolean
   isRankBooster: boolean
   customerMessage?: string
+  averageRating?: number
+  totalReviews?: number
 }
 
 interface PartnerCardProps {
@@ -187,6 +189,28 @@ export default function PartnerCard({ partner, onQuickBook, showNextStep = false
                 </button>
               )}
             </div>
+
+            {/* 平均星等顯示 */}
+            {partner.averageRating !== undefined && partner.averageRating > 0 && (
+              <div className="flex items-center gap-2 mt-2">
+                <div className="flex items-center gap-1">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <FaStar
+                      key={star}
+                      className={`text-xs ${
+                        star <= Math.round(partner.averageRating!)
+                          ? 'text-yellow-400'
+                          : 'text-gray-400'
+                      }`}
+                    />
+                  ))}
+                </div>
+                <span className="text-white/80 text-xs font-medium drop-shadow-lg">
+                  {partner.averageRating.toFixed(1)}
+                  {partner.totalReviews && ` (${partner.totalReviews}評價)`}
+                </span>
+              </div>
+            )}
 
             {/* 留言板內容不顯示在正面 */}
           </div>

@@ -66,6 +66,11 @@ export async function GET(request: Request) {
             suspensionEndsAt: true
           }
         },
+        reviews: {
+          select: {
+            rating: true
+          }
+        },
         schedules: {
           where: {
             date: scheduleDateFilter,
@@ -100,21 +105,31 @@ export async function GET(request: Request) {
       partnersWithSchedules = partners.filter(partner => partner.schedules.length > 0);
     }
 
-    // 過濾掉已預約的時段，只保留可用的時段
-    partnersWithSchedules = partnersWithSchedules.map(partner => ({
-      ...partner,
-      schedules: partner.schedules.filter(schedule => {
-        // 如果時段本身不可用，則過濾掉
-        if (!schedule.isAvailable) return false;
-        
-        // 如果有預約記錄且狀態不是 CANCELLED 或 REJECTED，則時段不可用
-        if (schedule.bookings && schedule.bookings.status !== 'CANCELLED' && schedule.bookings.status !== 'REJECTED') {
-          return false;
-        }
-        
-        return true;
-      })
-    })).filter(partner => partner.schedules.length > 0); // 過濾掉沒有可用時段的夥伴
+    // 過濾掉已預約的時段，只保留可用的時段，並計算平均星等
+    partnersWithSchedules = partnersWithSchedules.map(partner => {
+      // 計算平均星等
+      const reviews = (partner as any).reviews || [];
+      const averageRating = reviews.length > 0 
+        ? reviews.reduce((sum: number, review: any) => sum + review.rating, 0) / reviews.length
+        : 0;
+      
+      return {
+        ...partner,
+        averageRating: Math.round(averageRating * 10) / 10, // 保留一位小數
+        totalReviews: reviews.length,
+        schedules: partner.schedules.filter(schedule => {
+          // 如果時段本身不可用，則過濾掉
+          if (!schedule.isAvailable) return false;
+          
+          // 如果有預約記錄且狀態不是 CANCELLED 或 REJECTED，則時段不可用
+          if (schedule.bookings && schedule.bookings.status !== 'CANCELLED' && schedule.bookings.status !== 'REJECTED') {
+            return false;
+          }
+          
+          return true;
+        })
+      };
+    }).filter(partner => partner.schedules.length > 0); // 過濾掉沒有可用時段的夥伴
 
     // 過濾掉被停權的夥伴
     partnersWithSchedules = partnersWithSchedules.filter(partner => {
