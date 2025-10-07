@@ -3,7 +3,6 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { sendBookingNotificationToPartner } from '@/lib/email';
-import { sendBookingNotification } from '@/lib/messaging';
 
 export const dynamic = 'force-dynamic';
 
@@ -188,20 +187,6 @@ export async function POST(request: Request) {
           }
         );
         console.log('✅ 一般預約通知 email 已發送給夥伴');
-
-        // 發送 Email 通知
-        await sendBookingNotification(
-          firstBooking.schedule.partner.userId,
-          'BOOKING_CREATED',
-          {
-            bookingId: firstBooking.id,
-            customerName: firstBooking.customer.user.name || '客戶',
-            startTime: new Date(firstBooking.schedule.startTime).toLocaleString('zh-TW'),
-            endTime: new Date(firstBooking.schedule.endTime).toLocaleString('zh-TW'),
-            amount: totalCost
-          }
-        );
-        console.log('✅ 一般預約 Email 通知已發送給夥伴');
       }
     } catch (emailError) {
       console.error('❌ 發送一般預約通知失敗:', emailError);
