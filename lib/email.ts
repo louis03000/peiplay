@@ -76,8 +76,17 @@ export async function sendBookingNotificationToPartner(
           <div style="background: #e8f5e8; padding: 15px; border-radius: 8px; margin: 20px 0;">
             <p style="margin: 0; color: #2d5a2d; font-weight: bold;">
               ⚡ 即時預約：頻道將在 3 分鐘內自動創建<br>
-              📅 一般預約：請在 Discord 中確認後創建頻道
+              📅 一般預約：請在網站中確認後創建頻道
             </p>
+          </div>
+          
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="https://peiplay.vercel.app/" 
+               style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                      color: white; padding: 15px 30px; text-decoration: none; border-radius: 25px; 
+                      font-weight: bold; font-size: 16px; box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);">
+              🌐 前往 PeiPlay 網站
+            </a>
           </div>
           
           <p style="color: #666; font-size: 14px; margin-top: 30px;">

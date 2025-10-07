@@ -209,7 +209,7 @@ export default function WithdrawalPage() {
                 </div>
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600">總收入</p>
-                  <p className="text-2xl font-bold text-gray-900">NT$ {stats.totalEarnings.toLocaleString()}</p>
+                  <p className="text-2xl font-bold text-gray-900" style={{ color: '#111827' }}>NT$ {stats.totalEarnings.toLocaleString()}</p>
                 </div>
               </div>
             </div>
@@ -223,7 +223,7 @@ export default function WithdrawalPage() {
                 </div>
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600">總接單數</p>
-                  <p className="text-2xl font-bold text-gray-900">{stats.totalOrders} 筆</p>
+                  <p className="text-2xl font-bold text-gray-900" style={{ color: '#111827' }}>{stats.totalOrders} 筆</p>
                 </div>
               </div>
             </div>
@@ -237,7 +237,7 @@ export default function WithdrawalPage() {
                 </div>
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600">可提領餘額</p>
-                  <p className="text-2xl font-bold text-gray-900">NT$ {stats.availableBalance.toLocaleString()}</p>
+                  <p className="text-2xl font-bold text-gray-900" style={{ color: '#111827' }}>NT$ {stats.availableBalance.toLocaleString()}</p>
                 </div>
               </div>
             </div>
@@ -251,7 +251,7 @@ export default function WithdrawalPage() {
                 </div>
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600">待審核</p>
-                  <p className="text-2xl font-bold text-gray-900">{stats.pendingWithdrawals} 筆</p>
+                  <p className="text-2xl font-bold text-gray-900" style={{ color: '#111827' }}>{stats.pendingWithdrawals} 筆</p>
                 </div>
               </div>
             </div>
@@ -279,7 +279,8 @@ export default function WithdrawalPage() {
                     min="1"
                     max={stats?.availableBalance || 0}
                     step="1"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500 text-gray-900 placeholder-gray-500"
+                    style={{ color: '#111827' }}
                     required
                   />
                   {stats && (

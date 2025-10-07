@@ -89,6 +89,12 @@ export default function AdminPartnersPage() {
         <h1 className="text-2xl font-bold">夥伴管理</h1>
         <div className="flex gap-2">
           <a
+            href="/admin/withdrawals"
+            className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
+          >
+            提領申請管理
+          </a>
+          <a
             href="/admin/promo-codes"
             className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 transition-colors"
           >

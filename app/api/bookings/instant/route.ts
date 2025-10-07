@@ -134,14 +134,16 @@ export async function POST(request: NextRequest) {
         data: {
           customerId: customer.id,
           scheduleId: tempSchedule.id,
-          status: 'PENDING',
+          status: 'CONFIRMED', // 即時預約直接確認，不需要夥伴再次確認
           orderNumber: `INST-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`,
           originalAmount: totalCost,
           finalAmount: totalCost,
           paymentInfo: {
             type: 'instant',
             duration: duration,
-            totalCost: totalCost
+            totalCost: totalCost,
+            isInstantBooking: 'true',
+            discordDelayMinutes: '3' // 3分鐘後開啟語音頻道
           }
         },
         include: {

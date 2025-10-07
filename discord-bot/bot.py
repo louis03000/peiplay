@@ -48,7 +48,6 @@ engine = create_engine(
     echo=False
 )
 Session = sessionmaker(bind=engine)
-session = Session()
 
 # --- 資料庫模型（對應 Prisma schema）---
 class User(Base):
@@ -161,7 +160,7 @@ def find_member_by_discord_name(guild, discord_name):
     return None
 
 # --- 創建預約文字頻道函數 ---
-async def create_booking_text_channel(booking_id, customer_discord, partner_discord, start_time, end_time):
+async def create_booking_text_channel(booking_id, customer_discord, partner_discord, start_time, end_time, is_instant_booking=None):
     """為預約創建文字頻道"""
     try:
         guild = bot.get_guild(GUILD_ID)
@@ -196,9 +195,15 @@ async def create_booking_text_channel(booking_id, customer_discord, partner_disc
         start_time_str = tw_start_time.strftime("%H:%M")
         end_time_str = tw_end_time.strftime("%H:%M")
         
-        # 創建統一的頻道名稱 - 加上隨機可愛物品
-        cute_item = random.choice(CUTE_ITEMS)
-        channel_name = f"📅{date_str} {start_time_str}-{end_time_str} {cute_item}"
+        # 創建統一的頻道名稱 - 使用預約ID確保一致性
+        # 使用預約ID的hash值來選擇可愛物品，確保同一預約的文字和語音頻道名稱一致
+        import hashlib
+        hash_value = int(hashlib.md5(booking_id.encode()).hexdigest(), 16)
+        cute_item = CUTE_ITEMS[hash_value % len(CUTE_ITEMS)]
+        if is_instant_booking == 'true':
+            channel_name = f"⚡即時{date_str} {start_time_str}-{end_time_str} {cute_item}"
+        else:
+            channel_name = f"📅{date_str} {start_time_str}-{end_time_str} {cute_item}"
         
         # 設定權限
         overwrites = {
@@ -383,7 +388,10 @@ async def create_booking_voice_channel(booking_id, customer_discord, partner_dis
         end_time_str = tw_end_time.strftime("%H:%M")
         
         # 創建統一的頻道名稱（與文字頻道相同）
-        cute_item = random.choice(CUTE_ITEMS)
+        # 使用預約ID的hash值來選擇可愛物品，確保同一預約的文字和語音頻道名稱一致
+        import hashlib
+        hash_value = int(hashlib.md5(booking_id.encode()).hexdigest(), 16)
+        cute_item = CUTE_ITEMS[hash_value % len(CUTE_ITEMS)]
         if is_instant_booking == 'true':
             channel_name = f"⚡即時{date_str} {start_time_str}-{end_time_str} {cute_item}"
         else:
@@ -712,12 +720,14 @@ async def check_new_bookings():
             processed_list = list(processed_text_channels)
             
             # 查詢預約開始時間在 5 分鐘內且還沒有創建文字頻道的已確認預約
+            # 包括即時預約（立即創建文字頻道）和一般預約（開始前5分鐘創建）
             query = """
                 SELECT 
                     b.id, b."customerId", b."scheduleId", b.status, b."createdAt", b."updatedAt",
                     c.name as customer_name, cu.discord as customer_discord,
                     p.name as partner_name, pu.discord as partner_discord,
-                    s."startTime", s."endTime"
+                    s."startTime", s."endTime",
+                    b."paymentInfo"->>'isInstantBooking' as is_instant_booking
                 FROM "Booking" b
                 JOIN "Schedule" s ON s.id = b."scheduleId"
                 JOIN "Customer" c ON c.id = b."customerId"
@@ -725,13 +735,19 @@ async def check_new_bookings():
                 JOIN "Partner" p ON p.id = s."partnerId"
                 JOIN "User" pu ON pu.id = p."userId"
                 WHERE b.status = 'CONFIRMED'
-                AND s."startTime" <= :five_minutes_from_now
-                AND s."startTime" > :now
                 AND b."discordTextChannelId" IS NULL
+                AND (
+                    (b."paymentInfo"->>'isInstantBooking' = 'true' AND b."createdAt" > :recent_time) OR
+                    (b."paymentInfo"->>'isInstantBooking' IS NULL AND s."startTime" <= :five_minutes_from_now AND s."startTime" > :now)
+                )
             """
+            # 計算最近時間（5分鐘前），用於檢查即時預約
+            recent_time = now - timedelta(minutes=5)
+            
             result = s.execute(text(query), {
                 "five_minutes_from_now": five_minutes_from_now,
-                "now": now
+                "now": now,
+                "recent_time": recent_time
             })
             
             for row in result:
@@ -753,14 +769,20 @@ async def check_new_bookings():
                             processed_text_channels.add(row.id)
                             continue
                     
-                    # 創建文字頻道（預約開始前 2 小時）
-                    print(f"🔍 預約 {row.id} 將在 5 分鐘內開始，創建文字頻道")
+                    # 創建文字頻道
+                    is_instant = getattr(row, 'is_instant_booking', None) == 'true'
+                    if is_instant:
+                        print(f"⚡ 即時預約 {row.id} 創建文字頻道")
+                    else:
+                        print(f"🔍 預約 {row.id} 將在 5 分鐘內開始，創建文字頻道")
+                    
                     text_channel = await create_booking_text_channel(
                         row.id, 
                         row.customer_discord, 
                         row.partner_discord, 
                         row.startTime, 
-                        row.endTime
+                        row.endTime,
+                        'true' if is_instant else None
                     )
                     
                     if text_channel:
@@ -774,6 +796,26 @@ async def check_new_bookings():
                     
     except Exception as e:
         print(f"❌ 檢查新預約時發生錯誤: {e}")
+
+# --- 資料庫連接健康檢查任務 ---
+@tasks.loop(seconds=300)  # 每5分鐘檢查一次
+async def database_health_check():
+    """檢查資料庫連接健康狀態"""
+    await bot.wait_until_ready()
+    
+    try:
+        with Session() as s:
+            # 執行簡單的查詢來測試連接
+            s.execute(text("SELECT 1")).fetchone()
+        # 如果沒有異常，連接正常
+    except Exception as e:
+        print(f"⚠️ 資料庫連接健康檢查失敗: {e}")
+        # 可以考慮重新初始化連接池
+        try:
+            engine.dispose()
+            print("🔄 已重新初始化資料庫連接池")
+        except Exception as dispose_error:
+            print(f"❌ 重新初始化資料庫連接池失敗: {dispose_error}")
 
 # --- 自動關閉「現在有空」狀態任務 ---
 @tasks.loop(seconds=60)  # 每1分鐘檢查一次
@@ -1396,7 +1438,10 @@ async def check_bookings():
                     text_channel = None
                     try:
                         # 查找對應的文字頻道
-                        text_channel_name = f"📅{date_str} {start_time_str}-{end_time_str} {cute_item}"
+                        if is_instant_booking:
+                            text_channel_name = f"⚡即時{date_str} {start_time_str}-{end_time_str} {cute_item}"
+                        else:
+                            text_channel_name = f"📅{date_str} {start_time_str}-{end_time_str} {cute_item}"
                         text_channel = discord.utils.get(guild.text_channels, name=text_channel_name)
                         
                         if text_channel:
@@ -1558,7 +1603,10 @@ async def check_bookings():
                                         # 刪除對應的文字頻道（即時預約開始時文字頻道已完成溝通目的）
                                         try:
                                             # 查找對應的文字頻道
-                                            text_channel_name = f"📅{date_str} {start_time_str}-{end_time_str} {cute_item}"
+                                            if is_instant_booking:
+                                                text_channel_name = f"⚡即時{date_str} {start_time_str}-{end_time_str} {cute_item}"
+                                            else:
+                                                text_channel_name = f"📅{date_str} {start_time_str}-{end_time_str} {cute_item}"
                                             text_channel = discord.utils.get(guild.text_channels, name=text_channel_name)
                                             
                                             if text_channel:
@@ -2088,6 +2136,7 @@ async def on_ready():
         auto_close_available_now.start()
         check_missing_ratings.start()
         check_withdrawal_requests_task.start()
+        database_health_check.start()
         print(f"✅ 所有自動任務已啟動")
     except Exception as e:
         print(f"❌ 指令同步失敗: {e}")
@@ -2800,6 +2849,43 @@ def pair_users():
 
     bot.loop.create_task(create_pairing())
     return jsonify({"status": "ok", "message": "配對請求已處理"})
+
+@app.route('/create_instant_text_channel', methods=['POST'])
+def create_instant_text_channel():
+    """為即時預約創建文字頻道"""
+    try:
+        data = request.get_json()
+        booking_id = data.get('booking_id')
+        customer_discord = data.get('customer_discord')
+        partner_discord = data.get('partner_discord')
+        start_time_str = data.get('start_time')
+        end_time_str = data.get('end_time')
+        
+        if not all([booking_id, customer_discord, partner_discord, start_time_str, end_time_str]):
+            return jsonify({"error": "缺少必要參數"}), 400
+        
+        # 轉換時間字串為 datetime 對象
+        start_time = datetime.fromisoformat(start_time_str.replace('Z', '+00:00'))
+        end_time = datetime.fromisoformat(end_time_str.replace('Z', '+00:00'))
+        
+        # 使用 asyncio 來調用異步函數
+        import asyncio
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            result = loop.run_until_complete(
+                create_booking_text_channel(booking_id, customer_discord, partner_discord, start_time, end_time, 'true')
+            )
+            if result:
+                return jsonify({"status": "success", "channel_id": result.id})
+            else:
+                return jsonify({"error": "創建頻道失敗"}), 500
+        finally:
+            loop.close()
+            
+    except Exception as e:
+        print(f"❌ 創建即時預約文字頻道失敗: {e}")
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/delete', methods=['POST'])
 def delete_booking():
