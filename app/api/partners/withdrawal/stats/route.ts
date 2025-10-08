@@ -71,15 +71,29 @@ export async function GET(request: NextRequest) {
       }
     })
 
+    // 計算推薦收入
+    const referralEarnings = await prisma.referralEarning.aggregate({
+      where: {
+        referralRecord: {
+          inviterId: partner.id
+        }
+      },
+      _sum: {
+        amount: true
+      }
+    })
+
     const totalEarningsAmount = totalEarnings._sum.finalAmount || 0
     const totalWithdrawnAmount = totalWithdrawn._sum.amount || 0
-    const availableBalance = totalEarningsAmount - totalWithdrawnAmount
+    const referralEarningsAmount = referralEarnings._sum.amount || 0
+    const availableBalance = totalEarningsAmount + referralEarningsAmount - totalWithdrawnAmount
 
     return NextResponse.json({
       totalEarnings: totalEarningsAmount,
       totalOrders: totalOrders,
       availableBalance: Math.max(0, availableBalance), // 確保不會是負數
-      pendingWithdrawals: pendingWithdrawals
+      pendingWithdrawals: pendingWithdrawals,
+      referralEarnings: referralEarningsAmount
     })
 
   } catch (error) {

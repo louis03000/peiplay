@@ -60,9 +60,13 @@ export default function JoinPage() {
   const [customGame, setCustomGame] = useState('')
   const [showGuidelines, setShowGuidelines] = useState(false)
   const [inviteCode, setInviteCode] = useState('')
+  const [inviteCodeValid, setInviteCodeValid] = useState<boolean | null>(null)
+  const [validatingInviteCode, setValidatingInviteCode] = useState(false)
+  const [inviteCodeMessage, setInviteCodeMessage] = useState('')
   const [guidelinesReadTime, setGuidelinesReadTime] = useState(0)
   const [canAgree, setCanAgree] = useState(false)
   const [countdown, setCountdown] = useState(0)
+  const [applicationSubmitted, setApplicationSubmitted] = useState(false)
 
   // 載入用戶資料
   useEffect(() => {
@@ -126,6 +130,57 @@ export default function JoinPage() {
       setCanAgree(false);
     }
   };
+
+  // 驗證邀請碼
+  const validateInviteCode = async (code: string) => {
+    if (!code.trim()) {
+      setInviteCodeValid(null)
+      setInviteCodeMessage('')
+      return
+    }
+
+    setValidatingInviteCode(true)
+    try {
+      const response = await fetch('/api/partners/referral/validate-code', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ inviteCode: code.trim() }),
+      })
+
+      const result = await response.json()
+      
+      if (response.ok) {
+        setInviteCodeValid(true)
+        setInviteCodeMessage(`✅ 邀請碼有效！來自夥伴：${result.inviter.name}`)
+      } else {
+        setInviteCodeValid(false)
+        setInviteCodeMessage(`❌ ${result.error}`)
+      }
+    } catch (error) {
+      setInviteCodeValid(false)
+      setInviteCodeMessage('❌ 驗證邀請碼時發生錯誤')
+    } finally {
+      setValidatingInviteCode(false)
+    }
+  }
+
+  const handleInviteCodeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value
+    setInviteCode(value)
+    
+    // 延遲驗證，避免過於頻繁的請求
+    if (value.trim()) {
+      const timeoutId = setTimeout(() => {
+        validateInviteCode(value)
+      }, 500)
+      return () => clearTimeout(timeoutId)
+    } else {
+      setInviteCodeValid(null)
+      setInviteCodeMessage('')
+    }
+  }
 
   // 下載合作承攬合約書
   const downloadContract = async () => {
@@ -322,7 +377,8 @@ export default function JoinPage() {
       if (!response.ok) {
         throw new Error(result?.error || result || '註冊失敗')
       }
-      router.push('/')
+      // 申請成功，顯示等待審核畫面
+      setApplicationSubmitted(true)
     } catch (err) {
       setError(err instanceof Error ? err.message : '註冊失敗')
     } finally {
@@ -404,6 +460,85 @@ export default function JoinPage() {
     } finally {
       setUploadingContract(false)
     }
+  }
+
+  // 如果申請已提交，顯示等待審核畫面
+  if (applicationSubmitted) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 flex items-center justify-center px-4">
+        <div className="max-w-2xl w-full bg-white rounded-2xl shadow-2xl p-8 md:p-12">
+          {/* 成功圖標 */}
+          <div className="text-center mb-8">
+            <div className="mx-auto w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mb-6 animate-bounce">
+              <svg className="w-12 h-12 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <h1 className="text-3xl font-bold text-gray-900 mb-4">
+              🎉 申請已成功提交！
+            </h1>
+            <p className="text-lg text-gray-600">
+              感謝您申請成為 PeiPlay 的遊戲夥伴
+            </p>
+          </div>
+
+          {/* 等待審核說明 */}
+          <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-6 mb-6">
+            <h2 className="text-xl font-semibold text-blue-900 mb-4 flex items-center">
+              <svg className="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              審核流程說明
+            </h2>
+            <div className="space-y-3 text-gray-700">
+              <div className="flex items-start">
+                <span className="flex-shrink-0 w-6 h-6 bg-blue-500 text-white rounded-full flex items-center justify-center text-sm font-bold mr-3">1</span>
+                <p>我們的審核團隊將仔細審查您提交的資料</p>
+              </div>
+              <div className="flex items-start">
+                <span className="flex-shrink-0 w-6 h-6 bg-blue-500 text-white rounded-full flex items-center justify-center text-sm font-bold mr-3">2</span>
+                <p>審核通常需要 1-3 個工作天</p>
+              </div>
+              <div className="flex items-start">
+                <span className="flex-shrink-0 w-6 h-6 bg-blue-500 text-white rounded-full flex items-center justify-center text-sm font-bold mr-3">3</span>
+                <p>審核結果將通過 Email 和站內通知發送給您</p>
+              </div>
+            </div>
+          </div>
+
+          {/* 溫馨提示 */}
+          <div className="bg-yellow-50 border-2 border-yellow-200 rounded-xl p-6 mb-8">
+            <h3 className="text-lg font-semibold text-yellow-900 mb-3 flex items-center">
+              <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              溫馨提醒
+            </h3>
+            <ul className="space-y-2 text-sm text-yellow-800">
+              <li>• 請保持您的 Email 和 Discord 暢通，以便我們聯繫您</li>
+              <li>• 審核期間請勿重複提交申請</li>
+              <li>• 如有任何問題，請聯繫客服團隊</li>
+            </ul>
+          </div>
+
+          {/* 返回按鈕 */}
+          <div className="flex flex-col sm:flex-row gap-4">
+            <button
+              onClick={() => router.push('/')}
+              className="flex-1 bg-gradient-to-r from-purple-600 to-blue-600 text-white py-4 px-6 rounded-xl font-semibold text-lg hover:from-purple-700 hover:to-blue-700 transform hover:scale-105 transition-all duration-200 shadow-lg"
+            >
+              返回首頁
+            </button>
+            <button
+              onClick={() => router.push('/profile')}
+              className="flex-1 bg-white text-gray-700 py-4 px-6 rounded-xl font-semibold text-lg border-2 border-gray-300 hover:bg-gray-50 transform hover:scale-105 transition-all duration-200"
+            >
+              查看個人資料
+            </button>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -699,12 +834,27 @@ export default function JoinPage() {
                     <input
                       type="text"
                       value={inviteCode}
-                      onChange={(e) => setInviteCode(e.target.value)}
+                      onChange={handleInviteCodeChange}
                       placeholder="輸入朋友的邀請碼獲得優惠"
-                      className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md text-black"
+                      className={`shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md text-black ${
+                        inviteCodeValid === true ? 'border-green-500' : 
+                        inviteCodeValid === false ? 'border-red-500' : ''
+                      }`}
                     />
+                    {validatingInviteCode && (
+                      <p className="mt-1 text-xs text-blue-500">
+                        🔍 驗證中...
+                      </p>
+                    )}
+                    {inviteCodeMessage && (
+                      <p className={`mt-1 text-xs ${
+                        inviteCodeValid ? 'text-green-600' : 'text-red-600'
+                      }`}>
+                        {inviteCodeMessage}
+                      </p>
+                    )}
                     <p className="mt-1 text-xs text-gray-500">
-                      邀請碼可以獲得額外優惠，讓朋友邀請你加入吧！
+                      使用邀請碼可享受更優惠的平台抽成（10% 而非 15%）！
                     </p>
                   </div>
                 </div>

@@ -16,6 +16,7 @@ export default function PartnerLayout({
     { name: '時段管理', href: '/partner/schedule', icon: '📅' },
     { name: '接單紀錄', href: '/partner/order-history', icon: '📋' },
     { name: '申請提領', href: '/partner/withdrawal', icon: '💰' },
+    { name: '推薦系統', href: '/partner/referral', icon: '🎁' },
   ]
 
   return (

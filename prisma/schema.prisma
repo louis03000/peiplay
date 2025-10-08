@@ -66,9 +66,19 @@ model Partner {
   bankAccountNumber String?
   bankCode          String?
   contractFile      String?
+  // 推薦系統相關欄位
+  referralEarnings  Float         @default(0)
+  referralCount     Int           @default(0)
+  totalReferralEarnings Float     @default(0)
+  // 推薦配置（每個夥伴可以有不同的配置）
+  referralPlatformFee Float       @default(10.00)  // 推薦後的平台抽成比例
+  referralBonusPercentage Float   @default(5.00)   // 推薦人獲得的差額比例
   user              User          @relation(fields: [userId], references: [id])
   schedules         Schedule[]
   withdrawalRequests WithdrawalRequest[]
+  // 推薦關係
+  referralsGiven    ReferralRecord[] @relation("Inviter")
+  referralsReceived ReferralRecord[] @relation("Invitee")
 }
 
 model Customer {
@@ -120,6 +130,7 @@ model Booking {
   schedule       Schedule      @relation(fields: [scheduleId], references: [id])
   orders         Order[]
   reviews        Review[]
+  referralEarnings ReferralEarning[]
 }
 
 model Order {
@@ -186,6 +197,30 @@ model PairingRecord {
   bookingId     String   @unique
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+}
+
+model ReferralRecord {
+  id         String   @id @default(cuid())
+  inviterId  String
+  inviteeId  String   @unique
+  inviteCode String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  inviter    Partner  @relation("Inviter", fields: [inviterId], references: [id])
+  invitee    Partner  @relation("Invitee", fields: [inviteeId], references: [id])
+  earnings   ReferralEarning[]
+}
+
+model ReferralEarning {
+  id                String         @id @default(cuid())
+  referralRecordId  String
+  bookingId         String
+  amount            Float
+  percentage        Float
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+  referralRecord    ReferralRecord @relation(fields: [referralRecordId], references: [id])
+  booking           Booking        @relation(fields: [bookingId], references: [id])
 }
 
 

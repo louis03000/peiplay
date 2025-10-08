@@ -207,6 +207,12 @@ export default function AdminWithdrawalsPage() {
         {/* 管理功能按鈕 */}
         <div className="mb-6 flex justify-end gap-2">
           <a
+            href="/admin/referral-config"
+            className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
+          >
+            推薦配置管理
+          </a>
+          <a
             href="/admin/partners"
             className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
           >
@@ -344,7 +350,8 @@ export default function AdminWithdrawalsPage() {
                   value={adminNote}
                   onChange={(e) => setAdminNote(e.target.value)}
                   placeholder="請輸入備註..."
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 placeholder-gray-500"
+                  style={{ color: '#111827' }}
                   rows={4}
                 />
                 <div className="flex justify-end gap-2 mt-4">

@@ -817,6 +817,78 @@ async def database_health_check():
         except Exception as dispose_error:
             print(f"❌ 重新初始化資料庫連接池失敗: {dispose_error}")
 
+# --- 每6小時檢查待審核項目並通知管理員 ---
+@tasks.loop(hours=6)  # 每6小時執行一次
+async def check_pending_reviews():
+    """檢查待審核的夥伴申請和提領申請，並通知管理員"""
+    await bot.wait_until_ready()
+    
+    try:
+        guild = bot.get_guild(GUILD_ID)
+        if not guild:
+            return
+        
+        admin_channel = guild.get_channel(ADMIN_CHANNEL_ID)
+        if not admin_channel:
+            print("❌ 找不到管理員頻道")
+            return
+        
+        with Session() as s:
+            # 查詢待審核的夥伴申請
+            pending_partners_result = s.execute(text("""
+                SELECT COUNT(*) as count
+                FROM "Partner"
+                WHERE status = 'PENDING'
+            """))
+            pending_partners_count = pending_partners_result.fetchone()[0]
+            
+            # 查詢待審核的提領申請
+            pending_withdrawals_result = s.execute(text("""
+                SELECT COUNT(*) as count
+                FROM "WithdrawalRequest"
+                WHERE status = 'PENDING'
+            """))
+            pending_withdrawals_count = pending_withdrawals_result.fetchone()[0]
+            
+            # 如果有待審核項目，發送通知
+            if pending_partners_count > 0 or pending_withdrawals_count > 0:
+                embed = discord.Embed(
+                    title="⏰ 待審核項目提醒",
+                    description="您有待處理的審核項目，請盡快處理",
+                    color=0xff9800,
+                    timestamp=datetime.now(timezone.utc)
+                )
+                
+                if pending_partners_count > 0:
+                    embed.add_field(
+                        name="👥 夥伴申請",
+                        value=f"**{pending_partners_count}** 個待審核申請",
+                        inline=True
+                    )
+                
+                if pending_withdrawals_count > 0:
+                    embed.add_field(
+                        name="💰 提領申請",
+                        value=f"**{pending_withdrawals_count}** 個待審核申請",
+                        inline=True
+                    )
+                
+                embed.add_field(
+                    name="📋 處理方式",
+                    value="請前往管理後台處理這些申請\n• 夥伴審核：/admin/partners\n• 提領審核：/admin/withdrawals",
+                    inline=False
+                )
+                
+                embed.set_footer(text="此通知每6小時發送一次")
+                
+                await admin_channel.send(embed=embed)
+                print(f"✅ 已發送待審核提醒：夥伴申請 {pending_partners_count} 個，提領申請 {pending_withdrawals_count} 個")
+            else:
+                print("✅ 沒有待審核項目")
+                
+    except Exception as e:
+        print(f"❌ 檢查待審核項目時發生錯誤: {e}")
+
 # --- 自動關閉「現在有空」狀態任務 ---
 @tasks.loop(seconds=60)  # 每1分鐘檢查一次
 async def auto_close_available_now():
@@ -1026,6 +1098,24 @@ async def check_withdrawal_requests_task():
     """定期檢查新的提領申請並通知管理員"""
     await bot.wait_until_ready()
     await check_withdrawal_requests()
+
+async def calculate_referral_earnings(booking_id):
+    """計算推薦收入"""
+    try:
+        response = requests.post(
+            'http://localhost:3000/api/partners/referral/calculate-earnings',
+            json={'bookingId': booking_id},
+            timeout=10
+        )
+        if response.status_code == 200:
+            result = response.json()
+            print(f"✅ 推薦收入計算完成: {booking_id}")
+            if result.get('referralEarning', 0) > 0:
+                print(f"💰 推薦收入: NT$ {result['referralEarning']:.2f} (來自: {result['inviter']['name']})")
+        else:
+            print(f"⚠️ 推薦收入計算失敗: {booking_id} - {response.status_code}")
+    except Exception as e:
+        print(f"❌ 計算推薦收入時發生錯誤: {e}")
 
 async def check_withdrawal_requests():
     """檢查新的提領申請並通知管理員"""
@@ -2096,6 +2186,7 @@ async def on_ready():
         check_missing_ratings.start()
         check_withdrawal_requests_task.start()
         database_health_check.start()
+        check_pending_reviews.start()
         print(f"✅ 所有自動任務已啟動")
     except Exception as e:
         print(f"❌ 指令同步失敗: {e}")

@@ -205,6 +205,27 @@ export async function POST(request: Request) {
         { status: 400 }
       );
     }
+
+    // 處理邀請碼
+    let inviterId = null;
+    if (data.inviteCode) {
+      const inviter = await prisma.partner.findFirst({
+        where: { 
+          inviteCode: data.inviteCode,
+          status: 'APPROVED'
+        }
+      });
+      
+      if (inviter) {
+        inviterId = inviter.id;
+      } else {
+        return NextResponse.json(
+          { error: '無效的邀請碼' },
+          { status: 400 }
+        );
+      }
+    }
+
     // 建立新夥伴
     const partner = await prisma.partner.create({
       data: {
@@ -218,8 +239,30 @@ export async function POST(request: Request) {
         contractFile: data.contractFile,
         bankCode: data.bankCode,
         bankAccountNumber: data.bankAccountNumber,
+        invitedBy: inviterId,
       },
-    })
+    });
+
+    // 如果有邀請人，建立推薦記錄
+    if (inviterId) {
+      await prisma.referralRecord.create({
+        data: {
+          inviterId,
+          inviteeId: partner.id,
+          inviteCode: data.inviteCode,
+        }
+      });
+
+      // 更新邀請人的推薦數量
+      await prisma.partner.update({
+        where: { id: inviterId },
+        data: {
+          referralCount: {
+            increment: 1
+          }
+        }
+      });
+    }
     return NextResponse.json(partner)
   } catch (error) {
     console.error('Error creating partner:', error, error instanceof Error ? error.stack : '', JSON.stringify(data))

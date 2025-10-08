@@ -11,10 +11,10 @@ function VerifyEmailContent() {
   const [verificationCode, setVerificationCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
-  const [message, setMessage] = useState('');
+  const [message, setMessage] = useState('驗證碼已發送到您的 Email，請查收');
   const [error, setError] = useState('');
   const [timeLeft, setTimeLeft] = useState(600); // 10分鐘 = 600秒
-  const [codeSent, setCodeSent] = useState(false);
+  const [codeSent, setCodeSent] = useState(true); // 預設為 true，因為註冊時已發送
 
   // 倒數計時器
   useEffect(() => {
@@ -126,6 +126,26 @@ function VerifyEmailContent() {
             </p>
           </div>
 
+          {/* 重要提示 */}
+          <div className="mb-6 p-4 bg-green-50 border-2 border-green-200 rounded-lg">
+            <div className="flex items-start">
+              <div className="flex-shrink-0">
+                <svg className="h-5 w-5 text-green-400" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div className="ml-3">
+                <h3 className="text-sm font-medium text-green-800">
+                  ✅ 驗證碼已發送！
+                </h3>
+                <div className="mt-2 text-sm text-green-700">
+                  <p>我們已經將 6 位數驗證碼發送到您的 Email。</p>
+                  <p className="mt-1">請直接在下方輸入驗證碼，<strong>無需再次點擊發送</strong>。</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
           {/* Email 顯示 */}
           {email && (
             <div className="mb-6 p-4 bg-blue-50 rounded-lg">
@@ -170,16 +190,19 @@ function VerifyEmailContent() {
 
           {/* 驗證碼過期提示 */}
           {codeSent && timeLeft === 0 && (
-            <div className="mb-6 p-4 bg-red-50 rounded-lg">
-              <p className="text-sm text-red-800 text-center">
-                驗證碼已過期，請重新發送
+            <div className="mb-6 p-4 bg-red-50 border-2 border-red-200 rounded-lg">
+              <p className="text-sm text-red-800 text-center font-medium">
+                ⏰ 驗證碼已過期（超過 10 分鐘）
+              </p>
+              <p className="text-xs text-red-600 text-center mt-1">
+                請點擊下方按鈕重新發送新的驗證碼
               </p>
               <button
                 onClick={sendVerificationCode}
                 disabled={sending}
-                className="mt-2 w-full bg-red-600 text-white py-2 px-4 rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="mt-3 w-full bg-red-600 text-white py-2 px-4 rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {sending ? '發送中...' : '重新發送驗證碼'}
+                {sending ? '發送中...' : '🔄 重新發送新的驗證碼'}
               </button>
             </div>
           )}

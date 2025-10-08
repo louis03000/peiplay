@@ -9,6 +9,7 @@ interface WithdrawalStats {
   totalOrders: number
   availableBalance: number
   pendingWithdrawals: number
+  referralEarnings: number
 }
 
 interface WithdrawalHistory {
@@ -238,6 +239,9 @@ export default function WithdrawalPage() {
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600">可提領餘額</p>
                   <p className="text-2xl font-bold text-gray-900" style={{ color: '#111827' }}>NT$ {stats.availableBalance.toLocaleString()}</p>
+                  {stats?.referralEarnings > 0 && (
+                    <p className="text-xs text-green-600">含推薦收入 NT$ {stats.referralEarnings.toLocaleString()}</p>
+                  )}
                 </div>
               </div>
             </div>
