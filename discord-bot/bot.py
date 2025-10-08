@@ -1434,31 +1434,7 @@ async def check_bookings():
                         category=category
                     )
                     
-                    # 刪除對應的文字頻道（預約開始時文字頻道已完成溝通目的）
-                    text_channel = None
-                    try:
-                        # 查找對應的文字頻道
-                        if is_instant_booking:
-                            text_channel_name = f"⚡即時{date_str} {start_time_str}-{end_time_str} {cute_item}"
-                        else:
-                            text_channel_name = f"📅{date_str} {start_time_str}-{end_time_str} {cute_item}"
-                        text_channel = discord.utils.get(guild.text_channels, name=text_channel_name)
-                        
-                        if text_channel:
-                            await text_channel.delete()
-                            print(f"🗑️ 文字頻道已刪除: {text_channel_name} (預約開始，溝通目的已完成)")
-                            
-                            # 更新資料庫中的文字頻道ID為null
-                            with Session() as update_s:
-                                update_s.execute(
-                                    text("UPDATE \"Booking\" SET \"discordTextChannelId\" = NULL WHERE id = :booking_id"),
-                                    {"booking_id": booking.id}
-                                )
-                                update_s.commit()
-                        else:
-                            print(f"⚠️ 找不到對應的文字頻道: {text_channel_name}")
-                    except Exception as e:
-                        print(f"❌ 刪除文字頻道失敗: {e}")
+                    # 文字頻道將在預約結束時由評價系統自動刪除，這裡不需要刪除
                     
                     # 創建配對記錄
                     user1_id = str(customer_member.id)
@@ -1600,30 +1576,7 @@ async def check_bookings():
                                         # 開啟語音頻道
                                         await vc.set_permissions(guild.default_role, view_channel=True)
                                         
-                                        # 刪除對應的文字頻道（即時預約開始時文字頻道已完成溝通目的）
-                                        try:
-                                            # 查找對應的文字頻道
-                                            if is_instant_booking:
-                                                text_channel_name = f"⚡即時{date_str} {start_time_str}-{end_time_str} {cute_item}"
-                                            else:
-                                                text_channel_name = f"📅{date_str} {start_time_str}-{end_time_str} {cute_item}"
-                                            text_channel = discord.utils.get(guild.text_channels, name=text_channel_name)
-                                            
-                                            if text_channel:
-                                                await text_channel.delete()
-                                                print(f"🗑️ 即時預約文字頻道已刪除: {text_channel_name} (預約開始，溝通目的已完成)")
-                                                
-                                                # 更新資料庫中的文字頻道ID為null
-                                                with Session() as update_s:
-                                                    update_s.execute(
-                                                        text("UPDATE \"Booking\" SET \"discordTextChannelId\" = NULL WHERE id = :booking_id"),
-                                                        {"booking_id": booking.id}
-                                                    )
-                                                    update_s.commit()
-                                            else:
-                                                print(f"⚠️ 找不到對應的即時預約文字頻道: {text_channel_name}")
-                                        except Exception as e:
-                                            print(f"❌ 刪除即時預約文字頻道失敗: {e}")
+                                        # 文字頻道將在預約結束時由評價系統自動刪除，這裡不需要刪除
                                         
                                         # 發送開啟通知
                                         embed = discord.Embed(
@@ -1691,8 +1644,14 @@ async def check_bookings():
                             print(f"⚠️ 找不到對應的文字頻道: {channel_name}")
                             # 如果找不到文字頻道，創建一個臨時的
                             try:
+                                # 使用與正常頻道相同的命名格式
+                                if is_instant_booking:
+                                    temp_channel_name = f"⚡即時{date_str} {start_time_str}-{end_time_str} {cute_item}"
+                                else:
+                                    temp_channel_name = f"📅{date_str} {start_time_str}-{end_time_str} {cute_item}"
+                                
                                 text_channel = await guild.create_text_channel(
-                                    name=f"📝{date_str}-{start_time_str}-{end_time_str}",
+                                    name=temp_channel_name,
                                     overwrites={
                                         guild.default_role: discord.PermissionOverwrite(view_channel=False),
                                         customer_member: discord.PermissionOverwrite(view_channel=True, send_messages=True, read_message_history=True),
@@ -2199,8 +2158,12 @@ async def countdown_with_rating(vc_id, channel_name, text_channel, vc, mentioned
         
         # 預約時間結束，關閉語音頻道
         try:
-            await vc.delete()
-            print(f"✅ 已關閉語音頻道: {channel_name}")
+            # 檢查頻道是否仍然存在
+            if vc and not vc.deleted:
+                await vc.delete()
+                print(f"✅ 已關閉語音頻道: {channel_name}")
+            else:
+                print(f"⚠️ 語音頻道已不存在或已刪除: {channel_name}")
         except Exception as e:
             print(f"❌ 關閉語音頻道失敗: {e}")
         
@@ -2351,8 +2314,12 @@ async def countdown_with_rating_extended(vc_id, channel_name, text_channel, vc, 
         
         # 預約時間結束，關閉語音頻道
         try:
-            await vc.delete()
-            print(f"✅ 已關閉語音頻道: {channel_name}")
+            # 檢查頻道是否仍然存在
+            if vc and not vc.deleted:
+                await vc.delete()
+                print(f"✅ 已關閉語音頻道: {channel_name}")
+            else:
+                print(f"⚠️ 語音頻道已不存在或已刪除: {channel_name}")
         except Exception as e:
             print(f"❌ 關閉語音頻道失敗: {e}")
         

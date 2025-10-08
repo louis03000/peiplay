@@ -276,7 +276,7 @@ export default function WithdrawalPage() {
                     value={withdrawalAmount}
                     onChange={(e) => setWithdrawalAmount(e.target.value)}
                     placeholder="請輸入提領金額"
-                    min="1"
+                    min="100"
                     max={stats?.availableBalance || 0}
                     step="1"
                     className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500 text-gray-900 placeholder-gray-500"
@@ -286,6 +286,11 @@ export default function WithdrawalPage() {
                   {stats && (
                     <p className="mt-1 text-sm text-gray-500">
                       可提領餘額：NT$ {stats.availableBalance.toLocaleString()}
+                    </p>
+                  )}
+                  {withdrawalAmount && parseFloat(withdrawalAmount) < 100 && (
+                    <p className="mt-1 text-sm text-red-500">
+                      最小提領金額為 NT$ 100
                     </p>
                   )}
                 </div>
@@ -310,9 +315,30 @@ export default function WithdrawalPage() {
                   </div>
                 </div>
 
+                {/* 費用說明 */}
+                <div className="mb-4">
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4">
+                    <div className="flex">
+                      <div className="flex-shrink-0">
+                        <svg className="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                      <div className="ml-3">
+                        <p className="text-sm text-yellow-800">
+                          <strong>費用說明：</strong>
+                          <br />• 最小提領金額：NT$ 100
+                          <br />• 平台維護費：15%
+                          <br />• 轉帳手續費：NT$ 15
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
                 <button
                   type="submit"
-                  disabled={submitting || !withdrawalAmount || parseFloat(withdrawalAmount) <= 0}
+                  disabled={submitting || !withdrawalAmount || parseFloat(withdrawalAmount) < 100}
                   className="w-full bg-purple-600 text-white py-2 px-4 rounded-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {submitting ? '提交中...' : '提交提領申請'}
