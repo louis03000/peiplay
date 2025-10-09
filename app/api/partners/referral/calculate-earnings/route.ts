@@ -6,8 +6,25 @@ export const dynamic = 'force-dynamic';
 // 預設推薦系統配置
 const DEFAULT_REFERRAL_CONFIG = {
   // 原本的平台抽成比例
-  ORIGINAL_PLATFORM_FEE: 0.15
+  ORIGINAL_PLATFORM_FEE: 0.15,
+  // 階梯式推薦獎勵比例（從平台抽成中分配）
+  TIERED_REFERRAL_RATES: {
+    1: 0.02,  // 1-3人：2%
+    3: 0.03,  // 4-10人：3%
+    10: 0.05  // 10人以上：5%
+  }
 };
+
+// 計算階梯式推薦獎勵比例
+function calculateTieredReferralRate(referralCount: number): number {
+  if (referralCount <= 3) {
+    return DEFAULT_REFERRAL_CONFIG.TIERED_REFERRAL_RATES[1]; // 2%
+  } else if (referralCount <= 10) {
+    return DEFAULT_REFERRAL_CONFIG.TIERED_REFERRAL_RATES[3]; // 3%
+  } else {
+    return DEFAULT_REFERRAL_CONFIG.TIERED_REFERRAL_RATES[10]; // 5%
+  }
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -58,12 +75,13 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // 獲取邀請人的推薦配置
+    // 獲取邀請人資訊和推薦統計
     const inviter = await prisma.partner.findUnique({
       where: { id: referralRecord.inviterId },
       select: {
-        referralPlatformFee: true,
-        referralBonusPercentage: true
+        id: true,
+        name: true,
+        referralCount: true
       }
     });
 
@@ -71,14 +89,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '找不到邀請人' }, { status: 404 });
     }
 
-    // 使用邀請人的動態配置計算推薦收入
+    // 使用階梯式推薦系統計算推薦收入
     const totalAmount = booking.finalAmount;
-    const platformFeePercentage = inviter.referralPlatformFee / 100; // 轉換為小數
-    const referralBonusPercentage = inviter.referralBonusPercentage / 100; // 轉換為小數
+    const platformFeePercentage = DEFAULT_REFERRAL_CONFIG.ORIGINAL_PLATFORM_FEE; // 平台抽成依然是 15%
+    const referralBonusPercentage = calculateTieredReferralRate(inviter.referralCount); // 根據推薦人數計算獎勵比例
     
-    const referralEarning = totalAmount * referralBonusPercentage;
-    const platformFee = totalAmount * platformFeePercentage;
-    const partnerEarning = totalAmount - platformFee - referralEarning;
+    // 推薦獎勵從平台抽成中分配，不影響被推薦人的收入
+    const platformFee = totalAmount * platformFeePercentage; // 平台抽成 15%
+    const referralEarning = totalAmount * referralBonusPercentage; // 從平台抽成中分配給推薦人
+    const actualPlatformFee = platformFee - referralEarning; // 平台實際收入
+    const partnerEarning = totalAmount - platformFee; // 被推薦人收入不受影響
 
     // 創建推薦收入記錄
     const referralEarningRecord = await prisma.referralEarning.create({
@@ -86,7 +106,7 @@ export async function POST(request: NextRequest) {
         referralRecordId: referralRecord.id,
         bookingId: booking.id,
         amount: referralEarning,
-        percentage: inviter.referralBonusPercentage
+        percentage: referralBonusPercentage * 100 // 轉換為百分比
       }
     });
 
@@ -105,17 +125,20 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       message: '推薦收入計算完成',
+      totalAmount,
       platformFee: platformFeePercentage,
+      actualPlatformFee,
       partnerEarning,
       referralEarning,
       inviter: {
-        id: referralRecord.inviter.id,
-        name: referralRecord.inviter.name
+        id: inviter.id,
+        name: inviter.name,
+        referralCount: inviter.referralCount
       },
       referralEarningRecord,
-      config: {
-        platformFeePercentage: inviter.referralPlatformFee,
-        referralBonusPercentage: inviter.referralBonusPercentage
+      tieredRate: {
+        percentage: referralBonusPercentage * 100,
+        tier: inviter.referralCount <= 3 ? '1-3人' : inviter.referralCount <= 10 ? '4-10人' : '10人以上'
       }
     });
   } catch (error) {

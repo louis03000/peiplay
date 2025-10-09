@@ -854,7 +854,7 @@ export default function JoinPage() {
                       </p>
                     )}
                     <p className="mt-1 text-xs text-gray-500">
-                      使用邀請碼加入，您的邀請人將獲得平台提供的推薦獎勵！
+                      使用邀請碼加入，您的邀請人將根據推薦人數獲得階梯式推薦獎勵！
                     </p>
                   </div>
                 </div>
