@@ -114,12 +114,12 @@ export default function ReferralPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-900 via-purple-900 to-indigo-900">
+    <div className="min-h-screen bg-white">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* 頁面標題 */}
         <div className="mb-8">
-          <h1 className="text-4xl font-bold text-white mb-2">推薦系統</h1>
-          <p className="text-blue-200">邀請好友成為夥伴，獲得推薦獎勵</p>
+          <h1 className="text-4xl font-bold text-gray-900 mb-2">推薦系統</h1>
+          <p className="text-gray-600">邀請好友成為夥伴，獲得推薦獎勵</p>
         </div>
 
         {/* 統計卡片 */}
@@ -182,7 +182,7 @@ export default function ReferralPage() {
         </div>
 
         {/* 邀請碼區域 */}
-        <div className="bg-white rounded-lg shadow-lg p-6 mb-8">
+        <div className="bg-gray-50 rounded-lg shadow-lg p-6 mb-8">
           <h2 className="text-2xl font-bold text-gray-900 mb-4">我的邀請碼</h2>
           <div className="flex items-center space-x-4">
             {stats?.partner.inviteCode ? (
@@ -218,9 +218,9 @@ export default function ReferralPage() {
         </div>
 
         {/* 推薦說明 */}
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-8">
-          <h3 className="text-lg font-semibold text-blue-900 mb-3">推薦系統說明</h3>
-          <ul className="space-y-2 text-blue-800">
+        <div className="bg-gray-50 border border-gray-200 rounded-lg p-6 mb-8">
+          <h3 className="text-lg font-semibold text-gray-900 mb-3">推薦系統說明</h3>
+          <ul className="space-y-2 text-gray-700">
             <li>• 使用您的邀請碼申請成為夥伴的朋友，平台抽成依然是 15%，但您將獲得推薦獎勵</li>
             <li>• 推薦獎勵採用階梯式制度，從平台抽成中分配給您：
               <ul className="ml-4 mt-1 space-y-1 text-sm">
@@ -235,7 +235,7 @@ export default function ReferralPage() {
         </div>
 
         {/* 推薦列表 */}
-        <div className="bg-white rounded-lg shadow-lg overflow-hidden">
+        <div className="bg-gray-50 rounded-lg shadow-lg overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-200">
             <h2 className="text-xl font-bold text-gray-900">推薦列表</h2>
           </div>

@@ -113,10 +113,10 @@ export class InputValidator {
 
   // 驗證 Discord ID (支持舊格式和新格式)
   static isValidDiscordId(discordId: string): boolean {
-    // 新格式：用戶名#1234
-    const newFormatRegex = /^.{2,32}#\d{4}$/;
-    // 舊格式：純用戶名
-    const oldFormatRegex = /^[a-zA-Z0-9._]{2,32}$/;
+    // 新格式：純用戶名（Discord 2021年後的新系統）
+    const newFormatRegex = /^.{2,32}$/;
+    // 舊格式：用戶名#1234（Discord 舊系統）
+    const oldFormatRegex = /^.{2,32}#\d{4}$/;
     
     return newFormatRegex.test(discordId) || oldFormatRegex.test(discordId);
   }

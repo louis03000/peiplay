@@ -17,6 +17,7 @@ interface User {
     status: string;
     games: string[];
     halfHourlyRate: number;
+    contractFile: string | null;
   };
   customer?: {
     id: string;
@@ -386,6 +387,19 @@ export default function AdminUsersPage() {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <div className="flex flex-col gap-2">
+                      {/* 契約書查看按鈕 - 只有夥伴才顯示 */}
+                      {user.partner && user.partner.contractFile && (
+                        <button
+                          onClick={() => {
+                            // 在新窗口中打開契約書
+                            window.open(user.partner!.contractFile!, '_blank');
+                          }}
+                          className="text-blue-600 hover:text-blue-900 text-xs flex items-center gap-1"
+                          title="在新窗口中查看契約書"
+                        >
+                          📄 查看契約書
+                        </button>
+                      )}
                       {user.isSuspended ? (
                         <button
                           onClick={() => handleUnsuspendUser(user.id)}

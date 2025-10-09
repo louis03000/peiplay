@@ -24,7 +24,24 @@ export async function GET(request: NextRequest) {
         name: true,
         emailVerified: true,
         role: true,
+        isSuspended: true,
+        suspensionReason: true,
+        suspensionEndsAt: true,
         createdAt: true,
+        partner: {
+          select: {
+            id: true,
+            status: true,
+            games: true,
+            halfHourlyRate: true,
+            contractFile: true,
+          }
+        },
+        customer: {
+          select: {
+            id: true,
+          }
+        }
       },
       orderBy: {
         createdAt: 'desc',
