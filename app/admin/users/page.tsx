@@ -75,12 +75,18 @@ export default function AdminUsersPage() {
       const res = await fetch("/api/admin/users");
       if (res.ok) {
         const data = await res.json();
-        setUsers(data);
-        setFilteredUsers(data);
+        if (Array.isArray(data)) {
+          setUsers(data);
+          setFilteredUsers(data);
+        } else {
+          console.error('API returned non-array data:', data);
+          setError('數據格式錯誤');
+        }
       } else {
         setError("載入用戶失敗");
       }
     } catch (err) {
+      console.error('Fetch error:', err);
       setError("載入用戶失敗");
     } finally {
       setLoading(false);

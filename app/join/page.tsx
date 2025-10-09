@@ -854,7 +854,7 @@ export default function JoinPage() {
                       </p>
                     )}
                     <p className="mt-1 text-xs text-gray-500">
-                      使用邀請碼可享受更優惠的平台抽成（10% 而非 15%）！
+                      使用邀請碼，平台抽成依然是 15%，但其中 2-5% 會給邀請人作為獎勵！
                     </p>
                   </div>
                 </div>

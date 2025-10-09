@@ -43,11 +43,17 @@ export default function AdminPartnersPage() {
     fetch("/api/admin/partners")
       .then((res) => res.json())
       .then((data) => {
-        setAllPartners(data);
-        setPartners(data.filter((p: Partner) => p.status === 'PENDING'));
+        if (Array.isArray(data)) {
+          setAllPartners(data);
+          setPartners(data.filter((p: Partner) => p.status === 'PENDING'));
+        } else {
+          console.error('API returned non-array data:', data);
+          setError("數據格式錯誤");
+        }
         setLoading(false);
       })
-      .catch(() => {
+      .catch((error) => {
+        console.error('Fetch error:', error);
         setError("載入失敗");
         setLoading(false);
       });

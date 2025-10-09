@@ -56,12 +56,18 @@ export default function AdminWithdrawalsPage() {
       const response = await fetch('/api/admin/withdrawals');
       if (response.ok) {
         const data = await response.json();
-        setAllWithdrawals(data);
-        setWithdrawals(data.filter((w: WithdrawalRequest) => w.status === 'PENDING'));
+        if (Array.isArray(data)) {
+          setAllWithdrawals(data);
+          setWithdrawals(data.filter((w: WithdrawalRequest) => w.status === 'PENDING'));
+        } else {
+          console.error('API returned non-array data:', data);
+          setError('數據格式錯誤');
+        }
       } else {
         setError('獲取提領申請失敗');
       }
     } catch (err) {
+      console.error('Fetch error:', err);
       setError('獲取提領申請失敗');
     } finally {
       setLoading(false);
