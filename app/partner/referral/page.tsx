@@ -213,7 +213,7 @@ export default function ReferralPage() {
             )}
           </div>
           <p className="text-sm text-gray-600 mt-2">
-            分享您的邀請碼給朋友，當他們使用您的邀請碼申請成為夥伴時，您將獲得他們收入的 5% 作為推薦獎勵！
+            分享您的邀請碼給朋友，當他們使用您的邀請碼申請成為夥伴時，您將獲得平台提供的推薦獎勵！
           </p>
         </div>
 
@@ -221,8 +221,8 @@ export default function ReferralPage() {
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-8">
           <h3 className="text-lg font-semibold text-blue-900 mb-3">推薦系統說明</h3>
           <ul className="space-y-2 text-blue-800">
-            <li>• 使用您的邀請碼申請成為夥伴的朋友，將享受更優惠的平台抽成（10% 而非 15%）</li>
-            <li>• 您將獲得被推薦夥伴收入的 5% 作為推薦獎勵</li>
+            <li>• 使用您的邀請碼申請成為夥伴的朋友，平台抽成依然是 15%，但您將獲得推薦獎勵</li>
+            <li>• 您將獲得被推薦夥伴收入的 2-5% 作為推薦獎勵（具體比例由平台設定）</li>
             <li>• 推薦獎勵會自動計算並加入您的可提領餘額</li>
             <li>• 推薦獎勵無上限，推薦越多，收入越多！</li>
           </ul>
