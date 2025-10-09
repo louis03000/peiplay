@@ -148,6 +148,32 @@ async function registerHandler(request: Request) {
       )
     }
 
+    // 邀請用戶加入 Discord 伺服器
+    try {
+      if (sanitizedData.discord) {
+        const discordInviteResponse = await fetch('http://localhost:5001/invite_user', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            discord_name: sanitizedData.discord,
+            user_name: sanitizedData.name,
+            user_email: sanitizedData.email,
+          }),
+        });
+
+        if (discordInviteResponse.ok) {
+          console.log(`✅ Discord 邀請已發送: ${sanitizedData.discord}`);
+        } else {
+          console.log(`⚠️ Discord 邀請失敗: ${sanitizedData.discord}`);
+        }
+      }
+    } catch (error) {
+      console.error('Discord 邀請錯誤:', error);
+      // 不影響註冊流程，只記錄錯誤
+    }
+
     return NextResponse.json({ 
       message: '註冊成功，請檢查您的 Email 並完成驗證',
       email: sanitizedData.email 

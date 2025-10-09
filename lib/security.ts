@@ -111,10 +111,14 @@ export class InputValidator {
     return phoneRegex.test(phone.replace(/[\s\-\(\)]/g, ''));
   }
 
-  // 驗證 Discord ID
+  // 驗證 Discord ID (支持舊格式和新格式)
   static isValidDiscordId(discordId: string): boolean {
-    const discordRegex = /^[a-zA-Z0-9._]{2,32}$/;
-    return discordRegex.test(discordId);
+    // 新格式：用戶名#1234
+    const newFormatRegex = /^.{2,32}#\d{4}$/;
+    // 舊格式：純用戶名
+    const oldFormatRegex = /^[a-zA-Z0-9._]{2,32}$/;
+    
+    return newFormatRegex.test(discordId) || oldFormatRegex.test(discordId);
   }
 
   // 清理和驗證用戶輸入

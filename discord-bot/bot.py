@@ -2975,6 +2975,83 @@ def delete_booking():
     except Exception as e:
         return jsonify({'error': f'刪除預約失敗: {str(e)}'}), 500
 
+@app.route('/invite_user', methods=['POST'])
+def invite_user_to_discord():
+    """邀請用戶加入 Discord 伺服器"""
+    try:
+        data = request.get_json()
+        discord_name = data.get('discord_name')
+        user_name = data.get('user_name')
+        user_email = data.get('user_email')
+        
+        if not all([discord_name, user_name, user_email]):
+            return jsonify({'error': '缺少必要參數'}), 400
+        
+        print(f"🔍 收到邀請請求: {discord_name} ({user_name})")
+        
+        async def invite_user():
+            try:
+                guild = bot.get_guild(GUILD_ID)
+                if not guild:
+                    print("❌ 找不到 Discord 伺服器")
+                    return {"error": "找不到 Discord 伺服器"}
+                
+                # 查找用戶
+                member = find_member_by_discord_name(guild, discord_name)
+                if not member:
+                    print(f"❌ 找不到 Discord 用戶: {discord_name}")
+                    
+                    # 發送通知到管理員頻道，告知需要手動邀請
+                    admin_channel = guild.get_channel(ADMIN_CHANNEL_ID)
+                    if admin_channel:
+                        embed = discord.Embed(
+                            title="🚨 需要手動邀請用戶",
+                            color=0xff6b6b,
+                            timestamp=datetime.now()
+                        )
+                        embed.add_field(name="用戶資訊", value=f"**姓名:** {user_name}\n**Email:** {user_email}\n**Discord:** {discord_name}", inline=False)
+                        embed.add_field(name="狀態", value="❌ 找不到該 Discord 用戶", inline=False)
+                        embed.add_field(name="建議", value="請手動邀請用戶加入伺服器，或確認 Discord 用戶名是否正確", inline=False)
+                        
+                        await admin_channel.send(embed=embed)
+                    
+                    return {"error": f"找不到 Discord 用戶 {discord_name}，已通知管理員手動邀請"}
+                
+                print(f"✅ 找到用戶: {member.name} ({member.id})")
+                
+                # 用戶已在伺服器中，發送歡迎訊息
+                welcome_channel = guild.get_channel(ADMIN_CHANNEL_ID)  # 使用管理員頻道作為歡迎頻道
+                if welcome_channel:
+                    embed = discord.Embed(
+                        title="🎉 歡迎新用戶加入！",
+                        color=0x00ff88,
+                        timestamp=datetime.now()
+                    )
+                    embed.add_field(name="用戶資訊", value=f"**姓名:** {user_name}\n**Email:** {user_email}\n**Discord:** {member.mention}", inline=False)
+                    embed.add_field(name="歡迎", value=f"歡迎 {member.mention} 加入 PeiPlay 社群！\n請查看頻道說明並開始您的遊戲夥伴之旅！", inline=False)
+                    
+                    await welcome_channel.send(embed=embed)
+                
+                return {"success": True, "message": f"用戶 {member.name} 已在伺服器中，已發送歡迎訊息"}
+                
+            except Exception as e:
+                print(f"❌ 邀請用戶時發生錯誤: {e}")
+                return {"error": str(e)}
+        
+        # 使用 asyncio 運行 Discord 操作
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            result = loop.run_until_complete(invite_user())
+            loop.close()
+            return jsonify(result)
+        except Exception as e:
+            loop.close()
+            return jsonify({'error': f'Discord 操作失敗: {str(e)}'}), 500
+            
+    except Exception as e:
+        return jsonify({'error': f'邀請用戶失敗: {str(e)}'}), 500
+
 def run_flask():
     app.run(host="0.0.0.0", port=5001)
 
