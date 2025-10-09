@@ -84,7 +84,7 @@ export async function GET(request: NextRequest) {
     }));
 
     // 格式化收入記錄
-    const earnings = referralEarnings.map(earning => ({
+    const earnings = recentReferrals.map(earning => ({
       id: earning.id,
       amount: earning.amount,
       percentage: earning.percentage,
