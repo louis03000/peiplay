@@ -209,7 +209,12 @@ function BookingWizardContent() {
         }
         
         const data = await res.json()
+        console.log('🔍 夥伴 API 回應:', data)
+        console.log('📊 夥伴數量:', Array.isArray(data) ? data.length : '非陣列')
         if (Array.isArray(data)) {
+          data.forEach((partner, index) => {
+            console.log(`${index + 1}. ${partner.name} - 現在有空: ${partner.isAvailableNow} - 時段數: ${partner.schedules?.length || 0}`)
+          })
           setPartners(data)
         } else {
           setPartners([])

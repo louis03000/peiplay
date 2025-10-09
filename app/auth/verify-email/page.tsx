@@ -15,6 +15,7 @@ function VerifyEmailContent() {
   const [error, setError] = useState('');
   const [timeLeft, setTimeLeft] = useState(600); // 10分鐘 = 600秒
   const [codeSent, setCodeSent] = useState(true); // 預設為 true，因為註冊時已發送
+  const [verificationResult, setVerificationResult] = useState<'pending' | 'success' | 'failed'>('pending');
 
   // 倒數計時器
   useEffect(() => {
@@ -97,11 +98,10 @@ function VerifyEmailContent() {
       const data = await response.json();
 
       if (response.ok) {
-        setMessage('Email 驗證成功！正在跳轉...');
-        setTimeout(() => {
-          router.push('/auth/login?verified=true');
-        }, 2000);
+        setVerificationResult('success');
+        setMessage('Email 驗證成功！');
       } else {
+        setVerificationResult('failed');
         setError(data.error);
       }
     } catch (error) {
@@ -110,6 +110,80 @@ function VerifyEmailContent() {
       setLoading(false);
     }
   };
+
+  // 驗證成功畫面
+  if (verificationResult === 'success') {
+    return (
+      <div className="min-h-screen bg-gray-50 pt-20">
+        <div className="max-w-md mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="bg-white rounded-lg shadow-md p-8">
+            <div className="text-center">
+              <div className="mx-auto w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mb-6">
+                <svg className="w-10 h-10 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              <h1 className="text-2xl font-bold text-green-600 mb-4">🎉 驗證成功！</h1>
+              <p className="text-gray-600 mb-6">您的 Email 已成功驗證，現在可以登入使用 PeiPlay 了！</p>
+              <div className="space-y-3">
+                <button
+                  onClick={() => router.push('/auth/login')}
+                  className="w-full bg-green-600 text-white py-3 px-4 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 font-medium"
+                >
+                  前往登入
+                </button>
+                <button
+                  onClick={() => router.push('/')}
+                  className="w-full bg-gray-200 text-gray-800 py-3 px-4 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 font-medium"
+                >
+                  返回首頁
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // 驗證失敗畫面
+  if (verificationResult === 'failed') {
+    return (
+      <div className="min-h-screen bg-gray-50 pt-20">
+        <div className="max-w-md mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="bg-white rounded-lg shadow-md p-8">
+            <div className="text-center">
+              <div className="mx-auto w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mb-6">
+                <svg className="w-10 h-10 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </div>
+              <h1 className="text-2xl font-bold text-red-600 mb-4">❌ 驗證失敗</h1>
+              <p className="text-gray-600 mb-4">{error || '驗證碼不正確或已過期'}</p>
+              <div className="space-y-3">
+                <button
+                  onClick={() => {
+                    setVerificationResult('pending');
+                    setError('');
+                    setVerificationCode('');
+                  }}
+                  className="w-full bg-blue-600 text-white py-3 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 font-medium"
+                >
+                  重新驗證
+                </button>
+                <button
+                  onClick={() => router.push('/auth/register')}
+                  className="w-full bg-gray-200 text-gray-800 py-3 px-4 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 font-medium"
+                >
+                  重新註冊
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 pt-20">

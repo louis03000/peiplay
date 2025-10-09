@@ -98,11 +98,13 @@ export async function GET(request: Request) {
       orderBy: { createdAt: 'desc' },
     });
 
-    // 過濾掉沒有時段的夥伴，但如果有篩選條件則保留所有符合條件的夥伴
+    // 過濾掉沒有時段的夥伴，但「現在有空」的夥伴除外
     let partnersWithSchedules = partners;
     if (!rankBooster && !availableNow) {
-      // 只有在沒有篩選條件時才過濾掉沒有時段的夥伴
-      partnersWithSchedules = partners.filter(partner => partner.schedules.length > 0);
+      // 只有在沒有篩選條件時才過濾掉沒有時段的夥伴，但「現在有空」的夥伴例外
+      partnersWithSchedules = partners.filter(partner => 
+        partner.schedules.length > 0 || partner.isAvailableNow
+      );
     }
 
     // 過濾掉已預約的時段，只保留可用的時段，並計算平均星等
