@@ -154,23 +154,7 @@ function BookingWizardContent() {
     }
   };
 
-  // 獲取用戶金幣餘額
-  useEffect(() => {
-    const fetchUserCoins = async () => {
-      try {
-        const response = await fetch('/api/user/coins')
-        // 移除金幣餘額獲取
-      } catch (error) {
-        console.error('獲取金幣餘額失敗:', error)
-      } finally {
-        // 移除金幣載入狀態
-      }
-    }
-
-    if (session?.user?.id) {
-      fetchUserCoins()
-    }
-  }, [session])
+  // 移除無用的金幣餘額獲取
 
   // 處理 URL 參數
   useEffect(() => {

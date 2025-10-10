@@ -2,8 +2,7 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import bcrypt from 'bcryptjs'
 import { sendEmailVerificationCode } from '@/lib/email'
-import { InputValidator, SecurityLogger } from '@/lib/security'
-import { withRegisterRateLimit } from '@/lib/rate-limit'
+import { SecurityEnhanced, RateLimiter, InputValidator, SecurityLogger } from '@/lib/security-enhanced'
 
 export const dynamic = 'force-dynamic';
 
@@ -11,6 +10,23 @@ async function registerHandler(request: Request) {
   try {
     const data = await request.json()
     const { email, password, name, birthday, phone, discord } = data
+
+    // 檢查速率限制
+    const clientIp = request.headers.get('x-forwarded-for') || 'unknown'
+    const rateLimit = RateLimiter.checkRateLimit(clientIp, 5, 15 * 60 * 1000) // 15分鐘內最多5次嘗試
+    
+    if (!rateLimit.allowed) {
+      SecurityLogger.logSecurityEvent('anonymous', 'RATE_LIMIT_EXCEEDED', {
+        ip: clientIp,
+        remainingAttempts: rateLimit.remainingAttempts,
+        resetTime: new Date(rateLimit.resetTime).toISOString()
+      })
+      
+      return NextResponse.json(
+        { error: `註冊嘗試次數過多，請 ${Math.ceil((rateLimit.resetTime - Date.now()) / 60000)} 分鐘後再試` },
+        { status: 429 }
+      )
+    }
 
     // 輸入驗證和清理
     const sanitizedData = InputValidator.sanitizeUserInput({
@@ -31,8 +47,14 @@ async function registerHandler(request: Request) {
     }
 
     // 驗證密碼強度
-    const passwordValidation = InputValidator.validatePassword(sanitizedData.password);
+    const passwordValidation = SecurityEnhanced.validatePassword(sanitizedData.password);
     if (!passwordValidation.isValid) {
+      SecurityLogger.logSecurityEvent('anonymous', 'WEAK_PASSWORD_ATTEMPT', {
+        email: sanitizedData.email.substring(0, 3) + '***',
+        errors: passwordValidation.errors,
+        strength: passwordValidation.strength
+      })
+      
       return NextResponse.json(
         { error: '密碼不符合安全要求', details: passwordValidation.errors },
         { status: 400 }
@@ -86,7 +108,7 @@ async function registerHandler(request: Request) {
     }
 
     // 加密密碼
-    const hashedPassword = await bcrypt.hash(sanitizedData.password, 12) // 增加 salt rounds
+    const hashedPassword = await SecurityEnhanced.hashPassword(sanitizedData.password)
 
     // 檢查是否為管理員帳號
     const isAdminEmail = sanitizedData.email === 'peiplay2025@gmail.com';
@@ -114,11 +136,14 @@ async function registerHandler(request: Request) {
     })
 
     // 記錄安全事件
-    SecurityLogger.logSecurityEvent('USER_REGISTRATION', {
-      userId: user.id,
-      email: sanitizedData.email,
-      additionalInfo: { registrationTime: new Date().toISOString() }
-    });
+    SecurityLogger.logSecurityEvent(
+      user.id,
+      'USER_REGISTRATION_SUCCESS',
+      { 
+        email: sanitizedData.email.substring(0, 3) + '***',
+        registrationTime: new Date().toISOString() 
+      }
+    );
 
     // 如果是管理員帳號，直接返回成功
     if (isAdminEmail) {
@@ -174,6 +199,17 @@ async function registerHandler(request: Request) {
       // 不影響註冊流程，只記錄錯誤
     }
 
+    // 記錄成功的註冊
+    SecurityLogger.logSecurityEvent(user.id, 'USER_REGISTERED', {
+      email: sanitizedData.email.substring(0, 3) + '***',
+      hasPhone: !!sanitizedData.phone,
+      hasDiscord: !!sanitizedData.discord,
+      isAdmin: isAdminEmail
+    })
+
+    // 重置速率限制
+    RateLimiter.resetRateLimit(clientIp)
+
     return NextResponse.json({ 
       message: '註冊成功，請檢查您的 Email 並完成驗證',
       email: sanitizedData.email 
@@ -182,7 +218,7 @@ async function registerHandler(request: Request) {
     console.error('Error registering user:', error)
     
     // 記錄安全事件
-    SecurityLogger.logSecurityEvent('REGISTRATION_ERROR', {
+    SecurityLogger.logSecurityEvent('anonymous', 'REGISTRATION_ERROR', {
       additionalInfo: { error: error instanceof Error ? error.message : 'Unknown error' }
     });
     
@@ -193,8 +229,8 @@ async function registerHandler(request: Request) {
   }
 }
 
-// 應用速率限制
-export const POST = withRegisterRateLimit(registerHandler);
+// 導出處理函數
+export const POST = registerHandler;
 
 // 新增這段
 export async function OPTIONS() {

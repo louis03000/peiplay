@@ -110,26 +110,30 @@ model Schedule {
 }
 
 model Booking {
-  id             String        @id @default(cuid())
-  customerId     String
-  scheduleId     String        @unique
-  status         BookingStatus @default(PENDING)
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
-  reminderSent   Boolean       @default(false)
-  rejectReason   String?
-  discountAmount Float         @default(0)
-  finalAmount    Float
-  originalAmount Float
-  promoCode      String?
-  orderNumber    String?
-  paymentError   String?
-  paymentInfo    Json?
-  discordTextChannelId String?
-  discordVoiceChannelId String?
-  customer       Customer      @relation(fields: [customerId], references: [id])
-  schedule       Schedule      @relation(fields: [scheduleId], references: [id])
-  orders         Order[]
+  id                          String        @id @default(cuid())
+  customerId                  String
+  scheduleId                  String        @unique
+  status                      BookingStatus @default(PENDING)
+  createdAt                   DateTime      @default(now())
+  updatedAt                   DateTime      @updatedAt
+  reminderSent                Boolean       @default(false)
+  rejectReason                String?
+  discountAmount              Float         @default(0)
+  finalAmount                 Float
+  originalAmount              Float
+  promoCode                   String?
+  orderNumber                 String?
+  paymentError                String?
+  paymentInfo                 Json?
+  discordEarlyTextChannelId   String?       // 提前溝通文字頻道 ID
+  discordTextChannelId        String?       // 正式文字頻道 ID
+  discordVoiceChannelId       String?       // 語音頻道 ID
+  extensionButtonShown        Boolean       @default(false) // 延長按鈕是否已顯示
+  ratingCompleted             Boolean       @default(false) // 評價是否已完成
+  textChannelCleaned          Boolean       @default(false) // 文字頻道是否已清理
+  customer                    Customer      @relation(fields: [customerId], references: [id])
+  schedule                    Schedule      @relation(fields: [scheduleId], references: [id])
+  orders                      Order[]
   reviews        Review[]
   referralEarnings ReferralEarning[]
 }

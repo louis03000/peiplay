@@ -6,11 +6,11 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
   try {
-    // 檢查用戶是否登入（敏感圖片需要登入才能訪問）
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: '未授權訪問' }, { status: 401 });
-    }
+    // 對於夥伴封面圖片，允許未登入用戶訪問（用於預約頁面）
+    // const session = await getServerSession(authOptions);
+    // if (!session?.user?.id) {
+    //   return NextResponse.json({ error: '未授權訪問' }, { status: 401 });
+    // }
 
     // 獲取圖片 URL 參數
     const { searchParams } = new URL(request.url);
