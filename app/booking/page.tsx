@@ -439,7 +439,7 @@ function BookingWizardContent() {
   }, [step, selectedPartner, selectedDate, selectedTimes, selectedDuration, onlyAvailable])
 
   return (
-    <div className="max-w-2xl mx-auto mt-36 rounded-3xl p-0 shadow-2xl bg-[#1e293b]/80 backdrop-blur-lg border border-white/10 overflow-hidden">
+    <div className="max-w-2xl mx-auto mt-16 sm:mt-36 rounded-3xl p-0 shadow-2xl bg-[#1e293b]/80 backdrop-blur-lg border border-white/10 overflow-hidden">
       {/* 移除金幣餘額顯示 */}
 
       {/* 步驟指示器 */}

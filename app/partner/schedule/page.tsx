@@ -451,44 +451,44 @@ export default function PartnerSchedulePage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 pt-8">
+    <div className="container mx-auto px-2 sm:px-4 py-4 sm:py-8 pt-4 sm:pt-8">
       {showSuccess && (
-        <div className="fixed top-20 left-1/2 transform -translate-x-1/2 z-50 bg-green-600 text-white px-8 py-4 rounded-lg shadow-2xl font-bold text-xl animate-fade-in-out border-2 border-green-400">
+        <div className="fixed top-16 sm:top-20 left-1/2 transform -translate-x-1/2 z-50 bg-green-600 text-white px-4 sm:px-8 py-2 sm:py-4 rounded-lg shadow-2xl font-bold text-lg sm:text-xl animate-fade-in-out border-2 border-green-400">
           ✅ 儲存成功！
         </div>
       )}
-      <div className="text-center mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">未來7天時段管理</h1>
+      <div className="text-center mb-4 sm:mb-8">
+        <h1 className="text-xl sm:text-3xl font-bold text-gray-900 mb-2">未來7天時段管理</h1>
       </div>
       <div className="max-w-6xl mx-auto">
         <div className="bg-white rounded-lg shadow-lg overflow-x-auto">
-          <div className="p-6 border-b border-gray-200">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-4">
-                <h2 className="text-xl font-bold text-gray-900">未來7天時段管理</h2>
+          <div className="p-3 sm:p-6 border-b border-gray-200">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between space-y-4 sm:space-y-0">
+              <div className="flex flex-col sm:flex-row sm:items-center space-y-2 sm:space-y-0 sm:space-x-4">
+                <h2 className="text-lg sm:text-xl font-bold text-gray-900">未來7天時段管理</h2>
                 <div className="flex space-x-2">
                   <button
                     onClick={() => handleViewChange('today')}
-                    className={`px-4 py-2 rounded text-sm font-medium transition ${currentView === 'today' ? 'bg-gray-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+                    className={`px-3 sm:px-4 py-2 rounded text-xs sm:text-sm font-medium transition ${currentView === 'today' ? 'bg-gray-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
                   >今天</button>
                   <button
                     onClick={() => handleViewChange('nextWeek')}
-                    className={`px-4 py-2 rounded text-sm font-medium transition ${currentView === 'nextWeek' ? 'bg-gray-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+                    className={`px-3 sm:px-4 py-2 rounded text-xs sm:text-sm font-medium transition ${currentView === 'nextWeek' ? 'bg-gray-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
                   >下週</button>
                 </div>
               </div>
-              <div className="flex items-center gap-6">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-6">
                 <div className="flex flex-col gap-1">
                   <div className="flex items-center gap-2">
-                    <span className="text-sm text-gray-700">現在有空</span>
+                    <span className="text-xs sm:text-sm text-gray-700">現在有空</span>
                     <Switch
                       checked={!!partnerStatus?.isAvailableNow}
                       onChange={v => handleToggle('isAvailableNow', v)}
-                      className={`${partnerStatus?.isAvailableNow ? 'bg-green-500' : 'bg-gray-300'} relative inline-flex h-6 w-11 items-center rounded-full transition-colors`}
+                      className={`${partnerStatus?.isAvailableNow ? 'bg-green-500' : 'bg-gray-300'} relative inline-flex h-5 w-9 sm:h-6 sm:w-11 items-center rounded-full transition-colors`}
                     >
                       <span className="sr-only">現在有空</span>
                       <span
-                        className={`${partnerStatus?.isAvailableNow ? 'translate-x-6' : 'translate-x-1'} inline-block h-4 w-4 transform rounded-full bg-white transition-transform`}
+                        className={`${partnerStatus?.isAvailableNow ? 'translate-x-5 sm:translate-x-6' : 'translate-x-1'} inline-block h-3 w-3 sm:h-4 sm:w-4 transform rounded-full bg-white transition-transform`}
                       />
                     </Switch>
                   </div>
@@ -499,19 +499,19 @@ export default function PartnerSchedulePage() {
                   )}
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-sm text-gray-700">我是上分高手</span>
+                  <span className="text-xs sm:text-sm text-gray-700">我是上分高手</span>
                   <Switch
                     checked={!!partnerStatus?.isRankBooster}
                     onChange={v => handleToggle('isRankBooster', v)}
-                    className={`${partnerStatus?.isRankBooster ? 'bg-indigo-500' : 'bg-gray-300'} relative inline-flex h-6 w-11 items-center rounded-full transition-colors`}
+                    className={`${partnerStatus?.isRankBooster ? 'bg-indigo-500' : 'bg-gray-300'} relative inline-flex h-5 w-9 sm:h-6 sm:w-11 items-center rounded-full transition-colors`}
                   >
                     <span className="sr-only">我是上分高手</span>
                     <span
-                      className={`${partnerStatus?.isRankBooster ? 'translate-x-6' : 'translate-x-1'} inline-block h-4 w-4 transform rounded-full bg-white transition-transform`}
+                      className={`${partnerStatus?.isRankBooster ? 'translate-x-5 sm:translate-x-6' : 'translate-x-1'} inline-block h-3 w-3 sm:h-4 sm:w-4 transform rounded-full bg-white transition-transform`}
                     />
                   </Switch>
                 </div>
-                <div className="text-sm text-gray-600">
+                <div className="text-xs sm:text-sm text-gray-600">
                   {dateRange.start.toLocaleDateString('zh-TW', { month: 'numeric', day: 'numeric' })} - {dateRange.end.toLocaleDateString('zh-TW', { month: 'numeric', day: 'numeric' })}
                 </div>
               </div>
@@ -586,20 +586,34 @@ export default function PartnerSchedulePage() {
               </div>
             )}
           </div>
+          {/* 手機版說明 */}
+          <div className="sm:hidden px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg mx-3 mb-2">
+            <div className="text-xs text-blue-800">
+              <div className="flex items-center gap-1 mb-1">
+                <span>📅</span>
+                <span className="font-medium">日期說明</span>
+              </div>
+              <p>上方數字為日期，下方為星期。例如：<span className="font-bold">15</span> 表示 15 日，<span className="font-bold">三</span> 表示星期三</p>
+            </div>
+          </div>
+          
           <div className="w-full overflow-x-auto">
             <div className="min-w-full">
               <div className="flex border-b border-gray-200">
-                <div className="w-20 bg-gray-50 border-r border-gray-200 sticky left-0 z-10"></div>
+                <div className="w-16 sm:w-20 bg-gray-50 border-r border-gray-200 sticky left-0 z-10"></div>
                 {dateSlots.map((date, index) => (
-                  <div key={index} className="flex-1 min-w-0 w-[110px] bg-gray-50 border-r border-gray-200 p-2 text-center">
-                    <div className="text-sm font-medium text-gray-800 truncate">
-                      {date.getDate()} {['日', '一', '二', '三', '四', '五', '六'][date.getDay()]}
+                  <div key={index} className="flex-1 min-w-[90px] bg-gray-50 border-r border-gray-200 p-1 text-center">
+                    <div className="text-xs sm:text-sm font-medium text-gray-800">
+                      <div className="leading-tight">
+                        <div className="font-bold">{date.getDate()}</div>
+                        <div className="text-xs text-gray-600">{['日', '一', '二', '三', '四', '五', '六'][date.getDay()]}</div>
+                      </div>
                     </div>
                   </div>
                 ))}
               </div>
               <div className="flex">
-                <div className="w-20 border-r border-gray-200 sticky left-0 z-10 bg-white">
+                <div className="w-16 sm:w-20 border-r border-gray-200 sticky left-0 z-10 bg-white">
                   {timeSlots.map((time, index) => (
                     <div key={index} className="h-8 border-b border-gray-100 flex items-center justify-center">
                       <span className="text-xs text-gray-500">{time}</span>
@@ -607,7 +621,7 @@ export default function PartnerSchedulePage() {
                   ))}
                 </div>
                 {dateSlots.map((date, dateIndex) => (
-                  <div key={dateIndex} className="flex-1 min-w-0 w-[110px] border-r border-gray-200">
+                  <div key={dateIndex} className="flex-1 min-w-[90px] border-r border-gray-200">
                     {timeSlots.map((time, timeIndex) => {
                       const state = getCellState(date, time);
                       return (

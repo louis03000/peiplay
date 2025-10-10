@@ -90,31 +90,31 @@ export default function AdminPartnersPage() {
   if (error) return <div className="text-red-500">{error}</div>;
 
   return (
-    <div className="max-w-3xl mx-auto py-8 pt-32">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">夥伴管理</h1>
-        <div className="flex gap-2">
+    <div className="max-w-3xl mx-auto py-4 sm:py-8 pt-16 sm:pt-32 px-4 sm:px-6">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-6 gap-4">
+        <h1 className="text-xl sm:text-2xl font-bold">夥伴管理</h1>
+        <div className="flex flex-wrap gap-2">
           <a
             href="/admin/withdrawals"
-            className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
+            className="px-3 sm:px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors text-sm sm:text-base"
           >
             提領申請管理
           </a>
           <a
             href="/admin/promo-codes"
-            className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 transition-colors"
+            className="px-3 sm:px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 transition-colors text-sm sm:text-base"
           >
             優惠碼管理
           </a>
           <a
             href="/admin/users"
-            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+            className="px-3 sm:px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors text-sm sm:text-base"
           >
             用戶管理
           </a>
           <a
             href="/admin/anti-money-laundering"
-            className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
+            className="px-3 sm:px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors text-sm sm:text-base"
           >
             反洗錢監控
           </a>
@@ -123,10 +123,10 @@ export default function AdminPartnersPage() {
       
       {/* 狀態篩選器 */}
       <div className="mb-6">
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <button
             onClick={() => setStatusFilter('PENDING')}
-            className={`px-4 py-2 rounded transition-colors ${
+            className={`px-3 sm:px-4 py-2 rounded transition-colors text-sm sm:text-base ${
               statusFilter === 'PENDING' 
                 ? 'bg-yellow-600 text-white' 
                 : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
@@ -136,7 +136,7 @@ export default function AdminPartnersPage() {
           </button>
           <button
             onClick={() => setStatusFilter('APPROVED')}
-            className={`px-4 py-2 rounded transition-colors ${
+            className={`px-3 sm:px-4 py-2 rounded transition-colors text-sm sm:text-base ${
               statusFilter === 'APPROVED' 
                 ? 'bg-green-600 text-white' 
                 : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
@@ -146,7 +146,7 @@ export default function AdminPartnersPage() {
           </button>
           <button
             onClick={() => setStatusFilter('REJECTED')}
-            className={`px-4 py-2 rounded transition-colors ${
+            className={`px-3 sm:px-4 py-2 rounded transition-colors text-sm sm:text-base ${
               statusFilter === 'REJECTED' 
                 ? 'bg-red-600 text-white' 
                 : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
@@ -156,7 +156,7 @@ export default function AdminPartnersPage() {
           </button>
           <button
             onClick={() => setStatusFilter('ALL')}
-            className={`px-4 py-2 rounded transition-colors ${
+            className={`px-3 sm:px-4 py-2 rounded transition-colors text-sm sm:text-base ${
               statusFilter === 'ALL' 
                 ? 'bg-blue-600 text-white' 
                 : 'bg-gray-200 text-gray-700 hover:bg-gray-300'

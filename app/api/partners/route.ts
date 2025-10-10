@@ -45,6 +45,8 @@ export async function GET(request: Request) {
       where.isAvailableNow = true;
     }
 
+    console.log('🔍 API 查詢條件:', where);
+    
     const partners = await prisma.partner.findMany({
       where,
       select: {
@@ -98,6 +100,8 @@ export async function GET(request: Request) {
       orderBy: { createdAt: 'desc' },
     });
 
+    console.log('📊 原始查詢結果:', partners.map(p => ({ name: p.name, isAvailableNow: p.isAvailableNow, schedulesCount: p.schedules.length })));
+
     // 過濾掉沒有時段的夥伴，但「現在有空」的夥伴除外
     let partnersWithSchedules = partners;
     if (!rankBooster && !availableNow) {
@@ -106,6 +110,8 @@ export async function GET(request: Request) {
         partner.schedules.length > 0 || partner.isAvailableNow
       );
     }
+
+    console.log('📊 篩選後結果:', partnersWithSchedules.map(p => ({ name: p.name, isAvailableNow: p.isAvailableNow, schedulesCount: p.schedules.length })));
 
     // 過濾掉已預約的時段，只保留可用的時段，並計算平均星等
     partnersWithSchedules = partnersWithSchedules.map(partner => {
@@ -131,7 +137,7 @@ export async function GET(request: Request) {
           return true;
         })
       };
-    }).filter(partner => partner.schedules.length > 0); // 過濾掉沒有可用時段的夥伴
+    }).filter(partner => partner.schedules.length > 0 || partner.isAvailableNow); // 過濾掉沒有可用時段的夥伴，但「現在有空」的夥伴例外
 
     // 過濾掉被停權的夥伴
     partnersWithSchedules = partnersWithSchedules.filter(partner => {

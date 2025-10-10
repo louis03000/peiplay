@@ -39,6 +39,7 @@ model User {
   partner            Partner?
   reviewsReceived    Review[]  @relation("Reviewee")
   reviewsGiven       Review[]  @relation("Reviewer")
+  securityLogs       SecurityLog[]
 }
 
 model Partner {
@@ -262,4 +263,33 @@ enum WithdrawalStatus {
   APPROVED
   REJECTED
   COMPLETED
+}
+
+enum SecurityEventType {
+  LOGIN_ATTEMPT
+  LOGIN_SUCCESS
+  LOGIN_FAILED
+  PASSWORD_CHANGE
+  PASSWORD_RESET
+  SUSPICIOUS_ACTIVITY
+  ACCOUNT_LOCKED
+  ACCOUNT_UNLOCKED
+  EMAIL_VERIFIED
+  TWO_FACTOR_ENABLED
+  TWO_FACTOR_DISABLED
+}
+
+model SecurityLog {
+  id          String           @id @default(cuid())
+  userId      String
+  eventType   SecurityEventType
+  details     String           // JSON 格式的詳細信息
+  ipAddress   String
+  userAgent   String
+  timestamp   DateTime         @default(now())
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId, timestamp])
+  @@index([eventType, timestamp])
+  @@index([ipAddress, timestamp])
 }

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useCallback } from 'react'
-import Image from 'next/image'
+import SecureImage from './SecureImage'
 import { FaBolt, FaCrown, FaMedal, FaTrophy, FaComments, FaHeart, FaStar, FaQuoteLeft, FaQuoteRight } from 'react-icons/fa'
 
 interface Partner {
@@ -75,13 +75,11 @@ export default function PartnerCard({ partner, onQuickBook, showNextStep = false
         <div className="relative h-64 bg-white">
           {/* 封面圖片與資訊（正面） */}
           {currentImage && !imageError ? (
-            <Image
+            <SecureImage
               src={currentImage}
               alt={partner.name}
               fill
-              className={`object-cover transition-opacity duration-300 ${
-                imageLoaded ? 'opacity-100' : 'opacity-0'
-              }`}
+              className="object-cover"
               onLoad={handleImageLoad}
               onError={handleImageError}
               sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"

@@ -149,18 +149,18 @@ export default function AdminWithdrawalsPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-900 via-purple-900 to-indigo-900">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 py-4 sm:py-8">
         {/* 頁面標題 */}
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold text-white mb-2">提領申請管理</h1>
-          <p className="text-blue-200">管理夥伴的提領申請</p>
+        <div className="mb-6 sm:mb-8">
+          <h1 className="text-2xl sm:text-4xl font-bold text-white mb-2">提領申請管理</h1>
+          <p className="text-blue-200 text-sm sm:text-base">管理夥伴的提領申請</p>
         </div>
 
         {/* 狀態篩選按鈕 */}
         <div className="mb-6 flex flex-wrap gap-2">
           <button
             onClick={() => setStatusFilter('PENDING')}
-            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+            className={`px-3 sm:px-4 py-2 rounded-lg font-medium transition-colors text-sm sm:text-base ${
               statusFilter === 'PENDING'
                 ? 'bg-orange-500 text-white'
                 : 'bg-white text-gray-700 hover:bg-gray-100'
@@ -170,7 +170,7 @@ export default function AdminWithdrawalsPage() {
           </button>
           <button
             onClick={() => setStatusFilter('APPROVED')}
-            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+            className={`px-3 sm:px-4 py-2 rounded-lg font-medium transition-colors text-sm sm:text-base ${
               statusFilter === 'APPROVED'
                 ? 'bg-blue-500 text-white'
                 : 'bg-white text-gray-700 hover:bg-gray-100'
@@ -180,7 +180,7 @@ export default function AdminWithdrawalsPage() {
           </button>
           <button
             onClick={() => setStatusFilter('REJECTED')}
-            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+            className={`px-3 sm:px-4 py-2 rounded-lg font-medium transition-colors text-sm sm:text-base ${
               statusFilter === 'REJECTED'
                 ? 'bg-red-500 text-white'
                 : 'bg-white text-gray-700 hover:bg-gray-100'
@@ -190,7 +190,7 @@ export default function AdminWithdrawalsPage() {
           </button>
           <button
             onClick={() => setStatusFilter('COMPLETED')}
-            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+            className={`px-3 sm:px-4 py-2 rounded-lg font-medium transition-colors text-sm sm:text-base ${
               statusFilter === 'COMPLETED'
                 ? 'bg-green-500 text-white'
                 : 'bg-white text-gray-700 hover:bg-gray-100'
@@ -200,7 +200,7 @@ export default function AdminWithdrawalsPage() {
           </button>
           <button
             onClick={() => setStatusFilter('ALL')}
-            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+            className={`px-3 sm:px-4 py-2 rounded-lg font-medium transition-colors text-sm sm:text-base ${
               statusFilter === 'ALL'
                 ? 'bg-gray-500 text-white'
                 : 'bg-white text-gray-700 hover:bg-gray-100'
