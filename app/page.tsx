@@ -2,11 +2,20 @@
 
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
+
+interface Review {
+  id: string
+  rating: number
+  comment: string
+  createdAt: string
+  reviewerName: string
+}
 
 export default function Home() {
   const { data: session, status } = useSession()
   const router = useRouter()
+  const [reviews, setReviews] = useState<Review[]>([])
 
   useEffect(() => {
     // 如果用戶已登入但沒有完整資料，跳轉到 onboarding
@@ -53,6 +62,23 @@ export default function Home() {
     }
   }, [session, status, router])
 
+  // 獲取真實用戶評價
+  useEffect(() => {
+    const fetchReviews = async () => {
+      try {
+        const response = await fetch('/api/reviews/public')
+        if (response.ok) {
+          const data = await response.json()
+          setReviews(data.reviews || [])
+        }
+      } catch (error) {
+        console.error('Failed to fetch reviews:', error)
+      }
+    }
+    
+    fetchReviews()
+  }, [])
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
       {/* Hero Section */}
@@ -89,66 +115,10 @@ export default function Home() {
               </button>
             </div>
 
-            {/* Trust Indicators */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-16">
-              <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4 text-center">
-                <div className="text-2xl font-bold text-white mb-1">500+</div>
-                <div className="text-sm text-gray-300">活躍夥伴</div>
-              </div>
-              <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4 text-center">
-                <div className="text-2xl font-bold text-white mb-1">10,000+</div>
-                <div className="text-sm text-gray-300">成功預約</div>
-              </div>
-              <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4 text-center">
-                <div className="text-2xl font-bold text-white mb-1">4.9⭐</div>
-                <div className="text-sm text-gray-300">用戶評價</div>
-              </div>
-              <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4 text-center">
-                <div className="text-2xl font-bold text-white mb-1">24/7</div>
-                <div className="text-sm text-gray-300">客服支援</div>
-              </div>
-            </div>
           </div>
         </div>
       </div>
 
-      {/* Features Section */}
-      <div className="py-16 bg-black/20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h3 className="text-3xl md:text-4xl font-bold text-white mb-4">
-              為什麼選擇 PeiPlay？
-            </h3>
-            <p className="text-lg text-gray-300 max-w-2xl mx-auto">
-              我們提供最安全、最專業的遊戲陪玩服務，讓您的遊戲體驗更加精彩
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-3 gap-8">
-            <div className="bg-white/10 backdrop-blur-sm rounded-xl p-6 text-center">
-              <div className="text-4xl mb-4">🛡️</div>
-              <h4 className="text-xl font-bold text-white mb-3">安全保障</h4>
-              <p className="text-gray-300">
-                嚴格的夥伴審核機制，安全的支付系統，讓您安心享受遊戲時光
-              </p>
-            </div>
-            <div className="bg-white/10 backdrop-blur-sm rounded-xl p-6 text-center">
-              <div className="text-4xl mb-4">⭐</div>
-              <h4 className="text-xl font-bold text-white mb-3">高品質服務</h4>
-              <p className="text-gray-300">
-                專業遊戲夥伴，豐富經驗，為您提供最優質的陪玩體驗
-              </p>
-            </div>
-            <div className="bg-white/10 backdrop-blur-sm rounded-xl p-6 text-center">
-              <div className="text-4xl mb-4">🎯</div>
-              <h4 className="text-xl font-bold text-white mb-3">客製化體驗</h4>
-              <p className="text-gray-300">
-                根據您的需求匹配最適合的夥伴，提供個人化的遊戲服務
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
 
       {/* How It Works Section */}
       <div className="py-16">
@@ -202,45 +172,54 @@ export default function Home() {
               用戶見證
             </h3>
             <p className="text-lg text-gray-300 max-w-2xl mx-auto">
-              看看其他用戶對 PeiPlay 的評價
+              看看其他用戶對 PeiPlay 的真實評價
             </p>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-8">
-            <div className="bg-white/10 backdrop-blur-sm rounded-xl p-6">
-              <div className="flex items-center mb-4">
-                <div className="flex text-yellow-400">
-                  ⭐⭐⭐⭐⭐
+          {reviews.length > 0 ? (
+            <div className="grid md:grid-cols-3 gap-8">
+              {reviews.map((review) => (
+                <div key={review.id} className="bg-white/10 backdrop-blur-sm rounded-xl p-6">
+                  <div className="flex items-center mb-4">
+                    <div className="flex text-yellow-400">
+                      {[...Array(5)].map((_, i) => (
+                        <span key={i} className={i < review.rating ? 'text-yellow-400' : 'text-gray-600'}>
+                          ⭐
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                  <p className="text-gray-300 mb-4">
+                    "{review.comment}"
+                  </p>
+                  <div className="text-white font-semibold">- {review.reviewerName}</div>
+                  <div className="text-xs text-gray-400 mt-2">
+                    {new Date(review.createdAt).toLocaleDateString('zh-TW')}
+                  </div>
                 </div>
-              </div>
-              <p className="text-gray-300 mb-4">
-                "PeiPlay 的夥伴非常專業，遊戲技術很好，溝通也很順暢。預約系統很方便，推薦給所有遊戲玩家！"
-              </p>
-              <div className="text-white font-semibold">- 張同學</div>
+              ))}
             </div>
-            <div className="bg-white/10 backdrop-blur-sm rounded-xl p-6">
-              <div className="flex items-center mb-4">
-                <div className="flex text-yellow-400">
-                  ⭐⭐⭐⭐⭐
-                </div>
-              </div>
-              <p className="text-gray-300 mb-4">
-                "成為 PeiPlay 的夥伴後，收入穩定，平台管理也很完善。客戶素質都很高，工作體驗很棒！"
+          ) : (
+            <div className="text-center">
+              <p className="text-gray-300 text-lg mb-8">
+                目前還沒有用戶評價，成為第一個分享體驗的人吧！
               </p>
-              <div className="text-white font-semibold">- 李夥伴</div>
-            </div>
-            <div className="bg-white/10 backdrop-blur-sm rounded-xl p-6">
-              <div className="flex items-center mb-4">
-                <div className="flex text-yellow-400">
-                  ⭐⭐⭐⭐⭐
-                </div>
+              <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                <button
+                  onClick={() => router.push('/booking')}
+                  className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-bold py-3 px-6 rounded-xl text-lg shadow-lg transform hover:scale-105 transition-all duration-200"
+                >
+                  🎮 立即體驗
+                </button>
+                <button
+                  onClick={() => router.push('/join')}
+                  className="bg-white text-purple-600 hover:bg-gray-100 font-bold py-3 px-6 rounded-xl text-lg shadow-lg transform hover:scale-105 transition-all duration-200"
+                >
+                  💼 成為夥伴
+                </button>
               </div>
-              <p className="text-gray-300 mb-4">
-                "安全可靠的平台，支付系統很完善。客服回應快速，有任何問題都能得到及時解決。"
-              </p>
-              <div className="text-white font-semibold">- 王先生</div>
             </div>
-          </div>
+          )}
         </div>
       </div>
 
