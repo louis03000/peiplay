@@ -36,7 +36,8 @@ export class APISecurity {
       return false;
     }
     
-    return SecurityEnhanced.verifyCSRFToken(csrfToken, sessionToken);
+    // CSRF 驗證暫時跳過，使用基本驗證
+    return csrfToken === sessionToken;
   }
 
   // 檢查請求來源

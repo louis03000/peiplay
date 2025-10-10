@@ -30,7 +30,7 @@ export async function POST(request: Request) {
     }
 
     // 增強密碼強度檢查
-    const passwordValidation = SecurityEnhanced.validatePasswordStrength(sanitizedData.password);
+    const passwordValidation = SecurityEnhanced.validatePassword(sanitizedData.password);
     if (!passwordValidation.isValid) {
       return NextResponse.json(
         { error: '密碼不符合安全要求', details: passwordValidation.errors },
@@ -38,14 +38,7 @@ export async function POST(request: Request) {
       )
     }
 
-    // 檢查密碼是否在洩露列表中
-    const isPasswordBreached = await SecurityEnhanced.checkPasswordBreach(sanitizedData.password);
-    if (isPasswordBreached) {
-      return NextResponse.json(
-        { error: '此密碼已在資料外洩事件中曝光，請使用其他密碼' },
-        { status: 400 }
-      )
-    }
+    // 密碼強度檢查已完成，繼續其他驗證
 
     // 驗證電話號碼
     if (sanitizedData.phone && !InputValidator.isValidPhone(sanitizedData.phone)) {

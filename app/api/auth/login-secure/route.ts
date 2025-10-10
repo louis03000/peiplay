@@ -1,8 +1,6 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { SecurityEnhanced } from '@/lib/security-enhanced'
-import { signIn } from 'next-auth/react'
-import { InputValidator } from '@/lib/security'
+import { SecurityEnhanced, RateLimiter, InputValidator, SecurityLogger } from '@/lib/security-enhanced'
 
 export const dynamic = 'force-dynamic';
 
@@ -26,13 +24,13 @@ export async function POST(request: Request) {
     const userAgent = request.headers.get('user-agent') || 'unknown';
 
     // 檢查登入頻率限制
-    const rateLimitCheck = await SecurityEnhanced.checkLoginRateLimit(ipAddress);
+    const rateLimitCheck = RateLimiter.checkRateLimit(ipAddress, 5, 15 * 60 * 1000); // 15分鐘內最多5次嘗試
     if (!rateLimitCheck.allowed) {
-      await SecurityEnhanced.logSecurityEvent('system', 'SUSPICIOUS_ACTIVITY', {
-        event: 'RATE_LIMIT_EXCEEDED',
+      SecurityLogger.logSecurityEvent('anonymous', 'LOGIN_RATE_LIMIT_EXCEEDED', {
         ipAddress,
         userAgent,
-        email: sanitizedEmail,
+        email: sanitizedEmail.substring(0, 3) + '***',
+        remainingAttempts: rateLimitCheck.remainingAttempts
       });
       
       return NextResponse.json(
@@ -50,11 +48,11 @@ export async function POST(request: Request) {
     })
 
     if (!user) {
-      await SecurityEnhanced.logSecurityEvent('system', 'LOGIN_FAILED', {
+      SecurityLogger.logSecurityEvent('anonymous', 'LOGIN_FAILED', {
         event: 'USER_NOT_FOUND',
         ipAddress,
         userAgent,
-        email: sanitizedEmail,
+        email: sanitizedEmail.substring(0, 3) + '***',
       });
       
       return NextResponse.json(
@@ -65,7 +63,7 @@ export async function POST(request: Request) {
 
     // 檢查用戶是否被鎖定
     if (user.lockUntil && user.lockUntil > new Date()) {
-      await SecurityEnhanced.logSecurityEvent(user.id, 'LOGIN_FAILED', {
+      SecurityLogger.logSecurityEvent(user.id, 'LOGIN_FAILED', {
         event: 'ACCOUNT_LOCKED',
         ipAddress,
         userAgent,
@@ -94,7 +92,7 @@ export async function POST(request: Request) {
         },
       });
 
-      await SecurityEnhanced.logSecurityEvent(user.id, 'LOGIN_FAILED', {
+      SecurityLogger.logSecurityEvent(user.id, 'LOGIN_FAILED', {
         event: 'INVALID_PASSWORD',
         ipAddress,
         userAgent,
@@ -120,19 +118,15 @@ export async function POST(request: Request) {
       },
     });
 
-    // 檢查密碼年齡
-    const passwordAgeCheck = await SecurityEnhanced.checkPasswordAge(user.id);
-    
     // 記錄成功登入
-    await SecurityEnhanced.logSecurityEvent(user.id, 'LOGIN_SUCCESS', {
+    SecurityLogger.logSecurityEvent(user.id, 'LOGIN_SUCCESS', {
       event: 'LOGIN_SUCCESS',
       ipAddress,
       userAgent,
-      passwordAge: passwordAgeCheck.daysSinceLastUpdate,
     });
 
-    // 生成 JWT token（這裡簡化處理，實際應使用 NextAuth）
-    const token = SecurityEnhanced.generateSecureToken();
+    // 重置速率限制
+    RateLimiter.resetRateLimit(ipAddress);
 
     return NextResponse.json({
       message: '登入成功',
@@ -142,9 +136,6 @@ export async function POST(request: Request) {
         name: user.name,
         role: user.role,
       },
-      token,
-      passwordNeedsUpdate: passwordAgeCheck.needsUpdate,
-      daysSinceLastPasswordUpdate: passwordAgeCheck.daysSinceLastUpdate,
     })
 
   } catch (error) {
