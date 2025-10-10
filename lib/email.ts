@@ -12,6 +12,112 @@ const createTransporter = () => {
   });
 };
 
+// 發送預約確認通知給顧客
+export async function sendBookingConfirmationEmail(
+  customerEmail: string,
+  customerName: string,
+  partnerName: string,
+  bookingDetails: {
+    duration: number;
+    startTime: string;
+    endTime: string;
+    totalCost: number;
+    bookingId: string;
+  }
+) {
+  try {
+    const transporter = createTransporter();
+    
+    const subject = `🎉 預約確認 - ${partnerName} 已確認您的預約`;
+    
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; text-align: center; border-radius: 10px 10px 0 0;">
+          <h1 style="margin: 0; font-size: 24px;">🎉 預約確認通知</h1>
+        </div>
+        
+        <div style="background: #f8f9fa; padding: 30px; border-radius: 0 0 10px 10px;">
+          <h2 style="color: #333; margin-top: 0;">親愛的 ${customerName}，</h2>
+          
+          <p style="color: #666; font-size: 16px; line-height: 1.6;">
+            好消息！您的預約已被夥伴確認。以下是預約詳情：
+          </p>
+          
+          <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+            <h3 style="color: #333; margin-top: 0;">📋 預約詳情</h3>
+            <table style="width: 100%; border-collapse: collapse;">
+              <tr>
+                <td style="padding: 8px 0; color: #666; width: 120px;"><strong>夥伴姓名：</strong></td>
+                <td style="padding: 8px 0; color: #333;">${partnerName}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; color: #666;"><strong>預約編號：</strong></td>
+                <td style="padding: 8px 0; color: #333;">${bookingDetails.bookingId}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; color: #666;"><strong>開始時間：</strong></td>
+                <td style="padding: 8px 0; color: #333;">${new Date(bookingDetails.startTime).toLocaleString('zh-TW')}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; color: #666;"><strong>結束時間：</strong></td>
+                <td style="padding: 8px 0; color: #333;">${new Date(bookingDetails.endTime).toLocaleString('zh-TW')}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; color: #666;"><strong>時長：</strong></td>
+                <td style="padding: 8px 0; color: #333;">${bookingDetails.duration} 分鐘</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; color: #666;"><strong>總費用：</strong></td>
+                <td style="padding: 8px 0; color: #e74c3c; font-weight: bold;">NT$ ${bookingDetails.totalCost}</td>
+              </tr>
+            </table>
+          </div>
+          
+          <div style="background: #e8f5e8; padding: 15px; border-radius: 8px; margin: 20px 0;">
+            <p style="margin: 0; color: #2d5a2d; font-weight: bold;">
+              ✅ 預約已確認！<br>
+              📅 請在預約時間準時上線，夥伴會與您聯繫。<br>
+              💬 Discord 頻道將在預約開始前自動創建。
+            </p>
+          </div>
+          
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="https://peiplay.vercel.app/" 
+               style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                      color: white; padding: 15px 30px; text-decoration: none; border-radius: 25px; 
+                      font-weight: bold; font-size: 16px; box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);">
+              🌐 前往 PeiPlay 網站
+            </a>
+          </div>
+          
+          <p style="color: #666; font-size: 14px; margin-top: 30px;">
+            如有任何問題，請聯繫我們的客服團隊。<br>
+            祝您遊戲愉快！ 🎮
+          </p>
+        </div>
+        
+        <div style="text-align: center; margin-top: 20px; color: #999; font-size: 12px;">
+          <p>此郵件由 PeiPlay 系統自動發送，請勿回覆。</p>
+        </div>
+      </div>
+    `;
+
+    const mailOptions = {
+      from: process.env.EMAIL_USER,
+      to: customerEmail,
+      subject: subject,
+      html: html
+    };
+
+    await transporter.sendMail(mailOptions);
+    console.log(`✅ 預約確認通知已發送給顧客: ${customerEmail}`);
+    
+  } catch (error) {
+    console.error('發送預約確認通知失敗:', error);
+    throw error;
+  }
+}
+
 // 發送預約通知給夥伴
 export async function sendBookingNotificationToPartner(
   partnerEmail: string,

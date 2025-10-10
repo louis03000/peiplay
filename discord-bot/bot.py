@@ -1080,13 +1080,20 @@ async def check_missing_ratings():
                         except Exception as e:
                             print(f"❌ 發送遺失評價失敗: {e}")
                 
-                # 清除頻道記錄，避免重複處理
+                # 清除頻道記錄並標記預約為完成，避免重複處理
                 booking_ids = [b.id for b in missing_ratings]
                 s.execute(text("""
                     UPDATE "Booking" 
-                    SET "discordVoiceChannelId" = NULL, "discordTextChannelId" = NULL
+                    SET "discordVoiceChannelId" = NULL, "discordTextChannelId" = NULL, status = 'COMPLETED'
                     WHERE id = ANY(:booking_ids)
                 """), {"booking_ids": booking_ids})
+                
+                # 計算推薦收入
+                for booking in missing_ratings:
+                    try:
+                        calculate_referral_earnings(booking.id)
+                    except Exception as e:
+                        print(f"❌ 計算推薦收入失敗 {booking.id}: {e}")
                 s.commit()
                 
     except Exception as e:

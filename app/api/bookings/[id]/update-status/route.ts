@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { sendBookingConfirmationEmail } from '@/lib/email'
 
 
 export const dynamic = 'force-dynamic';
@@ -30,13 +31,45 @@ export async function PUT(
         ...(paymentError && { paymentError })
       },
       include: {
+        customer: {
+          include: {
+            user: true
+          }
+        },
         schedule: {
           include: {
-            partner: true
+            partner: {
+              include: {
+                user: true
+              }
+            }
           }
         }
       }
     })
+
+    // 發送狀態更新通知
+    if (status === 'CONFIRMED' && updatedBooking.customer.user.email) {
+      try {
+        const duration = Math.round((new Date(updatedBooking.schedule.endTime).getTime() - new Date(updatedBooking.schedule.startTime).getTime()) / (1000 * 60));
+        
+        await sendBookingConfirmationEmail(
+          updatedBooking.customer.user.email,
+          updatedBooking.customer.user.name || '客戶',
+          updatedBooking.schedule.partner.user.name || '夥伴',
+          {
+            duration: duration,
+            startTime: updatedBooking.schedule.startTime.toISOString(),
+            endTime: updatedBooking.schedule.endTime.toISOString(),
+            totalCost: updatedBooking.finalAmount || 0,
+            bookingId: updatedBooking.id
+          }
+        );
+        console.log('✅ 預約確認通知 email 已發送給顧客');
+      } catch (emailError) {
+        console.error('❌ 發送預約確認通知失敗:', emailError);
+      }
+    }
 
     // 如果預約完成，計算推薦收入
     if (status === 'COMPLETED') {

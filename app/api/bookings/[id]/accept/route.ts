@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
+import { sendBookingConfirmationEmail } from '@/lib/email';
 import { prisma } from '@/lib/prisma';
 
 export const dynamic = 'force-dynamic';
@@ -41,8 +42,45 @@ export async function POST(
     // 更新狀態為 CONFIRMED
     const updatedBooking = await prisma.booking.update({
       where: { id: bookingId },
-      data: { status: 'CONFIRMED' as any }
+      data: { status: 'CONFIRMED' as any },
+      include: {
+        customer: {
+          include: {
+            user: true
+          }
+        },
+        schedule: {
+          include: {
+            partner: {
+              include: {
+                user: true
+              }
+            }
+          }
+        }
+      }
     });
+    
+    // 發送 Email 確認通知給顧客
+    try {
+      const duration = Math.round((new Date(updatedBooking.schedule.endTime).getTime() - new Date(updatedBooking.schedule.startTime).getTime()) / (1000 * 60));
+      
+      await sendBookingConfirmationEmail(
+        updatedBooking.customer.user.email,
+        updatedBooking.customer.user.name || '客戶',
+        updatedBooking.schedule.partner.user.name || '夥伴',
+        {
+          duration: duration,
+          startTime: updatedBooking.schedule.startTime.toISOString(),
+          endTime: updatedBooking.schedule.endTime.toISOString(),
+          totalCost: updatedBooking.finalAmount || 0,
+          bookingId: updatedBooking.id
+        }
+      );
+      console.log('✅ 預約確認通知 email 已發送給顧客');
+    } catch (emailError) {
+      console.error('❌ 發送預約確認通知失敗:', emailError);
+    }
     
     // 發送 Discord 通知給顧客
     try {
