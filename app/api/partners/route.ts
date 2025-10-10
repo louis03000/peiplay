@@ -11,9 +11,10 @@ export async function GET(request: Request) {
     console.log('session.user.id', session?.user?.id);
     const user = session?.user?.id ? await prisma.user.findUnique({ where: { id: session.user.id } }) : null;
     console.log('user 查詢結果', user);
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: '請先登入' }, { status: 401 });
-    }
+    // 允許未登入用戶查看夥伴列表（用於預約頁面）
+    // if (!session?.user?.id) {
+    //   return NextResponse.json({ error: '請先登入' }, { status: 401 });
+    // }
     const url = new URL(request.url);
     const startDate = url.searchParams.get("startDate");
     const endDate = url.searchParams.get("endDate");

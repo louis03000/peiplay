@@ -6,7 +6,7 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
   try {
-    // 檢查用戶是否登入
+    // 檢查用戶是否登入（敏感圖片需要登入才能訪問）
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
       return NextResponse.json({ error: '未授權訪問' }, { status: 401 });

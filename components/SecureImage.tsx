@@ -52,8 +52,9 @@ export default function SecureImage({
     )
   }
 
-  // 使用安全代理 URL
-  const secureSrc = `/api/secure-image?url=${encodeURIComponent(src)}`
+  // 檢查是否為夥伴圖片（來自 Cloudinary），如果是則直接使用原始 URL
+  const isPartnerImage = src.includes('res.cloudinary.com')
+  const secureSrc = isPartnerImage ? src : `/api/secure-image?url=${encodeURIComponent(src)}`
 
   const imageProps = {
     src: secureSrc,
