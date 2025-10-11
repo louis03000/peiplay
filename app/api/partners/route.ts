@@ -68,6 +68,9 @@ export async function GET(request: Request) {
             isSuspended: true,
             suspensionEndsAt: true,
             reviewsReceived: {
+              where: {
+                isApproved: true
+              },
               select: {
                 rating: true
               }

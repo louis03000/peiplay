@@ -156,6 +156,8 @@ model Review {
   rating     Int
   comment    String?
   createdAt  DateTime @default(now())
+  isApproved Boolean  @default(false) // 管理員審核狀態
+  approvedAt DateTime? // 審核通過時間
   booking    Booking  @relation(fields: [bookingId], references: [id])
   reviewee   User     @relation("Reviewee", fields: [revieweeId], references: [id])
   reviewer   User     @relation("Reviewer", fields: [reviewerId], references: [id])

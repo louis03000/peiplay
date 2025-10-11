@@ -70,6 +70,8 @@ export type Partner = {
   isAvailableNow: boolean;
   isRankBooster: boolean;
   customerMessage?: string;
+  averageRating?: number;
+  totalReviews?: number;
 };
 
 // 工具函式：判斷兩個日期是否同一天（本地時區）
@@ -423,20 +425,20 @@ function BookingWizardContent() {
   }, [step, selectedPartner, selectedDate, selectedTimes, selectedDuration, onlyAvailable])
 
   return (
-    <div className="max-w-2xl mx-auto mt-16 sm:mt-36 rounded-3xl p-0 shadow-2xl bg-[#1e293b]/80 backdrop-blur-lg border border-white/10 overflow-hidden">
+    <div className="max-w-2xl mx-auto mt-16 sm:mt-36 rounded-3xl p-0 shadow-2xl bg-white/95 backdrop-blur-lg border border-gray-200 overflow-hidden">
       {/* 移除金幣餘額顯示 */}
 
       {/* 步驟指示器 */}
-      <div className="px-4 sm:px-10 pt-6 sm:pt-10 pb-4 sm:pb-6 bg-[#334155]/20">
+      <div className="px-4 sm:px-10 pt-6 sm:pt-10 pb-4 sm:pb-6 bg-gradient-to-r from-blue-50 to-indigo-50">
         <div className="flex items-center justify-between relative">
-          <div className="absolute top-1/2 left-4 sm:left-6 right-4 sm:right-6 h-1 bg-[#475569]/30 -z-10 rounded-full" style={{transform:'translateY(-50%)'}} />
+          <div className="absolute top-1/2 left-4 sm:left-6 right-4 sm:right-6 h-1 bg-gray-300 -z-10 rounded-full" style={{transform:'translateY(-50%)'}} />
           {getSteps(onlyAvailable).map((s, i) => (
             <div key={s} className="flex-1 flex flex-col items-center">
               <div className={`w-6 h-6 sm:w-8 sm:h-8 flex items-center justify-center rounded-full border-2 transition-all duration-300 text-xs sm:text-sm
-                ${i < step ? 'bg-[#6366f1] border-[#6366f1] text-white shadow-lg' :
-                  i === step ? 'bg-[#8b5cf6] border-[#8b5cf6] text-white shadow-xl scale-110' :
-                  'bg-gray-800 border-gray-600 text-gray-400'}`}>{i+1}</div>
-              <div className={`mt-1 sm:mt-2 text-xs ${i === step ? 'text-indigo-300 font-bold' : 'text-gray-400'}`}>
+                ${i < step ? 'bg-blue-600 border-blue-600 text-white shadow-lg' :
+                  i === step ? 'bg-indigo-600 border-indigo-600 text-white shadow-xl scale-110' :
+                  'bg-gray-200 border-gray-400 text-gray-500'}`}>{i+1}</div>
+              <div className={`mt-1 sm:mt-2 text-xs ${i === step ? 'text-indigo-600 font-bold' : 'text-gray-500'}`}>
                 <span className="hidden sm:inline">{s}</span>
                 <span className="sm:hidden">{s.split(' ')[1] || s}</span>
               </div>
@@ -477,7 +479,7 @@ function BookingWizardContent() {
               
               {/* 搜尋框 - 手機上獨占一行 */}
               <input
-                className="w-full sm:flex-1 px-3 sm:px-4 py-2 rounded-full bg-gray-900/80 text-white border border-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-400 placeholder-gray-400 text-sm sm:text-base"
+                className="w-full sm:flex-1 px-3 sm:px-4 py-2 rounded-full bg-white text-gray-900 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-gray-500 text-sm sm:text-base shadow-sm"
                 placeholder="搜尋夥伴姓名或專長..."
                 value={search}
                 onChange={e => setSearch(e.target.value)}
@@ -604,8 +606,8 @@ function BookingWizardContent() {
         )}
         {((onlyAvailable && step === 2) || (!onlyAvailable && step === 3)) && selectedPartner && (
           <div>
-            <div className="text-lg text-white/90 mb-4">（3）確認預約</div>
-            <div className="bg-gray-800/30 rounded-lg p-6 mb-6">
+            <div className="text-lg text-gray-900 mb-4">（3）確認預約</div>
+            <div className="bg-gray-50 rounded-lg p-6 mb-6 border border-gray-200">
               <div className="flex items-center gap-4 mb-4">
                 <div className="w-16 h-16 rounded-full bg-indigo-500 flex items-center justify-center text-white font-bold">
                   {selectedPartner.name.charAt(0)}
@@ -691,19 +693,19 @@ function BookingWizardContent() {
             </div>
             
             <div className="flex gap-4 justify-center">
-              <button
-                onClick={handlePrevStep}
-                className="px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
-              >
-                上一步
-              </button>
-              <button
-                onClick={handleCreateBooking}
-                disabled={creating}
-                className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {creating ? '處理中...' : '確認預約'}
-              </button>
+                <button
+                  onClick={handlePrevStep}
+                  className="px-6 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors shadow-lg"
+                >
+                  上一步
+                </button>
+                <button
+                  onClick={handleCreateBooking}
+                  disabled={creating}
+                  className="px-6 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
+                >
+                  {creating ? '處理中...' : '確認預約'}
+                </button>
             </div>
           </div>
         )}

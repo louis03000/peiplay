@@ -80,36 +80,35 @@ export default function Home() {
   }, [])
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
-      {/* Hero Section */}
-      <div className="relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-r from-purple-600/20 to-blue-600/20"></div>
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-16">
+    <div className="snap-y snap-mandatory overflow-y-scroll h-screen">
+      {/* Hero Section - 第一屏 */}
+      <div className="h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 snap-start">
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center">
-            <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold text-white mb-6">
-              <span className="bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">
+            <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold text-gray-900 mb-6">
+              <span className="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
                 PeiPlay
               </span>
             </h1>
-            <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold text-white mb-4">
+            <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold text-gray-800 mb-4">
               高品質遊戲陪玩平台
             </h2>
-            <p className="text-lg md:text-xl text-gray-300 mb-8 max-w-3xl mx-auto">
+            <p className="text-lg md:text-xl text-gray-600 mb-8 max-w-3xl mx-auto">
               專業遊戲夥伴，安全預約系統，為您提供最優質的遊戲體驗。
               無論您是想找人陪玩，還是成為專業陪玩夥伴，PeiPlay 都是您的最佳選擇。
             </p>
             
             {/* CTA Buttons */}
-            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-12">
+            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
               <button
                 onClick={() => router.push('/booking')}
-                className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-bold py-4 px-8 rounded-xl text-lg shadow-lg transform hover:scale-105 transition-all duration-200"
+                className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold py-4 px-8 rounded-xl text-lg shadow-lg transform hover:scale-105 transition-all duration-200"
               >
                 🎮 立即預約陪玩
               </button>
               <button
                 onClick={() => router.push('/join')}
-                className="bg-white text-purple-600 hover:bg-gray-100 font-bold py-4 px-8 rounded-xl text-lg shadow-lg transform hover:scale-105 transition-all duration-200"
+                className="bg-white text-blue-600 hover:bg-blue-50 border-2 border-blue-600 font-bold py-4 px-8 rounded-xl text-lg shadow-lg transform hover:scale-105 transition-all duration-200"
               >
                 💼 成為陪玩夥伴
               </button>
@@ -120,43 +119,43 @@ export default function Home() {
       </div>
 
 
-      {/* How It Works Section */}
-      <div className="py-16">
+      {/* How It Works Section - 第二屏 */}
+      <div className="h-screen flex items-center justify-center bg-white snap-start">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h3 className="text-3xl md:text-4xl font-bold text-white mb-4">
+            <h3 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
               如何使用 PeiPlay？
             </h3>
-            <p className="text-lg text-gray-300 max-w-2xl mx-auto">
+            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
               簡單三步驟，立即開始您的遊戲陪玩體驗
             </p>
           </div>
 
           <div className="grid md:grid-cols-3 gap-8">
             <div className="text-center">
-              <div className="bg-gradient-to-r from-purple-600 to-blue-600 rounded-full w-16 h-16 flex items-center justify-center text-white font-bold text-xl mx-auto mb-4">
+              <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-full w-20 h-20 flex items-center justify-center text-white font-bold text-2xl mx-auto mb-6 shadow-lg">
                 1
               </div>
-              <h4 className="text-xl font-bold text-white mb-3">選擇夥伴</h4>
-              <p className="text-gray-300">
+              <h4 className="text-xl font-bold text-gray-900 mb-4">選擇夥伴</h4>
+              <p className="text-gray-600 text-lg">
                 瀏覽我們的專業遊戲夥伴，根據遊戲類型、評價和價格選擇最適合的夥伴
               </p>
             </div>
             <div className="text-center">
-              <div className="bg-gradient-to-r from-purple-600 to-blue-600 rounded-full w-16 h-16 flex items-center justify-center text-white font-bold text-xl mx-auto mb-4">
+              <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-full w-20 h-20 flex items-center justify-center text-white font-bold text-2xl mx-auto mb-6 shadow-lg">
                 2
               </div>
-              <h4 className="text-xl font-bold text-white mb-3">預約時間</h4>
-              <p className="text-gray-300">
+              <h4 className="text-xl font-bold text-gray-900 mb-4">預約時間</h4>
+              <p className="text-gray-600 text-lg">
                 選擇您方便的時間，系統會自動創建 Discord 頻道讓您與夥伴溝通
               </p>
             </div>
             <div className="text-center">
-              <div className="bg-gradient-to-r from-purple-600 to-blue-600 rounded-full w-16 h-16 flex items-center justify-center text-white font-bold text-xl mx-auto mb-4">
+              <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-full w-20 h-20 flex items-center justify-center text-white font-bold text-2xl mx-auto mb-6 shadow-lg">
                 3
               </div>
-              <h4 className="text-xl font-bold text-white mb-3">開始遊戲</h4>
-              <p className="text-gray-300">
+              <h4 className="text-xl font-bold text-gray-900 mb-4">開始遊戲</h4>
+              <p className="text-gray-600 text-lg">
                 在預約時間進入語音頻道，與夥伴一起享受精彩的遊戲時光
               </p>
             </div>
@@ -164,14 +163,14 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Testimonials Section */}
-      <div className="py-16 bg-black/20">
+      {/* Testimonials Section - 第三屏 */}
+      <div className="h-screen flex items-center justify-center bg-gradient-to-r from-blue-50 to-indigo-50 snap-start">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h3 className="text-3xl md:text-4xl font-bold text-white mb-4">
+            <h3 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
               用戶見證
             </h3>
-            <p className="text-lg text-gray-300 max-w-2xl mx-auto">
+            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
               看看其他用戶對 PeiPlay 的真實評價
             </p>
           </div>
@@ -179,21 +178,21 @@ export default function Home() {
           {reviews.length > 0 ? (
             <div className="grid md:grid-cols-3 gap-8">
               {reviews.map((review) => (
-                <div key={review.id} className="bg-white/10 backdrop-blur-sm rounded-xl p-6">
-                  <div className="flex items-center mb-4">
+                <div key={review.id} className="bg-white rounded-xl p-8 shadow-lg border border-gray-200">
+                  <div className="flex items-center mb-6">
                     <div className="flex text-yellow-400">
                       {[...Array(5)].map((_, i) => (
-                        <span key={i} className={i < review.rating ? 'text-yellow-400' : 'text-gray-600'}>
+                        <span key={i} className={i < review.rating ? 'text-yellow-400' : 'text-gray-300'}>
                           ⭐
                         </span>
                       ))}
                     </div>
                   </div>
-                  <p className="text-gray-300 mb-4">
+                  <p className="text-gray-700 mb-6 text-lg">
                     "{review.comment}"
                   </p>
-                  <div className="text-white font-semibold">- {review.reviewerName}</div>
-                  <div className="text-xs text-gray-400 mt-2">
+                  <div className="text-gray-900 font-semibold text-lg">- {review.reviewerName}</div>
+                  <div className="text-sm text-gray-500 mt-2">
                     {new Date(review.createdAt).toLocaleDateString('zh-TW')}
                   </div>
                 </div>
@@ -201,19 +200,20 @@ export default function Home() {
             </div>
           ) : (
             <div className="text-center">
-              <p className="text-gray-300 text-lg mb-8">
+              <div className="text-6xl mb-8">💬</div>
+              <p className="text-gray-600 text-xl mb-8">
                 目前還沒有用戶評價，成為第一個分享體驗的人吧！
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <button
                   onClick={() => router.push('/booking')}
-                  className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-bold py-3 px-6 rounded-xl text-lg shadow-lg transform hover:scale-105 transition-all duration-200"
+                  className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold py-4 px-8 rounded-xl text-lg shadow-lg transform hover:scale-105 transition-all duration-200"
                 >
                   🎮 立即體驗
                 </button>
                 <button
                   onClick={() => router.push('/join')}
-                  className="bg-white text-purple-600 hover:bg-gray-100 font-bold py-3 px-6 rounded-xl text-lg shadow-lg transform hover:scale-105 transition-all duration-200"
+                  className="bg-white text-blue-600 hover:bg-blue-50 border-2 border-blue-600 font-bold py-4 px-8 rounded-xl text-lg shadow-lg transform hover:scale-105 transition-all duration-200"
                 >
                   💼 成為夥伴
                 </button>
@@ -223,25 +223,26 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Final CTA Section */}
-      <div className="py-16">
+      {/* Final CTA Section - 第四屏 */}
+      <div className="h-screen flex items-center justify-center bg-white snap-start">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h3 className="text-3xl md:text-4xl font-bold text-white mb-4">
+          <div className="text-6xl mb-8">🚀</div>
+          <h3 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
             準備開始您的遊戲之旅了嗎？
           </h3>
-          <p className="text-lg text-gray-300 mb-8">
+          <p className="text-lg text-gray-600 mb-8">
             立即加入 PeiPlay，體驗最專業的遊戲陪玩服務
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <button
               onClick={() => router.push('/booking')}
-              className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-bold py-4 px-8 rounded-xl text-lg shadow-lg transform hover:scale-105 transition-all duration-200"
+              className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold py-4 px-8 rounded-xl text-lg shadow-lg transform hover:scale-105 transition-all duration-200"
             >
               🎮 立即預約
             </button>
             <button
               onClick={() => router.push('/join')}
-              className="bg-white text-purple-600 hover:bg-gray-100 font-bold py-4 px-8 rounded-xl text-lg shadow-lg transform hover:scale-105 transition-all duration-200"
+              className="bg-white text-blue-600 hover:bg-blue-50 border-2 border-blue-600 font-bold py-4 px-8 rounded-xl text-lg shadow-lg transform hover:scale-105 transition-all duration-200"
             >
               💼 成為夥伴
             </button>
@@ -249,49 +250,6 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Footer */}
-      <footer className="bg-gray-900 text-white py-12">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid md:grid-cols-4 gap-8">
-            <div>
-              <h3 className="text-lg font-bold mb-4">PeiPlay</h3>
-              <p className="text-gray-400 text-sm">
-                專業遊戲陪玩平台，為您提供最優質的遊戲體驗。
-              </p>
-            </div>
-            <div>
-              <h4 className="text-lg font-semibold mb-4">服務</h4>
-              <ul className="space-y-2 text-sm text-gray-400">
-                <li><a href="/booking" className="hover:text-white">預約陪玩</a></li>
-                <li><a href="/join" className="hover:text-white">成為夥伴</a></li>
-                <li><a href="/partners" className="hover:text-white">夥伴列表</a></li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="text-lg font-semibold mb-4">支援</h4>
-              <ul className="space-y-2 text-sm text-gray-400">
-                <li><a href="#" className="hover:text-white">常見問題</a></li>
-                <li><a href="#" className="hover:text-white">使用指南</a></li>
-                <li><a href="#" className="hover:text-white">聯絡客服</a></li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="text-lg font-semibold mb-4">聯絡我們</h4>
-              <div className="space-y-2 text-sm text-gray-400">
-            <div>客服Line：@484mkuzi</div>
-            <div>客服信箱：peiplay987@gmail.com</div>
-            <div>客服電話：0953868520</div>
-            <div>客服時間：週一～週日 24 小時</div>
-            <div>公司統一編號：95367956</div>
-            <div>營業人名稱：昇褀科技</div>
-          </div>
-            </div>
-          </div>
-          <div className="border-t border-gray-800 mt-8 pt-8 text-center text-sm text-gray-400">
-            <p>&copy; 2024 PeiPlay. All rights reserved. 需要幫助請聯絡我們，我們將竭誠為您服務。</p>
-          </div>
-        </div>
-      </footer>
     </div>
   )
 }

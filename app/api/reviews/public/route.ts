@@ -36,7 +36,9 @@ export async function GET() {
         // 只顯示 4 星以上的評價
         rating: {
           gte: 4
-        }
+        },
+        // 只顯示管理員已審核通過的評價
+        isApproved: true
       }
     })
 
