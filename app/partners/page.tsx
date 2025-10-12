@@ -7,7 +7,7 @@ import PartnerHero from '@/components/PartnerHero'
 import PartnerFilter from '@/components/PartnerFilter'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import Navigation from '@/components/Navigation'
+import Navigation from '@/app/components/Navigation'
 
 // 防抖 Hook
 function useDebounce<T>(value: T, delay: number): T {

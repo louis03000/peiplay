@@ -9,7 +9,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import Link from 'next/link'
-import Navigation from '@/components/Navigation'
+import Navigation from '@/app/components/Navigation'
 
 const MAX_GAMES = 10;
 
