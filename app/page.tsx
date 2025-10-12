@@ -176,13 +176,13 @@ export default function Home() {
 
 
       {/* How It Works Section - 第二屏 */}
-      <div className="h-screen flex items-center justify-center bg-palette-500">
+      <div className="h-screen flex items-center justify-center bg-palette-900">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h3 className="text-3xl md:text-4xl font-bold text-palette-900 mb-4">
+            <h3 className="text-3xl md:text-4xl font-bold text-white mb-4">
               如何使用 PeiPlay？
             </h3>
-            <p className="text-lg text-palette-700 max-w-2xl mx-auto">
+            <p className="text-lg text-palette-400 max-w-2xl mx-auto">
               簡單三步驟，立即開始您的遊戲陪玩體驗
             </p>
           </div>
@@ -192,8 +192,8 @@ export default function Home() {
                      <div className="bg-gradient-to-r from-palette-800 to-palette-700 rounded-full w-20 h-20 flex items-center justify-center text-white font-bold text-2xl mx-auto mb-6 shadow-lg">
                        1
                      </div>
-                     <h4 className="text-xl font-bold text-palette-900 mb-4">選擇夥伴</h4>
-                     <p className="text-palette-700 text-lg">
+                     <h4 className="text-xl font-bold text-white mb-4">選擇夥伴</h4>
+                     <p className="text-palette-400 text-lg">
                        瀏覽我們的專業遊戲夥伴，根據遊戲類型、評價和價格選擇最適合的夥伴
                      </p>
                    </div>
@@ -201,8 +201,8 @@ export default function Home() {
                      <div className="bg-gradient-to-r from-palette-800 to-palette-700 rounded-full w-20 h-20 flex items-center justify-center text-white font-bold text-2xl mx-auto mb-6 shadow-lg">
                        2
                      </div>
-                     <h4 className="text-xl font-bold text-palette-900 mb-4">預約時間</h4>
-                     <p className="text-palette-700 text-lg">
+                     <h4 className="text-xl font-bold text-white mb-4">預約時間</h4>
+                     <p className="text-palette-400 text-lg">
                        選擇您方便的時間，系統會自動創建 Discord 頻道讓您與夥伴溝通
                      </p>
                    </div>
@@ -210,8 +210,8 @@ export default function Home() {
                      <div className="bg-gradient-to-r from-palette-800 to-palette-700 rounded-full w-20 h-20 flex items-center justify-center text-white font-bold text-2xl mx-auto mb-6 shadow-lg">
                        3
                      </div>
-                     <h4 className="text-xl font-bold text-palette-900 mb-4">開始遊戲</h4>
-                     <p className="text-palette-700 text-lg">
+                     <h4 className="text-xl font-bold text-white mb-4">開始遊戲</h4>
+                     <p className="text-palette-400 text-lg">
                        在預約時間進入語音頻道，與夥伴一起享受精彩的遊戲時光
                      </p>
                    </div>
@@ -220,13 +220,13 @@ export default function Home() {
       </div>
 
       {/* Testimonials Section - 第三屏 */}
-      <div className="h-screen flex items-center justify-center bg-palette-600">
+      <div className="h-screen flex items-center justify-center bg-palette-900">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h3 className="text-3xl md:text-4xl font-bold text-palette-400 mb-4">
+            <h3 className="text-3xl md:text-4xl font-bold text-white mb-4">
               用戶見證
             </h3>
-            <p className="text-lg text-palette-500 max-w-2xl mx-auto">
+            <p className="text-lg text-palette-400 max-w-2xl mx-auto">
               看看其他用戶對 PeiPlay 的真實評價
             </p>
           </div>
@@ -280,13 +280,13 @@ export default function Home() {
       </div>
 
       {/* Final CTA Section - 第四屏 */}
-      <div className="h-screen flex items-center justify-center bg-palette-700">
+      <div className="h-screen flex items-center justify-center bg-palette-900">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <div className="text-6xl mb-8">🚀</div>
-          <h3 className="text-3xl md:text-4xl font-bold text-palette-400 mb-4">
+          <h3 className="text-3xl md:text-4xl font-bold text-white mb-4">
             準備開始您的遊戲之旅了嗎？
           </h3>
-          <p className="text-lg text-palette-500 mb-8">
+          <p className="text-lg text-palette-400 mb-8">
             立即加入 PeiPlay，體驗最專業的遊戲陪玩服務
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
