@@ -134,202 +134,76 @@ export default function Home() {
   }, [handleWheel])
 
   return (
-    <div 
-      ref={scrollContainerRef}
-      className="overflow-y-scroll h-screen hide-scrollbar smooth-scroll optimized-scroll"
-    >
-      {/* Navigation */}
-      <nav className="fixed top-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-lg shadow-lg border-b border-gray-200">
+    <div className="min-h-screen bg-white text-black">
+      {/* 頂部橫幅 */}
+      <div className="bg-gradient-to-r from-purple-600 to-indigo-800 text-white py-4">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
+          <div className="flex justify-between items-center">
             {/* Logo */}
             <div className="flex-shrink-0">
-              <Link href="/" className="text-2xl font-bold text-gray-900">
+              <Link href="/" className="text-2xl font-bold text-white">
                 PeiPlay
               </Link>
             </div>
             
             {/* Navigation Links */}
-            <div className="hidden md:flex items-center space-x-8">
+            <div className="flex items-center space-x-8">
               <Link
                 href="/booking"
-                className="text-gray-700 hover:text-blue-600 transition-colors font-medium"
+                className="text-white hover:text-gray-200 transition-colors font-medium"
               >
                 預約
               </Link>
               <Link
                 href="/ranking"
-                className="text-gray-700 hover:text-blue-600 transition-colors font-medium"
+                className="text-white hover:text-gray-200 transition-colors font-medium"
               >
                 排行榜
               </Link>
               <Link
                 href="/partners"
-                className="text-gray-700 hover:text-blue-600 transition-colors font-medium"
+                className="text-white hover:text-gray-200 transition-colors font-medium"
               >
                 搜尋
               </Link>
-              <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center ml-2">
-                <span className="text-white text-sm font-bold">0</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </nav>
-
-      {/* Hero Section - 第一屏 */}
-      <div className="h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 pt-16">
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center">
-            <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold text-gray-900 mb-6">
-              PeiPlay
-            </h1>
-            <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold text-gray-700 mb-4">
-              高品質遊戲陪玩平台
-            </h2>
-            <p className="text-lg md:text-xl text-gray-600 mb-8 max-w-3xl mx-auto">
-              專業遊戲夥伴，安全預約系統，為您提供最優質的遊戲體驗。
-              無論您是想找人陪玩，還是成為專業陪玩夥伴，PeiPlay 都是您的最佳選擇。
-            </p>
-            
-            {/* CTA Buttons */}
-            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-              <button
-                onClick={() => router.push('/booking')}
-                className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold py-4 px-8 rounded-xl text-lg shadow-lg transform hover:scale-105 transition-all duration-200 flex items-center gap-2"
-              >
-                🎮 立即預約陪玩
-              </button>
-              <button
-                onClick={() => router.push('/join')}
-                className="bg-white text-blue-600 hover:bg-gray-50 border-2 border-blue-600 font-bold py-4 px-8 rounded-xl text-lg shadow-lg transform hover:scale-105 transition-all duration-200 flex items-center gap-2"
-              >
-                💼 成為陪玩夥伴
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Statistics Section - 第二屏 */}
-      <div className="h-screen flex items-center justify-center bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-            <div className="text-center">
-              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-6 border border-blue-100">
-                <div className="text-4xl font-bold text-blue-600 mb-2">500+</div>
-                <div className="text-gray-600">活躍夥伴</div>
-              </div>
-            </div>
-            <div className="text-center">
-              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-6 border border-blue-100">
-                <div className="text-4xl font-bold text-blue-600 mb-2">10,000+</div>
-                <div className="text-gray-600">成功預約</div>
-              </div>
-            </div>
-            <div className="text-center">
-              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-6 border border-blue-100">
-                <div className="text-4xl font-bold text-blue-600 mb-2 flex items-center justify-center gap-1">
-                  4.9 <span className="text-yellow-500">⭐</span>
-                </div>
-                <div className="text-gray-600">用戶評價</div>
-              </div>
-            </div>
-            <div className="text-center">
-              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-6 border border-blue-100">
-                <div className="text-4xl font-bold text-blue-600 mb-2">24/7</div>
-                <div className="text-gray-600">客服支援</div>
+              <div className="w-8 h-8 bg-indigo-600 rounded-full flex items-center justify-center ml-2">
+                <span className="text-white text-sm font-bold">I</span>
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Why Choose PeiPlay Section - 第三屏 */}
-      <div className="h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-blue-50">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-4xl font-bold text-gray-900 mb-6">為什麼選擇 PeiPlay？</h2>
-          <p className="text-xl text-gray-600">
-            我們提供最安全、最專業的遊戲陪玩服務，讓您的遊戲體驗更加精彩
+      {/* 主要內容 - 白底黑字，文字置中 */}
+      <div className="flex items-center justify-center min-h-[80vh] px-4 sm:px-6 lg:px-8">
+        <div className="text-center max-w-4xl mx-auto">
+          <h1 className="text-6xl md:text-8xl font-bold text-black mb-8">
+            PeiPlay
+          </h1>
+          
+          <h2 className="text-3xl md:text-4xl font-bold text-black mb-8">
+            高品質遊戲陪玩平台
+          </h2>
+          
+          <p className="text-xl md:text-2xl text-black mb-12 max-w-3xl mx-auto">
+            專業遊戲夥伴，安全預約系統，為您提供最優質的遊戲體驗。
+            無論您是想找人陪玩，還是成為專業陪玩夥伴，PeiPlay 都是您的最佳選擇。
           </p>
-        </div>
-      </div>
-
-      {/* Testimonials Section - 第四屏 */}
-      <div className="h-screen flex items-center justify-center bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h3 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-              用戶見證
-            </h3>
-            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-              看看其他用戶對 PeiPlay 的真實評價
-            </p>
-          </div>
-
-          {reviews.length > 0 ? (
-            <div className="grid md:grid-cols-3 gap-8">
-              {reviews.map((review) => (
-                <div key={review.id} className="bg-white rounded-xl p-8 shadow-lg border border-gray-200">
-                  <div className="flex items-center mb-6">
-                    <div className="flex text-yellow-400">
-                      {[...Array(5)].map((_, i) => (
-                        <span key={i} className={i < review.rating ? 'text-yellow-400' : 'text-gray-300'}>
-                          ⭐
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                  <p className="text-gray-700 mb-6 text-lg">
-                    "{review.comment}"
-                  </p>
-                  <div className="text-gray-900 font-semibold text-lg">- {review.reviewerName}</div>
-                  <div className="text-sm text-gray-500 mt-2">
-                    {new Date(review.createdAt).toLocaleDateString('zh-TW')}
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center">
-              <div className="text-6xl mb-8">💬</div>
-              <p className="text-gray-600 text-xl mb-8">
-                目前還沒有用戶評價，成為第一個分享體驗的人吧！
-              </p>
-              <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <button
-                  onClick={() => router.push('/booking')}
-                  className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold py-4 px-8 rounded-xl text-lg shadow-lg transform hover:scale-105 transition-all duration-200"
-                >
-                  🎮 立即體驗
-                </button>
-                <button
-                  onClick={() => router.push('/join')}
-                  className="bg-white text-blue-600 hover:bg-gray-50 border-2 border-blue-600 font-bold py-4 px-8 rounded-xl text-lg shadow-lg transform hover:scale-105 transition-all duration-200"
-                >
-                  💼 成為夥伴
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* 滾動指示器 */}
-      <div className="fixed right-6 top-1/2 transform -translate-y-1/2 z-50">
-        <div className="flex flex-col gap-3">
-          {[0, 1, 2, 3].map((index) => (
+          
+          <div className="flex flex-col sm:flex-row gap-6 justify-center items-center">
             <button
-              key={index}
-              onClick={() => scrollToSection(index)}
-              className={`w-3 h-3 rounded-full transition-all duration-300 ${
-                currentSection === index
-                  ? 'bg-blue-600 scale-125'
-                  : 'bg-gray-400 hover:bg-gray-600'
-              }`}
-              aria-label={`滾動到第 ${index + 1} 區塊`}
-            />
-          ))}
+              onClick={() => router.push('/booking')}
+              className="bg-black text-white font-bold py-4 px-12 rounded-lg text-xl shadow-lg transform hover:scale-105 transition-all duration-200 flex items-center gap-3 w-full max-w-md"
+            >
+              🎮 立即預約陪玩
+            </button>
+            <button
+              onClick={() => router.push('/join')}
+              className="bg-white text-black border-2 border-black font-bold py-4 px-12 rounded-lg text-xl shadow-lg transform hover:scale-105 transition-all duration-200 flex items-center gap-3 w-full max-w-md"
+            >
+              💼 成為陪玩夥伴
+            </button>
+          </div>
         </div>
       </div>
 

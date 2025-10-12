@@ -11,60 +11,42 @@ export default function Navigation() {
   }
 
   return (
-    <nav className="bg-palette-900 shadow">
+    <div className="bg-gradient-to-r from-purple-600 to-indigo-800 text-white py-4">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between h-16">
-          <div className="flex">
-            <div className="flex-shrink-0 flex items-center">
-              <Link href="/" className="text-xl font-bold text-white">
-                遊戲夥伴預約系統
-              </Link>
-            </div>
-            <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
-              <Link
-                href="/"
-                className={`inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium ${
-                  isActive('/')
-                    ? 'border-palette-700 text-white'
-                    : 'border-transparent text-palette-400 hover:border-palette-600 hover:text-white'
-                }`}
-              >
-                首頁
-              </Link>
-              <Link
-                href="/partners"
-                className={`inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium ${
-                  isActive('/partners')
-                    ? 'border-palette-700 text-white'
-                    : 'border-transparent text-palette-400 hover:border-palette-600 hover:text-white'
-                }`}
-              >
-                夥伴列表
-              </Link>
-              <Link
-                href="/booking"
-                className={`inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium ${
-                  isActive('/booking')
-                    ? 'border-palette-700 text-white'
-                    : 'border-transparent text-palette-400 hover:border-palette-600 hover:text-white'
-                }`}
-              >
-                預約
-              </Link>
-              <Link
-                href="/join"
-                className={`inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium ${
-                  isActive('/join')
-                    ? 'border-palette-700 text-white'
-                    : 'border-transparent text-palette-400 hover:border-palette-600 hover:text-white'
-                }`}
-              >
-                加入我們
-              </Link>
+        <div className="flex justify-between items-center">
+          {/* Logo */}
+          <div className="flex-shrink-0">
+            <Link href="/" className="text-2xl font-bold text-white">
+              PeiPlay
+            </Link>
+          </div>
+          
+          {/* Navigation Links */}
+          <div className="flex items-center space-x-8">
+            <Link
+              href="/booking"
+              className="text-white hover:text-gray-200 transition-colors font-medium"
+            >
+              預約
+            </Link>
+            <Link
+              href="/ranking"
+              className="text-white hover:text-gray-200 transition-colors font-medium"
+            >
+              排行榜
+            </Link>
+            <Link
+              href="/partners"
+              className="text-white hover:text-gray-200 transition-colors font-medium"
+            >
+              搜尋
+            </Link>
+            <div className="w-8 h-8 bg-indigo-600 rounded-full flex items-center justify-center ml-2">
+              <span className="text-white text-sm font-bold">I</span>
             </div>
           </div>
         </div>
       </div>
-    </nav>
+    </div>
   )
 } 
