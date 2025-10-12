@@ -48,8 +48,8 @@ export default function LoginPage() {
       <div className="w-full max-w-md">
         <div className="bg-white shadow-xl rounded-lg px-8 pt-6 pb-8 mb-4 border border-gray-200">
           <div className="text-center mb-6">
-            <h2 className="text-2xl font-bold text-black mb-2">登入 PeiPlay</h2>
-            <p className="text-black">歡迎回來！</p>
+            <h2 className="text-2xl font-bold text-black mb-2 text-center">登入 PeiPlay</h2>
+            <p className="text-black text-center">歡迎回來！</p>
           </div>
           <LineLoginButton />
           <div className="w-full border-t border-gray-300 my-8" />
@@ -74,19 +74,21 @@ export default function LoginPage() {
             />
             <button
               type="submit"
-              className="w-full py-2 rounded bg-black text-white font-bold"
+              className="w-full py-4 bg-black text-white font-bold border-2 border-black"
               disabled={isLoading}
+              style={{backgroundColor: 'black', color: 'white', borderColor: 'black'}}
             >
               {isLoading ? '登入中...' : '登入'}
             </button>
           </form>
           <button
-            className="mt-4 w-full py-2 rounded bg-gray-800 text-white font-bold hover:bg-gray-700 transition-colors"
+            className="mt-4 w-full py-4 bg-white text-black font-bold border-2 border-black hover:bg-gray-100 transition-colors"
             onClick={() => window.location.href = '/auth/register'}
+            style={{backgroundColor: 'white', color: 'black', borderColor: 'black'}}
           >
             其他方式註冊
           </button>
-          <p className="text-gray-600 text-sm mt-6">登入即表示您同意我們的服務條款和隱私政策</p>
+          <p className="text-gray-600 text-sm mt-6 text-center">登入即表示您同意我們的服務條款和隱私政策</p>
         </div>
       </div>
     </div>

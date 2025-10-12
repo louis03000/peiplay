@@ -134,9 +134,9 @@ export default function Home() {
   }, [handleWheel])
 
   return (
-    <div className="min-h-screen bg-white text-black">
+    <div className="min-h-screen bg-white text-black" style={{backgroundColor: 'white', color: 'black'}}>
       {/* 頂部橫幅 */}
-      <div className="bg-white text-black py-4 border-b border-gray-200">
+      <div className="bg-white text-black py-4 border-b border-gray-200" style={{backgroundColor: 'white', color: 'black'}}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center">
             {/* Logo */}
@@ -147,26 +147,29 @@ export default function Home() {
             </div>
             
             {/* Navigation Links */}
-            <div className="flex items-center space-x-8">
+            <div className="flex items-center space-x-12">
               <Link
                 href="/booking"
-                className="text-black hover:text-gray-600 transition-colors font-medium"
+                className="bg-white text-black border-2 border-black font-medium py-2 px-6 hover:bg-gray-100 transition-colors text-center"
+                style={{backgroundColor: 'white', color: 'black', borderColor: 'black'}}
               >
                 預約
               </Link>
               <Link
                 href="/ranking"
-                className="text-black hover:text-gray-600 transition-colors font-medium"
+                className="bg-white text-black border-2 border-black font-medium py-2 px-6 hover:bg-gray-100 transition-colors text-center"
+                style={{backgroundColor: 'white', color: 'black', borderColor: 'black'}}
               >
                 排行榜
               </Link>
               <Link
                 href="/partners"
-                className="text-black hover:text-gray-600 transition-colors font-medium"
+                className="bg-white text-black border-2 border-black font-medium py-2 px-6 hover:bg-gray-100 transition-colors text-center"
+                style={{backgroundColor: 'white', color: 'black', borderColor: 'black'}}
               >
                 搜尋
               </Link>
-              <div className="w-8 h-8 bg-black rounded-full flex items-center justify-center ml-2">
+              <div className="w-10 h-10 bg-black rounded-full flex items-center justify-center ml-4">
                 <span className="text-white text-sm font-bold">I</span>
               </div>
             </div>
@@ -174,32 +177,34 @@ export default function Home() {
         </div>
       </div>
 
-      {/* 主要內容 - 白底黑字，文字置中 */}
-      <div className="flex items-center justify-center min-h-[80vh] px-4 sm:px-6 lg:px-8">
-        <div className="text-center max-w-4xl mx-auto">
-          <h1 className="text-6xl md:text-8xl font-bold text-black mb-8">
+      {/* 主要內容 - 白底黑字，文字置中，集中在畫面中間 */}
+      <div className="min-h-[calc(100vh-80px)] flex items-center justify-center px-4 sm:px-6 lg:px-8" style={{backgroundColor: 'white', color: 'black'}}>
+        <div className="bg-white shadow-xl rounded-lg px-8 pt-6 pb-8 mb-4 border border-gray-200 max-w-2xl mx-auto text-center">
+          <h1 className="text-4xl md:text-5xl font-bold text-black mb-6" style={{color: 'black'}}>
             PeiPlay
           </h1>
           
-          <h2 className="text-3xl md:text-4xl font-bold text-black mb-8">
+          <h2 className="text-2xl md:text-3xl font-bold text-black mb-6" style={{color: 'black'}}>
             高品質遊戲陪玩平台
           </h2>
           
-          <p className="text-xl md:text-2xl text-black mb-12 max-w-3xl mx-auto">
+          <p className="text-lg md:text-xl text-black mb-8" style={{color: 'black'}}>
             專業遊戲夥伴，安全預約系統，為您提供最優質的遊戲體驗。
             無論您是想找人陪玩，還是成為專業陪玩夥伴，PeiPlay 都是您的最佳選擇。
           </p>
           
-          <div className="flex flex-col sm:flex-row gap-6 justify-center items-center">
+          <div className="flex flex-col gap-4">
             <button
               onClick={() => router.push('/booking')}
-              className="bg-black text-white font-bold py-4 px-12 rounded-lg text-xl shadow-lg transform hover:scale-105 transition-all duration-200 flex items-center gap-3 w-full max-w-md"
+              className="bg-black text-white font-bold py-4 px-8 text-lg shadow-lg transform hover:scale-105 transition-all duration-200 flex items-center justify-center gap-3 w-full"
+              style={{backgroundColor: 'black', color: 'white', borderColor: 'black'}}
             >
               🎮 立即預約陪玩
             </button>
             <button
               onClick={() => router.push('/join')}
-              className="bg-white text-black border-2 border-black font-bold py-4 px-12 rounded-lg text-xl shadow-lg transform hover:scale-105 transition-all duration-200 flex items-center gap-3 w-full max-w-md"
+              className="bg-white text-black border-2 border-black font-bold py-4 px-8 text-lg shadow-lg transform hover:scale-105 transition-all duration-200 flex items-center justify-center gap-3 w-full"
+              style={{backgroundColor: 'white', color: 'black', borderColor: 'black'}}
             >
               💼 成為陪玩夥伴
             </button>

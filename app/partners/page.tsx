@@ -6,6 +6,7 @@ import PartnerCard from '@/components/PartnerCard'
 import PartnerHero from '@/components/PartnerHero'
 import PartnerFilter from '@/components/PartnerFilter'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 
 // 防抖 Hook
 function useDebounce<T>(value: T, delay: number): T {
@@ -211,65 +212,101 @@ export default function PartnersPage() {
 
   return (
     <div className="min-h-screen bg-white">
-      <div className="container mx-auto px-2 sm:px-4 py-4 sm:py-8 pt-16 sm:pt-32">
-        <div className="text-center mb-6 sm:mb-8">
-          <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-800 mb-4">遊戲夥伴</h1>
-          <p className="text-gray-600 text-base sm:text-lg">找到最適合的遊戲夥伴，享受更好的遊戲體驗</p>
+      {/* 頂部橫幅 */}
+      <div className="bg-white text-black py-4 border-b border-gray-200" style={{backgroundColor: 'white', color: 'black'}}>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center text-center">
+            {/* Logo */}
+            <div className="flex-shrink-0">
+              <Link href="/" className="text-2xl font-bold text-black text-center" style={{color: 'black'}}>
+                PeiPlay
+              </Link>
+            </div>
+            
+            {/* Navigation Links */}
+            <div className="flex items-center space-x-12 text-center">
+              <Link
+                href="/booking"
+                className="bg-white text-black border-2 border-black font-medium py-2 px-6 hover:bg-gray-100 transition-colors text-center"
+                style={{backgroundColor: 'white', color: 'black', borderColor: 'black'}}
+              >
+                預約
+              </Link>
+              <Link
+                href="/ranking"
+                className="bg-white text-black border-2 border-black font-medium py-2 px-6 hover:bg-gray-100 transition-colors text-center"
+                style={{backgroundColor: 'white', color: 'black', borderColor: 'black'}}
+              >
+                排行榜
+              </Link>
+              <Link
+                href="/partners"
+                className="bg-white text-black border-2 border-black font-medium py-2 px-6 hover:bg-gray-100 transition-colors text-center"
+                style={{backgroundColor: 'white', color: 'black', borderColor: 'black'}}
+              >
+                搜尋
+              </Link>
+              <div className="w-10 h-10 bg-black rounded-full flex items-center justify-center ml-4">
+                <span className="text-white text-sm font-bold">I</span>
+              </div>
+            </div>
+          </div>
         </div>
-        <PartnerHero onCTAClick={() => {
-          document.getElementById('partner-filter')?.scrollIntoView({ behavior: 'smooth' })
-        }} />
-        <div id="partner-filter">
-          <PartnerFilter onFilter={handleFilter} />
-        </div>
-        <div className="max-w-7xl mx-auto px-4 pb-16">
-          {message && (
-            <div className={`text-center py-3 mb-4 rounded-lg ${message.includes('成功') ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{message}</div>
-          )}
+      </div>
+
+      <div className="min-h-[calc(100vh-80px)] flex items-center justify-center px-4 sm:px-6 lg:px-8">
+        <div className="bg-white shadow-xl rounded-lg px-8 pt-6 pb-8 mb-4 border border-gray-200 max-w-4xl mx-auto text-center w-full">
+          <h1 className="text-3xl font-bold text-black mb-6" style={{color: 'black'}}>遊戲夥伴</h1>
+          <p className="text-lg text-black mb-8" style={{color: 'black'}}>找到最適合的遊戲夥伴，享受更好的遊戲體驗</p>
           
-          {/* 搜尋框 */}
           <div className="mb-6">
             <input
               type="text"
               placeholder="搜尋夥伴姓名或遊戲..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+              className="w-full px-4 py-2 border-2 border-black bg-white text-black"
+              style={{backgroundColor: 'white', color: 'black', borderColor: 'black'}}
             />
           </div>
+          {message && (
+            <div className={`text-center py-3 mb-4 rounded-lg ${message.includes('成功') ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{message}</div>
+          )}
           
           {loading ? (
-            <div className="flex flex-col items-center justify-center py-12">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500 mb-4"></div>
-              <p className="text-gray-600">載入夥伴資料中...</p>
+            <div className="flex flex-col items-center justify-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-black mb-4"></div>
+              <p className="text-black" style={{color: 'black'}}>載入夥伴資料中...</p>
             </div>
           ) : error ? (
-            <div className="text-center py-12">
+            <div className="text-center py-8">
               <p className="text-red-500 mb-4">{error}</p>
               <button 
                 onClick={() => window.location.reload()}
-                className="px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors"
+                className="px-4 py-2 bg-black text-white border-2 border-black hover:bg-gray-800 transition-colors"
+                style={{backgroundColor: 'black', color: 'white', borderColor: 'black'}}
               >
                 重新載入
               </button>
             </div>
           ) : filteredPartners.length === 0 ? (
-            <div className="text-center py-12">
-              <div className="text-gray-600 text-6xl mb-4">🔍</div>
-              <p className="text-gray-600 text-lg mb-2">
+            <div className="text-center py-8">
+              <div className="text-6xl mb-4">🔍</div>
+              <p className="text-black text-lg mb-4" style={{color: 'black'}}>
                 {searchTerm ? '搜尋無結果' : '請輸入搜尋條件來尋找夥伴'}
               </p>
               {searchTerm && (
                 <button 
                   onClick={() => setSearchTerm('')}
-                  className="text-purple-500 hover:text-purple-600 transition-colors"
+                  className="bg-white text-black border-2 border-black px-4 py-2 hover:bg-gray-100 transition-colors"
+                  style={{backgroundColor: 'white', color: 'black', borderColor: 'black'}}
                 >
                   清除搜尋
                 </button>
               )}
             </div>
           ) : (
-            <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-6 grid-cols-1 max-h-96 overflow-y-auto">
               {filteredPartners.map(partner => (
                 <PartnerCard 
                   key={partner.id} 
