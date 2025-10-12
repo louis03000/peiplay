@@ -135,44 +135,170 @@ export default function Home() {
   }, [handleWheel])
 
   return (
-    <div className="min-h-screen bg-white text-black" style={{backgroundColor: 'white', color: 'black'}}>
+    <div className="min-h-screen" style={{backgroundColor: '#E4E7EB'}}>
       <Navigation />
 
-      {/* 主要內容 - 白底黑字，文字置中，集中在畫面中間 */}
-      <div className="min-h-[calc(100vh-80px)] flex items-center justify-center px-4 sm:px-6 lg:px-8" style={{backgroundColor: 'white', color: 'black'}}>
-        <div className="bg-white shadow-xl rounded-lg px-8 pt-6 pb-8 mb-4 border border-gray-200 max-w-2xl mx-auto text-center">
-          <h1 className="text-4xl md:text-5xl font-bold text-black mb-6" style={{color: 'black'}}>
-            PeiPlay
-          </h1>
-          
-          <h2 className="text-2xl md:text-3xl font-bold text-black mb-6" style={{color: 'black'}}>
-            高品質遊戲陪玩平台
-          </h2>
-          
-          <p className="text-lg md:text-xl text-black mb-8" style={{color: 'black'}}>
-            專業遊戲夥伴，安全預約系統，為您提供最優質的遊戲體驗。
-            無論您是想找人陪玩，還是成為專業陪玩夥伴，PeiPlay 都是您的最佳選擇。
-          </p>
-          
-          <div className="flex flex-col gap-4">
-            <button
-              onClick={() => router.push('/booking')}
-              className="bg-black text-white font-bold py-4 px-8 text-lg shadow-lg transform hover:scale-105 transition-all duration-200 flex items-center justify-center gap-3 w-full"
-              style={{backgroundColor: 'black', color: 'white', borderColor: 'black'}}
-            >
-              🎮 立即預約陪玩
-            </button>
-            <button
-              onClick={() => router.push('/join')}
-              className="bg-white text-black border-2 border-black font-bold py-4 px-8 text-lg shadow-lg transform hover:scale-105 transition-all duration-200 flex items-center justify-center gap-3 w-full"
-              style={{backgroundColor: 'white', color: 'black', borderColor: 'black'}}
-            >
-              💼 成為陪玩夥伴
-            </button>
+      {/* Hero Section - 主視覺焦點區 */}
+      <div className="relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-#1A73E8 to-#00BFA5 opacity-90"></div>
+        <div className="relative z-10 px-6 py-20 sm:py-24 lg:py-32">
+          <div className="max-w-4xl mx-auto text-center">
+            <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold mb-6" style={{color: 'white'}}>
+              PeiPlay
+            </h1>
+            <p className="text-xl sm:text-2xl mb-8 max-w-2xl mx-auto" style={{color: 'white', opacity: 0.95}}>
+              專業遊戲陪玩平台
+            </p>
+            <p className="text-lg mb-12 max-w-3xl mx-auto leading-relaxed" style={{color: 'white', opacity: 0.9}}>
+              連接優質遊戲夥伴，提供安全便捷的預約體驗。無論您是尋找陪玩服務，還是想成為專業陪玩夥伴，PeiPlay 都是您的最佳選擇。
+            </p>
+            
+            {/* CTA Buttons */}
+            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+              <button
+                onClick={() => router.push('/booking')}
+                className="px-8 py-4 rounded-lg font-semibold text-lg transition-all duration-300 hover:shadow-xl hover:scale-105"
+                style={{
+                  backgroundColor: '#00BFA5',
+                  color: 'white',
+                  boxShadow: '0 4px 20px rgba(0, 191, 165, 0.3)'
+                }}
+              >
+                🎮 立即預約陪玩
+              </button>
+              <button
+                onClick={() => router.push('/join')}
+                className="px-8 py-4 rounded-lg font-semibold text-lg border-2 transition-all duration-300 hover:shadow-xl hover:scale-105"
+                style={{
+                  backgroundColor: 'transparent',
+                  color: 'white',
+                  borderColor: 'white'
+                }}
+              >
+                💼 成為陪玩夥伴
+              </button>
+            </div>
           </div>
         </div>
       </div>
 
+      {/* Features Section - 功能介紹區 */}
+      <div className="py-20 px-6">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl sm:text-4xl font-bold mb-6" style={{color: '#333140'}}>
+              為什麼選擇 PeiPlay？
+            </h2>
+            <p className="text-lg max-w-2xl mx-auto" style={{color: '#333140', opacity: 0.8}}>
+              我們提供最專業、最安全的遊戲陪玩服務體驗
+            </p>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {/* Feature Card 1 */}
+            <div className="text-center p-8 rounded-xl transition-all duration-300 hover:shadow-xl" style={{backgroundColor: 'white'}}>
+              <div className="w-16 h-16 mx-auto mb-6 rounded-full flex items-center justify-center" style={{backgroundColor: '#1A73E8'}}>
+                <span className="text-2xl">🔒</span>
+              </div>
+              <h3 className="text-xl font-semibold mb-4" style={{color: '#333140'}}>
+                安全保證
+              </h3>
+              <p className="leading-relaxed" style={{color: '#333140', opacity: 0.8}}>
+                嚴格的夥伴認證流程，確保每位夥伴都經過專業審核，為您提供安全可靠的服務體驗。
+              </p>
+            </div>
+            
+            {/* Feature Card 2 */}
+            <div className="text-center p-8 rounded-xl transition-all duration-300 hover:shadow-xl" style={{backgroundColor: 'white'}}>
+              <div className="w-16 h-16 mx-auto mb-6 rounded-full flex items-center justify-center" style={{backgroundColor: '#00BFA5'}}>
+                <span className="text-2xl">⭐</span>
+              </div>
+              <h3 className="text-xl font-semibold mb-4" style={{color: '#333140'}}>
+                優質服務
+              </h3>
+              <p className="leading-relaxed" style={{color: '#333140', opacity: 0.8}}>
+                專業的遊戲夥伴，豐富的遊戲經驗，為您提供高品質的陪玩服務和遊戲指導。
+              </p>
+            </div>
+            
+            {/* Feature Card 3 */}
+            <div className="text-center p-8 rounded-xl transition-all duration-300 hover:shadow-xl" style={{backgroundColor: 'white'}}>
+              <div className="w-16 h-16 mx-auto mb-6 rounded-full flex items-center justify-center" style={{backgroundColor: '#1A73E8'}}>
+                <span className="text-2xl">🎯</span>
+              </div>
+              <h3 className="text-xl font-semibold mb-4" style={{color: '#333140'}}>
+                客製體驗
+              </h3>
+              <p className="leading-relaxed" style={{color: '#333140', opacity: 0.8}}>
+                根據您的需求匹配最適合的夥伴，提供個人化的遊戲體驗和專業建議。
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Stats Section - 數據展示區 */}
+      <div className="py-16 px-6" style={{backgroundColor: 'white'}}>
+        <div className="max-w-4xl mx-auto">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
+            <div>
+              <div className="text-3xl sm:text-4xl font-bold mb-2" style={{color: '#1A73E8'}}>
+                500+
+              </div>
+              <div className="text-sm font-medium" style={{color: '#333140', opacity: 0.8}}>
+                活躍夥伴
+              </div>
+            </div>
+            <div>
+              <div className="text-3xl sm:text-4xl font-bold mb-2" style={{color: '#00BFA5'}}>
+                10,000+
+              </div>
+              <div className="text-sm font-medium" style={{color: '#333140', opacity: 0.8}}>
+                成功預約
+              </div>
+            </div>
+            <div>
+              <div className="text-3xl sm:text-4xl font-bold mb-2" style={{color: '#1A73E8'}}>
+                4.9
+              </div>
+              <div className="text-sm font-medium" style={{color: '#333140', opacity: 0.8}}>
+                用戶評價
+              </div>
+            </div>
+            <div>
+              <div className="text-3xl sm:text-4xl font-bold mb-2" style={{color: '#00BFA5'}}>
+                24/7
+              </div>
+              <div className="text-sm font-medium" style={{color: '#333140', opacity: 0.8}}>
+                客服支援
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Final CTA Section */}
+      <div className="py-20 px-6">
+        <div className="max-w-4xl mx-auto text-center">
+          <h2 className="text-3xl sm:text-4xl font-bold mb-6" style={{color: '#333140'}}>
+            準備開始您的遊戲之旅？
+          </h2>
+          <p className="text-lg mb-8" style={{color: '#333140', opacity: 0.8}}>
+            立即預約專業陪玩夥伴，享受優質的遊戲體驗
+          </p>
+          <button
+            onClick={() => router.push('/booking')}
+            className="px-10 py-4 rounded-lg font-semibold text-lg transition-all duration-300 hover:shadow-xl hover:scale-105"
+            style={{
+              backgroundColor: '#00BFA5',
+              color: 'white',
+              boxShadow: '0 4px 20px rgba(0, 191, 165, 0.3)'
+            }}
+          >
+            開始預約
+          </button>
+        </div>
+      </div>
     </div>
   )
 }

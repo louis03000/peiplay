@@ -427,30 +427,37 @@ function BookingWizardContent() {
   }, [step, selectedPartner, selectedDate, selectedTimes, selectedDuration, onlyAvailable])
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen" style={{backgroundColor: '#E4E7EB'}}>
       <Navigation />
 
-      <div className="min-h-[calc(100vh-80px)] flex items-center justify-center px-4 sm:px-6 lg:px-8">
-        <div className="bg-white shadow-xl rounded-lg px-8 pt-6 pb-8 mb-4 border border-gray-200 max-w-4xl mx-auto text-center w-full">
+      <div className="py-8 px-6">
+        <div className="max-w-4xl mx-auto">
+          <div className="rounded-2xl p-8" style={{backgroundColor: 'white', boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)'}}>
           {/* 步驟指示器 */}
-          <div className="mb-8">
+          <div className="mb-12">
             <div className="flex items-center justify-between relative">
-              <div className="absolute top-1/2 left-4 right-4 h-1 bg-gray-300 -z-10 rounded-full" style={{transform:'translateY(-50%)'}} />
+              <div className="absolute top-1/2 left-4 right-4 h-1 -z-10 rounded-full" style={{
+                backgroundColor: '#E4E7EB',
+                transform:'translateY(-50%)'
+              }} />
               {getSteps(onlyAvailable).map((s, i) => (
                 <div key={s} className="flex-1 flex flex-col items-center">
-                  <div className={`w-8 h-8 flex items-center justify-center rounded-full border-2 transition-all duration-300 text-sm
-                    ${i < step ? 'bg-black border-black text-white shadow-lg' :
-                      i === step ? 'bg-black border-black text-white shadow-xl scale-110' :
-                      'bg-white border-gray-300 text-gray-500'}`}
+                  <div className={`w-10 h-10 flex items-center justify-center rounded-full border-2 transition-all duration-300 text-sm font-semibold
+                    ${i < step ? 'shadow-lg' :
+                      i === step ? 'shadow-xl scale-110' :
+                      ''}`}
                     style={{
-                      backgroundColor: i <= step ? 'black' : 'white',
-                      borderColor: i <= step ? 'black' : '#d1d5db',
-                      color: i <= step ? 'white' : '#6b7280'
+                      backgroundColor: i <= step ? '#1A73E8' : 'white',
+                      borderColor: i <= step ? '#1A73E8' : '#E4E7EB',
+                      color: i <= step ? 'white' : '#333140'
                     }}
                   >
                     {i+1}
                   </div>
-                  <div className={`mt-2 text-xs text-center ${i === step ? 'text-black font-bold' : 'text-gray-500'}`} style={{color: i === step ? 'black' : '#6b7280'}}>
+                  <div className={`mt-3 text-sm text-center font-medium ${i === step ? 'font-bold' : ''}`} style={{
+                    color: i === step ? '#1A73E8' : '#333140',
+                    opacity: i === step ? 1 : 0.7
+                  }}>
                     {s}
                   </div>
                 </div>
@@ -548,14 +555,15 @@ function BookingWizardContent() {
                     <button
                       key={ts}
                       onClick={() => handleDateSelect(d)}
-                      className={`px-4 py-2 border-2 border-black transition-all duration-200 text-sm font-medium
+                      className={`px-4 py-2 rounded-lg transition-all duration-200 text-sm font-medium
                         ${isSelected 
-                          ? 'bg-black text-white shadow-lg scale-105' 
-                          : 'bg-white text-black hover:bg-gray-100'}`}
+                          ? 'shadow-lg scale-105' 
+                          : 'hover:shadow-md'}`}
                       style={{
-                        backgroundColor: isSelected ? 'black' : 'white',
-                        color: isSelected ? 'white' : 'black',
-                        borderColor: 'black'
+                        backgroundColor: isSelected ? '#1A73E8' : 'white',
+                        color: isSelected ? 'white' : '#333140',
+                        borderColor: '#E4E7EB',
+                        border: '1px solid #E4E7EB'
                       }}
                     >
                       {label}
@@ -612,14 +620,15 @@ function BookingWizardContent() {
                     <button
                       key={schedule.id}
                       onClick={() => handleTimeSelect(schedule.id)}
-                      className={`px-4 py-2 border-2 border-black transition-all duration-200 text-sm font-medium
+                      className={`px-4 py-2 rounded-lg transition-all duration-200 text-sm font-medium
                         ${isSelected 
-                          ? 'bg-black text-white shadow-lg scale-105' 
-                          : 'bg-white text-black hover:bg-gray-100'}`}
+                          ? 'shadow-lg scale-105' 
+                          : 'hover:shadow-md'}`}
                       style={{
-                        backgroundColor: isSelected ? 'black' : 'white',
-                        color: isSelected ? 'white' : 'black',
-                        borderColor: 'black'
+                        backgroundColor: isSelected ? '#00BFA5' : 'white',
+                        color: isSelected ? 'white' : '#333140',
+                        borderColor: '#E4E7EB',
+                        border: '1px solid #E4E7EB'
                       }}
                     >
                       {startTime} - {endTime}
@@ -721,16 +730,24 @@ function BookingWizardContent() {
             <div className="flex gap-4 justify-center">
                 <button
                   onClick={handlePrevStep}
-                  className="px-6 py-3 bg-white text-black border-2 border-black hover:bg-gray-100 transition-colors shadow-lg font-bold"
-                  style={{backgroundColor: 'white', color: 'black', borderColor: 'black'}}
+                  className="px-8 py-3 rounded-lg font-semibold transition-all duration-200 hover:shadow-lg"
+                  style={{
+                    backgroundColor: 'white',
+                    color: '#333140',
+                    border: '2px solid #E4E7EB'
+                  }}
                 >
                   上一步
                 </button>
                 <button
                   onClick={handleCreateBooking}
                   disabled={creating}
-                  className="px-8 py-3 bg-black text-white border-2 border-black hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-lg font-bold"
-                  style={{backgroundColor: 'black', color: 'white', borderColor: 'black'}}
+                  className="px-8 py-3 rounded-lg font-semibold transition-all duration-200 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                  style={{
+                    backgroundColor: '#00BFA5',
+                    color: 'white',
+                    boxShadow: '0 4px 20px rgba(0, 191, 165, 0.3)'
+                  }}
                 >
                   {creating ? '處理中...' : '確認預約'}
                 </button>
@@ -784,16 +801,24 @@ function BookingWizardContent() {
               <button
                 onClick={handlePrevStep}
                 disabled={step === 0}
-                className="px-6 py-3 bg-white text-black border-2 border-black hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-bold"
-                style={{backgroundColor: 'white', color: 'black', borderColor: 'black'}}
+                className="px-8 py-3 rounded-lg font-semibold transition-all duration-200 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{
+                  backgroundColor: 'white',
+                  color: '#333140',
+                  border: '2px solid #E4E7EB'
+                }}
               >
                 上一步
               </button>
               <button
                 onClick={handleNextStep}
                 disabled={!canProceed}
-                className="px-6 py-3 bg-black text-white border-2 border-black hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-bold"
-                style={{backgroundColor: 'black', color: 'white', borderColor: 'black'}}
+                className="px-8 py-3 rounded-lg font-semibold transition-all duration-200 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{
+                  backgroundColor: '#1A73E8',
+                  color: 'white',
+                  boxShadow: '0 4px 20px rgba(26, 115, 232, 0.3)'
+                }}
               >
                 下一步
               </button>

@@ -11,45 +11,108 @@ export default function Navigation() {
   }
 
   return (
-    <div className="bg-white text-black py-4 border-b border-gray-200" style={{backgroundColor: 'white', color: 'black'}}>
-      <div className="max-w-5xl mx-auto px-8 sm:px-12 lg:px-16">
-        <div className="flex justify-center items-center text-center">
+    <nav className="py-4" style={{backgroundColor: '#1A73E8'}}>
+      <div className="max-w-6xl mx-auto px-6">
+        <div className="flex justify-between items-center">
           {/* Logo */}
-          <div className="flex-shrink-0 mr-16">
-            <Link href="/" className="text-2xl font-bold text-black text-center" style={{color: 'black'}}>
-              PeiPlay
-            </Link>
-          </div>
+          <Link href="/" className="text-2xl font-bold" style={{color: 'white'}}>
+            PeiPlay
+          </Link>
           
           {/* Navigation Links */}
-          <div className="flex items-center space-x-8 text-center">
+          <div className="hidden md:flex items-center space-x-8">
             <Link
               href="/booking"
-              className="bg-white text-black border-2 border-black font-medium py-2 px-6 hover:bg-gray-100 transition-colors text-center"
-              style={{backgroundColor: 'white', color: 'black', borderColor: 'black'}}
+              className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
+                isActive('/booking') 
+                  ? 'shadow-md' 
+                  : 'hover:opacity-80'
+              }`}
+              style={{
+                backgroundColor: isActive('/booking') ? '#00BFA5' : 'transparent',
+                color: 'white'
+              }}
             >
               預約
             </Link>
             <Link
               href="/ranking"
-              className="bg-white text-black border-2 border-black font-medium py-2 px-6 hover:bg-gray-100 transition-colors text-center"
-              style={{backgroundColor: 'white', color: 'black', borderColor: 'black'}}
+              className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
+                isActive('/ranking') 
+                  ? 'shadow-md' 
+                  : 'hover:opacity-80'
+              }`}
+              style={{
+                backgroundColor: isActive('/ranking') ? '#00BFA5' : 'transparent',
+                color: 'white'
+              }}
             >
               排行榜
             </Link>
             <Link
               href="/partners"
-              className="bg-white text-black border-2 border-black font-medium py-2 px-6 hover:bg-gray-100 transition-colors text-center"
-              style={{backgroundColor: 'white', color: 'black', borderColor: 'black'}}
+              className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
+                isActive('/partners') 
+                  ? 'shadow-md' 
+                  : 'hover:opacity-80'
+              }`}
+              style={{
+                backgroundColor: isActive('/partners') ? '#00BFA5' : 'transparent',
+                color: 'white'
+              }}
             >
               搜尋
             </Link>
-            <div className="w-10 h-10 bg-black rounded-full flex items-center justify-center ml-6">
-              <span className="text-white text-sm font-bold">I</span>
-            </div>
+          </div>
+          
+          {/* User Icon */}
+          <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{backgroundColor: 'rgba(255, 255, 255, 0.2)'}}>
+            <span className="text-white text-sm font-bold">I</span>
+          </div>
+        </div>
+        
+        {/* Mobile Menu */}
+        <div className="md:hidden mt-4">
+          <div className="flex justify-center space-x-4">
+            <Link
+              href="/booking"
+              className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
+                isActive('/booking') ? 'shadow-md' : 'hover:opacity-80'
+              }`}
+              style={{
+                backgroundColor: isActive('/booking') ? '#00BFA5' : 'transparent',
+                color: 'white'
+              }}
+            >
+              預約
+            </Link>
+            <Link
+              href="/ranking"
+              className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
+                isActive('/ranking') ? 'shadow-md' : 'hover:opacity-80'
+              }`}
+              style={{
+                backgroundColor: isActive('/ranking') ? '#00BFA5' : 'transparent',
+                color: 'white'
+              }}
+            >
+              排行榜
+            </Link>
+            <Link
+              href="/partners"
+              className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
+                isActive('/partners') ? 'shadow-md' : 'hover:opacity-80'
+              }`}
+              style={{
+                backgroundColor: isActive('/partners') ? '#00BFA5' : 'transparent',
+                color: 'white'
+              }}
+            >
+              搜尋
+            </Link>
           </div>
         </div>
       </div>
-    </div>
+    </nav>
   )
 } 
