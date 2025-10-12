@@ -430,31 +430,50 @@ function BookingWizardContent() {
     <div className="min-h-screen" style={{backgroundColor: '#E4E7EB'}}>
       <Navigation />
 
+      {/* Hero Section */}
+      <div className="relative py-16 px-6 overflow-hidden">
+        {/* 背景漸層 */}
+        <div className="absolute inset-0 bg-gradient-to-br from-#1A73E8 via-#5C7AD6 to-#1A73E8 opacity-95"></div>
+        
+        {/* 幾何裝飾元素 */}
+        <div className="absolute top-10 left-10 w-32 h-32 bg-white opacity-10 rounded-full blur-xl"></div>
+        <div className="absolute bottom-10 right-10 w-48 h-48 bg-white opacity-5 rounded-full blur-2xl"></div>
+        
+        <div className="relative z-10 max-w-6xl mx-auto text-center">
+          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold mb-6" style={{color: 'white'}}>
+            預約陪玩服務
+          </h1>
+          <div className="w-24 h-1 mx-auto mb-6" style={{backgroundColor: '#5C7AD6'}}></div>
+          <p className="text-xl max-w-3xl mx-auto" style={{color: 'white', opacity: 0.95}}>
+            選擇專業夥伴，享受優質的遊戲陪玩體驗
+          </p>
+        </div>
+      </div>
+
       <div className="py-8 px-6">
-        <div className="max-w-4xl mx-auto">
-          <div className="rounded-2xl p-8" style={{backgroundColor: 'white', boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)'}}>
+        <div className="max-w-6xl mx-auto">
+          <div className="rounded-3xl p-8" style={{backgroundColor: 'white', boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)'}}>
           {/* 步驟指示器 */}
-          <div className="mb-12">
+          <div className="mb-16">
             <div className="flex items-center justify-between relative">
-              <div className="absolute top-1/2 left-4 right-4 h-1 -z-10 rounded-full" style={{
-                backgroundColor: '#E4E7EB',
-                transform:'translateY(-50%)'
+              <div className="absolute top-1/2 left-8 right-8 h-2 -z-10 rounded-full" style={{
+                backgroundColor: '#E4E7EB'
               }} />
               {getSteps(onlyAvailable).map((s, i) => (
                 <div key={s} className="flex-1 flex flex-col items-center">
-                  <div className={`w-10 h-10 flex items-center justify-center rounded-full border-2 transition-all duration-300 text-sm font-semibold
+                  <div className={`w-16 h-16 flex items-center justify-center rounded-2xl border-2 transition-all duration-300 text-lg font-bold
                     ${i < step ? 'shadow-lg' :
                       i === step ? 'shadow-xl scale-110' :
                       ''}`}
                     style={{
-                      backgroundColor: i <= step ? '#1A73E8' : 'white',
+                      background: i <= step ? 'linear-gradient(135deg, #1A73E8 0%, #5C7AD6 100%)' : 'white',
                       borderColor: i <= step ? '#1A73E8' : '#E4E7EB',
                       color: i <= step ? 'white' : '#333140'
                     }}
                   >
                     {i+1}
                   </div>
-                  <div className={`mt-3 text-sm text-center font-medium ${i === step ? 'font-bold' : ''}`} style={{
+                  <div className={`mt-4 text-lg text-center font-medium ${i === step ? 'font-bold' : ''}`} style={{
                     color: i === step ? '#1A73E8' : '#333140',
                     opacity: i === step ? 1 : 0.7
                   }}>
@@ -797,15 +816,16 @@ function BookingWizardContent() {
 
           {/* 導航按鈕 */}
           {((onlyAvailable && step < 2) || (!onlyAvailable && step < 3)) && (
-            <div className="flex justify-between gap-4 mt-8">
+            <div className="flex justify-between gap-6 mt-12">
               <button
                 onClick={handlePrevStep}
                 disabled={step === 0}
-                className="px-8 py-3 rounded-lg font-semibold transition-all duration-200 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-10 py-4 rounded-2xl font-semibold transition-all duration-300 hover:shadow-xl hover:scale-105 transform disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
                 style={{
                   backgroundColor: 'white',
                   color: '#333140',
-                  border: '2px solid #E4E7EB'
+                  border: '2px solid #E4E7EB',
+                  boxShadow: '0 4px 20px rgba(0, 0, 0, 0.1)'
                 }}
               >
                 上一步
@@ -813,11 +833,11 @@ function BookingWizardContent() {
               <button
                 onClick={handleNextStep}
                 disabled={!canProceed}
-                className="px-8 py-3 rounded-lg font-semibold transition-all duration-200 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-10 py-4 rounded-2xl font-semibold transition-all duration-300 hover:shadow-xl hover:scale-105 transform disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
                 style={{
-                  backgroundColor: '#1A73E8',
+                  background: 'linear-gradient(135deg, #1A73E8 0%, #5C7AD6 100%)',
                   color: 'white',
-                  boxShadow: '0 4px 20px rgba(26, 115, 232, 0.3)'
+                  boxShadow: '0 8px 32px rgba(26, 115, 232, 0.3)'
                 }}
               >
                 下一步
