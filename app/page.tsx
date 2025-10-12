@@ -4,7 +4,7 @@ import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState, useRef, useCallback } from 'react'
 import Link from 'next/link'
-import Navigation from '@/components/Navigation'
+import Navigation from '@/app/components/Navigation'
 
 interface Review {
   id: string
