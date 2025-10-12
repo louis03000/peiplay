@@ -138,18 +138,18 @@ export default function Home() {
       className="overflow-y-scroll h-screen hide-scrollbar smooth-scroll optimized-scroll"
     >
       {/* Hero Section - 第一屏 */}
-      <div className="h-screen flex items-center justify-center bg-palette-400">
+      <div className="h-screen flex items-center justify-center bg-palette-900">
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center">
-            <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold text-palette-900 mb-6">
-              <span className="bg-gradient-to-r from-palette-800 to-palette-700 bg-clip-text text-transparent">
+            <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold text-white mb-6">
+              <span className="bg-gradient-to-r from-palette-400 to-palette-500 bg-clip-text text-transparent">
                 PeiPlay
               </span>
             </h1>
-            <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold text-palette-800 mb-4">
+            <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold text-palette-400 mb-4">
               高品質遊戲陪玩平台
             </h2>
-            <p className="text-lg md:text-xl text-palette-700 mb-8 max-w-3xl mx-auto">
+            <p className="text-lg md:text-xl text-palette-500 mb-8 max-w-3xl mx-auto">
               專業遊戲夥伴，安全預約系統，為您提供最優質的遊戲體驗。
               無論您是想找人陪玩，還是成為專業陪玩夥伴，PeiPlay 都是您的最佳選擇。
             </p>
@@ -158,13 +158,13 @@ export default function Home() {
                    <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
                      <button
                        onClick={() => router.push('/booking')}
-                       className="bg-gradient-to-r from-palette-800 to-palette-700 hover:from-palette-900 hover:to-palette-800 text-white font-bold py-4 px-8 rounded-xl text-lg shadow-lg transform hover:scale-105 transition-all duration-200"
+                       className="bg-gradient-to-r from-palette-700 to-palette-600 hover:from-palette-800 hover:to-palette-700 text-white font-bold py-4 px-8 rounded-xl text-lg shadow-lg transform hover:scale-105 transition-all duration-200"
                      >
                        🎮 立即預約陪玩
                      </button>
                      <button
                        onClick={() => router.push('/join')}
-                       className="bg-palette-400 text-palette-800 hover:bg-palette-500 border-2 border-palette-700 font-bold py-4 px-8 rounded-xl text-lg shadow-lg transform hover:scale-105 transition-all duration-200"
+                       className="bg-palette-800 text-palette-400 hover:bg-palette-700 border-2 border-palette-600 font-bold py-4 px-8 rounded-xl text-lg shadow-lg transform hover:scale-105 transition-all duration-200"
                      >
                        💼 成為陪玩夥伴
                      </button>

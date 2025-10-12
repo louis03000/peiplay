@@ -94,7 +94,7 @@ def create_booking_text_channel(guild, booking_id, customer_name, partner_name, 
         
         if is_instant_booking:
             channel_name = f"🔥{cute_item}-{customer_name}-{partner_name}"
-        else:
+            else:
             channel_name = f"📝{cute_item}-{customer_name}-{partner_name}"
         
         # 檢查頻道是否已存在
@@ -173,7 +173,7 @@ async def calculate_referral_earnings(booking_id):
                                json={'bookingId': booking_id})
         if response.status_code == 200:
             print(f"✅ 推薦獎勵計算成功: {booking_id}")
-        else:
+                else:
             print(f"⚠️ 推薦獎勵計算失敗: {booking_id}, 狀態碼: {response.status_code}")
     except Exception as e:
         print(f"❌ 推薦獎勵計算錯誤: {e}")
@@ -268,7 +268,7 @@ async def check_early_communication_channels(guild, now):
                     session.close()
                     
                     # 發送歡迎訊息
-                    embed = discord.Embed(
+                            embed = discord.Embed(
                         title="🎮 預約確認",
                         description=f"嗨 {booking.customer_name}！你的預約已確認，夥伴 {booking.partner_name} 將在預約時間與你聯繫。",
                         color=0x00ff00
@@ -279,7 +279,7 @@ async def check_early_communication_channels(guild, now):
                     await channel.send(embed=embed)
                     print(f"✅ 創建提前溝通頻道: {booking.id}")
                 
-            except Exception as e:
+                except Exception as e:
                 print(f"❌ 處理預約 {booking.id} 時發生錯誤: {e}")
         
     except Exception as e:
@@ -327,7 +327,7 @@ async def check_voice_channel_creation(guild, now):
                         booking.partner_name
                     )
                     
-                    if text_channel:
+                if text_channel:
                         # 更新資料庫
                         session = Session()
                         session.execute(text("""
@@ -378,9 +378,9 @@ async def check_extension_buttons(guild, now):
         ten_minutes_later = now + timedelta(minutes=10)
         bookings = session.execute(text("""
             SELECT b.id, b.discordTextChannelId, s.endTime
-            FROM "Booking" b
+                FROM "Booking" b
             JOIN "Schedule" s ON b.scheduleId = s.id
-            WHERE b.status = 'CONFIRMED'
+                WHERE b.status = 'CONFIRMED'
             AND b.discordTextChannelId IS NOT NULL
             AND b.extensionButtonShown = false
             AND s.endTime <= :ten_minutes_later
@@ -421,10 +421,10 @@ async def check_extension_buttons(guild, now):
                     session.close()
                     
                     print(f"✅ 顯示延長按鈕: {booking.id}")
-                
-            except Exception as e:
+                        
+                except Exception as e:
                 print(f"❌ 處理預約 {booking.id} 時發生錯誤: {e}")
-        
+                    
     except Exception as e:
         print(f"❌ 檢查延長按鈕時發生錯誤: {e}")
 
@@ -437,7 +437,7 @@ async def check_voice_channel_cleanup(guild, now):
         bookings = session.execute(text("""
             SELECT b.id, b.discordVoiceChannelId, b.discordTextChannelId, b.ratingCompleted,
                    c.name as customer_name, p.name as partner_name, s.endTime
-            FROM "Booking" b
+        FROM "Booking" b
             JOIN "Customer" c ON b.customerId = c.id
             JOIN "Schedule" s ON b.scheduleId = s.id
             JOIN "Partner" p ON s.partnerId = p.id
@@ -453,7 +453,7 @@ async def check_voice_channel_cleanup(guild, now):
                 # 刪除語音頻道
                 voice_channel = guild.get_channel(int(booking.discordVoiceChannelId))
                 if voice_channel and not voice_channel.deleted:
-                    await voice_channel.delete()
+                            await voice_channel.delete()
                     print(f"✅ 刪除語音頻道: {booking.id}")
                 
                 # 在文字頻道顯示評價系統
@@ -493,7 +493,7 @@ async def check_text_channel_cleanup(guild, now):
         # 查找需要清理文字頻道的預約（評價完成且文字頻道未清理）
         bookings = session.execute(text("""
             SELECT b.id, b.discordTextChannelId, b.ratingCompleted, b.textChannelCleaned
-            FROM "Booking" b
+        FROM "Booking" b
             WHERE b.ratingCompleted = true
             AND b.textChannelCleaned = false
             AND b.discordTextChannelId IS NOT NULL
@@ -519,9 +519,9 @@ async def check_text_channel_cleanup(guild, now):
                 session.commit()
                 session.close()
                 
-            except Exception as e:
+                        except Exception as e:
                 print(f"❌ 處理預約 {booking.id} 時發生錯誤: {e}")
-        
+                
     except Exception as e:
         print(f"❌ 檢查文字頻道清理時發生錯誤: {e}")
 
@@ -530,7 +530,7 @@ async def check_text_channel_cleanup(guild, now):
 async def check_bookings():
     """定期檢查預約狀態並管理 Discord 頻道"""
     await bot.wait_until_ready()
-    
+
     try:
         guild = bot.get_guild(GUILD_ID)
         if not guild:
@@ -622,7 +622,7 @@ async def check_new_bookings():
                 
             except Exception as e:
                 print(f"❌ 處理新預約 {booking.id} 時發生錯誤: {e}")
-        
+                
     except Exception as e:
         print(f"❌ 檢查新預約時發生錯誤: {e}")
 
@@ -698,7 +698,7 @@ async def check_instant_bookings_for_voice_channel():
                             if early_channel:
                                 await early_channel.delete()
                                 print(f"✅ 刪除即時預約提前溝通頻道: {booking.id}")
-                        except Exception as e:
+                    except Exception as e:
                             print(f"⚠️ 刪除即時預約提前溝通頻道失敗: {e}")
                         
                         # 在正式文字頻道發送歡迎訊息
@@ -712,10 +712,10 @@ async def check_instant_bookings_for_voice_channel():
                         await text_channel.send(embed=embed)
                         print(f"✅ 創建即時預約正式頻道: {booking.id}")
                 
-            except Exception as e:
+                    except Exception as e:
                 print(f"❌ 處理即時預約 {booking.id} 時發生錯誤: {e}")
         
-    except Exception as e:
+                    except Exception as e:
         print(f"❌ 檢查即時預約時發生錯誤: {e}")
 
 # 檢查缺少評價的預約
@@ -767,7 +767,7 @@ async def on_ready():
     try:
         synced = await bot.tree.sync()
         print(f'✅ 已同步 {len(synced)} 個 Slash 指令')
-    except Exception as e:
+                                        except Exception as e:
         print(f'❌ 同步 Slash 指令失敗: {e}')
     
     # 啟動檢查任務
@@ -817,8 +817,8 @@ async def on_interaction(interaction):
             # 處理延長預約按鈕
             booking_id = custom_id.replace('extend_booking_', '')
             await handle_extend_booking(interaction, booking_id)
-            
-    except Exception as e:
+                    
+                except Exception as e:
         print(f"❌ 處理互動時發生錯誤: {e}")
         if not interaction.response.is_done():
             await interaction.response.send_message("❌ 處理請求時發生錯誤，請稍後再試。", ephemeral=True)
@@ -930,22 +930,22 @@ async def handle_extend_booking(interaction, booking_id):
             session.close()
             return
         
-        # 延長5分鐘
+                # 延長5分鐘
         new_end_time = current_end_time.endTime + timedelta(minutes=5)
         
         # 更新結束時間
         session.execute(text("""
-            UPDATE "Schedule" 
+                    UPDATE "Schedule" 
             SET "endTime" = :new_end_time
-            WHERE id = (
+                    WHERE id = (
                 SELECT scheduleId FROM "Booking" WHERE id = :booking_id
             )
         """), {'new_end_time': new_end_time, 'booking_id': booking_id})
         
         session.commit()
         session.close()
-        
-        # 發送確認訊息
+            
+            # 發送確認訊息
         embed = discord.Embed(
             title="⏰ 預約已延長",
             description=f"預約已延長 5 分鐘，新的結束時間是 <t:{int(new_end_time.timestamp())}:F>",
@@ -955,8 +955,8 @@ async def handle_extend_booking(interaction, booking_id):
         await interaction.response.send_message(embed=embed)
         
         print(f"✅ 延長預約: {booking_id}, 新結束時間: {new_end_time}")
-        
-    except Exception as e:
+            
+        except Exception as e:
         print(f"❌ 延長預約時發生錯誤: {e}")
         if not interaction.response.is_done():
             await interaction.response.send_message("❌ 延長預約失敗，請稍後再試。", ephemeral=True)
@@ -994,7 +994,7 @@ async def status(interaction: discord.Interaction):
     
     if check_new_bookings.is_running():
         tasks_status.append("✅ 新預約檢查")
-    else:
+                    else:
         tasks_status.append("❌ 新預約檢查")
     
     if database_health_check.is_running():
@@ -1018,7 +1018,7 @@ async def cleanup(interaction: discord.Interaction):
     """清理孤立的 Discord 頻道"""
     if not interaction.user.id == ADMIN_USER_ID:
         await interaction.response.send_message("❌ 只有管理員可以使用此指令。", ephemeral=True)
-        return
+            return
     
     await interaction.response.defer(ephemeral=True)
     
@@ -1050,25 +1050,25 @@ async def cleanup(interaction: discord.Interaction):
                 valid_channel_ids.add(int(channel.discordVoiceChannelId))
         
         # 檢查所有頻道
-        deleted_count = 0
+            deleted_count = 0
         for channel in guild.channels:
             # 檢查是否是預約頻道（包含特殊字符）
             if any(char in channel.name for char in ['📝', '🎤', '🔥']):
                 if channel.id not in valid_channel_ids:
-                    try:
-                        await channel.delete()
-                        deleted_count += 1
+                try:
+                    await channel.delete()
+                    deleted_count += 1
                         print(f"✅ 刪除孤立頻道: {channel.name}")
-                    except Exception as e:
-                        print(f"❌ 刪除頻道失敗 {channel.name}: {e}")
-        
+                except Exception as e:
+                    print(f"❌ 刪除頻道失敗 {channel.name}: {e}")
+            
         embed = discord.Embed(
             title="🧹 清理完成",
             description=f"已刪除 {deleted_count} 個孤立的頻道",
             color=0x00ff00
         )
         await interaction.followup.send(embed=embed)
-        
+            
     except Exception as e:
         print(f"❌ 清理頻道時發生錯誤: {e}")
         await interaction.followup.send("❌ 清理失敗，請稍後再試。")
@@ -1086,8 +1086,8 @@ async def force_cleanup(interaction: discord.Interaction):
         guild = bot.get_guild(GUILD_ID)
         if not guild:
             await interaction.followup.send("❌ 找不到 Discord 伺服器")
-            return
-        
+                return
+                
         deleted_count = 0
         for channel in guild.channels:
             # 檢查是否是預約頻道
@@ -1096,7 +1096,7 @@ async def force_cleanup(interaction: discord.Interaction):
                     await channel.delete()
                     deleted_count += 1
                     print(f"✅ 強制刪除頻道: {channel.name}")
-                except Exception as e:
+        except Exception as e:
                     print(f"❌ 強制刪除頻道失敗 {channel.name}: {e}")
         
         embed = discord.Embed(
@@ -1106,7 +1106,7 @@ async def force_cleanup(interaction: discord.Interaction):
         )
         await interaction.followup.send(embed=embed)
         
-    except Exception as e:
+        except Exception as e:
         print(f"❌ 強制清理頻道時發生錯誤: {e}")
         await interaction.followup.send("❌ 強制清理失敗，請稍後再試。")
 
@@ -1133,7 +1133,7 @@ async def emergency_cleanup(interaction: discord.Interaction):
                     await channel.delete()
                     deleted_count += 1
                     print(f"✅ 緊急刪除頻道: {channel.name}")
-                except Exception as e:
+        except Exception as e:
                     print(f"❌ 緊急刪除頻道失敗 {channel.name}: {e}")
         
         embed = discord.Embed(
@@ -1143,7 +1143,7 @@ async def emergency_cleanup(interaction: discord.Interaction):
         )
         await interaction.followup.send(embed=embed)
         
-    except Exception as e:
+        except Exception as e:
         print(f"❌ 緊急清理頻道時發生錯誤: {e}")
         await interaction.followup.send("❌ 緊急清理失敗，請稍後再試。")
 
@@ -1182,7 +1182,7 @@ async def stats(interaction: discord.Interaction):
         
         session.close()
         
-        embed = discord.Embed(
+            embed = discord.Embed(
             title="📊 預約統計",
             color=0x0099ff
         )
@@ -1194,8 +1194,8 @@ async def stats(interaction: discord.Interaction):
         embed.add_field(name="檢查間隔", value=f"{CHECK_INTERVAL}秒", inline=True)
         
         await interaction.followup.send(embed=embed)
-        
-    except Exception as e:
+            
+        except Exception as e:
         print(f"❌ 獲取統計數據時發生錯誤: {e}")
         await interaction.followup.send("❌ 獲取統計數據失敗，請稍後再試。")
 
@@ -1204,7 +1204,7 @@ async def test_notification(interaction: discord.Interaction):
     """測試管理員通知"""
     if not interaction.user.id == ADMIN_USER_ID:
         await interaction.response.send_message("❌ 只有管理員可以使用此指令。", ephemeral=True)
-        return
+                    return
     
     try:
         guild = bot.get_guild(GUILD_ID)
@@ -1218,7 +1218,7 @@ async def test_notification(interaction: discord.Interaction):
             )
             await admin_channel.send(embed=embed)
             await interaction.response.send_message("✅ 測試通知已發送", ephemeral=True)
-        else:
+                else:
             await interaction.response.send_message("❌ 找不到管理員頻道", ephemeral=True)
             
     except Exception as e:
@@ -1231,7 +1231,7 @@ async def debug_booking(interaction: discord.Interaction, booking_id: str):
     if not interaction.user.id == ADMIN_USER_ID:
         await interaction.response.send_message("❌ 只有管理員可以使用此指令。", ephemeral=True)
         return
-    
+
     await interaction.response.defer(ephemeral=True)
     
     try:
@@ -1297,7 +1297,7 @@ app = Flask(__name__)
 def create_instant_text_channel():
     """為即時預約創建文字頻道"""
     try:
-        data = request.get_json()
+    data = request.get_json()
         booking_id = data.get('booking_id')
         customer_name = data.get('customer_name')
         partner_name = data.get('partner_name')
@@ -1306,8 +1306,8 @@ def create_instant_text_channel():
             return jsonify({'error': '缺少必要參數'}), 400
         
         # 獲取 Discord 伺服器
-        guild = bot.get_guild(GUILD_ID)
-        if not guild:
+            guild = bot.get_guild(GUILD_ID)
+            if not guild:
             return jsonify({'error': '找不到 Discord 伺服器'}), 500
         
         # 創建文字頻道
@@ -1329,7 +1329,7 @@ def create_instant_text_channel():
                 'channel_id': str(channel.id),
                 'channel_name': channel.name
             })
-        else:
+                else:
             return jsonify({'error': '創建頻道失敗'}), 500
             
     except Exception as e:
@@ -1375,7 +1375,7 @@ def invite_user():
                 return jsonify({'success': True, 'message': '歡迎訊息已發送'})
             except:
                 return jsonify({'success': True, 'message': '用戶已找到，但無法發送私訊'})
-        else:
+            else:
             # 通知管理員
             admin_channel = guild.get_channel(ADMIN_CHANNEL_ID)
             if admin_channel:
@@ -1413,7 +1413,7 @@ def health_check():
                 'database_health_check': database_health_check.is_running()
             }
         })
-    except Exception as e:
+        except Exception as e:
         return jsonify({
             'status': 'unhealthy',
             'error': str(e)
@@ -1439,7 +1439,7 @@ async def main():
     # 啟動 Discord Bot
     try:
         await bot.start(DISCORD_TOKEN)
-    except Exception as e:
+        except Exception as e:
         print(f"❌ 啟動 Discord Bot 失敗: {e}")
 
 if __name__ == "__main__":

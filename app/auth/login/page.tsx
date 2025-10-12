@@ -44,21 +44,21 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-[#0f172a] pt-32">
+    <div className="flex flex-col items-center justify-center min-h-screen bg-palette-900 pt-32">
       <div className="w-full max-w-md">
-        <div className="bg-[#1e293b] shadow-xl rounded-lg px-8 pt-6 pb-8 mb-4">
+        <div className="bg-palette-800 shadow-xl rounded-lg px-8 pt-6 pb-8 mb-4">
           <div className="text-center mb-6">
             <h2 className="text-2xl font-bold text-white mb-2">登入 PeiPlay</h2>
-            <p className="text-gray-600">歡迎回來！</p>
+            <p className="text-palette-400">歡迎回來！</p>
           </div>
           <LineLoginButton />
-          <div className="w-full border-t border-gray-200 my-8" />
-          <h3 className="text-lg font-bold mb-4 text-gray-800">一般登入</h3>
+          <div className="w-full border-t border-palette-600 my-8" />
+          <h3 className="text-lg font-bold mb-4 text-palette-400">一般登入</h3>
           <form onSubmit={handleCredentialsLogin} className="w-full flex flex-col gap-4">
             {errorMsg && <div className="text-red-500 text-center">{errorMsg}</div>}
             <input
               type="email"
-              className="w-full px-4 py-2 rounded bg-white text-black border border-gray-300"
+              className="w-full px-4 py-2 rounded bg-palette-400 text-palette-900 border border-palette-600"
               placeholder="Email"
               value={email}
               onChange={e => setEmail(e.target.value)}
@@ -66,7 +66,7 @@ export default function LoginPage() {
             />
             <input
               type="password"
-              className="w-full px-4 py-2 rounded bg-white text-black border border-gray-300"
+              className="w-full px-4 py-2 rounded bg-palette-400 text-palette-900 border border-palette-600"
               placeholder="密碼"
               value={password}
               onChange={e => setPassword(e.target.value)}

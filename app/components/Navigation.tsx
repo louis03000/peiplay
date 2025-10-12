@@ -11,12 +11,12 @@ export default function Navigation() {
   }
 
   return (
-    <nav className="bg-palette-400 shadow">
+    <nav className="bg-palette-900 shadow">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
           <div className="flex">
             <div className="flex-shrink-0 flex items-center">
-              <Link href="/" className="text-xl font-bold text-palette-800">
+              <Link href="/" className="text-xl font-bold text-white">
                 遊戲夥伴預約系統
               </Link>
             </div>
@@ -25,8 +25,8 @@ export default function Navigation() {
                 href="/"
                 className={`inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium ${
                   isActive('/')
-                    ? 'border-palette-800 text-palette-900'
-                    : 'border-transparent text-palette-600 hover:border-palette-700 hover:text-palette-800'
+                    ? 'border-palette-700 text-white'
+                    : 'border-transparent text-palette-400 hover:border-palette-600 hover:text-white'
                 }`}
               >
                 首頁
@@ -35,8 +35,8 @@ export default function Navigation() {
                 href="/partners"
                 className={`inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium ${
                   isActive('/partners')
-                    ? 'border-palette-800 text-palette-900'
-                    : 'border-transparent text-palette-600 hover:border-palette-700 hover:text-palette-800'
+                    ? 'border-palette-700 text-white'
+                    : 'border-transparent text-palette-400 hover:border-palette-600 hover:text-white'
                 }`}
               >
                 夥伴列表
@@ -45,8 +45,8 @@ export default function Navigation() {
                 href="/booking"
                 className={`inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium ${
                   isActive('/booking')
-                    ? 'border-palette-800 text-palette-900'
-                    : 'border-transparent text-palette-600 hover:border-palette-700 hover:text-palette-800'
+                    ? 'border-palette-700 text-white'
+                    : 'border-transparent text-palette-400 hover:border-palette-600 hover:text-white'
                 }`}
               >
                 預約
@@ -55,8 +55,8 @@ export default function Navigation() {
                 href="/join"
                 className={`inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium ${
                   isActive('/join')
-                    ? 'border-palette-800 text-palette-900'
-                    : 'border-transparent text-palette-600 hover:border-palette-700 hover:text-palette-800'
+                    ? 'border-palette-700 text-white'
+                    : 'border-transparent text-palette-400 hover:border-palette-600 hover:text-white'
                 }`}
               >
                 加入我們

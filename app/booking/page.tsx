@@ -425,20 +425,20 @@ function BookingWizardContent() {
   }, [step, selectedPartner, selectedDate, selectedTimes, selectedDuration, onlyAvailable])
 
   return (
-    <div className="max-w-2xl mx-auto mt-16 sm:mt-36 rounded-3xl p-0 shadow-2xl bg-palette-400 backdrop-blur-lg border border-palette-500 overflow-hidden">
+    <div className="max-w-2xl mx-auto mt-16 sm:mt-36 rounded-3xl p-0 shadow-2xl bg-palette-800 backdrop-blur-lg border border-palette-700 overflow-hidden">
       {/* 移除金幣餘額顯示 */}
 
       {/* 步驟指示器 */}
-      <div className="px-4 sm:px-10 pt-6 sm:pt-10 pb-4 sm:pb-6 bg-gradient-to-r from-palette-500 to-palette-600">
+      <div className="px-4 sm:px-10 pt-6 sm:pt-10 pb-4 sm:pb-6 bg-gradient-to-r from-palette-700 to-palette-600">
         <div className="flex items-center justify-between relative">
-          <div className="absolute top-1/2 left-4 sm:left-6 right-4 sm:right-6 h-1 bg-palette-700 -z-10 rounded-full" style={{transform:'translateY(-50%)'}} />
+          <div className="absolute top-1/2 left-4 sm:left-6 right-4 sm:right-6 h-1 bg-palette-600 -z-10 rounded-full" style={{transform:'translateY(-50%)'}} />
           {getSteps(onlyAvailable).map((s, i) => (
             <div key={s} className="flex-1 flex flex-col items-center">
               <div className={`w-6 h-6 sm:w-8 sm:h-8 flex items-center justify-center rounded-full border-2 transition-all duration-300 text-xs sm:text-sm
-                ${i < step ? 'bg-palette-800 border-palette-800 text-white shadow-lg' :
-                  i === step ? 'bg-palette-700 border-palette-700 text-white shadow-xl scale-110' :
-                  'bg-palette-500 border-palette-600 text-palette-800'}`}>{i+1}</div>
-              <div className={`mt-1 sm:mt-2 text-xs ${i === step ? 'text-palette-800 font-bold' : 'text-palette-700'}`}>
+                ${i < step ? 'bg-palette-700 border-palette-700 text-white shadow-lg' :
+                  i === step ? 'bg-palette-600 border-palette-600 text-white shadow-xl scale-110' :
+                  'bg-palette-600 border-palette-500 text-palette-400'}`}>{i+1}</div>
+              <div className={`mt-1 sm:mt-2 text-xs ${i === step ? 'text-palette-400 font-bold' : 'text-palette-500'}`}>
                 <span className="hidden sm:inline">{s}</span>
                 <span className="sm:hidden">{s.split(' ')[1] || s}</span>
               </div>

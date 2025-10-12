@@ -183,11 +183,11 @@ export default function BookingsPage() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto mt-16 pt-16 sm:pt-32 bg-white/10 rounded-xl p-4 sm:p-8 shadow-lg backdrop-blur">
+    <div className="max-w-6xl mx-auto mt-16 pt-16 sm:pt-32 bg-palette-800/90 rounded-xl p-4 sm:p-8 shadow-lg backdrop-blur">
       {/* 頁面標題和說明 */}
       <div className="text-center mb-6 sm:mb-8">
         <h1 className="text-2xl sm:text-3xl font-bold text-white mb-4">預約管理</h1>
-        <p className="text-gray-300 text-base sm:text-lg">
+        <p className="text-palette-400 text-base sm:text-lg">
           {session?.user?.role === 'PARTNER' 
             ? '管理您的預約服務和客戶訂單' 
             : '查看您的預約記錄和服務訂單'
@@ -200,8 +200,8 @@ export default function BookingsPage() {
         <button
           className={`px-4 sm:px-8 py-3 rounded-lg font-bold transition-all duration-200 ${
             tab === 'me' 
-              ? 'bg-indigo-600 text-white shadow-lg' 
-              : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+              ? 'bg-palette-700 text-white shadow-lg' 
+              : 'bg-palette-600 text-palette-400 hover:bg-palette-500'
           }`}
           onClick={() => setTab('me')}
         >
@@ -213,8 +213,8 @@ export default function BookingsPage() {
         <button
           className={`px-4 sm:px-8 py-3 rounded-lg font-bold transition-all duration-200 ${
             tab === 'partner' 
-              ? 'bg-indigo-600 text-white shadow-lg' 
-              : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+              ? 'bg-palette-700 text-white shadow-lg' 
+              : 'bg-palette-600 text-palette-400 hover:bg-palette-500'
           }`}
           onClick={() => setTab('partner')}
         >
