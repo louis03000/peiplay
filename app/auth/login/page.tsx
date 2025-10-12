@@ -49,7 +49,7 @@ export default function LoginPage() {
         <div className="bg-[#1e293b] shadow-xl rounded-lg px-8 pt-6 pb-8 mb-4">
           <div className="text-center mb-6">
             <h2 className="text-2xl font-bold text-white mb-2">登入 PeiPlay</h2>
-            <p className="text-gray-400">歡迎回來！</p>
+            <p className="text-gray-600">歡迎回來！</p>
           </div>
           <LineLoginButton />
           <div className="w-full border-t border-gray-200 my-8" />
@@ -86,7 +86,7 @@ export default function LoginPage() {
           >
             其他方式註冊
           </button>
-          <p className="text-gray-500 text-sm mt-6">登入即表示您同意我們的服務條款和隱私政策</p>
+          <p className="text-gray-600 text-sm mt-6">登入即表示您同意我們的服務條款和隱私政策</p>
         </div>
       </div>
     </div>

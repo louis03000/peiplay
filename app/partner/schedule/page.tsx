@@ -616,7 +616,7 @@ export default function PartnerSchedulePage() {
                 <div className="w-16 sm:w-20 border-r border-gray-200 sticky left-0 z-10 bg-white">
                   {timeSlots.map((time, index) => (
                     <div key={index} className="h-8 border-b border-gray-100 flex items-center justify-center">
-                      <span className="text-xs text-gray-500">{time}</span>
+                      <span className="text-xs text-gray-700">{time}</span>
                     </div>
                   ))}
                 </div>

@@ -107,7 +107,7 @@ export default function ProfileSettingsPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="font-medium text-gray-900">Email 通知</h3>
-                  <p className="text-sm text-gray-500">啟用或停用所有 Email 通知</p>
+                  <p className="text-sm text-gray-700">啟用或停用所有 Email 通知</p>
                 </div>
                 <label className="relative inline-flex items-center cursor-pointer">
                   <input
@@ -123,7 +123,7 @@ export default function ProfileSettingsPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="font-medium text-gray-900">訊息通知</h3>
-                  <p className="text-sm text-gray-500">當您收到新訊息時發送 Email 通知</p>
+                  <p className="text-sm text-gray-700">當您收到新訊息時發送 Email 通知</p>
                 </div>
                 <label className="relative inline-flex items-center cursor-pointer">
                   <input
@@ -140,7 +140,7 @@ export default function ProfileSettingsPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="font-medium text-gray-900">預約通知</h3>
-                  <p className="text-sm text-gray-500">預約相關事件(創建、確認、取消等)的 Email 通知</p>
+                  <p className="text-sm text-gray-700">預約相關事件(創建、確認、取消等)的 Email 通知</p>
                 </div>
                 <label className="relative inline-flex items-center cursor-pointer">
                   <input
@@ -167,7 +167,7 @@ export default function ProfileSettingsPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="font-medium text-gray-900">雙重驗證</h3>
-                  <p className="text-sm text-gray-500">啟用雙重驗證以提高帳戶安全性</p>
+                  <p className="text-sm text-gray-700">啟用雙重驗證以提高帳戶安全性</p>
                 </div>
                 <label className="relative inline-flex items-center cursor-pointer">
                   <input
@@ -183,7 +183,7 @@ export default function ProfileSettingsPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="font-medium text-gray-900">登入提醒</h3>
-                  <p className="text-sm text-gray-500">當有新的登入活動時發送通知</p>
+                  <p className="text-sm text-gray-700">當有新的登入活動時發送通知</p>
                 </div>
                 <label className="relative inline-flex items-center cursor-pointer">
                   <input
@@ -199,7 +199,7 @@ export default function ProfileSettingsPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="font-medium text-gray-900">安全警報</h3>
-                  <p className="text-sm text-gray-500">當偵測到可疑活動時發送通知</p>
+                  <p className="text-sm text-gray-700">當偵測到可疑活動時發送通知</p>
                 </div>
                 <label className="relative inline-flex items-center cursor-pointer">
                   <input

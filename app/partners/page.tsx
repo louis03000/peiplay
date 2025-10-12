@@ -241,7 +241,7 @@ export default function PartnersPage() {
           {loading ? (
             <div className="flex flex-col items-center justify-center py-12">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500 mb-4"></div>
-              <p className="text-gray-500">載入夥伴資料中...</p>
+              <p className="text-gray-600">載入夥伴資料中...</p>
             </div>
           ) : error ? (
             <div className="text-center py-12">
@@ -255,8 +255,8 @@ export default function PartnersPage() {
             </div>
           ) : filteredPartners.length === 0 ? (
             <div className="text-center py-12">
-              <div className="text-gray-400 text-6xl mb-4">🔍</div>
-              <p className="text-gray-500 text-lg mb-2">
+              <div className="text-gray-600 text-6xl mb-4">🔍</div>
+              <p className="text-gray-600 text-lg mb-2">
                 {searchTerm ? '搜尋無結果' : '請輸入搜尋條件來尋找夥伴'}
               </p>
               {searchTerm && (

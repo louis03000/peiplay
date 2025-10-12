@@ -425,20 +425,20 @@ function BookingWizardContent() {
   }, [step, selectedPartner, selectedDate, selectedTimes, selectedDuration, onlyAvailable])
 
   return (
-    <div className="max-w-2xl mx-auto mt-16 sm:mt-36 rounded-3xl p-0 shadow-2xl bg-white/95 backdrop-blur-lg border border-gray-200 overflow-hidden">
+    <div className="max-w-2xl mx-auto mt-16 sm:mt-36 rounded-3xl p-0 shadow-2xl bg-palette-400 backdrop-blur-lg border border-palette-500 overflow-hidden">
       {/* 移除金幣餘額顯示 */}
 
       {/* 步驟指示器 */}
-      <div className="px-4 sm:px-10 pt-6 sm:pt-10 pb-4 sm:pb-6 bg-gradient-to-r from-blue-50 to-indigo-50">
+      <div className="px-4 sm:px-10 pt-6 sm:pt-10 pb-4 sm:pb-6 bg-gradient-to-r from-palette-500 to-palette-600">
         <div className="flex items-center justify-between relative">
-          <div className="absolute top-1/2 left-4 sm:left-6 right-4 sm:right-6 h-1 bg-gray-300 -z-10 rounded-full" style={{transform:'translateY(-50%)'}} />
+          <div className="absolute top-1/2 left-4 sm:left-6 right-4 sm:right-6 h-1 bg-palette-700 -z-10 rounded-full" style={{transform:'translateY(-50%)'}} />
           {getSteps(onlyAvailable).map((s, i) => (
             <div key={s} className="flex-1 flex flex-col items-center">
               <div className={`w-6 h-6 sm:w-8 sm:h-8 flex items-center justify-center rounded-full border-2 transition-all duration-300 text-xs sm:text-sm
-                ${i < step ? 'bg-blue-600 border-blue-600 text-white shadow-lg' :
-                  i === step ? 'bg-indigo-600 border-indigo-600 text-white shadow-xl scale-110' :
-                  'bg-gray-200 border-gray-400 text-gray-500'}`}>{i+1}</div>
-              <div className={`mt-1 sm:mt-2 text-xs ${i === step ? 'text-indigo-600 font-bold' : 'text-gray-500'}`}>
+                ${i < step ? 'bg-palette-800 border-palette-800 text-white shadow-lg' :
+                  i === step ? 'bg-palette-700 border-palette-700 text-white shadow-xl scale-110' :
+                  'bg-palette-500 border-palette-600 text-palette-800'}`}>{i+1}</div>
+              <div className={`mt-1 sm:mt-2 text-xs ${i === step ? 'text-palette-800 font-bold' : 'text-palette-700'}`}>
                 <span className="hidden sm:inline">{s}</span>
                 <span className="sm:hidden">{s.split(' ')[1] || s}</span>
               </div>
@@ -479,7 +479,7 @@ function BookingWizardContent() {
               
               {/* 搜尋框 - 手機上獨占一行 */}
               <input
-                className="w-full sm:flex-1 px-3 sm:px-4 py-2 rounded-full bg-white text-gray-900 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-gray-500 text-sm sm:text-base shadow-sm"
+                className="w-full sm:flex-1 px-3 sm:px-4 py-2 rounded-full bg-palette-400 text-palette-900 border border-palette-600 focus:outline-none focus:ring-2 focus:ring-palette-700 focus:border-transparent placeholder-palette-600 text-sm sm:text-base shadow-sm"
                 placeholder="搜尋夥伴姓名或專長..."
                 value={search}
                 onChange={e => setSearch(e.target.value)}
@@ -490,13 +490,13 @@ function BookingWizardContent() {
             {loading ? (
               <div className="flex flex-col items-center justify-center py-12">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500 mb-4"></div>
-                <p className="text-gray-400 text-sm">載入夥伴資料中...</p>
+                <p className="text-gray-600 text-sm">載入夥伴資料中...</p>
               </div>
             ) : (
               /* 夥伴卡片網格 - 改善手機版佈局 */
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                 {filteredPartners.length === 0 && (
-                  <div className="col-span-1 sm:col-span-2 text-gray-400 text-center py-8">
+                  <div className="col-span-1 sm:col-span-2 text-gray-600 text-center py-8">
                     {search ? '搜尋無結果' : '查無夥伴'}
                   </div>
                 )}
@@ -539,7 +539,7 @@ function BookingWizardContent() {
                       onClick={() => handleDateSelect(d)}
                       className={`px-4 py-2 rounded-lg border-2 transition-all duration-200 text-sm font-medium
                         ${isSelected 
-                          ? 'bg-indigo-500 border-indigo-400 text-white shadow-lg scale-105' 
+                          ? 'bg-palette-700 border-palette-600 text-white shadow-lg scale-105' 
                           : 'bg-gray-800/50 border-gray-600 text-gray-300 hover:bg-gray-700/50 hover:border-gray-500'}`}
                     >
                       {label}
@@ -552,7 +552,7 @@ function BookingWizardContent() {
         {onlyAvailable && step === 1 && selectedPartner && (
           <div>
             <div className="text-lg text-white/90 mb-4">（2）選擇預約時長</div>
-            <div className="text-sm text-gray-400 mb-6 text-center">
+            <div className="text-sm text-gray-600 mb-6 text-center">
               選擇您想要預約的時長，系統會自動安排最適合的時間
             </div>
             <div className="flex flex-wrap gap-3 justify-center">
@@ -569,7 +569,7 @@ function BookingWizardContent() {
                 </button>
               ))}
             </div>
-                         <div className="mt-4 text-center text-sm text-gray-400">
+                         <div className="mt-4 text-center text-sm text-gray-600">
                費用：${(selectedDuration * selectedPartner.halfHourlyRate * 2).toFixed(0)} (${selectedPartner.halfHourlyRate}/半小時)
              </div>
           </div>
@@ -579,7 +579,7 @@ function BookingWizardContent() {
             <div className="text-lg text-white/90 mb-4">（3）選擇時段</div>
             <div className="flex flex-wrap gap-2 justify-center">
               {availableTimeSlots.length === 0 ? (
-                <div className="text-gray-400 text-center py-8">
+                <div className="text-gray-600 text-center py-8">
                   該日期沒有可預約的時段
                 </div>
               ) : (
@@ -593,7 +593,7 @@ function BookingWizardContent() {
                       onClick={() => handleTimeSelect(schedule.id)}
                       className={`px-4 py-2 rounded-lg border-2 transition-all duration-200 text-sm font-medium
                         ${isSelected 
-                          ? 'bg-indigo-500 border-indigo-400 text-white shadow-lg scale-105' 
+                          ? 'bg-palette-700 border-palette-600 text-white shadow-lg scale-105' 
                           : 'bg-gray-800/50 border-gray-600 text-gray-300 hover:bg-gray-700/50 hover:border-gray-500'}`}
                     >
                       {startTime} - {endTime}
@@ -607,14 +607,14 @@ function BookingWizardContent() {
         {((onlyAvailable && step === 2) || (!onlyAvailable && step === 3)) && selectedPartner && (
           <div>
             <div className="text-lg text-gray-900 mb-4">（3）確認預約</div>
-            <div className="bg-gray-50 rounded-lg p-6 mb-6 border border-gray-200">
+            <div className="bg-palette-500 rounded-lg p-6 mb-6 border border-palette-600">
               <div className="flex items-center gap-4 mb-4">
-                <div className="w-16 h-16 rounded-full bg-indigo-500 flex items-center justify-center text-white font-bold">
+                <div className="w-16 h-16 rounded-full bg-palette-700 flex items-center justify-center text-white font-bold">
                   {selectedPartner.name.charAt(0)}
                 </div>
                 <div>
                   <h3 className="text-white font-semibold text-lg">{selectedPartner.name}</h3>
-                  <p className="text-gray-400 text-sm">{selectedPartner.games.join(', ')}</p>
+                  <p className="text-gray-600 text-sm">{selectedPartner.games.join(', ')}</p>
                 </div>
               </div>
               
@@ -665,7 +665,7 @@ function BookingWizardContent() {
                     <button
                       onClick={validatePromoCode}
                       disabled={!promoCode.trim() || isValidatingPromoCode}
-                      className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="px-4 py-2 bg-palette-800 text-white rounded hover:bg-palette-900 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {isValidatingPromoCode ? '驗證中...' : '驗證'}
                     </button>
@@ -695,7 +695,7 @@ function BookingWizardContent() {
             <div className="flex gap-4 justify-center">
                 <button
                   onClick={handlePrevStep}
-                  className="px-6 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors shadow-lg"
+                  className="px-6 py-2 bg-palette-600 text-white rounded-lg hover:bg-palette-700 transition-colors shadow-lg"
                 >
                   上一步
                 </button>
@@ -714,7 +714,7 @@ function BookingWizardContent() {
           <div className="text-center">
             <div className="text-lg text-white/90 mb-4">（5）付款</div>
             <div className="text-6xl mb-4">💳</div>
-            <p className="text-gray-400 mb-4">請在新視窗中完成付款</p>
+            <p className="text-gray-600 mb-4">請在新視窗中完成付款</p>
             <div className="bg-yellow-900/30 border border-yellow-500 rounded-lg p-4 mt-4">
               <p className="text-yellow-300 text-sm">
                 ⚠️ 重要：請在新開啟的付款頁面中完成付款，付款完成後預約才會生效。
@@ -735,7 +735,7 @@ function BookingWizardContent() {
            <div className="text-center">
                            <div className="text-lg text-white/90 mb-4">（4）完成</div>
              <div className="text-6xl mb-4">✅</div>
-                           <p className="text-gray-400 mb-4">預約已確認，等待夥伴確認即可。</p>
+                           <p className="text-gray-600 mb-4">預約已確認，等待夥伴確認即可。</p>
               <div className="bg-green-900/30 border border-green-500 rounded-lg p-4 mt-4">
                 <p className="text-green-300 text-sm">
                   🎉 恭喜！您的預約已成功建立。
@@ -763,7 +763,7 @@ function BookingWizardContent() {
           <button
             onClick={handleNextStep}
             disabled={!canProceed}
-            className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-6 py-2 bg-palette-800 text-white rounded-lg hover:bg-palette-900 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             下一步
           </button>

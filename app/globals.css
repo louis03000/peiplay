@@ -1,74 +1,61 @@
-@import "tailwindcss";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
+/* 新的色卡定義 */
 :root {
-  --background: #0f172a;
-  --foreground: #f8fafc;
-  --primary: #8b5cf6;
-  --primary-dark: #7c3aed;
-  --secondary: #4f46e5;
-  --secondary-dark: #4338ca;
+  --color-primary-900: #06141B;    /* 最深藍黑 */
+  --color-primary-800: #11212D;    /* 深藍 */
+  --color-primary-700: #253745;    /* 中深藍灰 */
+  --color-primary-600: #4A5C6A;    /* 中藍灰 */
+  --color-primary-500: #9BA8AB;    /* 淺藍灰 */
+  --color-primary-400: #CCD0CF;    /* 最淺灰 */
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --color-primary: var(--primary);
-  --color-primary-dark: var(--primary-dark);
-  --color-secondary: var(--secondary);
-  --color-secondary-dark: var(--secondary-dark);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+/* 隱藏滾動條但保持滾動功能 */
+.hide-scrollbar {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;  /* Chrome, Safari and Opera */
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: var(--font-sans), system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-  min-height: 100vh;
+/* 平滑滾動優化 */
+.smooth-scroll {
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
 }
 
-/* Custom scrollbar */
-::-webkit-scrollbar {
-  width: 8px;
+/* 性能優化 */
+.optimized-scroll {
+  will-change: transform;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  perspective: 1000px;
 }
 
-::-webkit-scrollbar-track {
-  background: var(--background);
-}
+/* 新的色卡背景類別 */
+.bg-palette-900 { background-color: var(--color-primary-900); }
+.bg-palette-800 { background-color: var(--color-primary-800); }
+.bg-palette-700 { background-color: var(--color-primary-700); }
+.bg-palette-600 { background-color: var(--color-primary-600); }
+.bg-palette-500 { background-color: var(--color-primary-500); }
+.bg-palette-400 { background-color: var(--color-primary-400); }
 
-::-webkit-scrollbar-thumb {
-  background: var(--primary);
-  border-radius: 4px;
-}
+/* 新的色卡文字類別 */
+.text-palette-900 { color: var(--color-primary-900); }
+.text-palette-800 { color: var(--color-primary-800); }
+.text-palette-700 { color: var(--color-primary-700); }
+.text-palette-600 { color: var(--color-primary-600); }
+.text-palette-500 { color: var(--color-primary-500); }
+.text-palette-400 { color: var(--color-primary-400); }
 
-::-webkit-scrollbar-thumb:hover {
-  background: var(--primary-dark);
-}
-
-/* Gradient text utility */
-.gradient-text {
-  background: linear-gradient(to right, var(--primary), var(--secondary));
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-}
-
-/* Glass effect utility */
-.glass {
-  background: rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 0.5rem;
-}
-
-.perspective { perspective: 1200px; }
-.rotate-y-180 { transform: rotateY(180deg); }
-[transform-style\:preserve-3d] { transform-style: preserve-3d; }
-[style*='backfaceVisibility'] { backface-visibility: hidden; }
+/* 新的色卡邊框類別 */
+.border-palette-900 { border-color: var(--color-primary-900); }
+.border-palette-800 { border-color: var(--color-primary-800); }
+.border-palette-700 { border-color: var(--color-primary-700); }
+.border-palette-600 { border-color: var(--color-primary-600); }
+.border-palette-500 { border-color: var(--color-primary-500); }
+.border-palette-400 { border-color: var(--color-primary-400); }
