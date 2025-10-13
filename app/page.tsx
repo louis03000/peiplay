@@ -80,9 +80,9 @@ export default function Home() {
     <div className="min-h-screen relative overflow-hidden" 
          style={{
            background: `
-             radial-gradient(circle at ${mouseX * 100}% ${mouseY * 100}%, rgba(59, 130, 246, 0.15) 0%, transparent 50%),
-             radial-gradient(circle at ${100 - mouseX * 100}% ${100 - mouseY * 100}%, rgba(139, 92, 246, 0.1) 0%, transparent 50%),
-             linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%)
+             radial-gradient(circle at ${mouseX * 100}% ${mouseY * 100}%, rgba(59, 130, 246, 0.08) 0%, transparent 50%),
+             radial-gradient(circle at ${100 - mouseX * 100}% ${100 - mouseY * 100}%, rgba(139, 92, 246, 0.06) 0%, transparent 50%),
+             linear-gradient(135deg, #0a0e1a 0%, #0f1520 50%, #0a0e1a 100%)
            `
          }}>
       
@@ -124,10 +124,10 @@ export default function Home() {
 
       {/* Hero Section - 震撼視覺 */}
       <section className="relative min-h-screen flex items-center justify-center pt-20 px-6">
-        <div className="relative z-10 w-full max-w-7xl mx-auto">
+        <div className="relative z-10 w-full max-w-7xl mx-auto text-center">
           
           {/* 主內容 */}
-          <div className="text-center space-y-12 animate-fade-in-up">
+          <div className="space-y-12 animate-fade-in-up">
             
             {/* 頂部標籤 */}
             <div className="inline-flex items-center gap-3 px-8 py-4 rounded-full backdrop-blur-xl border border-white/10 animate-scale-in"
@@ -163,15 +163,28 @@ export default function Home() {
             </div>
 
             {/* 副標題 - 大而清晰 */}
-            <div className="space-y-6 max-w-5xl mx-auto animate-fade-in-up" style={{animationDelay: '0.2s'}}>
-              <h2 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white leading-tight tracking-tight">
+            <div className="space-y-6 max-w-5xl mx-auto animate-fade-in-up text-center" style={{animationDelay: '0.2s'}}>
+              <h2 className="text-4xl sm:text-5xl lg:text-6xl font-bold leading-tight tracking-tight"
+                  style={{
+                    color: '#ffffff',
+                    textShadow: '0 2px 20px rgba(255, 255, 255, 0.3)'
+                  }}>
                 連接全球優質遊戲夥伴
               </h2>
-              <p className="text-2xl sm:text-3xl lg:text-4xl font-medium text-blue-300 leading-relaxed">
+              <p className="text-2xl sm:text-3xl lg:text-4xl font-medium leading-relaxed"
+                 style={{
+                   color: '#93c5fd',
+                   textShadow: '0 2px 15px rgba(147, 197, 253, 0.4)'
+                 }}>
                 打造最專業的陪玩體驗平台
               </p>
-              <p className="text-xl sm:text-2xl text-slate-400 leading-relaxed max-w-3xl mx-auto font-medium" 
-                 style={{letterSpacing: '0.025em', lineHeight: '1.8'}}>
+              <p className="text-xl sm:text-2xl leading-relaxed max-w-3xl mx-auto font-medium" 
+                 style={{
+                   letterSpacing: '0.025em',
+                   lineHeight: '1.8',
+                   color: '#e2e8f0',
+                   textShadow: '0 2px 10px rgba(226, 232, 240, 0.3)'
+                 }}>
                 無論您是尋找專業陪玩服務，還是想成為認證陪玩夥伴<br/>
                 PeiPlay 為您提供安全、便捷、高品質的遊戲社交體驗
               </p>
@@ -282,11 +295,15 @@ export default function Home() {
 
       {/* 功能特色區 - 視差效果 */}
       <section className="relative py-40 px-6" style={{transform: `translateY(${scrollY * 0.1}px)`}}>
-        <div className="max-w-7xl mx-auto">
+        <div className="max-w-7xl mx-auto text-center">
           
           {/* 區塊標題 */}
-          <div className="text-center mb-24 space-y-8">
-            <h2 className="text-6xl sm:text-7xl lg:text-8xl font-black text-white tracking-tight">
+          <div className="mb-24 space-y-8">
+            <h2 className="text-6xl sm:text-7xl lg:text-8xl font-black tracking-tight"
+                style={{
+                  color: '#ffffff',
+                  textShadow: '0 2px 20px rgba(255, 255, 255, 0.3)'
+                }}>
               為什麼選擇 PeiPlay？
             </h2>
             <div className="flex items-center justify-center gap-4">
@@ -294,7 +311,11 @@ export default function Home() {
               <div className="w-3 h-3 rounded-full bg-blue-400 animate-pulse-gentle"></div>
               <div className="h-1 w-32 bg-gradient-to-r from-transparent via-blue-400 to-transparent rounded-full"></div>
             </div>
-            <p className="text-2xl sm:text-3xl text-slate-300 font-medium max-w-3xl mx-auto leading-relaxed">
+            <p className="text-2xl sm:text-3xl font-medium max-w-3xl mx-auto leading-relaxed"
+               style={{
+                 color: '#e2e8f0',
+                 textShadow: '0 2px 10px rgba(226, 232, 240, 0.3)'
+               }}>
               我們提供最專業、安全、高品質的遊戲陪玩服務
             </p>
           </div>
@@ -365,12 +386,22 @@ export default function Home() {
                 </div>
 
                 {/* 標題 */}
-                <h3 className="text-3xl font-black text-white mb-6 text-center tracking-tight">
+                <h3 className="text-3xl font-black mb-6 text-center tracking-tight"
+                    style={{
+                      color: '#ffffff',
+                      textShadow: '0 2px 15px rgba(255, 255, 255, 0.3)'
+                    }}>
                   {feature.title}
                 </h3>
 
                 {/* 描述 */}
-                <p className="text-lg text-slate-300 text-center leading-relaxed font-medium" style={{letterSpacing: '0.015em', lineHeight: '1.8'}}>
+                <p className="text-lg text-center leading-relaxed font-medium"
+                   style={{
+                     letterSpacing: '0.015em',
+                     lineHeight: '1.8',
+                     color: '#e2e8f0',
+                     textShadow: '0 2px 10px rgba(226, 232, 240, 0.3)'
+                   }}>
                   {feature.desc}
                 </p>
 
@@ -387,11 +418,15 @@ export default function Home() {
 
       {/* 精選夥伴區 */}
       <section className="relative py-40 px-6">
-        <div className="max-w-7xl mx-auto">
+        <div className="max-w-7xl mx-auto text-center">
           
           {/* 區塊標題 */}
-          <div className="text-center mb-24 space-y-8">
-            <h2 className="text-6xl sm:text-7xl lg:text-8xl font-black text-white tracking-tight">
+          <div className="mb-24 space-y-8">
+            <h2 className="text-6xl sm:text-7xl lg:text-8xl font-black tracking-tight"
+                style={{
+                  color: '#ffffff',
+                  textShadow: '0 2px 20px rgba(255, 255, 255, 0.3)'
+                }}>
               精選遊戲夥伴
             </h2>
             <div className="flex items-center justify-center gap-4">
@@ -399,7 +434,11 @@ export default function Home() {
               <div className="w-3 h-3 rounded-full bg-purple-400 animate-pulse-gentle"></div>
               <div className="h-1 w-32 bg-gradient-to-r from-transparent via-purple-400 to-transparent rounded-full"></div>
             </div>
-            <p className="text-2xl sm:text-3xl text-slate-300 font-medium max-w-3xl mx-auto leading-relaxed">
+            <p className="text-2xl sm:text-3xl font-medium max-w-3xl mx-auto leading-relaxed"
+               style={{
+                 color: '#e2e8f0',
+                 textShadow: '0 2px 10px rgba(226, 232, 240, 0.3)'
+               }}>
               專業認證的遊戲夥伴，為您提供最優質的陪玩服務
             </p>
           </div>
@@ -451,7 +490,11 @@ export default function Home() {
                 {/* 卡片內容 */}
                 <div className="p-8 space-y-6">
                   {/* 夥伴名稱 */}
-                  <h3 className="text-3xl font-black text-white tracking-tight">
+                  <h3 className="text-3xl font-black tracking-tight text-center"
+                      style={{
+                        color: '#ffffff',
+                        textShadow: '0 2px 15px rgba(255, 255, 255, 0.3)'
+                      }}>
                     {partner.name}
                   </h3>
 
@@ -537,7 +580,7 @@ export default function Home() {
 
       {/* 統計數據區 */}
       <section className="relative py-32 px-6">
-        <div className="max-w-6xl mx-auto">
+        <div className="max-w-6xl mx-auto text-center">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-12">
             {[
               { value: '500+', label: '活躍夥伴', icon: '👥', color: '#3b82f6' },
@@ -545,7 +588,7 @@ export default function Home() {
               { value: '4.9', label: '用戶評價', icon: '⭐', color: '#06b6d4' },
               { value: '24/7', label: '客服支援', icon: '🛠️', color: '#10b981' }
             ].map((stat, index) => (
-              <div key={index} className="text-center space-y-4 group">
+              <div key={index} className="space-y-4 group">
                 <div className="text-5xl mb-4 transition-transform duration-500 group-hover:scale-110">
                   {stat.icon}
                 </div>
@@ -553,11 +596,16 @@ export default function Home() {
                      style={{
                        background: `linear-gradient(135deg, ${stat.color} 0%, ${stat.color}dd 100%)`,
                        WebkitBackgroundClip: 'text',
-                       WebkitTextFillColor: 'transparent'
+                       WebkitTextFillColor: 'transparent',
+                       filter: 'drop-shadow(0 2px 10px rgba(255, 255, 255, 0.3))'
                      }}>
                   {stat.value}
                 </div>
-                <div className="text-xl text-slate-300 font-bold">{stat.label}</div>
+                <div className="text-xl font-bold"
+                     style={{
+                       color: '#e2e8f0',
+                       textShadow: '0 2px 10px rgba(226, 232, 240, 0.3)'
+                     }}>{stat.label}</div>
               </div>
             ))}
           </div>
@@ -567,10 +615,18 @@ export default function Home() {
       {/* 最終 CTA 區 */}
       <section className="relative py-40 px-6">
         <div className="max-w-5xl mx-auto text-center space-y-12">
-          <h2 className="text-6xl sm:text-7xl lg:text-8xl font-black text-white tracking-tight leading-tight">
+          <h2 className="text-6xl sm:text-7xl lg:text-8xl font-black tracking-tight leading-tight"
+              style={{
+                color: '#ffffff',
+                textShadow: '0 2px 20px rgba(255, 255, 255, 0.3)'
+              }}>
             準備開始您的<br/>遊戲之旅？
           </h2>
-          <p className="text-2xl sm:text-3xl text-slate-300 font-medium leading-relaxed">
+          <p className="text-2xl sm:text-3xl font-medium leading-relaxed"
+             style={{
+               color: '#e2e8f0',
+               textShadow: '0 2px 10px rgba(226, 232, 240, 0.3)'
+             }}>
             立即預約專業陪玩夥伴，享受優質的遊戲體驗
           </p>
           
