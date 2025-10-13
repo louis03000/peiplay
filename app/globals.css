@@ -2,529 +2,434 @@
 @tailwind components;
 @tailwind utilities;
 
-/* 自定義動畫 */
-@keyframes shimmer {
-  0% { transform: translateX(-100%); }
-  100% { transform: translateX(100%); }
-}
-
-@keyframes pulse {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.05); }
-}
-
-@keyframes float {
-  0%, 100% { transform: translateY(0px); }
-  50% { transform: translateY(-20px); }
-}
-
-@keyframes glow {
-  0%, 100% { box-shadow: 0 0 20px rgba(26, 115, 232, 0.3); }
-  50% { box-shadow: 0 0 40px rgba(26, 115, 232, 0.6); }
-}
-
-/* 超大響應式設計優化 */
-@media (max-width: 640px) {
-  .hero-title {
-    font-size: 4rem !important;
-    line-height: 1.1 !important;
+/* 現代化字體設置 */
+@layer base {
+  * {
+    @apply antialiased;
   }
   
-  .hero-subtitle {
-    font-size: 2rem !important;
+  html {
+    @apply scroll-smooth;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
   }
   
-  .hero-description {
-    font-size: 1.5rem !important;
-  }
-  
-  .section-title {
-    font-size: 3rem !important;
-  }
-  
-  .section-subtitle {
-    font-size: 1.5rem !important;
-  }
-  
-  .feature-grid {
-    grid-template-columns: 1fr !important;
-    gap: 2rem !important;
-  }
-  
-  .partner-grid {
-    grid-template-columns: 1fr !important;
-    gap: 2rem !important;
-  }
-  
-  .game-grid {
-    grid-template-columns: repeat(2, 1fr) !important;
-    gap: 1.5rem !important;
-  }
-  
-  .cta-buttons {
-    flex-direction: column !important;
-    gap: 1.5rem !important;
-  }
-  
-  .cta-button {
-    width: 100% !important;
-    padding: 1.5rem 3rem !important;
-    font-size: 1.5rem !important;
-  }
-  
-  .nav-button {
-    padding: 1rem 2rem !important;
-    font-size: 1.25rem !important;
-  }
-  
-  .card-padding {
-    padding: 1.5rem !important;
-  }
-  
-  .text-responsive {
-    font-size: 1.25rem !important;
-  }
-  
-  .button-large {
-    padding: 1rem 2rem !important;
-    font-size: 1.125rem !important;
+  body {
+    @apply text-gray-100;
   }
 }
 
-@media (min-width: 641px) and (max-width: 1024px) {
-  .hero-title {
-    font-size: 6rem !important;
-  }
-  
-  .hero-subtitle {
-    font-size: 3rem !important;
-  }
-  
-  .hero-description {
-    font-size: 2rem !important;
-  }
-  
-  .section-title {
-    font-size: 4.5rem !important;
-  }
-  
-  .section-subtitle {
-    font-size: 2rem !important;
-  }
-  
-  .feature-grid {
-    grid-template-columns: repeat(2, 1fr) !important;
-    gap: 2.5rem !important;
-  }
-  
-  .partner-grid {
-    grid-template-columns: repeat(2, 1fr) !important;
-    gap: 2.5rem !important;
-  }
-  
-  .game-grid {
-    grid-template-columns: repeat(3, 1fr) !important;
-    gap: 2rem !important;
-  }
-  
-  .cta-button {
-    padding: 1.5rem 3rem !important;
-    font-size: 1.75rem !important;
-  }
-  
-  .nav-button {
-    padding: 1.25rem 2.5rem !important;
-    font-size: 1.5rem !important;
-  }
-  
-  .card-padding {
-    padding: 2rem !important;
-  }
-  
-  .text-responsive {
-    font-size: 1.5rem !important;
-  }
-  
-  .button-large {
-    padding: 1.25rem 2.5rem !important;
-    font-size: 1.25rem !important;
-  }
-}
-
-@media (min-width: 1025px) {
-  .hero-title {
-    font-size: 8rem !important;
-  }
-  
-  .hero-subtitle {
-    font-size: 4rem !important;
-  }
-  
-  .hero-description {
-    font-size: 2.5rem !important;
-  }
-  
-  .section-title {
-    font-size: 6rem !important;
-  }
-  
-  .section-subtitle {
-    font-size: 2.5rem !important;
-  }
-  
-  .feature-grid {
-    grid-template-columns: repeat(4, 1fr) !important;
-    gap: 3rem !important;
-  }
-  
-  .partner-grid {
-    grid-template-columns: repeat(3, 1fr) !important;
-    gap: 3rem !important;
-  }
-  
-  .game-grid {
-    grid-template-columns: repeat(5, 1fr) !important;
-    gap: 2.5rem !important;
-  }
-  
-  .cta-button {
-    padding: 2rem 4rem !important;
-    font-size: 2rem !important;
-  }
-  
-  .nav-button {
-    padding: 1.5rem 3rem !important;
-    font-size: 1.75rem !important;
-  }
-  
-  .card-padding {
-    padding: 2.5rem !important;
-  }
-  
-  .text-responsive {
-    font-size: 1.75rem !important;
-  }
-  
-  .button-large {
-    padding: 1.5rem 3rem !important;
-    font-size: 1.5rem !important;
-  }
-}
-
-/* 滾動行為優化 */
-html {
-  scroll-behavior: smooth;
-}
-
-/* 自定義滾動條 */
+/* 優雅的滾動條 */
 ::-webkit-scrollbar {
-  width: 12px;
+  width: 8px;
+  height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #E4E7EB;
-  border-radius: 6px;
+  background: rgba(15, 23, 41, 0.5);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: linear-gradient(135deg, #1A73E8, #5C7AD6);
-  border-radius: 6px;
-  border: 2px solid #E4E7EB;
+  background: linear-gradient(180deg, #3B82F6 0%, #2563EB 100%);
+  border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(135deg, #5C7AD6, #00BFA5);
+  background: linear-gradient(180deg, #60A5FA 0%, #3B82F6 100%);
 }
 
-/* 文字選擇樣式 */
+/* 選擇文字樣式 */
 ::selection {
-  background: rgba(26, 115, 232, 0.2);
-  color: #333140;
+  background: rgba(59, 130, 246, 0.3);
+  color: white;
 }
 
 /* 聚焦樣式 */
 *:focus {
-  outline: 3px solid #1A73E8;
-  outline-offset: 3px;
-  border-radius: 8px;
+  outline: 2px solid rgba(59, 130, 246, 0.5);
+  outline-offset: 2px;
 }
 
-/* 超大按鈕基礎樣式 */
+/* 輸入框樣式重置 */
+input::placeholder {
+  color: rgba(255, 255, 255, 0.4);
+}
+
+/* 現代化按鈕系統 */
 .btn-primary {
-  background: linear-gradient(135deg, #1A73E8 0%, #5C7AD6 100%);
+  @apply relative px-8 py-4 rounded-xl font-bold text-base;
+  @apply transition-all duration-300;
+  @apply border border-white/10;
+  background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%);
   color: white;
-  border: none;
-  border-radius: 1.5rem;
-  padding: 1.5rem 3rem;
-  font-weight: 900;
-  font-size: 1.5rem;
-  transition: all 0.4s ease;
-  box-shadow: 0 12px 40px rgba(26, 115, 232, 0.4);
-  text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
-  cursor: pointer;
+  box-shadow: 0 4px 20px rgba(59, 130, 246, 0.3);
 }
 
 .btn-primary:hover {
-  transform: translateY(-4px) scale(1.05);
-  box-shadow: 0 20px 60px rgba(26, 115, 232, 0.5);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 30px rgba(59, 130, 246, 0.4);
+}
+
+.btn-primary:active {
+  transform: translateY(0);
 }
 
 .btn-secondary {
-  background: transparent;
-  color: #1A73E8;
-  border: 3px solid #1A73E8;
-  border-radius: 1.5rem;
-  padding: 1.5rem 3rem;
-  font-weight: 900;
-  font-size: 1.5rem;
-  transition: all 0.4s ease;
-  cursor: pointer;
+  @apply relative px-8 py-4 rounded-xl font-bold text-base;
+  @apply transition-all duration-300;
+  @apply border-2 border-white/20;
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(20px);
+  color: white;
 }
 
 .btn-secondary:hover {
-  background: #1A73E8;
-  color: white;
-  transform: translateY(-4px) scale(1.05);
-  box-shadow: 0 20px 60px rgba(26, 115, 232, 0.4);
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.3);
+  transform: translateY(-2px);
 }
 
-/* 超大卡片基礎樣式 */
+.btn-secondary:active {
+  transform: translateY(0);
+}
+
+/* 現代化卡片系統 */
 .card {
-  background: white;
-  border-radius: 2rem;
-  box-shadow: 0 16px 64px rgba(0, 0, 0, 0.1);
-  transition: all 0.4s ease;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  @apply relative rounded-2xl overflow-hidden;
+  @apply transition-all duration-300;
+  @apply backdrop-blur-md border border-white/10;
+  background: rgba(255, 255, 255, 0.03);
 }
 
 .card:hover {
-  transform: translateY(-12px) scale(1.02);
-  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.15);
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.2);
+  transform: translateY(-4px);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
 }
 
-/* 超大輸入框樣式 */
+/* 優雅的輸入框 */
 .input-field {
-  background: rgba(255, 255, 255, 0.95);
-  border: 3px solid rgba(228, 231, 235, 0.8);
-  border-radius: 1.5rem;
-  padding: 1.5rem 2rem;
-  font-size: 1.5rem;
-  font-weight: 700;
-  transition: all 0.4s ease;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  @apply w-full px-6 py-4 rounded-xl text-base font-medium;
+  @apply transition-all duration-300;
+  @apply border border-white/10;
+  @apply focus:outline-none;
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(20px);
+  color: white;
 }
 
 .input-field:focus {
-  border-color: #1A73E8;
-  box-shadow: 0 0 0 6px rgba(26, 115, 232, 0.1);
-  background: white;
-  transform: scale(1.02);
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(59, 130, 246, 0.5);
+  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+}
+
+/* 輕而優雅的動畫 */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-20px);
+  }
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    opacity: 1;
+    box-shadow: 0 0 20px rgba(59, 130, 246, 0.3);
+  }
+  50% {
+    opacity: 0.8;
+    box-shadow: 0 0 40px rgba(59, 130, 246, 0.5);
+  }
 }
 
 /* 動畫類 */
+.animate-fade-in {
+  animation: fadeIn 0.6s ease-out;
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.8s ease-out;
+}
+
+.animate-slide-in-left {
+  animation: slideInLeft 0.6s ease-out;
+}
+
+.animate-slide-in-right {
+  animation: slideInRight 0.6s ease-out;
+}
+
+.animate-scale-in {
+  animation: scaleIn 0.5s ease-out;
+}
+
 .animate-float {
-  animation: float 3s ease-in-out infinite;
+  animation: float 6s ease-in-out infinite;
 }
 
-.animate-glow {
-  animation: glow 2s ease-in-out infinite;
+.animate-pulse-glow {
+  animation: pulse-glow 3s ease-in-out infinite;
 }
 
-.animate-shimmer {
-  animation: shimmer 2s infinite;
+/* 延遲動畫 */
+.delay-100 { animation-delay: 0.1s; }
+.delay-200 { animation-delay: 0.2s; }
+.delay-300 { animation-delay: 0.3s; }
+.delay-400 { animation-delay: 0.4s; }
+.delay-500 { animation-delay: 0.5s; }
+.delay-600 { animation-delay: 0.6s; }
+
+/* 玻璃態效果 */
+.glass {
+  @apply backdrop-blur-md border border-white/10;
+  background: rgba(255, 255, 255, 0.05);
 }
 
-.animate-pulse-slow {
-  animation: pulse 3s infinite;
+.glass-strong {
+  @apply backdrop-blur-xl border border-white/20;
+  background: rgba(255, 255, 255, 0.08);
 }
 
-/* 響應式文字大小 */
+/* 漸層文字 */
+.gradient-text {
+  background: linear-gradient(135deg, #FFFFFF 0%, #60A5FA 50%, #3B82F6 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.gradient-text-blue {
+  background: linear-gradient(135deg, #60A5FA 0%, #3B82F6 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* 陰影系統 */
+.shadow-glow-blue {
+  box-shadow: 0 0 30px rgba(59, 130, 246, 0.3);
+}
+
+.shadow-glow-purple {
+  box-shadow: 0 0 30px rgba(139, 92, 246, 0.3);
+}
+
+.shadow-glow-cyan {
+  box-shadow: 0 0 30px rgba(6, 182, 212, 0.3);
+}
+
+.shadow-soft {
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+}
+
+.shadow-strong {
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+/* 響應式字體大小 */
 @media (max-width: 640px) {
-  .text-responsive-xs { font-size: 1rem; }
-  .text-responsive-sm { font-size: 1.25rem; }
-  .text-responsive-base { font-size: 1.5rem; }
-  .text-responsive-lg { font-size: 1.75rem; }
-  .text-responsive-xl { font-size: 2rem; }
-  .text-responsive-2xl { font-size: 2.5rem; }
-  .text-responsive-3xl { font-size: 3rem; }
-  .text-responsive-4xl { font-size: 3.5rem; }
-  .text-responsive-5xl { font-size: 4rem; }
-  .text-responsive-6xl { font-size: 5rem; }
+  html {
+    font-size: 14px;
+  }
+  
+  h1 {
+    @apply text-4xl;
+  }
+  
+  h2 {
+    @apply text-3xl;
+  }
+  
+  h3 {
+    @apply text-2xl;
+  }
+  
+  .hero-title {
+    @apply text-5xl;
+  }
 }
 
 @media (min-width: 641px) and (max-width: 1024px) {
-  .text-responsive-xs { font-size: 1.25rem; }
-  .text-responsive-sm { font-size: 1.5rem; }
-  .text-responsive-base { font-size: 1.75rem; }
-  .text-responsive-lg { font-size: 2rem; }
-  .text-responsive-xl { font-size: 2.5rem; }
-  .text-responsive-2xl { font-size: 3rem; }
-  .text-responsive-3xl { font-size: 3.5rem; }
-  .text-responsive-4xl { font-size: 4rem; }
-  .text-responsive-5xl { font-size: 5rem; }
-  .text-responsive-6xl { font-size: 6rem; }
+  html {
+    font-size: 15px;
+  }
+  
+  h1 {
+    @apply text-5xl;
+  }
+  
+  h2 {
+    @apply text-4xl;
+  }
+  
+  h3 {
+    @apply text-3xl;
+  }
+  
+  .hero-title {
+    @apply text-7xl;
+  }
 }
 
 @media (min-width: 1025px) {
-  .text-responsive-xs { font-size: 1.5rem; }
-  .text-responsive-sm { font-size: 1.75rem; }
-  .text-responsive-base { font-size: 2rem; }
-  .text-responsive-lg { font-size: 2.5rem; }
-  .text-responsive-xl { font-size: 3rem; }
-  .text-responsive-2xl { font-size: 3.5rem; }
-  .text-responsive-3xl { font-size: 4rem; }
-  .text-responsive-4xl { font-size: 5rem; }
-  .text-responsive-5xl { font-size: 6rem; }
-  .text-responsive-6xl { font-size: 8rem; }
-}
-
-/* 響應式間距 */
-@media (max-width: 640px) {
-  .spacing-responsive-xs { margin: 1rem; }
-  .spacing-responsive-sm { margin: 1.5rem; }
-  .spacing-responsive-base { margin: 2rem; }
-  .spacing-responsive-lg { margin: 3rem; }
-  .spacing-responsive-xl { margin: 4rem; }
-  .spacing-responsive-2xl { margin: 5rem; }
-}
-
-@media (min-width: 641px) {
-  .spacing-responsive-xs { margin: 1.5rem; }
-  .spacing-responsive-sm { margin: 2rem; }
-  .spacing-responsive-base { margin: 3rem; }
-  .spacing-responsive-lg { margin: 4rem; }
-  .spacing-responsive-xl { margin: 5rem; }
-  .spacing-responsive-2xl { margin: 8rem; }
-}
-
-/* 性能優化 */
-* {
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
-img {
-  max-width: 100%;
-  height: auto;
+  html {
+    font-size: 16px;
+  }
+  
+  h1 {
+    @apply text-6xl;
+  }
+  
+  h2 {
+    @apply text-5xl;
+  }
+  
+  h3 {
+    @apply text-4xl;
+  }
+  
+  .hero-title {
+    @apply text-8xl;
+  }
 }
 
 /* 觸摸設備優化 */
 @media (hover: none) and (pointer: coarse) {
-  .hover\:scale-105:hover {
-    transform: none;
-  }
-  
-  .hover\:shadow-xl:hover {
-    box-shadow: 0 16px 64px rgba(0, 0, 0, 0.1);
-  }
-  
-  .hover\:-translate-y-2:hover {
-    transform: none;
-  }
-  
+  .hover\:scale-105:hover,
+  .hover\:scale-110:hover,
+  .hover\:-translate-y-2:hover,
   .hover\:-translate-y-4:hover {
     transform: none;
   }
   
-  .hover\:-translate-y-6:hover {
+  .btn-primary:hover,
+  .btn-secondary:hover,
+  .card:hover {
     transform: none;
   }
   
-  /* 觸摸設備的按鈕樣式 */
+  /* 為觸摸設備添加點擊效果 */
   .btn-primary:active {
-    transform: scale(0.95);
+    transform: scale(0.98);
   }
   
   .btn-secondary:active {
-    transform: scale(0.95);
+    transform: scale(0.98);
+  }
+  
+  .card:active {
+    transform: scale(0.98);
   }
 }
 
-/* 超大字體權重 */
-.font-black {
-  font-weight: 900;
+/* 無障礙功能 */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
-.font-extrabold {
-  font-weight: 800;
+/* 加載狀態 */
+.loading {
+  @apply relative overflow-hidden;
 }
 
-.font-bold {
-  font-weight: 700;
+.loading::after {
+  content: '';
+  @apply absolute inset-0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+  animation: shimmer 2s infinite;
 }
 
-.font-semibold {
-  font-weight: 600;
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
 }
 
-/* 超大圓角 */
-.rounded-3xl {
-  border-radius: 1.5rem;
+/* 網格背景 */
+.grid-bg {
+  background-image: 
+    linear-gradient(rgba(59, 130, 246, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(59, 130, 246, 0.03) 1px, transparent 1px);
+  background-size: 50px 50px;
 }
 
-.rounded-4xl {
-  border-radius: 2rem;
-}
-
-/* 超大陰影 */
-.shadow-2xl {
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-}
-
-.shadow-3xl {
-  box-shadow: 0 35px 60px -12px rgba(0, 0, 0, 0.35);
-}
-
-/* 超大間距 */
-.space-y-16 > * + * {
-  margin-top: 4rem;
-}
-
-.space-y-20 > * + * {
-  margin-top: 5rem;
-}
-
-.space-y-24 > * + * {
-  margin-top: 6rem;
-}
-
-/* 超大間距 */
-.gap-16 {
-  gap: 4rem;
-}
-
-.gap-20 {
-  gap: 5rem;
-}
-
-.gap-24 {
-  gap: 6rem;
-}
-
-.gap-32 {
-  gap: 8rem;
-}
-
-/* 深色模式支持（預留） */
-@media (prefers-color-scheme: dark) {
-  /* 未來可以添加深色模式樣式 */
-}
-
-/* 打印樣式優化 */
+/* 打印樣式 */
 @media print {
   .no-print {
     display: none !important;
   }
   
-  .card {
-    box-shadow: none !important;
-    border: 1px solid #ccc !important;
-  }
-  
-  .btn-primary,
-  .btn-secondary {
-    background: none !important;
+  * {
+    background: white !important;
     color: black !important;
-    border: 1px solid black !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
   }
 }

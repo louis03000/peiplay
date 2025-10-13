@@ -2,7 +2,7 @@
 
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
-import { useEffect, useState, useRef, useCallback } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import Navigation from '@/app/components/Navigation'
 
@@ -20,6 +20,7 @@ interface FeaturedPartner {
   games: string[]
   halfHourlyRate: number
   coverImage?: string
+  images?: string[]
   rating: number
   totalBookings: number
 }
@@ -36,93 +37,33 @@ export default function Home() {
   const [reviews, setReviews] = useState<Review[]>([])
   const [featuredPartners, setFeaturedPartners] = useState<FeaturedPartner[]>([])
   const [gameRankings, setGameRankings] = useState<GameRanking[]>([])
-  const [currentSection, setCurrentSection] = useState(0)
-  const scrollContainerRef = useRef<HTMLDivElement>(null)
-  const isScrollingRef = useRef(false)
-  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 })
+  const [scrollY, setScrollY] = useState(0)
 
-  // 滑鼠追蹤效果
+  // 滾動效果
   useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
-      setMousePosition({ x: e.clientX, y: e.clientY })
-    }
-    window.addEventListener('mousemove', handleMouseMove)
-    return () => window.removeEventListener('mousemove', handleMouseMove)
+    const handleScroll = () => setScrollY(window.scrollY)
+    window.addEventListener('scroll', handleScroll)
+    return () => window.removeEventListener('scroll', handleScroll)
   }, [])
 
-  // 滾動到指定區塊的函數
-  const scrollToSection = useCallback((sectionIndex: number) => {
-    if (!scrollContainerRef.current || isScrollingRef.current) return
-    
-    isScrollingRef.current = true
-    const targetScrollTop = sectionIndex * window.innerHeight
-    
-    scrollContainerRef.current.scrollTo({
-      top: targetScrollTop,
-      behavior: 'smooth'
-    })
-    
-    setCurrentSection(sectionIndex)
-    
-    // 重置滾動鎖定
-    setTimeout(() => {
-      isScrollingRef.current = false
-    }, 1000)
-  }, [])
-
-  // 處理滾輪事件
-  const handleWheel = useCallback((e: WheelEvent) => {
-    e.preventDefault()
-    
-    if (isScrollingRef.current) return
-    
-    const delta = e.deltaY
-    const sections = 4 // 總共4個區塊
-    
-    if (delta > 0 && currentSection < sections - 1) {
-      // 向下滾動
-      scrollToSection(currentSection + 1)
-    } else if (delta < 0 && currentSection > 0) {
-      // 向上滾動
-      scrollToSection(currentSection - 1)
-    }
-  }, [currentSection, scrollToSection])
-
   useEffect(() => {
-    // 如果用戶已登入但沒有完整資料，跳轉到 onboarding
     if (status === 'authenticated' && session?.user?.id) {
-      // 檢查當前是否在 onboarding 頁面
       if (window.location.pathname === '/onboarding') {
-        console.log('當前在 onboarding 頁面，跳過檢查')
         return
       }
       
       const checkUserProfile = async () => {
         try {
           const res = await fetch('/api/user/profile')
-          console.log('檢查用戶資料，回應狀態:', res.status)
-          
           if (res.ok) {
             const data = await res.json()
             const user = data.user
-            console.log('用戶資料:', user)
-            
-            // 檢查是否有電話和生日
             const hasPhone = user.phone && user.phone.trim() !== ''
             const hasBirthday = user.birthday && user.birthday !== '2000-01-01'
             
-            console.log('檢查結果:', { hasPhone, hasBirthday, phone: user.phone, birthday: user.birthday })
-            
-            // 如果用戶沒有電話或生日，視為新用戶
             if (!hasPhone || !hasBirthday) {
-              console.log('新用戶，跳轉到 onboarding')
               router.push('/onboarding')
-            } else {
-              console.log('用戶資料完整，停留在首頁')
-              // 用戶資料完整，不需要做任何跳轉，就停留在首頁
             }
-          } else {
-            console.error('獲取用戶資料失敗:', res.status)
           }
         } catch (error) {
           console.error('檢查用戶資料失敗:', error)
@@ -133,7 +74,6 @@ export default function Home() {
     }
   }, [session, status, router])
 
-  // 獲取真實用戶評價
   useEffect(() => {
     const fetchReviews = async () => {
       try {
@@ -146,11 +86,9 @@ export default function Home() {
         console.error('Failed to fetch reviews:', error)
       }
     }
-    
     fetchReviews()
   }, [])
 
-  // 獲取精選夥伴
   useEffect(() => {
     const fetchFeaturedPartners = async () => {
       try {
@@ -160,41 +98,16 @@ export default function Home() {
           setFeaturedPartners(data.slice(0, 6))
         }
       } catch (error) {
-        console.error('Failed to fetch featured partners:', error)
-        // 設置默認數據
         setFeaturedPartners([
-          {
-            id: '1',
-            name: '遊戲高手小陳',
-            games: ['英雄聯盟', '特戰英豪'],
-            halfHourlyRate: 150,
-            rating: 4.9,
-            totalBookings: 234
-          },
-          {
-            id: '2',
-            name: '電競女神小雨',
-            games: ['Apex 英雄', 'CS:GO'],
-            halfHourlyRate: 200,
-            rating: 4.8,
-            totalBookings: 189
-          },
-          {
-            id: '3',
-            name: '專業陪玩阿明',
-            games: ['PUBG', '英雄聯盟'],
-            halfHourlyRate: 120,
-            rating: 4.7,
-            totalBookings: 156
-          }
+          { id: '1', name: '遊戲高手小陳', games: ['英雄聯盟', '特戰英豪'], halfHourlyRate: 150, rating: 4.9, totalBookings: 234 },
+          { id: '2', name: '電競女神小雨', games: ['Apex 英雄', 'CS:GO'], halfHourlyRate: 200, rating: 4.8, totalBookings: 189 },
+          { id: '3', name: '專業陪玩阿明', games: ['PUBG', '英雄聯盟'], halfHourlyRate: 120, rating: 4.7, totalBookings: 156 }
         ])
       }
     }
-    
     fetchFeaturedPartners()
   }, [])
 
-  // 設置遊戲排行榜數據
   useEffect(() => {
     setGameRankings([
       { name: '英雄聯盟', playerCount: 2847, icon: '⚔️' },
@@ -205,306 +118,283 @@ export default function Home() {
     ])
   }, [])
 
-  // 添加滾輪事件監聽器
-  useEffect(() => {
-    const container = scrollContainerRef.current
-    if (!container) return
-
-    container.addEventListener('wheel', handleWheel, { passive: false })
-    
-    return () => {
-      container.removeEventListener('wheel', handleWheel)
-    }
-  }, [handleWheel])
-
   return (
-    <div className="min-h-screen overflow-hidden" style={{backgroundColor: '#E4E7EB'}}>
+    <div className="min-h-screen relative overflow-hidden" style={{background: 'linear-gradient(180deg, #0A0E27 0%, #1A1F3A 50%, #0F1729 100%)'}}>
       <Navigation />
 
-      {/* 超大 Hero Section - 真正的視覺焦點 */}
-      <div className="relative min-h-screen flex items-center justify-center overflow-hidden">
-        {/* 動態背景漸層 */}
-        <div className="absolute inset-0 bg-gradient-to-br from-#1A73E8 via-#5C7AD6 to-#1A73E8 opacity-95"></div>
-        
-        {/* 動態幾何裝飾元素 */}
-        <div 
-          className="absolute top-20 left-10 w-48 h-48 bg-white opacity-10 rounded-full blur-2xl transition-all duration-1000"
-          style={{
-            transform: `translate(${mousePosition.x * 0.02}px, ${mousePosition.y * 0.02}px)`
-          }}
-        ></div>
-        <div 
-          className="absolute bottom-20 right-10 w-64 h-64 bg-white opacity-5 rounded-full blur-3xl transition-all duration-1000"
-          style={{
-            transform: `translate(${mousePosition.x * -0.01}px, ${mousePosition.y * -0.01}px)`
-          }}
-        ></div>
-        <div 
-          className="absolute top-1/2 left-1/4 w-24 h-24 bg-white opacity-20 rotate-45 blur-xl transition-all duration-1000"
-          style={{
-            transform: `translate(${mousePosition.x * 0.03}px, ${mousePosition.y * 0.03}px) rotate(45deg)`
-          }}
-        ></div>
-        
-        {/* 浮動遊戲圖標 */}
-        <div className="absolute top-1/4 right-1/4 text-8xl opacity-20 animate-bounce" style={{animationDelay: '0s'}}>🎮</div>
-        <div className="absolute bottom-1/3 left-1/3 text-6xl opacity-15 animate-bounce" style={{animationDelay: '1s'}}>⚔️</div>
-        <div className="absolute top-1/3 left-1/5 text-5xl opacity-20 animate-bounce" style={{animationDelay: '2s'}}>🎯</div>
-        <div className="absolute bottom-1/4 right-1/3 text-7xl opacity-15 animate-bounce" style={{animationDelay: '3s'}}>🚀</div>
-        
-        <div className="relative z-10 px-8 py-24 sm:py-32 lg:py-40 text-center max-w-8xl mx-auto">
-          <div className="mb-16">
-            {/* 超大動態標題 */}
-            <div className="mb-12">
-              <h1 className="text-8xl sm:text-9xl lg:text-[12rem] font-black mb-12 leading-none" style={{
-                color: 'white',
-                textShadow: '4px 4px 8px rgba(0,0,0,0.3)',
-                background: 'linear-gradient(45deg, #ffffff, #00BFA5, #ffffff)',
-                backgroundSize: '200% 200%',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                animation: 'shimmer 3s ease-in-out infinite'
-              }}>
-                <span className="inline-block animate-pulse">Pei</span>
-                <span className="inline-block animate-bounce" style={{animationDelay: '0.5s'}}>Play</span>
-              </h1>
-              <div className="w-48 h-3 mx-auto mb-12 rounded-full" style={{
-                background: 'linear-gradient(90deg, #00BFA5, #5C7AD6, #1A73E8, #00BFA5)',
-                animation: 'shimmer 4s infinite'
-              }}></div>
+      {/* 超現代化 Hero Section - 深色主題 */}
+      <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
+        {/* 動態網格背景 */}
+        <div className="absolute inset-0" style={{
+          backgroundImage: `
+            linear-gradient(rgba(26, 115, 232, 0.03) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(26, 115, 232, 0.03) 1px, transparent 1px)
+          `,
+          backgroundSize: '100px 100px',
+          transform: `translateY(${scrollY * 0.5}px)`
+        }}></div>
+
+        {/* 漸層光暈效果 */}
+        <div className="absolute top-0 left-1/4 w-[600px] h-[600px] rounded-full opacity-20 blur-3xl"
+             style={{background: 'radial-gradient(circle, #1A73E8 0%, transparent 70%)'}}></div>
+        <div className="absolute bottom-0 right-1/4 w-[800px] h-[800px] rounded-full opacity-15 blur-3xl"
+             style={{background: 'radial-gradient(circle, #5C7AD6 0%, transparent 70%)'}}></div>
+        <div className="absolute top-1/2 left-1/2 w-[500px] h-[500px] rounded-full opacity-10 blur-3xl"
+             style={{background: 'radial-gradient(circle, #00BFA5 0%, transparent 70%)', transform: 'translate(-50%, -50%)'}}></div>
+
+        {/* 浮動幾何裝飾 */}
+        <div className="absolute top-20 left-10 w-20 h-20 border-2 border-blue-500 opacity-20 rounded-lg animate-spin-slow"></div>
+        <div className="absolute bottom-40 right-20 w-32 h-32 border-2 border-cyan-400 opacity-15 rounded-full animate-pulse-slow"></div>
+        <div className="absolute top-1/3 right-1/4 w-16 h-16 border-2 border-purple-500 opacity-25 rotate-45 animate-float"></div>
+
+        <div className="relative z-10 px-8 py-32 text-center max-w-7xl mx-auto">
+          {/* 超大現代化標題 */}
+          <div className="mb-16 space-y-8">
+            <div className="inline-block px-6 py-3 rounded-full mb-8 backdrop-blur-md border border-white/10"
+                 style={{background: 'rgba(26, 115, 232, 0.1)'}}>
+              <span className="text-blue-400 text-lg font-bold tracking-wider">🎮 專業遊戲陪玩平台</span>
             </div>
             
-            {/* 超大吸引人副標題 */}
-            <div className="mb-16">
-              <p className="text-4xl sm:text-5xl lg:text-6xl mb-8 max-w-6xl mx-auto font-black" style={{
-                color: 'white',
-                textShadow: '2px 2px 4px rgba(0,0,0,0.3)',
-                opacity: 0.98
-              }}>
-                專業遊戲陪玩平台
-              </p>
-              <p className="text-2xl sm:text-3xl lg:text-4xl mb-12 max-w-5xl mx-auto leading-relaxed font-bold" style={{
-                color: 'white',
-                textShadow: '1px 1px 2px rgba(0,0,0,0.3)',
-                opacity: 0.95
-              }}>
-                連接優質遊戲夥伴，提供安全便捷的預約體驗。無論您是尋找陪玩服務，還是想成為專業陪玩夥伴，PeiPlay 都是您的最佳選擇。
-              </p>
-            </div>
+            <h1 className="text-7xl sm:text-8xl lg:text-9xl font-black leading-tight mb-8"
+                style={{
+                  background: 'linear-gradient(135deg, #FFFFFF 0%, #60A5FA 50%, #3B82F6 100%)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  textShadow: '0 0 80px rgba(59, 130, 246, 0.5)',
+                  letterSpacing: '-0.02em'
+                }}>
+              PeiPlay
+            </h1>
+
+            <div className="h-1 w-32 mx-auto rounded-full mb-12"
+                 style={{background: 'linear-gradient(90deg, transparent, #3B82F6, transparent)'}}></div>
+
+            <p className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-300 max-w-4xl mx-auto leading-relaxed mb-8">
+              連接全球優質遊戲夥伴<br/>
+              <span className="text-blue-400">提供最專業的陪玩體驗</span>
+            </p>
+
+            <p className="text-lg sm:text-xl text-gray-400 max-w-3xl mx-auto leading-relaxed font-medium">
+              無論您是尋找陪玩服務，還是想成為專業陪玩夥伴，<br/>
+              PeiPlay 都是您的最佳選擇
+            </p>
           </div>
-          
-          {/* 超大 CTA Buttons */}
-          <div className="flex flex-col sm:flex-row gap-8 justify-center items-center mb-20">
+
+          {/* 現代化 CTA 按鈕組 */}
+          <div className="flex flex-col sm:flex-row gap-6 justify-center items-center mb-20">
             <button
               onClick={() => router.push('/booking')}
-              className="group px-20 py-8 rounded-3xl font-black text-3xl transition-all duration-500 hover:shadow-2xl hover:scale-110 transform"
+              className="group relative px-12 py-5 rounded-2xl font-bold text-xl transition-all duration-300 overflow-hidden"
               style={{
-                background: 'linear-gradient(135deg, #00BFA5 0%, #1A73E8 100%)',
-                color: 'white',
-                boxShadow: '0 16px 48px rgba(0, 191, 165, 0.5)',
-                textShadow: '2px 2px 4px rgba(0,0,0,0.3)',
-                animation: 'pulse 2s infinite'
+                background: 'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)',
+                boxShadow: '0 10px 40px rgba(59, 130, 246, 0.3), 0 0 0 1px rgba(255,255,255,0.1) inset'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-2px)'
+                e.currentTarget.style.boxShadow = '0 20px 60px rgba(59, 130, 246, 0.4), 0 0 0 1px rgba(255,255,255,0.1) inset'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)'
+                e.currentTarget.style.boxShadow = '0 10px 40px rgba(59, 130, 246, 0.3), 0 0 0 1px rgba(255,255,255,0.1) inset'
               }}
             >
-              <span className="flex items-center gap-4">
-                🎮 立即預約陪玩
-                <svg className="w-8 h-8 group-hover:translate-x-3 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+              <span className="relative z-10 text-white flex items-center gap-3">
+                立即預約陪玩
+                <svg className="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
                 </svg>
               </span>
             </button>
+
             <button
               onClick={() => router.push('/join')}
-              className="group px-20 py-8 rounded-3xl font-black text-3xl border-4 transition-all duration-500 hover:shadow-2xl hover:scale-110 transform"
-              style={{
-                backgroundColor: 'rgba(255, 255, 255, 0.15)',
-                color: 'white',
-                borderColor: 'white',
-                backdropFilter: 'blur(20px)',
-                textShadow: '2px 2px 4px rgba(0,0,0,0.3)'
+              className="group relative px-12 py-5 rounded-2xl font-bold text-xl transition-all duration-300 backdrop-blur-md border-2 border-white/20"
+              style={{background: 'rgba(255, 255, 255, 0.05)'}}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-2px)'
+                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'
+                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.3)'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)'
+                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'
+                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.2)'
               }}
             >
-              <span className="flex items-center gap-4">
-                💼 成為陪玩夥伴
-                <svg className="w-8 h-8 group-hover:translate-x-3 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+              <span className="text-white flex items-center gap-3">
+                成為陪玩夥伴
+                <svg className="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
                 </svg>
               </span>
             </button>
           </div>
 
-          {/* 超大搜尋欄 */}
-          <div className="max-w-4xl mx-auto">
+          {/* 現代化搜尋欄 */}
+          <div className="max-w-2xl mx-auto">
             <div className="relative group">
-              <input
-                type="text"
-                placeholder="搜尋遊戲或夥伴..."
-                className="w-full px-12 py-10 rounded-3xl text-2xl focus:outline-none focus:ring-4 focus:ring-opacity-50 transition-all duration-500 group-hover:scale-105 font-bold"
-                style={{
-                  backgroundColor: 'rgba(255, 255, 255, 0.25)',
-                  color: 'white',
-                  border: '3px solid rgba(255, 255, 255, 0.3)',
-                  boxShadow: '0 16px 48px rgba(0, 0, 0, 0.2)',
-                  backdropFilter: 'blur(15px)',
-                  textShadow: '1px 1px 2px rgba(0,0,0,0.3)'
-                }}
-              />
-              <div className="absolute right-12 top-1/2 transform -translate-y-1/2">
-                <span className="text-4xl animate-pulse">🔍</span>
-              </div>
-            </div>
-          </div>
-
-          {/* 滾動指示器 */}
-          <div className="absolute bottom-12 left-1/2 transform -translate-x-1/2 animate-bounce">
-            <div className="w-8 h-12 border-3 border-white rounded-full flex justify-center">
-              <div className="w-2 h-4 bg-white rounded-full mt-2 animate-pulse"></div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* 超大功能 / 服務簡介區 */}
-      <div className="py-40 px-8 relative">
-        {/* 背景裝飾 */}
-        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white to-transparent opacity-5"></div>
-        
-        <div className="max-w-8xl mx-auto relative z-10">
-          <div className="text-center mb-32">
-            <h2 className="text-6xl sm:text-7xl lg:text-8xl font-black mb-12" style={{color: '#333140'}}>
-              為什麼選擇 PeiPlay？
-            </h2>
-            <div className="w-48 h-3 mx-auto mb-12 rounded-full" style={{
-              background: 'linear-gradient(90deg, #1A73E8, #5C7AD6, #00BFA5)'
-            }}></div>
-            <p className="text-3xl max-w-5xl mx-auto font-bold" style={{color: '#333140', opacity: 0.8}}>
-              我們提供最專業、最安全的遊戲陪玩服務體驗
-            </p>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12">
-            {/* 超大 Feature Card 1 */}
-            <div className="group text-center p-12 rounded-3xl transition-all duration-700 hover:shadow-2xl hover:-translate-y-6 transform" style={{backgroundColor: 'white', boxShadow: '0 12px 48px rgba(0, 0, 0, 0.1)'}}>
-              <div className="w-32 h-32 mx-auto mb-12 rounded-3xl flex items-center justify-center group-hover:scale-125 group-hover:rotate-12 transition-all duration-500 shadow-xl" style={{background: 'linear-gradient(135deg, #1A73E8 0%, #5C7AD6 100%)'}}>
-                <span className="text-6xl">🔒</span>
-              </div>
-              <h3 className="text-3xl font-black mb-8" style={{color: '#333140'}}>
-                安全保證
-              </h3>
-              <p className="leading-relaxed text-xl font-medium" style={{color: '#333140', opacity: 0.8}}>
-                嚴格的夥伴認證流程，確保每位夥伴都經過專業審核，為您提供安全可靠的服務體驗。
-              </p>
-            </div>
-            
-            {/* 超大 Feature Card 2 */}
-            <div className="group text-center p-12 rounded-3xl transition-all duration-700 hover:shadow-2xl hover:-translate-y-6 transform" style={{backgroundColor: 'white', boxShadow: '0 12px 48px rgba(0, 0, 0, 0.1)'}}>
-              <div className="w-32 h-32 mx-auto mb-12 rounded-3xl flex items-center justify-center group-hover:scale-125 group-hover:rotate-12 transition-all duration-500 shadow-xl" style={{background: 'linear-gradient(135deg, #00BFA5 0%, #1A73E8 100%)'}}>
-                <span className="text-6xl">⭐</span>
-              </div>
-              <h3 className="text-3xl font-black mb-8" style={{color: '#333140'}}>
-                優質服務
-              </h3>
-              <p className="leading-relaxed text-xl font-medium" style={{color: '#333140', opacity: 0.8}}>
-                專業的遊戲夥伴，豐富的遊戲經驗，為您提供高品質的陪玩服務和遊戲指導。
-              </p>
-            </div>
-            
-            {/* 超大 Feature Card 3 */}
-            <div className="group text-center p-12 rounded-3xl transition-all duration-700 hover:shadow-2xl hover:-translate-y-6 transform" style={{backgroundColor: 'white', boxShadow: '0 12px 48px rgba(0, 0, 0, 0.1)'}}>
-              <div className="w-32 h-32 mx-auto mb-12 rounded-3xl flex items-center justify-center group-hover:scale-125 group-hover:rotate-12 transition-all duration-500 shadow-xl" style={{background: 'linear-gradient(135deg, #5C7AD6 0%, #00BFA5 100%)'}}>
-                <span className="text-6xl">🎯</span>
-              </div>
-              <h3 className="text-3xl font-black mb-8" style={{color: '#333140'}}>
-                客製體驗
-              </h3>
-              <p className="leading-relaxed text-xl font-medium" style={{color: '#333140', opacity: 0.8}}>
-                根據您的需求匹配最適合的夥伴，提供個人化的遊戲體驗和專業建議。
-              </p>
-            </div>
-            
-            {/* 超大 Feature Card 4 */}
-            <div className="group text-center p-12 rounded-3xl transition-all duration-700 hover:shadow-2xl hover:-translate-y-6 transform" style={{backgroundColor: 'white', boxShadow: '0 12px 48px rgba(0, 0, 0, 0.1)'}}>
-              <div className="w-32 h-32 mx-auto mb-12 rounded-3xl flex items-center justify-center group-hover:scale-125 group-hover:rotate-12 transition-all duration-500 shadow-xl" style={{background: 'linear-gradient(135deg, #1A73E8 0%, #5C7AD6 100%)'}}>
-                <span className="text-6xl">⚡</span>
-              </div>
-              <h3 className="text-3xl font-black mb-8" style={{color: '#333140'}}>
-                即時匹配
-              </h3>
-              <p className="leading-relaxed text-xl font-medium" style={{color: '#333140', opacity: 0.8}}>
-                智能匹配系統，快速找到最適合的遊戲夥伴，享受流暢的預約體驗。
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* 超大熱門夥伴 / 推薦卡片展示 */}
-      <div className="py-40 px-8" style={{backgroundColor: 'white'}}>
-        <div className="max-w-8xl mx-auto">
-          <div className="text-center mb-32">
-            <h2 className="text-6xl sm:text-7xl lg:text-8xl font-black mb-12" style={{color: '#333140'}}>
-              精選夥伴
-            </h2>
-            <div className="w-48 h-3 mx-auto mb-12 rounded-full" style={{
-              background: 'linear-gradient(90deg, #1A73E8, #5C7AD6, #00BFA5)'
-            }}></div>
-            <p className="text-3xl max-w-5xl mx-auto font-bold" style={{color: '#333140', opacity: 0.8}}>
-              專業認證的遊戲夥伴，為您提供最優質的陪玩服務
-            </p>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12">
-            {featuredPartners.map((partner, index) => (
-              <div key={partner.id} className="group rounded-3xl overflow-hidden transition-all duration-700 hover:shadow-2xl hover:-translate-y-6 transform" 
-                   style={{backgroundColor: 'white', boxShadow: '0 16px 64px rgba(0, 0, 0, 0.1)'}}>
-                <div className="h-72 bg-gradient-to-br from-#1A73E8 to-#5C7AD6 flex items-center justify-center relative overflow-hidden">
-                  <div className="absolute inset-0 bg-black opacity-20 group-hover:opacity-0 transition-opacity duration-500"></div>
-                  <div className="w-32 h-32 rounded-full bg-white bg-opacity-20 flex items-center justify-center group-hover:scale-125 transition-transform duration-500">
-                    <span className="text-6xl">🎮</span>
-                  </div>
-                  {/* 排名徽章 */}
-                  <div className="absolute top-6 left-6 w-16 h-16 rounded-full flex items-center justify-center text-white font-black text-2xl shadow-xl" 
-                       style={{background: index < 3 ? 'linear-gradient(135deg, #FFD700, #FFA500)' : 'linear-gradient(135deg, #1A73E8, #5C7AD6)'}}>
-                    {index + 1}
-                  </div>
+              <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 to-cyan-600 rounded-2xl blur opacity-25 group-hover:opacity-40 transition duration-300"></div>
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="搜尋遊戲或夥伴..."
+                  className="w-full px-6 py-4 rounded-2xl text-lg font-medium focus:outline-none transition-all duration-300 border border-white/10"
+                  style={{
+                    background: 'rgba(255, 255, 255, 0.05)',
+                    backdropFilter: 'blur(20px)',
+                    color: 'white'
+                  }}
+                  onFocus={(e) => {
+                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)'
+                    e.currentTarget.style.borderColor = 'rgba(59, 130, 246, 0.5)'
+                  }}
+                  onBlur={(e) => {
+                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'
+                    e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)'
+                  }}
+                />
+                <div className="absolute right-4 top-1/2 -translate-y-1/2">
+                  <span className="text-2xl opacity-50">🔍</span>
                 </div>
-                <div className="p-10">
-                  <h3 className="text-3xl font-black mb-6" style={{color: '#333140'}}>
-                    {partner.name}
-                  </h3>
-                  <div className="flex flex-wrap gap-3 mb-8">
-                    {partner.games.map((game, gameIndex) => (
-                      <span key={gameIndex} className="px-5 py-3 rounded-full text-lg font-bold" style={{backgroundColor: '#E4E7EB', color: '#333140'}}>
+              </div>
+            </div>
+          </div>
+
+          {/* 滾動提示 */}
+          <div className="absolute bottom-8 left-1/2 -translate-x-1/2 animate-bounce">
+            <div className="w-6 h-10 border-2 border-white/30 rounded-full flex justify-center p-2">
+              <div className="w-1 h-3 bg-white/50 rounded-full animate-pulse"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* 功能特色區 - 深色卡片設計 */}
+      <section className="relative py-32 px-8">
+        {/* 區塊背景 */}
+        <div className="absolute inset-0" style={{background: 'rgba(15, 23, 41, 0.5)'}}></div>
+        
+        <div className="relative z-10 max-w-7xl mx-auto">
+          <div className="text-center mb-20">
+            <h2 className="text-5xl sm:text-6xl font-black mb-6 text-white">為什麼選擇 PeiPlay？</h2>
+            <div className="h-1 w-24 mx-auto rounded-full mb-8"
+                 style={{background: 'linear-gradient(90deg, transparent, #3B82F6, transparent)'}}></div>
+            <p className="text-xl text-gray-400 font-medium">專業、安全、高品質的遊戲陪玩服務</p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+            {[
+              { icon: '🔒', title: '安全保證', desc: '嚴格的夥伴認證流程，確保服務品質', color: '#3B82F6' },
+              { icon: '⭐', title: '優質服務', desc: '專業的遊戲夥伴，豐富的遊戲經驗', color: '#8B5CF6' },
+              { icon: '🎯', title: '客製體驗', desc: '個人化匹配，提供最適合的服務', color: '#06B6D4' },
+              { icon: '⚡', title: '即時匹配', desc: '智能匹配系統，快速找到夥伴', color: '#10B981' }
+            ].map((feature, index) => (
+              <div
+                key={index}
+                className="group relative p-8 rounded-2xl backdrop-blur-md border border-white/10 transition-all duration-300 hover:-translate-y-2"
+                style={{background: 'rgba(255, 255, 255, 0.03)'}}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'
+                  e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.2)'
+                  e.currentTarget.style.boxShadow = `0 20px 60px ${feature.color}20`
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.03)'
+                  e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)'
+                  e.currentTarget.style.boxShadow = 'none'
+                }}
+              >
+                <div className="w-16 h-16 mx-auto mb-6 rounded-xl flex items-center justify-center text-4xl transition-transform duration-300 group-hover:scale-110"
+                     style={{background: `${feature.color}20`, border: `1px solid ${feature.color}40`}}>
+                  {feature.icon}
+                </div>
+                <h3 className="text-2xl font-bold mb-4 text-white text-center">{feature.title}</h3>
+                <p className="text-gray-400 text-center leading-relaxed">{feature.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* 精選夥伴區 */}
+      <section className="relative py-32 px-8">
+        <div className="relative z-10 max-w-7xl mx-auto">
+          <div className="text-center mb-20">
+            <h2 className="text-5xl sm:text-6xl font-black mb-6 text-white">精選夥伴</h2>
+            <div className="h-1 w-24 mx-auto rounded-full mb-8"
+                 style={{background: 'linear-gradient(90deg, transparent, #3B82F6, transparent)'}}></div>
+            <p className="text-xl text-gray-400 font-medium">專業認證的遊戲夥伴，為您提供最優質的服務</p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {featuredPartners.map((partner, index) => (
+              <div
+                key={partner.id}
+                className="group relative rounded-2xl overflow-hidden backdrop-blur-md border border-white/10 transition-all duration-300 hover:-translate-y-2"
+                style={{background: 'rgba(255, 255, 255, 0.03)'}}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'
+                  e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.2)'
+                  e.currentTarget.style.boxShadow = '0 20px 60px rgba(59, 130, 246, 0.2)'
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.03)'
+                  e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)'
+                  e.currentTarget.style.boxShadow = 'none'
+                }}
+              >
+                {/* 卡片頭部 */}
+                <div className="h-48 relative overflow-hidden"
+                     style={{background: 'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)'}}>
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="w-24 h-24 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center text-5xl">
+                      🎮
+                    </div>
+                  </div>
+                  {index < 3 && (
+                    <div className="absolute top-4 left-4 w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-lg"
+                         style={{background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)'}}>
+                      {index + 1}
+                    </div>
+                  )}
+                </div>
+
+                {/* 卡片內容 */}
+                <div className="p-6">
+                  <h3 className="text-2xl font-bold text-white mb-4">{partner.name}</h3>
+                  
+                  <div className="flex flex-wrap gap-2 mb-6">
+                    {partner.games.slice(0, 2).map((game, i) => (
+                      <span key={i} className="px-3 py-1 rounded-lg text-sm font-medium backdrop-blur-md border border-white/10"
+                            style={{background: 'rgba(59, 130, 246, 0.1)', color: '#93C5FD'}}>
                         {game}
                       </span>
                     ))}
                   </div>
-                  <div className="flex items-center justify-between mb-10">
-                    <div className="flex items-center gap-3">
-                      <span className="text-3xl">⭐</span>
-                      <span className="text-2xl font-black" style={{color: '#333140'}}>
-                        {partner.rating}
-                      </span>
-                      <span className="text-lg font-medium" style={{color: '#333140', opacity: 0.7}}>
-                        ({partner.totalBookings} 次預約)
-                      </span>
+
+                  <div className="flex items-center justify-between mb-6">
+                    <div className="flex items-center gap-2">
+                      <span className="text-yellow-400 text-xl">⭐</span>
+                      <span className="text-white font-bold text-lg">{partner.rating}</span>
+                      <span className="text-gray-400 text-sm">({partner.totalBookings})</span>
                     </div>
                     <div className="text-right">
-                      <div className="text-4xl font-black" style={{color: '#1A73E8'}}>
-                        ${partner.halfHourlyRate}
-                      </div>
-                      <div className="text-lg font-medium" style={{color: '#333140', opacity: 0.7}}>
-                        每半小時
-                      </div>
+                      <div className="text-2xl font-bold text-blue-400">${partner.halfHourlyRate}</div>
+                      <div className="text-xs text-gray-400">每半小時</div>
                     </div>
                   </div>
+
                   <button
                     onClick={() => router.push(`/booking?partnerId=${partner.id}`)}
-                    className="w-full py-6 rounded-3xl font-black text-xl transition-all duration-500 hover:shadow-xl hover:scale-105 transform"
-                    style={{
-                      background: 'linear-gradient(135deg, #1A73E8 0%, #5C7AD6 100%)',
-                      color: 'white',
-                      textShadow: '1px 1px 2px rgba(0,0,0,0.3)'
+                    className="w-full py-3 rounded-xl font-bold transition-all duration-300 border border-white/10"
+                    style={{background: 'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)', color: 'white'}}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.transform = 'translateY(-2px)'
+                      e.currentTarget.style.boxShadow = '0 10px 30px rgba(59, 130, 246, 0.3)'
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.transform = 'translateY(0)'
+                      e.currentTarget.style.boxShadow = 'none'
                     }}
                   >
                     立即預約
@@ -513,238 +403,105 @@ export default function Home() {
               </div>
             ))}
           </div>
-          
-          <div className="text-center mt-20">
+
+          <div className="text-center mt-16">
             <button
               onClick={() => router.push('/partners')}
-              className="px-20 py-8 rounded-3xl font-black text-2xl transition-all duration-500 hover:shadow-xl hover:scale-105 transform border-4"
-              style={{
-                backgroundColor: 'transparent',
-                color: '#1A73E8',
-                borderColor: '#1A73E8'
+              className="px-10 py-4 rounded-xl font-bold text-lg transition-all duration-300 backdrop-blur-md border-2 border-white/20"
+              style={{background: 'rgba(255, 255, 255, 0.05)', color: 'white'}}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'
+                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.3)'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'
+                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.2)'
               }}
             >
               查看更多夥伴
             </button>
           </div>
         </div>
-      </div>
+      </section>
 
-      {/* 超大排行榜 / 熱門遊戲模塊 */}
-      <div className="py-40 px-8" style={{backgroundColor: '#E4E7EB'}}>
-        <div className="max-w-8xl mx-auto">
-          <div className="text-center mb-32">
-            <h2 className="text-6xl sm:text-7xl lg:text-8xl font-black mb-12" style={{color: '#333140'}}>
-              熱門遊戲
-            </h2>
-            <div className="w-48 h-3 mx-auto mb-12 rounded-full" style={{
-              background: 'linear-gradient(90deg, #1A73E8, #5C7AD6, #00BFA5)'
-            }}></div>
-            <p className="text-3xl max-w-5xl mx-auto font-bold" style={{color: '#333140', opacity: 0.8}}>
-              看看大家都在玩什麼遊戲
-            </p>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-10">
-            {gameRankings.map((game, index) => (
-              <div key={game.name} className="group text-center p-12 rounded-3xl transition-all duration-700 hover:shadow-2xl hover:-translate-y-6 transform" 
-                   style={{backgroundColor: 'white', boxShadow: '0 16px 64px rgba(0, 0, 0, 0.1)'}}>
-                <div className="text-9xl mb-10 group-hover:scale-125 transition-transform duration-500">
-                  {game.icon}
+      {/* 統計數據區 */}
+      <section className="relative py-32 px-8">
+        <div className="absolute inset-0" style={{background: 'rgba(15, 23, 41, 0.5)'}}></div>
+        
+        <div className="relative z-10 max-w-6xl mx-auto">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-12 text-center">
+            {[
+              { value: '500+', label: '活躍夥伴', color: '#3B82F6' },
+              { value: '10,000+', label: '成功預約', color: '#8B5CF6' },
+              { value: '4.9', label: '用戶評價', color: '#06B6D4' },
+              { value: '24/7', label: '客服支援', color: '#10B981' }
+            ].map((stat, index) => (
+              <div key={index} className="group">
+                <div className="text-5xl sm:text-6xl font-black mb-4 transition-transform duration-300 group-hover:scale-110"
+                     style={{color: stat.color}}>
+                  {stat.value}
                 </div>
-                <div className="text-5xl font-black mb-6" style={{color: index < 3 ? '#1A73E8' : '#5C7AD6'}}>
-                  #{index + 1}
-                </div>
-                <h3 className="text-3xl font-black mb-8" style={{color: '#333140'}}>
-                  {game.name}
-                </h3>
-                <div className="text-2xl font-bold" style={{color: '#333140', opacity: 0.8}}>
-                  {game.playerCount.toLocaleString()} 玩家
-                </div>
+                <div className="text-lg text-gray-400 font-medium">{stat.label}</div>
               </div>
             ))}
           </div>
         </div>
-      </div>
+      </section>
 
-      {/* 超大流程示意 / 如何運作區 */}
-      <div className="py-40 px-8" style={{backgroundColor: 'white'}}>
-        <div className="max-w-8xl mx-auto">
-          <div className="text-center mb-32">
-            <h2 className="text-6xl sm:text-7xl lg:text-8xl font-black mb-12" style={{color: '#333140'}}>
-              如何使用 PeiPlay？
-            </h2>
-            <div className="w-48 h-3 mx-auto mb-12 rounded-full" style={{
-              background: 'linear-gradient(90deg, #1A73E8, #5C7AD6, #00BFA5)'
-            }}></div>
-            <p className="text-3xl max-w-5xl mx-auto font-bold" style={{color: '#333140', opacity: 0.8}}>
-              簡單三步驟，開始您的遊戲之旅
-            </p>
-          </div>
+      {/* 最終 CTA 區 */}
+      <section className="relative py-32 px-8">
+        <div className="relative z-10 max-w-4xl mx-auto text-center">
+          <h2 className="text-5xl sm:text-6xl font-black mb-8 text-white">準備開始您的遊戲之旅？</h2>
+          <p className="text-xl text-gray-400 mb-12 font-medium">立即預約專業陪玩夥伴，享受優質的遊戲體驗</p>
           
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-20">
-            <div className="text-center group">
-              <div className="w-40 h-40 mx-auto mb-12 rounded-3xl flex items-center justify-center text-6xl font-black transition-all duration-700 group-hover:scale-125 group-hover:rotate-12 transform" 
-                   style={{background: 'linear-gradient(135deg, #1A73E8 0%, #5C7AD6 100%)', color: 'white'}}>
-                1
-              </div>
-              <h3 className="text-4xl font-black mb-10" style={{color: '#333140'}}>
-                選擇夥伴
-              </h3>
-              <p className="text-2xl leading-relaxed font-medium" style={{color: '#333140', opacity: 0.8}}>
-                從眾多專業認證的遊戲夥伴中，選擇最適合您的一位
-              </p>
-            </div>
-            
-            <div className="text-center group">
-              <div className="w-40 h-40 mx-auto mb-12 rounded-3xl flex items-center justify-center text-6xl font-black transition-all duration-700 group-hover:scale-125 group-hover:rotate-12 transform" 
-                   style={{background: 'linear-gradient(135deg, #5C7AD6 0%, #00BFA5 100%)', color: 'white'}}>
-                2
-              </div>
-              <h3 className="text-4xl font-black mb-10" style={{color: '#333140'}}>
-                預約時段
-              </h3>
-              <p className="text-2xl leading-relaxed font-medium" style={{color: '#333140', opacity: 0.8}}>
-                選擇您方便的時間，確認預約詳情並完成付款
-              </p>
-            </div>
-            
-            <div className="text-center group">
-              <div className="w-40 h-40 mx-auto mb-12 rounded-3xl flex items-center justify-center text-6xl font-black transition-all duration-700 group-hover:scale-125 group-hover:rotate-12 transform" 
-                   style={{background: 'linear-gradient(135deg, #00BFA5 0%, #1A73E8 100%)', color: 'white'}}>
-                3
-              </div>
-              <h3 className="text-4xl font-black mb-10" style={{color: '#333140'}}>
-                開始遊戲
-              </h3>
-              <p className="text-2xl leading-relaxed font-medium" style={{color: '#333140', opacity: 0.8}}>
-                在約定時間上線，享受專業的陪玩服務和遊戲指導
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* 超大信任 / 保證 / 用戶評價區塊 */}
-      <div className="py-40 px-8" style={{backgroundColor: '#E4E7EB'}}>
-        <div className="max-w-8xl mx-auto">
-          <div className="text-center mb-32">
-            <h2 className="text-6xl sm:text-7xl lg:text-8xl font-black mb-12" style={{color: '#333140'}}>
-              用戶評價
-            </h2>
-            <div className="w-48 h-3 mx-auto mb-12 rounded-full" style={{
-              background: 'linear-gradient(90deg, #1A73E8, #5C7AD6, #00BFA5)'
-            }}></div>
-            <p className="text-3xl max-w-5xl mx-auto font-bold" style={{color: '#333140', opacity: 0.8}}>
-              看看其他用戶對我們的評價
-            </p>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12">
-            {reviews.slice(0, 6).map((review) => (
-              <div key={review.id} className="p-12 rounded-3xl transition-all duration-700 hover:shadow-2xl hover:-translate-y-4 transform" 
-                   style={{backgroundColor: 'white', boxShadow: '0 16px 64px rgba(0, 0, 0, 0.1)'}}>
-                <div className="flex items-center mb-10">
-                  <div className="w-20 h-20 rounded-3xl flex items-center justify-center text-3xl font-black" 
-                       style={{background: 'linear-gradient(135deg, #1A73E8 0%, #5C7AD6 100%)', color: 'white'}}>
-                    {review.reviewerName.charAt(0)}
-                  </div>
-                  <div className="ml-8">
-                    <div className="text-2xl font-black" style={{color: '#333140'}}>
-                      {review.reviewerName}
-                    </div>
-                    <div className="flex">
-                      {[...Array(5)].map((_, i) => (
-                        <span key={i} className="text-yellow-400 text-2xl">
-                          {i < review.rating ? '★' : '☆'}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-                <p className="text-2xl leading-relaxed font-medium" style={{color: '#333140', opacity: 0.8}}>
-                  "{review.comment}"
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* 超大數據展示區 */}
-      <div className="py-32 px-8" style={{backgroundColor: 'white'}}>
-        <div className="max-w-7xl mx-auto">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-20 text-center">
-            <div className="group">
-              <div className="text-7xl sm:text-8xl font-black mb-8 group-hover:scale-125 transition-transform duration-500" style={{color: '#1A73E8'}}>
-                500+
-              </div>
-              <div className="text-2xl font-bold" style={{color: '#333140', opacity: 0.8}}>
-                活躍夥伴
-              </div>
-            </div>
-            <div className="group">
-              <div className="text-7xl sm:text-8xl font-black mb-8 group-hover:scale-125 transition-transform duration-500" style={{color: '#5C7AD6'}}>
-                10,000+
-              </div>
-              <div className="text-2xl font-bold" style={{color: '#333140', opacity: 0.8}}>
-                成功預約
-              </div>
-            </div>
-            <div className="group">
-              <div className="text-7xl sm:text-8xl font-black mb-8 group-hover:scale-125 transition-transform duration-500" style={{color: '#00BFA5'}}>
-                4.9
-              </div>
-              <div className="text-2xl font-bold" style={{color: '#333140', opacity: 0.8}}>
-                用戶評價
-              </div>
-            </div>
-            <div className="group">
-              <div className="text-7xl sm:text-8xl font-black mb-8 group-hover:scale-125 transition-transform duration-500" style={{color: '#1A73E8'}}>
-                24/7
-              </div>
-              <div className="text-2xl font-bold" style={{color: '#333140', opacity: 0.8}}>
-                客服支援
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* 超大 Final CTA Section */}
-      <div className="py-40 px-8" style={{backgroundColor: '#E4E7EB'}}>
-        <div className="max-w-6xl mx-auto text-center">
-          <h2 className="text-6xl sm:text-7xl lg:text-8xl font-black mb-12" style={{color: '#333140'}}>
-            準備開始您的遊戲之旅？
-          </h2>
-          <p className="text-3xl mb-20 font-bold" style={{color: '#333140', opacity: 0.8}}>
-            立即預約專業陪玩夥伴，享受優質的遊戲體驗
-          </p>
           <button
             onClick={() => router.push('/booking')}
-            className="px-24 py-10 rounded-3xl font-black text-3xl transition-all duration-500 hover:shadow-2xl hover:scale-110 transform"
+            className="relative px-16 py-6 rounded-2xl font-bold text-2xl transition-all duration-300 overflow-hidden group"
             style={{
-              background: 'linear-gradient(135deg, #1A73E8 0%, #5C7AD6 100%)',
-              color: 'white',
-              boxShadow: '0 16px 48px rgba(26, 115, 232, 0.4)',
-              animation: 'pulse 2s infinite',
-              textShadow: '2px 2px 4px rgba(0,0,0,0.3)'
+              background: 'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)',
+              boxShadow: '0 10px 40px rgba(59, 130, 246, 0.3)'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'translateY(-2px) scale(1.05)'
+              e.currentTarget.style.boxShadow = '0 20px 60px rgba(59, 130, 246, 0.4)'
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'translateY(0) scale(1)'
+              e.currentTarget.style.boxShadow = '0 10px 40px rgba(59, 130, 246, 0.3)'
             }}
           >
-            開始預約
+            <span className="relative z-10 text-white flex items-center justify-center gap-3">
+              開始預約
+              <svg className="w-6 h-6 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+              </svg>
+            </span>
           </button>
         </div>
-      </div>
+      </section>
 
-      {/* CSS 動畫 */}
+      {/* 自定義動畫 */}
       <style jsx>{`
-        @keyframes shimmer {
-          0% { transform: translateX(-100%); }
-          100% { transform: translateX(100%); }
+        @keyframes spin-slow {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
         }
-        @keyframes pulse {
-          0%, 100% { transform: scale(1); }
-          50% { transform: scale(1.05); }
+        .animate-spin-slow {
+          animation: spin-slow 20s linear infinite;
+        }
+        @keyframes pulse-slow {
+          0%, 100% { opacity: 0.15; }
+          50% { opacity: 0.3; }
+        }
+        .animate-pulse-slow {
+          animation: pulse-slow 4s ease-in-out infinite;
+        }
+        @keyframes float {
+          0%, 100% { transform: translateY(0px) rotate(45deg); }
+          50% { transform: translateY(-20px) rotate(45deg); }
+        }
+        .animate-float {
+          animation: float 6s ease-in-out infinite;
         }
       `}</style>
     </div>
