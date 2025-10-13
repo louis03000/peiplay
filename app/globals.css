@@ -23,91 +23,191 @@
   50% { box-shadow: 0 0 40px rgba(26, 115, 232, 0.6); }
 }
 
-/* 響應式設計優化 */
+/* 超大響應式設計優化 */
 @media (max-width: 640px) {
   .hero-title {
-    font-size: 3rem;
-    line-height: 1.1;
+    font-size: 4rem !important;
+    line-height: 1.1 !important;
   }
   
   .hero-subtitle {
-    font-size: 1.5rem;
+    font-size: 2rem !important;
+  }
+  
+  .hero-description {
+    font-size: 1.5rem !important;
+  }
+  
+  .section-title {
+    font-size: 3rem !important;
+  }
+  
+  .section-subtitle {
+    font-size: 1.5rem !important;
   }
   
   .feature-grid {
-    grid-template-columns: 1fr;
-    gap: 1.5rem;
+    grid-template-columns: 1fr !important;
+    gap: 2rem !important;
   }
   
   .partner-grid {
-    grid-template-columns: 1fr;
-    gap: 1.5rem;
+    grid-template-columns: 1fr !important;
+    gap: 2rem !important;
   }
   
   .game-grid {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 1rem;
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 1.5rem !important;
   }
   
   .cta-buttons {
-    flex-direction: column;
-    gap: 1rem;
+    flex-direction: column !important;
+    gap: 1.5rem !important;
   }
   
   .cta-button {
-    width: 100%;
-    padding: 1rem 2rem;
-    font-size: 1.125rem;
+    width: 100% !important;
+    padding: 1.5rem 3rem !important;
+    font-size: 1.5rem !important;
+  }
+  
+  .nav-button {
+    padding: 1rem 2rem !important;
+    font-size: 1.25rem !important;
+  }
+  
+  .card-padding {
+    padding: 1.5rem !important;
+  }
+  
+  .text-responsive {
+    font-size: 1.25rem !important;
+  }
+  
+  .button-large {
+    padding: 1rem 2rem !important;
+    font-size: 1.125rem !important;
   }
 }
 
 @media (min-width: 641px) and (max-width: 1024px) {
   .hero-title {
-    font-size: 4rem;
+    font-size: 6rem !important;
   }
   
   .hero-subtitle {
-    font-size: 1.75rem;
+    font-size: 3rem !important;
+  }
+  
+  .hero-description {
+    font-size: 2rem !important;
+  }
+  
+  .section-title {
+    font-size: 4.5rem !important;
+  }
+  
+  .section-subtitle {
+    font-size: 2rem !important;
   }
   
   .feature-grid {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 2rem;
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 2.5rem !important;
   }
   
   .partner-grid {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 2rem;
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 2.5rem !important;
   }
   
   .game-grid {
-    grid-template-columns: repeat(3, 1fr);
-    gap: 1.5rem;
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 2rem !important;
+  }
+  
+  .cta-button {
+    padding: 1.5rem 3rem !important;
+    font-size: 1.75rem !important;
+  }
+  
+  .nav-button {
+    padding: 1.25rem 2.5rem !important;
+    font-size: 1.5rem !important;
+  }
+  
+  .card-padding {
+    padding: 2rem !important;
+  }
+  
+  .text-responsive {
+    font-size: 1.5rem !important;
+  }
+  
+  .button-large {
+    padding: 1.25rem 2.5rem !important;
+    font-size: 1.25rem !important;
   }
 }
 
 @media (min-width: 1025px) {
   .hero-title {
-    font-size: 5rem;
+    font-size: 8rem !important;
   }
   
   .hero-subtitle {
-    font-size: 2rem;
+    font-size: 4rem !important;
+  }
+  
+  .hero-description {
+    font-size: 2.5rem !important;
+  }
+  
+  .section-title {
+    font-size: 6rem !important;
+  }
+  
+  .section-subtitle {
+    font-size: 2.5rem !important;
   }
   
   .feature-grid {
-    grid-template-columns: repeat(4, 1fr);
-    gap: 2.5rem;
+    grid-template-columns: repeat(4, 1fr) !important;
+    gap: 3rem !important;
   }
   
   .partner-grid {
-    grid-template-columns: repeat(3, 1fr);
-    gap: 2.5rem;
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 3rem !important;
   }
   
   .game-grid {
-    grid-template-columns: repeat(5, 1fr);
-    gap: 2rem;
+    grid-template-columns: repeat(5, 1fr) !important;
+    gap: 2.5rem !important;
+  }
+  
+  .cta-button {
+    padding: 2rem 4rem !important;
+    font-size: 2rem !important;
+  }
+  
+  .nav-button {
+    padding: 1.5rem 3rem !important;
+    font-size: 1.75rem !important;
+  }
+  
+  .card-padding {
+    padding: 2.5rem !important;
+  }
+  
+  .text-responsive {
+    font-size: 1.75rem !important;
+  }
+  
+  .button-large {
+    padding: 1.5rem 3rem !important;
+    font-size: 1.5rem !important;
   }
 }
 
@@ -118,16 +218,18 @@ html {
 
 /* 自定義滾動條 */
 ::-webkit-scrollbar {
-  width: 8px;
+  width: 12px;
 }
 
 ::-webkit-scrollbar-track {
   background: #E4E7EB;
+  border-radius: 6px;
 }
 
 ::-webkit-scrollbar-thumb {
   background: linear-gradient(135deg, #1A73E8, #5C7AD6);
-  border-radius: 4px;
+  border-radius: 6px;
+  border: 2px solid #E4E7EB;
 }
 
 ::-webkit-scrollbar-thumb:hover {
@@ -142,70 +244,81 @@ html {
 
 /* 聚焦樣式 */
 *:focus {
-  outline: 2px solid #1A73E8;
-  outline-offset: 2px;
+  outline: 3px solid #1A73E8;
+  outline-offset: 3px;
+  border-radius: 8px;
 }
 
-/* 按鈕基礎樣式 */
+/* 超大按鈕基礎樣式 */
 .btn-primary {
   background: linear-gradient(135deg, #1A73E8 0%, #5C7AD6 100%);
   color: white;
   border: none;
-  border-radius: 1rem;
-  padding: 0.75rem 1.5rem;
-  font-weight: 600;
-  transition: all 0.3s ease;
-  box-shadow: 0 4px 20px rgba(26, 115, 232, 0.3);
+  border-radius: 1.5rem;
+  padding: 1.5rem 3rem;
+  font-weight: 900;
+  font-size: 1.5rem;
+  transition: all 0.4s ease;
+  box-shadow: 0 12px 40px rgba(26, 115, 232, 0.4);
+  text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+  cursor: pointer;
 }
 
 .btn-primary:hover {
-  transform: translateY(-2px) scale(1.05);
-  box-shadow: 0 8px 32px rgba(26, 115, 232, 0.4);
+  transform: translateY(-4px) scale(1.05);
+  box-shadow: 0 20px 60px rgba(26, 115, 232, 0.5);
 }
 
 .btn-secondary {
   background: transparent;
   color: #1A73E8;
-  border: 2px solid #1A73E8;
-  border-radius: 1rem;
-  padding: 0.75rem 1.5rem;
-  font-weight: 600;
-  transition: all 0.3s ease;
+  border: 3px solid #1A73E8;
+  border-radius: 1.5rem;
+  padding: 1.5rem 3rem;
+  font-weight: 900;
+  font-size: 1.5rem;
+  transition: all 0.4s ease;
+  cursor: pointer;
 }
 
 .btn-secondary:hover {
   background: #1A73E8;
   color: white;
-  transform: translateY(-2px) scale(1.05);
+  transform: translateY(-4px) scale(1.05);
+  box-shadow: 0 20px 60px rgba(26, 115, 232, 0.4);
 }
 
-/* 卡片基礎樣式 */
+/* 超大卡片基礎樣式 */
 .card {
   background: white;
-  border-radius: 1.5rem;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-  transition: all 0.3s ease;
+  border-radius: 2rem;
+  box-shadow: 0 16px 64px rgba(0, 0, 0, 0.1);
+  transition: all 0.4s ease;
+  border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 .card:hover {
-  transform: translateY(-8px);
-  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.15);
+  transform: translateY(-12px) scale(1.02);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.15);
 }
 
-/* 輸入框樣式 */
+/* 超大輸入框樣式 */
 .input-field {
-  background: rgba(255, 255, 255, 0.9);
-  border: 2px solid rgba(228, 231, 235, 0.8);
-  border-radius: 1rem;
-  padding: 1rem 1.5rem;
-  font-size: 1rem;
-  transition: all 0.3s ease;
+  background: rgba(255, 255, 255, 0.95);
+  border: 3px solid rgba(228, 231, 235, 0.8);
+  border-radius: 1.5rem;
+  padding: 1.5rem 2rem;
+  font-size: 1.5rem;
+  font-weight: 700;
+  transition: all 0.4s ease;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
 }
 
 .input-field:focus {
   border-color: #1A73E8;
-  box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.1);
+  box-shadow: 0 0 0 6px rgba(26, 115, 232, 0.1);
   background: white;
+  transform: scale(1.02);
 }
 
 /* 動畫類 */
@@ -221,63 +334,67 @@ html {
   animation: shimmer 2s infinite;
 }
 
+.animate-pulse-slow {
+  animation: pulse 3s infinite;
+}
+
 /* 響應式文字大小 */
 @media (max-width: 640px) {
-  .text-responsive-xs { font-size: 0.875rem; }
-  .text-responsive-sm { font-size: 1rem; }
-  .text-responsive-base { font-size: 1.125rem; }
-  .text-responsive-lg { font-size: 1.25rem; }
-  .text-responsive-xl { font-size: 1.5rem; }
-  .text-responsive-2xl { font-size: 1.875rem; }
-  .text-responsive-3xl { font-size: 2.25rem; }
-  .text-responsive-4xl { font-size: 3rem; }
-  .text-responsive-5xl { font-size: 3.75rem; }
-  .text-responsive-6xl { font-size: 4.5rem; }
+  .text-responsive-xs { font-size: 1rem; }
+  .text-responsive-sm { font-size: 1.25rem; }
+  .text-responsive-base { font-size: 1.5rem; }
+  .text-responsive-lg { font-size: 1.75rem; }
+  .text-responsive-xl { font-size: 2rem; }
+  .text-responsive-2xl { font-size: 2.5rem; }
+  .text-responsive-3xl { font-size: 3rem; }
+  .text-responsive-4xl { font-size: 3.5rem; }
+  .text-responsive-5xl { font-size: 4rem; }
+  .text-responsive-6xl { font-size: 5rem; }
 }
 
 @media (min-width: 641px) and (max-width: 1024px) {
-  .text-responsive-xs { font-size: 1rem; }
-  .text-responsive-sm { font-size: 1.125rem; }
-  .text-responsive-base { font-size: 1.25rem; }
-  .text-responsive-lg { font-size: 1.5rem; }
-  .text-responsive-xl { font-size: 1.875rem; }
-  .text-responsive-2xl { font-size: 2.25rem; }
-  .text-responsive-3xl { font-size: 3rem; }
-  .text-responsive-4xl { font-size: 3.75rem; }
-  .text-responsive-5xl { font-size: 4.5rem; }
+  .text-responsive-xs { font-size: 1.25rem; }
+  .text-responsive-sm { font-size: 1.5rem; }
+  .text-responsive-base { font-size: 1.75rem; }
+  .text-responsive-lg { font-size: 2rem; }
+  .text-responsive-xl { font-size: 2.5rem; }
+  .text-responsive-2xl { font-size: 3rem; }
+  .text-responsive-3xl { font-size: 3.5rem; }
+  .text-responsive-4xl { font-size: 4rem; }
+  .text-responsive-5xl { font-size: 5rem; }
   .text-responsive-6xl { font-size: 6rem; }
 }
 
 @media (min-width: 1025px) {
-  .text-responsive-xs { font-size: 1.125rem; }
-  .text-responsive-sm { font-size: 1.25rem; }
-  .text-responsive-base { font-size: 1.5rem; }
-  .text-responsive-lg { font-size: 1.875rem; }
-  .text-responsive-xl { font-size: 2.25rem; }
-  .text-responsive-2xl { font-size: 3rem; }
-  .text-responsive-3xl { font-size: 3.75rem; }
-  .text-responsive-4xl { font-size: 4.5rem; }
+  .text-responsive-xs { font-size: 1.5rem; }
+  .text-responsive-sm { font-size: 1.75rem; }
+  .text-responsive-base { font-size: 2rem; }
+  .text-responsive-lg { font-size: 2.5rem; }
+  .text-responsive-xl { font-size: 3rem; }
+  .text-responsive-2xl { font-size: 3.5rem; }
+  .text-responsive-3xl { font-size: 4rem; }
+  .text-responsive-4xl { font-size: 5rem; }
   .text-responsive-5xl { font-size: 6rem; }
   .text-responsive-6xl { font-size: 8rem; }
 }
 
 /* 響應式間距 */
 @media (max-width: 640px) {
-  .spacing-responsive-xs { margin: 0.5rem; }
-  .spacing-responsive-sm { margin: 1rem; }
-  .spacing-responsive-base { margin: 1.5rem; }
-  .spacing-responsive-lg { margin: 2rem; }
-  .spacing-responsive-xl { margin: 3rem; }
-  .spacing-responsive-2xl { margin: 4rem; }
-}
-
-@media (min-width: 641px) {
   .spacing-responsive-xs { margin: 1rem; }
   .spacing-responsive-sm { margin: 1.5rem; }
   .spacing-responsive-base { margin: 2rem; }
   .spacing-responsive-lg { margin: 3rem; }
   .spacing-responsive-xl { margin: 4rem; }
-  .spacing-responsive-2xl { margin: 6rem; }
+  .spacing-responsive-2xl { margin: 5rem; }
+}
+
+@media (min-width: 641px) {
+  .spacing-responsive-xs { margin: 1.5rem; }
+  .spacing-responsive-sm { margin: 2rem; }
+  .spacing-responsive-base { margin: 3rem; }
+  .spacing-responsive-lg { margin: 4rem; }
+  .spacing-responsive-xl { margin: 5rem; }
+  .spacing-responsive-2xl { margin: 8rem; }
 }
 
 /* 性能優化 */
@@ -298,15 +415,116 @@ img {
   }
   
   .hover\:shadow-xl:hover {
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 16px 64px rgba(0, 0, 0, 0.1);
   }
   
   .hover\:-translate-y-2:hover {
     transform: none;
   }
+  
+  .hover\:-translate-y-4:hover {
+    transform: none;
+  }
+  
+  .hover\:-translate-y-6:hover {
+    transform: none;
+  }
+  
+  /* 觸摸設備的按鈕樣式 */
+  .btn-primary:active {
+    transform: scale(0.95);
+  }
+  
+  .btn-secondary:active {
+    transform: scale(0.95);
+  }
+}
+
+/* 超大字體權重 */
+.font-black {
+  font-weight: 900;
+}
+
+.font-extrabold {
+  font-weight: 800;
+}
+
+.font-bold {
+  font-weight: 700;
+}
+
+.font-semibold {
+  font-weight: 600;
+}
+
+/* 超大圓角 */
+.rounded-3xl {
+  border-radius: 1.5rem;
+}
+
+.rounded-4xl {
+  border-radius: 2rem;
+}
+
+/* 超大陰影 */
+.shadow-2xl {
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+}
+
+.shadow-3xl {
+  box-shadow: 0 35px 60px -12px rgba(0, 0, 0, 0.35);
+}
+
+/* 超大間距 */
+.space-y-16 > * + * {
+  margin-top: 4rem;
+}
+
+.space-y-20 > * + * {
+  margin-top: 5rem;
+}
+
+.space-y-24 > * + * {
+  margin-top: 6rem;
+}
+
+/* 超大間距 */
+.gap-16 {
+  gap: 4rem;
+}
+
+.gap-20 {
+  gap: 5rem;
+}
+
+.gap-24 {
+  gap: 6rem;
+}
+
+.gap-32 {
+  gap: 8rem;
 }
 
 /* 深色模式支持（預留） */
 @media (prefers-color-scheme: dark) {
   /* 未來可以添加深色模式樣式 */
+}
+
+/* 打印樣式優化 */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  
+  .card {
+    box-shadow: none !important;
+    border: 1px solid #ccc !important;
+  }
+  
+  .btn-primary,
+  .btn-secondary {
+    background: none !important;
+    color: black !important;
+    border: 1px solid black !important;
+  }
 }

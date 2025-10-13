@@ -24,163 +24,202 @@ export default function Navigation() {
 
   return (
     <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
-      isScrolled ? 'py-2' : 'py-4'
+      isScrolled ? 'py-3' : 'py-6'
     }`} style={{
-      background: pathname === '/' 
-        ? (isScrolled ? 'rgba(26, 115, 232, 0.95)' : 'rgba(26, 115, 232, 0.9)')
+      background: isScrolled 
+        ? 'rgba(26, 115, 232, 0.98)' 
         : 'linear-gradient(135deg, #1A73E8 0%, #5C7AD6 100%)',
       backdropFilter: 'blur(20px)',
-      borderBottom: isScrolled ? '1px solid rgba(255, 255, 255, 0.2)' : '1px solid rgba(255, 255, 255, 0.1)',
-      boxShadow: isScrolled ? '0 8px 32px rgba(0, 0, 0, 0.1)' : 'none'
+      borderBottom: '1px solid rgba(255, 255, 255, 0.2)',
+      boxShadow: '0 8px 40px rgba(0, 0, 0, 0.15)'
     }}>
-      <div className="max-w-7xl mx-auto px-6">
+      <div className="max-w-7xl mx-auto px-8">
         <div className="flex justify-between items-center">
-          {/* Enhanced Logo */}
+          {/* 強化 Logo */}
           <Link href="/" className="flex items-center gap-4 group">
-            <div className="w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-500 group-hover:scale-110 group-hover:rotate-12" style={{
+            <div className="w-16 h-16 rounded-3xl flex items-center justify-center transition-all duration-500 group-hover:scale-110 group-hover:rotate-12 shadow-xl" style={{
               background: 'linear-gradient(135deg, #00BFA5 0%, #1A73E8 100%)',
-              boxShadow: '0 8px 24px rgba(0, 191, 165, 0.3)'
+              boxShadow: '0 12px 32px rgba(0, 191, 165, 0.4)'
             }}>
-              <span className="text-white text-xl font-bold">P</span>
+              <span className="text-white text-2xl font-black">P</span>
             </div>
-            <span className={`font-bold transition-all duration-500 group-hover:scale-105 ${
-              isScrolled ? 'text-xl' : 'text-2xl'
-            }`} style={{color: 'white'}}>
+            <span className={`font-black transition-all duration-500 group-hover:scale-105 ${
+              isScrolled ? 'text-3xl' : 'text-4xl'
+            }`} style={{color: 'white', textShadow: '2px 2px 4px rgba(0,0,0,0.3)'}}>
               PeiPlay
             </span>
           </Link>
           
-          {/* Enhanced Desktop Navigation Links */}
-          <div className="hidden lg:flex items-center space-x-2">
+          {/* 強化桌面導航 */}
+          <div className="hidden lg:flex items-center space-x-6">
             <Link
               href="/booking"
-              className={`px-6 py-3 rounded-xl font-semibold transition-all duration-500 hover:scale-105 hover:shadow-lg ${
+              className={`px-8 py-4 rounded-2xl font-black text-lg transition-all duration-500 hover:scale-110 hover:shadow-2xl ${
                 isActive('/booking') 
-                  ? 'shadow-lg transform scale-105' 
+                  ? 'shadow-2xl transform scale-105' 
                   : 'hover:bg-white hover:bg-opacity-20'
               }`}
               style={{
                 backgroundColor: isActive('/booking') ? '#00BFA5' : 'transparent',
-                color: 'white'
+                color: 'white',
+                textShadow: isActive('/booking') ? 'none' : '1px 1px 2px rgba(0,0,0,0.3)'
               }}
             >
-              <span className="flex items-center gap-2">
-                <span>🎮</span>
+              <span className="flex items-center gap-3">
+                <span className="text-2xl">🎮</span>
                 預約陪玩
               </span>
             </Link>
             <Link
               href="/ranking"
-              className={`px-6 py-3 rounded-xl font-semibold transition-all duration-500 hover:scale-105 hover:shadow-lg ${
+              className={`px-8 py-4 rounded-2xl font-black text-lg transition-all duration-500 hover:scale-110 hover:shadow-2xl ${
                 isActive('/ranking') 
-                  ? 'shadow-lg transform scale-105' 
+                  ? 'shadow-2xl transform scale-105' 
                   : 'hover:bg-white hover:bg-opacity-20'
               }`}
               style={{
                 backgroundColor: isActive('/ranking') ? '#00BFA5' : 'transparent',
-                color: 'white'
+                color: 'white',
+                textShadow: isActive('/ranking') ? 'none' : '1px 1px 2px rgba(0,0,0,0.3)'
               }}
             >
-              <span className="flex items-center gap-2">
-                <span>🏆</span>
+              <span className="flex items-center gap-3">
+                <span className="text-2xl">🏆</span>
                 排行榜
               </span>
             </Link>
             <Link
               href="/partners"
-              className={`px-6 py-3 rounded-xl font-semibold transition-all duration-500 hover:scale-105 hover:shadow-lg ${
+              className={`px-8 py-4 rounded-2xl font-black text-lg transition-all duration-500 hover:scale-110 hover:shadow-2xl ${
                 isActive('/partners') 
-                  ? 'shadow-lg transform scale-105' 
+                  ? 'shadow-2xl transform scale-105' 
                   : 'hover:bg-white hover:bg-opacity-20'
               }`}
               style={{
                 backgroundColor: isActive('/partners') ? '#00BFA5' : 'transparent',
-                color: 'white'
+                color: 'white',
+                textShadow: isActive('/partners') ? 'none' : '1px 1px 2px rgba(0,0,0,0.3)'
               }}
             >
-              <span className="flex items-center gap-2">
-                <span>🔍</span>
+              <span className="flex items-center gap-3">
+                <span className="text-2xl">🔍</span>
                 搜尋夥伴
+              </span>
+            </Link>
+            <Link
+              href="/join"
+              className={`px-8 py-4 rounded-2xl font-black text-lg transition-all duration-500 hover:scale-110 hover:shadow-2xl border-2 ${
+                isActive('/join') 
+                  ? 'shadow-2xl transform scale-105' 
+                  : 'hover:bg-white hover:bg-opacity-20'
+              }`}
+              style={{
+                backgroundColor: isActive('/join') ? '#00BFA5' : 'transparent',
+                color: 'white',
+                borderColor: 'white',
+                textShadow: isActive('/join') ? 'none' : '1px 1px 2px rgba(0,0,0,0.3)'
+              }}
+            >
+              <span className="flex items-center gap-3">
+                <span className="text-2xl">💼</span>
+                加入我們
               </span>
             </Link>
           </div>
           
-          {/* Enhanced User Menu */}
-          <div className="flex items-center gap-4">
-            {/* Desktop User Icon */}
+          {/* 強化用戶菜單 */}
+          <div className="flex items-center gap-6">
+            {/* 桌面用戶圖標 */}
             <div className="hidden md:flex items-center gap-4">
-              <div className="w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-500 hover:scale-110 hover:shadow-lg" style={{
-                backgroundColor: 'rgba(255, 255, 255, 0.2)',
-                border: '2px solid rgba(255, 255, 255, 0.3)'
+              <div className="w-14 h-14 rounded-2xl flex items-center justify-center transition-all duration-500 hover:scale-110 hover:shadow-xl border-2" style={{
+                backgroundColor: 'rgba(255, 255, 255, 0.25)',
+                borderColor: 'rgba(255, 255, 255, 0.4)',
+                backdropFilter: 'blur(10px)'
               }}>
-                <span className="text-white text-lg font-bold">👤</span>
+                <span className="text-white text-xl font-bold">👤</span>
               </div>
             </div>
 
-            {/* Enhanced Mobile Menu Button */}
+            {/* 強化移動菜單按鈕 */}
             <button
               onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="lg:hidden w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-500 hover:scale-110 hover:shadow-lg"
+              className="lg:hidden w-14 h-14 rounded-2xl flex items-center justify-center transition-all duration-500 hover:scale-110 hover:shadow-xl border-2"
               style={{
-                backgroundColor: 'rgba(255, 255, 255, 0.2)',
-                border: '1px solid rgba(255, 255, 255, 0.3)'
+                backgroundColor: 'rgba(255, 255, 255, 0.25)',
+                borderColor: 'rgba(255, 255, 255, 0.4)',
+                backdropFilter: 'blur(10px)'
               }}
             >
-              <div className="flex flex-col gap-1">
-                <div className={`w-6 h-0.5 bg-white transition-all duration-500 ${isMenuOpen ? 'rotate-45 translate-y-2' : ''}`}></div>
-                <div className={`w-6 h-0.5 bg-white transition-all duration-500 ${isMenuOpen ? 'opacity-0' : ''}`}></div>
-                <div className={`w-6 h-0.5 bg-white transition-all duration-500 ${isMenuOpen ? '-rotate-45 -translate-y-2' : ''}`}></div>
+              <div className="flex flex-col gap-1.5">
+                <div className={`w-7 h-1 bg-white transition-all duration-500 ${isMenuOpen ? 'rotate-45 translate-y-2.5' : ''}`}></div>
+                <div className={`w-7 h-1 bg-white transition-all duration-500 ${isMenuOpen ? 'opacity-0' : ''}`}></div>
+                <div className={`w-7 h-1 bg-white transition-all duration-500 ${isMenuOpen ? '-rotate-45 -translate-y-2.5' : ''}`}></div>
               </div>
             </button>
           </div>
         </div>
         
-        {/* Enhanced Mobile Menu */}
-        <div className={`lg:hidden mt-6 transition-all duration-500 overflow-hidden ${
+        {/* 強化移動菜單 */}
+        <div className={`lg:hidden mt-8 transition-all duration-500 overflow-hidden ${
           isMenuOpen ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'
         }`}>
-          <div className="space-y-3 pb-6">
+          <div className="space-y-4 pb-6">
             <Link
               href="/booking"
               onClick={() => setIsMenuOpen(false)}
-              className={`flex items-center gap-3 px-6 py-4 rounded-2xl font-semibold transition-all duration-500 hover:scale-105 ${
-                isActive('/booking') ? 'shadow-lg' : 'hover:bg-white hover:bg-opacity-20'
+              className={`flex items-center gap-4 px-8 py-6 rounded-2xl font-black text-xl transition-all duration-500 hover:scale-105 ${
+                isActive('/booking') ? 'shadow-2xl' : 'hover:bg-white hover:bg-opacity-20'
               }`}
               style={{
                 backgroundColor: isActive('/booking') ? '#00BFA5' : 'transparent',
                 color: 'white'
               }}
             >
-              <span>🎮</span>
+              <span className="text-3xl">🎮</span>
               預約陪玩
             </Link>
             <Link
               href="/ranking"
               onClick={() => setIsMenuOpen(false)}
-              className={`flex items-center gap-3 px-6 py-4 rounded-2xl font-semibold transition-all duration-500 hover:scale-105 ${
-                isActive('/ranking') ? 'shadow-lg' : 'hover:bg-white hover:bg-opacity-20'
+              className={`flex items-center gap-4 px-8 py-6 rounded-2xl font-black text-xl transition-all duration-500 hover:scale-105 ${
+                isActive('/ranking') ? 'shadow-2xl' : 'hover:bg-white hover:bg-opacity-20'
               }`}
               style={{
                 backgroundColor: isActive('/ranking') ? '#00BFA5' : 'transparent',
                 color: 'white'
               }}
             >
-              <span>🏆</span>
+              <span className="text-3xl">🏆</span>
               排行榜
             </Link>
             <Link
               href="/partners"
               onClick={() => setIsMenuOpen(false)}
-              className={`flex items-center gap-3 px-6 py-4 rounded-2xl font-semibold transition-all duration-500 hover:scale-105 ${
-                isActive('/partners') ? 'shadow-lg' : 'hover:bg-white hover:bg-opacity-20'
+              className={`flex items-center gap-4 px-8 py-6 rounded-2xl font-black text-xl transition-all duration-500 hover:scale-105 ${
+                isActive('/partners') ? 'shadow-2xl' : 'hover:bg-white hover:bg-opacity-20'
               }`}
               style={{
                 backgroundColor: isActive('/partners') ? '#00BFA5' : 'transparent',
                 color: 'white'
               }}
             >
-              <span>🔍</span>
+              <span className="text-3xl">🔍</span>
               搜尋夥伴
+            </Link>
+            <Link
+              href="/join"
+              onClick={() => setIsMenuOpen(false)}
+              className={`flex items-center gap-4 px-8 py-6 rounded-2xl font-black text-xl transition-all duration-500 hover:scale-105 border-2 ${
+                isActive('/join') ? 'shadow-2xl' : 'hover:bg-white hover:bg-opacity-20'
+              }`}
+              style={{
+                backgroundColor: isActive('/join') ? '#00BFA5' : 'transparent',
+                color: 'white',
+                borderColor: 'white'
+              }}
+            >
+              <span className="text-3xl">💼</span>
+              加入我們
             </Link>
           </div>
         </div>

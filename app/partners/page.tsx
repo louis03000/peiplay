@@ -215,44 +215,47 @@ export default function PartnersPage() {
     <div className="min-h-screen" style={{backgroundColor: '#E4E7EB'}}>
       <Navigation />
 
-      {/* Hero Section */}
-      <div className="relative py-24 px-6 overflow-hidden">
+      {/* 超大 Hero Section */}
+      <div className="relative py-32 px-8 overflow-hidden">
         {/* 背景漸層 */}
         <div className="absolute inset-0 bg-gradient-to-br from-#1A73E8 via-#5C7AD6 to-#1A73E8 opacity-95"></div>
         
         {/* 幾何裝飾元素 */}
-        <div className="absolute top-10 left-10 w-32 h-32 bg-white opacity-10 rounded-full blur-xl"></div>
-        <div className="absolute bottom-10 right-10 w-48 h-48 bg-white opacity-5 rounded-full blur-2xl"></div>
-        <div className="absolute top-1/2 left-1/4 w-16 h-16 bg-white opacity-20 rotate-45 blur-lg"></div>
+        <div className="absolute top-10 left-10 w-48 h-48 bg-white opacity-10 rounded-full blur-2xl"></div>
+        <div className="absolute bottom-10 right-10 w-64 h-64 bg-white opacity-5 rounded-full blur-3xl"></div>
+        <div className="absolute top-1/2 left-1/4 w-24 h-24 bg-white opacity-20 rotate-45 blur-xl"></div>
         
-        <div className="relative z-10 max-w-6xl mx-auto text-center">
-          <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold mb-8" style={{color: 'white'}}>
+        <div className="relative z-10 max-w-8xl mx-auto text-center">
+          <h1 className="text-6xl sm:text-7xl lg:text-8xl font-black mb-12" style={{color: 'white'}}>
             尋找遊戲夥伴
           </h1>
-          <div className="w-24 h-1 mx-auto mb-8" style={{backgroundColor: '#5C7AD6'}}></div>
-          <p className="text-xl sm:text-2xl mb-12 max-w-4xl mx-auto" style={{color: 'white', opacity: 0.95}}>
+          <div className="w-48 h-3 mx-auto mb-12 rounded-full" style={{
+            background: 'linear-gradient(90deg, #00BFA5, #5C7AD6, #1A73E8)'
+          }}></div>
+          <p className="text-2xl sm:text-3xl lg:text-4xl mb-16 max-w-5xl mx-auto font-bold" style={{color: 'white', opacity: 0.95}}>
             從專業的遊戲陪玩夥伴中選擇最適合您的一位
           </p>
           
-          {/* 搜尋欄 */}
-          <div className="max-w-3xl mx-auto">
-            <div className="relative">
+          {/* 超大搜尋欄 */}
+          <div className="max-w-4xl mx-auto">
+            <div className="relative group">
               <input
                 type="text"
                 placeholder="搜尋遊戲或夥伴..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full px-8 py-6 rounded-2xl text-xl focus:outline-none focus:ring-4 focus:ring-opacity-50 transition-all duration-300"
+                className="w-full px-12 py-10 rounded-3xl text-2xl focus:outline-none focus:ring-4 focus:ring-opacity-50 transition-all duration-500 group-hover:scale-105 font-black"
                 style={{
-                  backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                  backgroundColor: 'rgba(255, 255, 255, 0.25)',
                   color: 'white',
-                  border: '1px solid rgba(255, 255, 255, 0.3)',
-                  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
-                  backdropFilter: 'blur(10px)'
+                  border: '3px solid rgba(255, 255, 255, 0.3)',
+                  boxShadow: '0 16px 48px rgba(0, 0, 0, 0.2)',
+                  backdropFilter: 'blur(15px)',
+                  textShadow: '1px 1px 2px rgba(0,0,0,0.3)'
                 }}
               />
-              <div className="absolute right-6 top-1/2 transform -translate-y-1/2">
-                <span className="text-3xl">🔍</span>
+              <div className="absolute right-12 top-1/2 transform -translate-y-1/2">
+                <span className="text-4xl animate-pulse">🔍</span>
               </div>
             </div>
           </div>
@@ -260,40 +263,40 @@ export default function PartnersPage() {
       </div>
 
       {/* Main Content */}
-      <div className="py-16 px-6">
-        <div className="max-w-7xl mx-auto">
+      <div className="py-20 px-8">
+        <div className="max-w-8xl mx-auto">
           
-          {/* 訊息提示 */}
+          {/* 超大訊息提示 */}
           {message && (
-            <div className={`mb-8 p-6 rounded-2xl text-center transition-all duration-300 ${
+            <div className={`mb-10 p-8 rounded-3xl text-center transition-all duration-300 ${
               message.includes('成功') 
-                ? 'bg-green-50 text-green-700 border border-green-200' 
-                : 'bg-red-50 text-red-700 border border-red-200'
+                ? 'bg-green-50 text-green-700 border-2 border-green-200' 
+                : 'bg-red-50 text-red-700 border-2 border-red-200'
             }`}>
-              <div className="text-lg font-medium">{message}</div>
+              <div className="text-2xl font-black">{message}</div>
             </div>
           )}
           
-          {/* 載入狀態 */}
+          {/* 超大載入狀態 */}
           {loading && (
-            <div className="text-center py-24">
+            <div className="text-center py-32">
               <div className="relative">
-                <div className="w-20 h-20 mx-auto mb-8 rounded-full border-4 border-gray-200 border-t-#1A73E8 animate-spin"></div>
-                <div className="text-2xl font-medium" style={{color: '#333140'}}>載入夥伴資料中...</div>
+                <div className="w-32 h-32 mx-auto mb-12 rounded-full border-6 border-gray-200 border-t-#1A73E8 animate-spin"></div>
+                <div className="text-3xl font-black" style={{color: '#333140'}}>載入夥伴資料中...</div>
               </div>
             </div>
           )}
 
-          {/* 錯誤狀態 */}
+          {/* 超大錯誤狀態 */}
           {error && (
-            <div className="text-center py-24">
-              <div className="max-w-md mx-auto p-8 rounded-3xl" style={{backgroundColor: 'white', boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)'}}>
-                <div className="text-8xl mb-6">⚠️</div>
-                <h3 className="text-2xl font-bold mb-4" style={{color: '#333140'}}>載入失敗</h3>
-                <p className="text-lg mb-8" style={{color: '#333140', opacity: 0.8}}>{error}</p>
+            <div className="text-center py-32">
+              <div className="max-w-lg mx-auto p-12 rounded-3xl" style={{backgroundColor: 'white', boxShadow: '0 16px 64px rgba(0, 0, 0, 0.1)'}}>
+                <div className="text-9xl mb-8">⚠️</div>
+                <h3 className="text-3xl font-black mb-6" style={{color: '#333140'}}>載入失敗</h3>
+                <p className="text-xl mb-10" style={{color: '#333140', opacity: 0.8}}>{error}</p>
                 <button 
                   onClick={() => window.location.reload()}
-                  className="px-8 py-4 rounded-2xl font-semibold transition-all duration-300 hover:shadow-xl hover:scale-105 transform"
+                  className="px-12 py-6 rounded-3xl font-black text-xl transition-all duration-500 hover:shadow-xl hover:scale-105 transform"
                   style={{
                     background: 'linear-gradient(135deg, #1A73E8 0%, #5C7AD6 100%)',
                     color: 'white'
@@ -305,22 +308,22 @@ export default function PartnersPage() {
             </div>
           )}
 
-          {/* 沒有結果 */}
+          {/* 超大沒有結果 */}
           {!loading && !error && filteredPartners.length === 0 && (
-            <div className="text-center py-24">
-              <div className="max-w-lg mx-auto p-8 rounded-3xl" style={{backgroundColor: 'white', boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)'}}>
-                <div className="text-8xl mb-6">🔍</div>
-                <h3 className="text-2xl font-bold mb-4" style={{color: '#333140'}}>
+            <div className="text-center py-32">
+              <div className="max-w-xl mx-auto p-12 rounded-3xl" style={{backgroundColor: 'white', boxShadow: '0 16px 64px rgba(0, 0, 0, 0.1)'}}>
+                <div className="text-9xl mb-8">🔍</div>
+                <h3 className="text-3xl font-black mb-6" style={{color: '#333140'}}>
                   {searchTerm ? '搜尋無結果' : '請輸入搜尋條件來尋找夥伴'}
                 </h3>
                 {searchTerm && (
                   <>
-                    <p className="text-lg mb-8" style={{color: '#333140', opacity: 0.8}}>
+                    <p className="text-xl mb-10" style={{color: '#333140', opacity: 0.8}}>
                       試試調整搜尋條件或清除搜尋
                     </p>
                     <button 
                       onClick={() => setSearchTerm('')}
-                      className="px-8 py-4 rounded-2xl font-semibold transition-all duration-300 hover:shadow-xl hover:scale-105 transform"
+                      className="px-12 py-6 rounded-3xl font-black text-xl transition-all duration-500 hover:shadow-xl hover:scale-105 transform"
                       style={{
                         background: 'linear-gradient(135deg, #1A73E8 0%, #5C7AD6 100%)',
                         color: 'white'
@@ -337,23 +340,23 @@ export default function PartnersPage() {
           {/* 夥伴列表 */}
           {!loading && !error && filteredPartners.length > 0 && (
             <>
-              {/* 結果統計 */}
-              <div className="mb-8 p-6 rounded-2xl" style={{backgroundColor: 'white', boxShadow: '0 4px 20px rgba(0, 0, 0, 0.1)'}}>
+              {/* 超大結果統計 */}
+              <div className="mb-12 p-10 rounded-3xl" style={{backgroundColor: 'white', boxShadow: '0 12px 48px rgba(0, 0, 0, 0.1)'}}>
                 <div className="flex items-center justify-between">
                   <div>
-                    <h3 className="text-xl font-semibold" style={{color: '#333140'}}>
+                    <h3 className="text-3xl font-black" style={{color: '#333140'}}>
                       找到 {filteredPartners.length} 位夥伴
                     </h3>
-                    <p className="text-sm" style={{color: '#333140', opacity: 0.7}}>
+                    <p className="text-lg font-bold" style={{color: '#333140', opacity: 0.7}}>
                       {searchTerm && `搜尋關鍵字: "${searchTerm}"`}
                     </p>
                   </div>
-                  <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-6">
                     <div className="text-right">
-                      <div className="text-2xl font-bold" style={{color: '#1A73E8'}}>
+                      <div className="text-4xl font-black" style={{color: '#1A73E8'}}>
                         {filteredPartners.length}
                       </div>
-                      <div className="text-xs" style={{color: '#333140', opacity: 0.7}}>
+                      <div className="text-lg font-bold" style={{color: '#333140', opacity: 0.7}}>
                         可用夥伴
                       </div>
                     </div>
@@ -362,7 +365,7 @@ export default function PartnersPage() {
               </div>
 
               {/* 夥伴卡片網格 */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12">
                 {filteredPartners.map(partner => (
                   <div key={partner.id} className="group">
                     <PartnerCard 
