@@ -3,55 +3,42 @@
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
-import Link from 'next/link'
 import Navigation from '@/app/components/Navigation'
-
-interface Review {
-  id: string
-  rating: number
-  comment: string
-  createdAt: string
-  reviewerName: string
-}
 
 interface FeaturedPartner {
   id: string
   name: string
   games: string[]
   halfHourlyRate: number
-  coverImage?: string
-  images?: string[]
   rating: number
   totalBookings: number
-}
-
-interface GameRanking {
-  name: string
-  playerCount: number
-  icon: string
 }
 
 export default function Home() {
   const { data: session, status } = useSession()
   const router = useRouter()
-  const [reviews, setReviews] = useState<Review[]>([])
   const [featuredPartners, setFeaturedPartners] = useState<FeaturedPartner[]>([])
-  const [gameRankings, setGameRankings] = useState<GameRanking[]>([])
   const [scrollY, setScrollY] = useState(0)
+  const [mouseX, setMouseX] = useState(0)
+  const [mouseY, setMouseY] = useState(0)
 
-  // 滾動效果
   useEffect(() => {
     const handleScroll = () => setScrollY(window.scrollY)
-    window.addEventListener('scroll', handleScroll)
-    return () => window.removeEventListener('scroll', handleScroll)
+    const handleMouseMove = (e: MouseEvent) => {
+      setMouseX(e.clientX / window.innerWidth)
+      setMouseY(e.clientY / window.innerHeight)
+    }
+    window.addEventListener('scroll', handleScroll, { passive: true })
+    window.addEventListener('mousemove', handleMouseMove, { passive: true })
+    return () => {
+      window.removeEventListener('scroll', handleScroll)
+      window.removeEventListener('mousemove', handleMouseMove)
+    }
   }, [])
 
   useEffect(() => {
     if (status === 'authenticated' && session?.user?.id) {
-      if (window.location.pathname === '/onboarding') {
-        return
-      }
-      
+      if (window.location.pathname === '/onboarding') return
       const checkUserProfile = async () => {
         try {
           const res = await fetch('/api/user/profile')
@@ -60,34 +47,15 @@ export default function Home() {
             const user = data.user
             const hasPhone = user.phone && user.phone.trim() !== ''
             const hasBirthday = user.birthday && user.birthday !== '2000-01-01'
-            
-            if (!hasPhone || !hasBirthday) {
-              router.push('/onboarding')
-            }
+            if (!hasPhone || !hasBirthday) router.push('/onboarding')
           }
         } catch (error) {
           console.error('檢查用戶資料失敗:', error)
         }
       }
-      
       checkUserProfile()
     }
   }, [session, status, router])
-
-  useEffect(() => {
-    const fetchReviews = async () => {
-      try {
-        const response = await fetch('/api/reviews/public')
-        if (response.ok) {
-          const data = await response.json()
-          setReviews(data.reviews || [])
-        }
-      } catch (error) {
-        console.error('Failed to fetch reviews:', error)
-      }
-    }
-    fetchReviews()
-  }, [])
 
   useEffect(() => {
     const fetchFeaturedPartners = async () => {
@@ -108,208 +76,309 @@ export default function Home() {
     fetchFeaturedPartners()
   }, [])
 
-  useEffect(() => {
-    setGameRankings([
-      { name: '英雄聯盟', playerCount: 2847, icon: '⚔️' },
-      { name: '特戰英豪', playerCount: 1923, icon: '🎯' },
-      { name: 'Apex 英雄', playerCount: 1654, icon: '🚀' },
-      { name: 'CS:GO', playerCount: 1432, icon: '🔫' },
-      { name: 'PUBG', playerCount: 987, icon: '🏃' }
-    ])
-  }, [])
-
   return (
-    <div className="min-h-screen relative overflow-hidden" style={{background: 'linear-gradient(180deg, #0A0E27 0%, #1A1F3A 50%, #0F1729 100%)'}}>
+    <div className="min-h-screen relative overflow-hidden" 
+         style={{
+           background: `
+             radial-gradient(circle at ${mouseX * 100}% ${mouseY * 100}%, rgba(59, 130, 246, 0.15) 0%, transparent 50%),
+             radial-gradient(circle at ${100 - mouseX * 100}% ${100 - mouseY * 100}%, rgba(139, 92, 246, 0.1) 0%, transparent 50%),
+             linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%)
+           `
+         }}>
+      
+      {/* 動態紋理層 */}
+      <div className="fixed inset-0 opacity-[0.015]" 
+           style={{
+             backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
+             transform: `translate(${scrollY * 0.1}px, ${scrollY * 0.1}px)`
+           }}></div>
+
+      {/* 動態光暈 - 跟隨滑鼠 */}
+      <div className="fixed inset-0 pointer-events-none">
+        <div className="absolute w-[800px] h-[800px] rounded-full blur-[120px] opacity-20 transition-all duration-1000"
+             style={{
+               background: 'radial-gradient(circle, #3b82f6 0%, transparent 70%)',
+               left: `${mouseX * 100}%`,
+               top: `${mouseY * 100}%`,
+               transform: 'translate(-50%, -50%)'
+             }}></div>
+        <div className="absolute w-[600px] h-[600px] rounded-full blur-[100px] opacity-15 transition-all duration-1500"
+             style={{
+               background: 'radial-gradient(circle, #8b5cf6 0%, transparent 70%)',
+               left: `${(1 - mouseX) * 100}%`,
+               top: `${(1 - mouseY) * 100}%`,
+               transform: 'translate(-50%, -50%)'
+             }}></div>
+      </div>
+
+      {/* 漂浮裝飾元素 */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden">
+        <div className="absolute top-20 left-[10%] w-2 h-2 bg-blue-400 rounded-full opacity-40 animate-float-slow"></div>
+        <div className="absolute top-40 right-[15%] w-3 h-3 bg-purple-400 rounded-full opacity-30 animate-float-medium"></div>
+        <div className="absolute bottom-32 left-[20%] w-2 h-2 bg-cyan-400 rounded-full opacity-40 animate-float-fast"></div>
+        <div className="absolute top-[60%] right-[25%] w-4 h-4 border-2 border-blue-400 rounded-full opacity-20 animate-spin-very-slow"></div>
+        <div className="absolute bottom-[20%] right-[10%] w-3 h-3 border-2 border-purple-400 opacity-25 rotate-45 animate-pulse-gentle"></div>
+      </div>
+
       <Navigation />
 
-      {/* 超現代化 Hero Section - 深色主題 */}
-      <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
-        {/* 動態網格背景 */}
-        <div className="absolute inset-0" style={{
-          backgroundImage: `
-            linear-gradient(rgba(26, 115, 232, 0.03) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(26, 115, 232, 0.03) 1px, transparent 1px)
-          `,
-          backgroundSize: '100px 100px',
-          transform: `translateY(${scrollY * 0.5}px)`
-        }}></div>
-
-        {/* 漸層光暈效果 */}
-        <div className="absolute top-0 left-1/4 w-[600px] h-[600px] rounded-full opacity-20 blur-3xl"
-             style={{background: 'radial-gradient(circle, #1A73E8 0%, transparent 70%)'}}></div>
-        <div className="absolute bottom-0 right-1/4 w-[800px] h-[800px] rounded-full opacity-15 blur-3xl"
-             style={{background: 'radial-gradient(circle, #5C7AD6 0%, transparent 70%)'}}></div>
-        <div className="absolute top-1/2 left-1/2 w-[500px] h-[500px] rounded-full opacity-10 blur-3xl"
-             style={{background: 'radial-gradient(circle, #00BFA5 0%, transparent 70%)', transform: 'translate(-50%, -50%)'}}></div>
-
-        {/* 浮動幾何裝飾 */}
-        <div className="absolute top-20 left-10 w-20 h-20 border-2 border-blue-500 opacity-20 rounded-lg animate-spin-slow"></div>
-        <div className="absolute bottom-40 right-20 w-32 h-32 border-2 border-cyan-400 opacity-15 rounded-full animate-pulse-slow"></div>
-        <div className="absolute top-1/3 right-1/4 w-16 h-16 border-2 border-purple-500 opacity-25 rotate-45 animate-float"></div>
-
-        <div className="relative z-10 px-8 py-32 text-center max-w-7xl mx-auto">
-          {/* 超大現代化標題 */}
-          <div className="mb-16 space-y-8">
-            <div className="inline-block px-6 py-3 rounded-full mb-8 backdrop-blur-md border border-white/10"
-                 style={{background: 'rgba(26, 115, 232, 0.1)'}}>
-              <span className="text-blue-400 text-lg font-bold tracking-wider">🎮 專業遊戲陪玩平台</span>
-            </div>
+      {/* Hero Section - 震撼視覺 */}
+      <section className="relative min-h-screen flex items-center justify-center pt-20 px-6">
+        <div className="relative z-10 w-full max-w-7xl mx-auto">
+          
+          {/* 主內容 */}
+          <div className="text-center space-y-12 animate-fade-in-up">
             
-            <h1 className="text-7xl sm:text-8xl lg:text-9xl font-black leading-tight mb-8"
-                style={{
-                  background: 'linear-gradient(135deg, #FFFFFF 0%, #60A5FA 50%, #3B82F6 100%)',
-                  WebkitBackgroundClip: 'text',
-                  WebkitTextFillColor: 'transparent',
-                  textShadow: '0 0 80px rgba(59, 130, 246, 0.5)',
-                  letterSpacing: '-0.02em'
-                }}>
-              PeiPlay
-            </h1>
+            {/* 頂部標籤 */}
+            <div className="inline-flex items-center gap-3 px-8 py-4 rounded-full backdrop-blur-xl border border-white/10 animate-scale-in"
+                 style={{
+                   background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(139, 92, 246, 0.1) 100%)',
+                   boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)'
+                 }}>
+              <span className="text-3xl">🎮</span>
+              <span className="text-blue-300 font-bold text-xl tracking-wide">專業遊戲陪玩平台</span>
+            </div>
 
-            <div className="h-1 w-32 mx-auto rounded-full mb-12"
-                 style={{background: 'linear-gradient(90deg, transparent, #3B82F6, transparent)'}}></div>
-
-            <p className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-300 max-w-4xl mx-auto leading-relaxed mb-8">
-              連接全球優質遊戲夥伴<br/>
-              <span className="text-blue-400">提供最專業的陪玩體驗</span>
-            </p>
-
-            <p className="text-lg sm:text-xl text-gray-400 max-w-3xl mx-auto leading-relaxed font-medium">
-              無論您是尋找陪玩服務，還是想成為專業陪玩夥伴，<br/>
-              PeiPlay 都是您的最佳選擇
-            </p>
-          </div>
-
-          {/* 現代化 CTA 按鈕組 */}
-          <div className="flex flex-col sm:flex-row gap-6 justify-center items-center mb-20">
-            <button
-              onClick={() => router.push('/booking')}
-              className="group relative px-12 py-5 rounded-2xl font-bold text-xl transition-all duration-300 overflow-hidden"
-              style={{
-                background: 'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)',
-                boxShadow: '0 10px 40px rgba(59, 130, 246, 0.3), 0 0 0 1px rgba(255,255,255,0.1) inset'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'translateY(-2px)'
-                e.currentTarget.style.boxShadow = '0 20px 60px rgba(59, 130, 246, 0.4), 0 0 0 1px rgba(255,255,255,0.1) inset'
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'translateY(0)'
-                e.currentTarget.style.boxShadow = '0 10px 40px rgba(59, 130, 246, 0.3), 0 0 0 1px rgba(255,255,255,0.1) inset'
-              }}
-            >
-              <span className="relative z-10 text-white flex items-center gap-3">
-                立即預約陪玩
-                <svg className="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                </svg>
-              </span>
-            </button>
-
-            <button
-              onClick={() => router.push('/join')}
-              className="group relative px-12 py-5 rounded-2xl font-bold text-xl transition-all duration-300 backdrop-blur-md border-2 border-white/20"
-              style={{background: 'rgba(255, 255, 255, 0.05)'}}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'translateY(-2px)'
-                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'
-                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.3)'
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'translateY(0)'
-                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'
-                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.2)'
-              }}
-            >
-              <span className="text-white flex items-center gap-3">
-                成為陪玩夥伴
-                <svg className="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                </svg>
-              </span>
-            </button>
-          </div>
-
-          {/* 現代化搜尋欄 */}
-          <div className="max-w-2xl mx-auto">
-            <div className="relative group">
-              <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 to-cyan-600 rounded-2xl blur opacity-25 group-hover:opacity-40 transition duration-300"></div>
-              <div className="relative">
-                <input
-                  type="text"
-                  placeholder="搜尋遊戲或夥伴..."
-                  className="w-full px-6 py-4 rounded-2xl text-lg font-medium focus:outline-none transition-all duration-300 border border-white/10"
+            {/* 超大標題 - 漸層發光效果 */}
+            <div className="relative">
+              <h1 className="text-8xl sm:text-9xl lg:text-[12rem] font-black leading-none mb-8 tracking-tight animate-fade-in"
                   style={{
-                    background: 'rgba(255, 255, 255, 0.05)',
-                    backdropFilter: 'blur(20px)',
-                    color: 'white'
-                  }}
-                  onFocus={(e) => {
-                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)'
-                    e.currentTarget.style.borderColor = 'rgba(59, 130, 246, 0.5)'
-                  }}
-                  onBlur={(e) => {
-                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'
-                    e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)'
-                  }}
-                />
-                <div className="absolute right-4 top-1/2 -translate-y-1/2">
-                  <span className="text-2xl opacity-50">🔍</span>
+                    background: 'linear-gradient(135deg, #ffffff 0%, #60a5fa 40%, #3b82f6 60%, #2563eb 100%)',
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                    backgroundSize: '200% 200%',
+                    animation: 'gradient-shift 8s ease infinite, fade-in 1s ease-out',
+                    filter: 'drop-shadow(0 0 40px rgba(59, 130, 246, 0.5))',
+                    textShadow: '0 0 80px rgba(59, 130, 246, 0.3)'
+                  }}>
+                PeiPlay
+              </h1>
+              
+              {/* 標題下方裝飾線 */}
+              <div className="flex items-center justify-center gap-4 mb-12">
+                <div className="h-px w-24 bg-gradient-to-r from-transparent via-blue-400 to-transparent"></div>
+                <div className="w-2 h-2 rounded-full bg-blue-400 animate-pulse-gentle"></div>
+                <div className="h-px w-24 bg-gradient-to-r from-transparent via-blue-400 to-transparent"></div>
+              </div>
+            </div>
+
+            {/* 副標題 - 大而清晰 */}
+            <div className="space-y-6 max-w-5xl mx-auto animate-fade-in-up" style={{animationDelay: '0.2s'}}>
+              <h2 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white leading-tight tracking-tight">
+                連接全球優質遊戲夥伴
+              </h2>
+              <p className="text-2xl sm:text-3xl lg:text-4xl font-medium text-blue-300 leading-relaxed">
+                打造最專業的陪玩體驗平台
+              </p>
+              <p className="text-xl sm:text-2xl text-slate-400 leading-relaxed max-w-3xl mx-auto font-medium" 
+                 style={{letterSpacing: '0.025em', lineHeight: '1.8'}}>
+                無論您是尋找專業陪玩服務，還是想成為認證陪玩夥伴<br/>
+                PeiPlay 為您提供安全、便捷、高品質的遊戲社交體驗
+              </p>
+            </div>
+
+            {/* CTA 按鈕組 - 大而醒目 */}
+            <div className="flex flex-col sm:flex-row gap-6 justify-center items-center pt-8 animate-fade-in-up" 
+                 style={{animationDelay: '0.4s'}}>
+              <button
+                onClick={() => router.push('/booking')}
+                className="group relative px-16 py-7 rounded-2xl font-black text-2xl overflow-hidden transition-all duration-500 hover:scale-105 hover:shadow-2xl"
+                style={{
+                  background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+                  boxShadow: '0 20px 60px rgba(59, 130, 246, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.1) inset'
+                }}>
+                <span className="relative z-10 flex items-center gap-4 text-white">
+                  <span className="text-3xl">🎯</span>
+                  立即預約陪玩
+                  <svg className="w-7 h-7 transition-transform group-hover:translate-x-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                  </svg>
+                </span>
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
+              </button>
+
+              <button
+                onClick={() => router.push('/join')}
+                className="group relative px-16 py-7 rounded-2xl font-black text-2xl backdrop-blur-xl border-3 transition-all duration-500 hover:scale-105"
+                style={{
+                  background: 'rgba(255, 255, 255, 0.05)',
+                  borderColor: 'rgba(255, 255, 255, 0.2)',
+                  boxShadow: '0 10px 40px rgba(0, 0, 0, 0.3)'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'
+                  e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.4)'
+                  e.currentTarget.style.boxShadow = '0 20px 60px rgba(59, 130, 246, 0.2)'
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'
+                  e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.2)'
+                  e.currentTarget.style.boxShadow = '0 10px 40px rgba(0, 0, 0, 0.3)'
+                }}>
+                <span className="flex items-center gap-4 text-white">
+                  <span className="text-3xl">💼</span>
+                  成為陪玩夥伴
+                  <svg className="w-7 h-7 transition-transform group-hover:translate-x-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                  </svg>
+                </span>
+              </button>
+            </div>
+
+            {/* 搜尋欄 - 精緻設計 */}
+            <div className="max-w-3xl mx-auto pt-12 animate-fade-in-up" style={{animationDelay: '0.6s'}}>
+              <div className="relative group">
+                <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 via-purple-600 to-blue-600 rounded-3xl blur-lg opacity-30 group-hover:opacity-50 transition duration-500 animate-pulse-gentle"></div>
+                <div className="relative">
+                  <input
+                    type="text"
+                    placeholder="搜尋遊戲或夥伴名稱..."
+                    className="w-full px-10 py-7 rounded-2xl text-xl font-semibold focus:outline-none transition-all duration-300"
+                    style={{
+                      background: 'rgba(255, 255, 255, 0.08)',
+                      backdropFilter: 'blur(20px)',
+                      color: 'white',
+                      border: '2px solid rgba(255, 255, 255, 0.1)',
+                      boxShadow: '0 10px 40px rgba(0, 0, 0, 0.3) inset'
+                    }}
+                    onFocus={(e) => {
+                      e.currentTarget.style.background = 'rgba(255, 255, 255, 0.12)'
+                      e.currentTarget.style.borderColor = 'rgba(59, 130, 246, 0.5)'
+                      e.currentTarget.style.boxShadow = '0 0 0 4px rgba(59, 130, 246, 0.1), 0 10px 40px rgba(0, 0, 0, 0.3) inset'
+                    }}
+                    onBlur={(e) => {
+                      e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)'
+                      e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)'
+                      e.currentTarget.style.boxShadow = '0 10px 40px rgba(0, 0, 0, 0.3) inset'
+                    }}
+                  />
+                  <div className="absolute right-8 top-1/2 -translate-y-1/2 text-4xl opacity-50 transition-transform group-hover:scale-110">
+                    🔍
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* 滾動提示 */}
+            <div className="absolute bottom-12 left-1/2 -translate-x-1/2 animate-bounce-slow">
+              <div className="flex flex-col items-center gap-3 opacity-60 hover:opacity-100 transition-opacity">
+                <span className="text-sm font-semibold text-slate-400 tracking-wider uppercase">Scroll</span>
+                <div className="w-8 h-14 border-3 border-white/30 rounded-full flex justify-center pt-3">
+                  <div className="w-2 h-4 bg-white/60 rounded-full animate-scroll-indicator"></div>
                 </div>
               </div>
             </div>
           </div>
+        </div>
 
-          {/* 滾動提示 */}
-          <div className="absolute bottom-8 left-1/2 -translate-x-1/2 animate-bounce">
-            <div className="w-6 h-10 border-2 border-white/30 rounded-full flex justify-center p-2">
-              <div className="w-1 h-3 bg-white/50 rounded-full animate-pulse"></div>
-            </div>
-          </div>
+        {/* 視差裝飾元素 */}
+        <div className="absolute inset-0 pointer-events-none overflow-hidden">
+          <div className="absolute top-[20%] left-[5%] w-64 h-64 border border-blue-400/10 rounded-full"
+               style={{transform: `translateY(${scrollY * 0.3}px) scale(${1 + scrollY * 0.0005})`}}></div>
+          <div className="absolute bottom-[10%] right-[8%] w-96 h-96 border border-purple-400/10 rounded-full"
+               style={{transform: `translateY(${scrollY * -0.2}px) scale(${1 + scrollY * 0.0003})`}}></div>
         </div>
       </section>
 
-      {/* 功能特色區 - 深色卡片設計 */}
-      <section className="relative py-32 px-8">
-        {/* 區塊背景 */}
-        <div className="absolute inset-0" style={{background: 'rgba(15, 23, 41, 0.5)'}}></div>
-        
-        <div className="relative z-10 max-w-7xl mx-auto">
-          <div className="text-center mb-20">
-            <h2 className="text-5xl sm:text-6xl font-black mb-6 text-white">為什麼選擇 PeiPlay？</h2>
-            <div className="h-1 w-24 mx-auto rounded-full mb-8"
-                 style={{background: 'linear-gradient(90deg, transparent, #3B82F6, transparent)'}}></div>
-            <p className="text-xl text-gray-400 font-medium">專業、安全、高品質的遊戲陪玩服務</p>
+      {/* 功能特色區 - 視差效果 */}
+      <section className="relative py-40 px-6" style={{transform: `translateY(${scrollY * 0.1}px)`}}>
+        <div className="max-w-7xl mx-auto">
+          
+          {/* 區塊標題 */}
+          <div className="text-center mb-24 space-y-8">
+            <h2 className="text-6xl sm:text-7xl lg:text-8xl font-black text-white tracking-tight">
+              為什麼選擇 PeiPlay？
+            </h2>
+            <div className="flex items-center justify-center gap-4">
+              <div className="h-1 w-32 bg-gradient-to-r from-transparent via-blue-400 to-transparent rounded-full"></div>
+              <div className="w-3 h-3 rounded-full bg-blue-400 animate-pulse-gentle"></div>
+              <div className="h-1 w-32 bg-gradient-to-r from-transparent via-blue-400 to-transparent rounded-full"></div>
+            </div>
+            <p className="text-2xl sm:text-3xl text-slate-300 font-medium max-w-3xl mx-auto leading-relaxed">
+              我們提供最專業、安全、高品質的遊戲陪玩服務
+            </p>
           </div>
 
+          {/* 功能卡片網格 */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
             {[
-              { icon: '🔒', title: '安全保證', desc: '嚴格的夥伴認證流程，確保服務品質', color: '#3B82F6' },
-              { icon: '⭐', title: '優質服務', desc: '專業的遊戲夥伴，豐富的遊戲經驗', color: '#8B5CF6' },
-              { icon: '🎯', title: '客製體驗', desc: '個人化匹配，提供最適合的服務', color: '#06B6D4' },
-              { icon: '⚡', title: '即時匹配', desc: '智能匹配系統，快速找到夥伴', color: '#10B981' }
+              { 
+                icon: '🔒', 
+                title: '安全保證', 
+                desc: '嚴格的夥伴認證流程，確保每位夥伴都經過專業審核，為您提供安全可靠的服務體驗',
+                color: 'from-blue-600 to-blue-700',
+                delay: '0s'
+              },
+              { 
+                icon: '⭐', 
+                title: '優質服務', 
+                desc: '專業的遊戲夥伴，豐富的遊戲經驗，為您提供高品質的陪玩服務和專業遊戲指導',
+                color: 'from-purple-600 to-purple-700',
+                delay: '0.1s'
+              },
+              { 
+                icon: '🎯', 
+                title: '客製體驗', 
+                desc: '根據您的需求智能匹配最適合的夥伴，提供個人化的遊戲體驗和專業建議',
+                color: 'from-cyan-600 to-cyan-700',
+                delay: '0.2s'
+              },
+              { 
+                icon: '⚡', 
+                title: '即時匹配', 
+                desc: '智能匹配系統，快速找到最適合的遊戲夥伴，享受流暢便捷的預約體驗',
+                color: 'from-emerald-600 to-emerald-700',
+                delay: '0.3s'
+              }
             ].map((feature, index) => (
               <div
                 key={index}
-                className="group relative p-8 rounded-2xl backdrop-blur-md border border-white/10 transition-all duration-300 hover:-translate-y-2"
-                style={{background: 'rgba(255, 255, 255, 0.03)'}}
+                className="group relative rounded-3xl p-10 backdrop-blur-xl border transition-all duration-500 hover:-translate-y-4 animate-fade-in-up"
+                style={{
+                  background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.02) 100%)',
+                  borderColor: 'rgba(255, 255, 255, 0.1)',
+                  boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)',
+                  animationDelay: feature.delay
+                }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'
+                  e.currentTarget.style.background = 'linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.04) 100%)'
                   e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.2)'
-                  e.currentTarget.style.boxShadow = `0 20px 60px ${feature.color}20`
+                  e.currentTarget.style.boxShadow = '0 30px 80px rgba(59, 130, 246, 0.3)'
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.03)'
+                  e.currentTarget.style.background = 'linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.02) 100%)'
                   e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)'
-                  e.currentTarget.style.boxShadow = 'none'
+                  e.currentTarget.style.boxShadow = '0 20px 60px rgba(0, 0, 0, 0.3)'
                 }}
               >
-                <div className="w-16 h-16 mx-auto mb-6 rounded-xl flex items-center justify-center text-4xl transition-transform duration-300 group-hover:scale-110"
-                     style={{background: `${feature.color}20`, border: `1px solid ${feature.color}40`}}>
+                {/* 卡片頂部漸層 */}
+                <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${feature.color} rounded-t-3xl`}></div>
+                
+                {/* 圖標 */}
+                <div className="w-24 h-24 mx-auto mb-8 rounded-2xl flex items-center justify-center text-6xl transition-all duration-500 group-hover:scale-110 group-hover:rotate-6"
+                     style={{
+                       background: `linear-gradient(135deg, ${feature.color.replace('from-', 'rgba(59, 130, 246, 0.1)')} 0%, rgba(139, 92, 246, 0.1) 100%)`,
+                       border: '2px solid rgba(255, 255, 255, 0.1)',
+                       boxShadow: '0 10px 30px rgba(0, 0, 0, 0.2)'
+                     }}>
                   {feature.icon}
                 </div>
-                <h3 className="text-2xl font-bold mb-4 text-white text-center">{feature.title}</h3>
-                <p className="text-gray-400 text-center leading-relaxed">{feature.desc}</p>
+
+                {/* 標題 */}
+                <h3 className="text-3xl font-black text-white mb-6 text-center tracking-tight">
+                  {feature.title}
+                </h3>
+
+                {/* 描述 */}
+                <p className="text-lg text-slate-300 text-center leading-relaxed font-medium" style={{letterSpacing: '0.015em', lineHeight: '1.8'}}>
+                  {feature.desc}
+                </p>
+
+                {/* 懸停光效 */}
+                <div className="absolute inset-0 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"
+                     style={{
+                       background: `radial-gradient(circle at 50% 0%, ${feature.color.includes('blue') ? 'rgba(59, 130, 246, 0.1)' : feature.color.includes('purple') ? 'rgba(139, 92, 246, 0.1)' : feature.color.includes('cyan') ? 'rgba(6, 182, 212, 0.1)' : 'rgba(16, 185, 129, 0.1)'} 0%, transparent 70%)`
+                     }}></div>
               </div>
             ))}
           </div>
@@ -317,84 +386,120 @@ export default function Home() {
       </section>
 
       {/* 精選夥伴區 */}
-      <section className="relative py-32 px-8">
-        <div className="relative z-10 max-w-7xl mx-auto">
-          <div className="text-center mb-20">
-            <h2 className="text-5xl sm:text-6xl font-black mb-6 text-white">精選夥伴</h2>
-            <div className="h-1 w-24 mx-auto rounded-full mb-8"
-                 style={{background: 'linear-gradient(90deg, transparent, #3B82F6, transparent)'}}></div>
-            <p className="text-xl text-gray-400 font-medium">專業認證的遊戲夥伴，為您提供最優質的服務</p>
+      <section className="relative py-40 px-6">
+        <div className="max-w-7xl mx-auto">
+          
+          {/* 區塊標題 */}
+          <div className="text-center mb-24 space-y-8">
+            <h2 className="text-6xl sm:text-7xl lg:text-8xl font-black text-white tracking-tight">
+              精選遊戲夥伴
+            </h2>
+            <div className="flex items-center justify-center gap-4">
+              <div className="h-1 w-32 bg-gradient-to-r from-transparent via-purple-400 to-transparent rounded-full"></div>
+              <div className="w-3 h-3 rounded-full bg-purple-400 animate-pulse-gentle"></div>
+              <div className="h-1 w-32 bg-gradient-to-r from-transparent via-purple-400 to-transparent rounded-full"></div>
+            </div>
+            <p className="text-2xl sm:text-3xl text-slate-300 font-medium max-w-3xl mx-auto leading-relaxed">
+              專業認證的遊戲夥伴，為您提供最優質的陪玩服務
+            </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          {/* 夥伴卡片網格 */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
             {featuredPartners.map((partner, index) => (
               <div
                 key={partner.id}
-                className="group relative rounded-2xl overflow-hidden backdrop-blur-md border border-white/10 transition-all duration-300 hover:-translate-y-2"
-                style={{background: 'rgba(255, 255, 255, 0.03)'}}
+                className="group relative rounded-3xl overflow-hidden backdrop-blur-xl border transition-all duration-500 hover:-translate-y-4 animate-fade-in-up"
+                style={{
+                  background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.02) 100%)',
+                  borderColor: 'rgba(255, 255, 255, 0.1)',
+                  boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)',
+                  animationDelay: `${index * 0.1}s`
+                }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'
+                  e.currentTarget.style.boxShadow = '0 30px 80px rgba(139, 92, 246, 0.3)'
                   e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.2)'
-                  e.currentTarget.style.boxShadow = '0 20px 60px rgba(59, 130, 246, 0.2)'
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.03)'
+                  e.currentTarget.style.boxShadow = '0 20px 60px rgba(0, 0, 0, 0.3)'
                   e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)'
-                  e.currentTarget.style.boxShadow = 'none'
                 }}
               >
                 {/* 卡片頭部 */}
-                <div className="h-48 relative overflow-hidden"
-                     style={{background: 'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)'}}>
+                <div className="h-56 relative overflow-hidden"
+                     style={{background: 'linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%)'}}>
                   <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="w-24 h-24 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center text-5xl">
+                    <div className="w-32 h-32 rounded-2xl bg-white/10 backdrop-blur-md flex items-center justify-center text-7xl transition-transform duration-500 group-hover:scale-110">
                       🎮
                     </div>
                   </div>
+                  {/* 排名徽章 */}
                   {index < 3 && (
-                    <div className="absolute top-4 left-4 w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-lg"
-                         style={{background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)'}}>
-                      {index + 1}
+                    <div className="absolute top-6 left-6 w-16 h-16 rounded-xl flex items-center justify-center font-black text-2xl"
+                         style={{
+                           background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+                           color: 'white',
+                           boxShadow: '0 8px 24px rgba(245, 158, 11, 0.5)'
+                         }}>
+                      #{index + 1}
                     </div>
                   )}
+                  {/* 漸層覆蓋 */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent"></div>
                 </div>
 
                 {/* 卡片內容 */}
-                <div className="p-6">
-                  <h3 className="text-2xl font-bold text-white mb-4">{partner.name}</h3>
-                  
-                  <div className="flex flex-wrap gap-2 mb-6">
+                <div className="p-8 space-y-6">
+                  {/* 夥伴名稱 */}
+                  <h3 className="text-3xl font-black text-white tracking-tight">
+                    {partner.name}
+                  </h3>
+
+                  {/* 遊戲標籤 */}
+                  <div className="flex flex-wrap gap-3">
                     {partner.games.slice(0, 2).map((game, i) => (
-                      <span key={i} className="px-3 py-1 rounded-lg text-sm font-medium backdrop-blur-md border border-white/10"
-                            style={{background: 'rgba(59, 130, 246, 0.1)', color: '#93C5FD'}}>
+                      <span key={i} className="px-5 py-2 rounded-xl text-base font-bold backdrop-blur-md border"
+                            style={{
+                              background: 'rgba(139, 92, 246, 0.1)',
+                              borderColor: 'rgba(139, 92, 246, 0.3)',
+                              color: '#c4b5fd'
+                            }}>
                         {game}
                       </span>
                     ))}
                   </div>
 
-                  <div className="flex items-center justify-between mb-6">
-                    <div className="flex items-center gap-2">
-                      <span className="text-yellow-400 text-xl">⭐</span>
-                      <span className="text-white font-bold text-lg">{partner.rating}</span>
-                      <span className="text-gray-400 text-sm">({partner.totalBookings})</span>
+                  {/* 評分和價格 */}
+                  <div className="flex items-center justify-between pt-4 border-t border-white/10">
+                    <div className="flex items-center gap-3">
+                      <span className="text-3xl">⭐</span>
+                      <div>
+                        <div className="text-2xl font-black text-white">{partner.rating}</div>
+                        <div className="text-sm text-slate-400 font-medium">({partner.totalBookings} 次)</div>
+                      </div>
                     </div>
                     <div className="text-right">
-                      <div className="text-2xl font-bold text-blue-400">${partner.halfHourlyRate}</div>
-                      <div className="text-xs text-gray-400">每半小時</div>
+                      <div className="text-3xl font-black bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+                        ${partner.halfHourlyRate}
+                      </div>
+                      <div className="text-sm text-slate-400 font-medium">每半小時</div>
                     </div>
                   </div>
 
+                  {/* 預約按鈕 */}
                   <button
                     onClick={() => router.push(`/booking?partnerId=${partner.id}`)}
-                    className="w-full py-3 rounded-xl font-bold transition-all duration-300 border border-white/10"
-                    style={{background: 'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)', color: 'white'}}
+                    className="w-full py-5 rounded-xl font-black text-xl transition-all duration-300 hover:scale-105"
+                    style={{
+                      background: 'linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%)',
+                      color: 'white',
+                      boxShadow: '0 10px 30px rgba(139, 92, 246, 0.3)'
+                    }}
                     onMouseEnter={(e) => {
-                      e.currentTarget.style.transform = 'translateY(-2px)'
-                      e.currentTarget.style.boxShadow = '0 10px 30px rgba(59, 130, 246, 0.3)'
+                      e.currentTarget.style.boxShadow = '0 15px 40px rgba(139, 92, 246, 0.5)'
                     }}
                     onMouseLeave={(e) => {
-                      e.currentTarget.style.transform = 'translateY(0)'
-                      e.currentTarget.style.boxShadow = 'none'
+                      e.currentTarget.style.boxShadow = '0 10px 30px rgba(139, 92, 246, 0.3)'
                     }}
                   >
                     立即預約
@@ -404,14 +509,20 @@ export default function Home() {
             ))}
           </div>
 
+          {/* 查看更多按鈕 */}
           <div className="text-center mt-16">
             <button
               onClick={() => router.push('/partners')}
-              className="px-10 py-4 rounded-xl font-bold text-lg transition-all duration-300 backdrop-blur-md border-2 border-white/20"
-              style={{background: 'rgba(255, 255, 255, 0.05)', color: 'white'}}
+              className="px-14 py-6 rounded-2xl font-black text-2xl backdrop-blur-xl border-3 transition-all duration-500 hover:scale-105"
+              style={{
+                background: 'rgba(255, 255, 255, 0.05)',
+                borderColor: 'rgba(255, 255, 255, 0.2)',
+                color: 'white',
+                boxShadow: '0 10px 40px rgba(0, 0, 0, 0.3)'
+              }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'
-                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.3)'
+                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.4)'
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'
@@ -425,23 +536,28 @@ export default function Home() {
       </section>
 
       {/* 統計數據區 */}
-      <section className="relative py-32 px-8">
-        <div className="absolute inset-0" style={{background: 'rgba(15, 23, 41, 0.5)'}}></div>
-        
-        <div className="relative z-10 max-w-6xl mx-auto">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-12 text-center">
+      <section className="relative py-32 px-6">
+        <div className="max-w-6xl mx-auto">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-12">
             {[
-              { value: '500+', label: '活躍夥伴', color: '#3B82F6' },
-              { value: '10,000+', label: '成功預約', color: '#8B5CF6' },
-              { value: '4.9', label: '用戶評價', color: '#06B6D4' },
-              { value: '24/7', label: '客服支援', color: '#10B981' }
+              { value: '500+', label: '活躍夥伴', icon: '👥', color: '#3b82f6' },
+              { value: '10,000+', label: '成功預約', icon: '📅', color: '#8b5cf6' },
+              { value: '4.9', label: '用戶評價', icon: '⭐', color: '#06b6d4' },
+              { value: '24/7', label: '客服支援', icon: '🛠️', color: '#10b981' }
             ].map((stat, index) => (
-              <div key={index} className="group">
-                <div className="text-5xl sm:text-6xl font-black mb-4 transition-transform duration-300 group-hover:scale-110"
-                     style={{color: stat.color}}>
+              <div key={index} className="text-center space-y-4 group">
+                <div className="text-5xl mb-4 transition-transform duration-500 group-hover:scale-110">
+                  {stat.icon}
+                </div>
+                <div className="text-6xl sm:text-7xl font-black transition-all duration-500 group-hover:scale-110"
+                     style={{
+                       background: `linear-gradient(135deg, ${stat.color} 0%, ${stat.color}dd 100%)`,
+                       WebkitBackgroundClip: 'text',
+                       WebkitTextFillColor: 'transparent'
+                     }}>
                   {stat.value}
                 </div>
-                <div className="text-lg text-gray-400 font-medium">{stat.label}</div>
+                <div className="text-xl text-slate-300 font-bold">{stat.label}</div>
               </div>
             ))}
           </div>
@@ -449,59 +565,98 @@ export default function Home() {
       </section>
 
       {/* 最終 CTA 區 */}
-      <section className="relative py-32 px-8">
-        <div className="relative z-10 max-w-4xl mx-auto text-center">
-          <h2 className="text-5xl sm:text-6xl font-black mb-8 text-white">準備開始您的遊戲之旅？</h2>
-          <p className="text-xl text-gray-400 mb-12 font-medium">立即預約專業陪玩夥伴，享受優質的遊戲體驗</p>
+      <section className="relative py-40 px-6">
+        <div className="max-w-5xl mx-auto text-center space-y-12">
+          <h2 className="text-6xl sm:text-7xl lg:text-8xl font-black text-white tracking-tight leading-tight">
+            準備開始您的<br/>遊戲之旅？
+          </h2>
+          <p className="text-2xl sm:text-3xl text-slate-300 font-medium leading-relaxed">
+            立即預約專業陪玩夥伴，享受優質的遊戲體驗
+          </p>
           
           <button
             onClick={() => router.push('/booking')}
-            className="relative px-16 py-6 rounded-2xl font-bold text-2xl transition-all duration-300 overflow-hidden group"
+            className="group relative px-20 py-8 rounded-2xl font-black text-3xl overflow-hidden transition-all duration-500 hover:scale-105"
             style={{
-              background: 'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)',
-              boxShadow: '0 10px 40px rgba(59, 130, 246, 0.3)'
+              background: 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)',
+              boxShadow: '0 20px 60px rgba(59, 130, 246, 0.4)'
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.transform = 'translateY(-2px) scale(1.05)'
-              e.currentTarget.style.boxShadow = '0 20px 60px rgba(59, 130, 246, 0.4)'
+              e.currentTarget.style.boxShadow = '0 30px 80px rgba(59, 130, 246, 0.6)'
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.transform = 'translateY(0) scale(1)'
-              e.currentTarget.style.boxShadow = '0 10px 40px rgba(59, 130, 246, 0.3)'
+              e.currentTarget.style.boxShadow = '0 20px 60px rgba(59, 130, 246, 0.4)'
             }}
           >
-            <span className="relative z-10 text-white flex items-center justify-center gap-3">
+            <span className="relative z-10 flex items-center gap-4 text-white">
               開始預約
-              <svg className="w-6 h-6 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+              <svg className="w-8 h-8 transition-transform group-hover:translate-x-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M13 7l5 5m0 0l-5 5m5-5H6" />
               </svg>
             </span>
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
           </button>
         </div>
       </section>
 
       {/* 自定義動畫 */}
       <style jsx>{`
-        @keyframes spin-slow {
+        @keyframes gradient-shift {
+          0%, 100% { background-position: 0% 50%; }
+          50% { background-position: 100% 50%; }
+        }
+        @keyframes fade-in {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        @keyframes float-slow {
+          0%, 100% { transform: translateY(0px); }
+          50% { transform: translateY(-30px); }
+        }
+        .animate-float-slow {
+          animation: float-slow 8s ease-in-out infinite;
+        }
+        @keyframes float-medium {
+          0%, 100% { transform: translateY(0px); }
+          50% { transform: translateY(-25px); }
+        }
+        .animate-float-medium {
+          animation: float-medium 6s ease-in-out infinite;
+        }
+        @keyframes float-fast {
+          0%, 100% { transform: translateY(0px); }
+          50% { transform: translateY(-20px); }
+        }
+        .animate-float-fast {
+          animation: float-fast 4s ease-in-out infinite;
+        }
+        @keyframes spin-very-slow {
           from { transform: rotate(0deg); }
           to { transform: rotate(360deg); }
         }
-        .animate-spin-slow {
-          animation: spin-slow 20s linear infinite;
+        .animate-spin-very-slow {
+          animation: spin-very-slow 30s linear infinite;
         }
-        @keyframes pulse-slow {
-          0%, 100% { opacity: 0.15; }
-          50% { opacity: 0.3; }
+        @keyframes pulse-gentle {
+          0%, 100% { opacity: 0.4; transform: scale(1); }
+          50% { opacity: 1; transform: scale(1.1); }
         }
-        .animate-pulse-slow {
-          animation: pulse-slow 4s ease-in-out infinite;
+        .animate-pulse-gentle {
+          animation: pulse-gentle 3s ease-in-out infinite;
         }
-        @keyframes float {
-          0%, 100% { transform: translateY(0px) rotate(45deg); }
-          50% { transform: translateY(-20px) rotate(45deg); }
+        @keyframes bounce-slow {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-10px); }
         }
-        .animate-float {
-          animation: float 6s ease-in-out infinite;
+        .animate-bounce-slow {
+          animation: bounce-slow 2s ease-in-out infinite;
+        }
+        @keyframes scroll-indicator {
+          0% { transform: translateY(0); opacity: 1; }
+          100% { transform: translateY(12px); opacity: 0; }
+        }
+        .animate-scroll-indicator {
+          animation: scroll-indicator 1.5s ease-in-out infinite;
         }
       `}</style>
     </div>
