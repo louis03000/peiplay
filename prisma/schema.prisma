@@ -40,6 +40,9 @@ model User {
   reviewsReceived    Review[]  @relation("Reviewee")
   reviewsGiven       Review[]  @relation("Reviewer")
   securityLogs       SecurityLog[]
+  sentMessages       Message[] @relation("SentMessages")
+  receivedMessages   Message[] @relation("ReceivedMessages")
+  notifications      Notification[]
 }
 
 model Partner {
@@ -321,6 +324,19 @@ enum GroupBookingStatus {
   COMPLETED   // 已完成
 }
 
+enum NotificationType {
+  BOOKING_CONFIRMED    // 預約確認
+  BOOKING_CANCELLED    // 預約取消
+  BOOKING_REMINDER     // 預約提醒
+  MESSAGE_RECEIVED     // 收到訊息
+  PAYMENT_SUCCESS      // 付款成功
+  PAYMENT_FAILED       // 付款失敗
+  PARTNER_ACCEPTED     // 夥伴接受預約
+  PARTNER_REJECTED     // 夥伴拒絕預約
+  SYSTEM_ANNOUNCEMENT  // 系統公告
+  SECURITY_ALERT       // 安全警告
+}
+
 model SecurityLog {
   id          String           @id @default(cuid())
   userId      String
@@ -334,4 +350,37 @@ model SecurityLog {
   @@index([userId, timestamp])
   @@index([eventType, timestamp])
   @@index([ipAddress, timestamp])
+}
+
+model Message {
+  id          String   @id @default(cuid())
+  senderId    String
+  receiverId  String
+  content     String
+  isRead      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  sender      User     @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver    User     @relation("ReceivedMessages", fields: [receiverId], references: [id], onDelete: Cascade)
+  
+  @@index([senderId, createdAt])
+  @@index([receiverId, createdAt])
+  @@index([receiverId, isRead])
+}
+
+model Notification {
+  id          String   @id @default(cuid())
+  userId      String
+  title       String
+  content     String
+  type        NotificationType
+  isRead      Boolean  @default(false)
+  data        Json?    // 額外的資料，如預約ID等
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId, createdAt])
+  @@index([userId, isRead])
+  @@index([type, createdAt])
 }
