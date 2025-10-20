@@ -73,6 +73,7 @@ export default function PartnerSchedulePage() {
             id: data.partner.id,
             isAvailableNow: !!data.partner.isAvailableNow,
             isRankBooster: !!data.partner.isRankBooster,
+            allowGroupBooking: !!data.partner.allowGroupBooking,
             availableNowSince: data.partner.availableNowSince
           });
         }
