@@ -59,6 +59,7 @@ export async function GET(request: Request) {
         images: true, // 新增多張圖片
         isAvailableNow: true,
         isRankBooster: true,
+        allowGroupBooking: true,
         rankBoosterNote: true,
         rankBoosterRank: true,
         rankBoosterImages: true,

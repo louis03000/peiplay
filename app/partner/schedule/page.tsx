@@ -35,6 +35,7 @@ export default function PartnerSchedulePage() {
     id: string;
     isAvailableNow: boolean; 
     isRankBooster: boolean; 
+    allowGroupBooking: boolean;
     availableNowSince: string | null;
   } | null>(null);
   const [rankBoosterImages, setRankBoosterImages] = useState<string[]>([]);
@@ -180,6 +181,7 @@ export default function PartnerSchedulePage() {
               id: data.partner.id,
               isAvailableNow: !!data.partner.isAvailableNow,
               isRankBooster: !!data.partner.isRankBooster,
+              allowGroupBooking: !!data.partner.allowGroupBooking,
               availableNowSince: data.partner.availableNowSince
             });
             fetchSchedules();
@@ -390,7 +392,7 @@ export default function PartnerSchedulePage() {
     setSaving(false);
   };
 
-  const handleToggle = async (field: 'isAvailableNow' | 'isRankBooster', value: boolean) => {
+  const handleToggle = async (field: 'isAvailableNow' | 'isRankBooster' | 'allowGroupBooking', value: boolean) => {
     const updateData: any = { [field]: value };
     
     // 如果是開啟「現在有空」，記錄開啟時間
@@ -508,6 +510,19 @@ export default function PartnerSchedulePage() {
                     <span className="sr-only">我是上分高手</span>
                     <span
                       className={`${partnerStatus?.isRankBooster ? 'translate-x-5 sm:translate-x-6' : 'translate-x-1'} inline-block h-3 w-3 sm:h-4 sm:w-4 transform rounded-full bg-white transition-transform`}
+                    />
+                  </Switch>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs sm:text-sm text-gray-700">允許群組預約</span>
+                  <Switch
+                    checked={!!partnerStatus?.allowGroupBooking}
+                    onChange={v => handleToggle('allowGroupBooking', v)}
+                    className={`${partnerStatus?.allowGroupBooking ? 'bg-green-500' : 'bg-gray-300'} relative inline-flex h-5 w-9 sm:h-6 sm:w-11 items-center rounded-full transition-colors`}
+                  >
+                    <span className="sr-only">允許群組預約</span>
+                    <span
+                      className={`${partnerStatus?.allowGroupBooking ? 'translate-x-5 sm:translate-x-6' : 'translate-x-1'} inline-block h-3 w-3 sm:h-4 sm:w-4 transform rounded-full bg-white transition-transform`}
                     />
                   </Switch>
                 </div>
