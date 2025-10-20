@@ -2,8 +2,7 @@
 
 import { useState, useEffect, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { useAuthContext } from '@/lib/AuthProvider'
-import { authenticatedFetch } from '@/lib/api'
+import { useSession } from 'next-auth/react'
 
 interface Partner {
   id: string
@@ -49,7 +48,10 @@ interface GroupBooking {
 function GroupBookingContent() {
   const searchParams = useSearchParams()
   const partnerId = searchParams.get('partnerId')
-  const { user, isAuthenticated, loading: authLoading } = useAuthContext()
+  const { data: session, status } = useSession()
+  const user = session?.user
+  const isAuthenticated = status === 'authenticated'
+  const authLoading = status === 'loading'
   
   const [partner, setPartner] = useState<Partner | null>(null)
   const [groupBookings, setGroupBookings] = useState<GroupBooking[]>([])
@@ -83,8 +85,8 @@ function GroupBookingContent() {
       if (partnerId) {
         // 載入特定夥伴的群組預約
         const [partnerRes, groupBookingsRes] = await Promise.all([
-          authenticatedFetch(`/api/partners/${partnerId}`),
-          authenticatedFetch(`/api/group-booking?partnerId=${partnerId}&status=ACTIVE`)
+          fetch(`/api/partners/${partnerId}`),
+          fetch(`/api/group-booking?partnerId=${partnerId}&status=ACTIVE`)
         ])
 
         if (partnerRes.ok) {
@@ -98,7 +100,7 @@ function GroupBookingContent() {
         }
       } else {
         // 載入所有活躍的群組預約
-        const groupBookingsRes = await authenticatedFetch('/api/group-booking?status=ACTIVE')
+        const groupBookingsRes = await fetch('/api/group-booking?status=ACTIVE')
         if (groupBookingsRes.ok) {
           const groupBookingsData = await groupBookingsRes.json()
           setGroupBookings(groupBookingsData)
@@ -121,7 +123,7 @@ function GroupBookingContent() {
     }
 
     try {
-      const response = await authenticatedFetch('/api/group-booking', {
+      const response = await fetch('/api/group-booking', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -154,7 +156,7 @@ function GroupBookingContent() {
     try {
       setJoining(groupBookingId)
       
-      const response = await authenticatedFetch('/api/group-booking/join', {
+      const response = await fetch('/api/group-booking/join', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ groupBookingId })

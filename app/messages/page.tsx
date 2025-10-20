@@ -1,8 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useAuthContext } from '@/lib/AuthProvider'
-import { authenticatedFetch } from '@/lib/api'
+import { useSession } from 'next-auth/react'
 
 interface Message {
   id: string
@@ -34,7 +33,10 @@ interface Notification {
 }
 
 export default function MessagesPage() {
-  const { user, isAuthenticated, loading: authLoading } = useAuthContext()
+  const { data: session, status } = useSession()
+  const user = session?.user
+  const isAuthenticated = status === 'authenticated'
+  const authLoading = status === 'loading'
   const [activeTab, setActiveTab] = useState<'messages' | 'notifications'>('messages')
   const [messages, setMessages] = useState<Message[]>([])
   const [notifications, setNotifications] = useState<Notification[]>([])
@@ -68,8 +70,8 @@ export default function MessagesPage() {
       
       // 載入訊息和通知
       const [messagesRes, notificationsRes] = await Promise.all([
-        authenticatedFetch('/api/messages?type=all&limit=50'),
-        authenticatedFetch('/api/notifications?limit=50')
+        fetch('/api/messages?type=all&limit=50'),
+        fetch('/api/notifications?limit=50')
       ])
 
       if (messagesRes.ok) {
@@ -102,7 +104,7 @@ export default function MessagesPage() {
     try {
       setSending(true)
       
-      const response = await authenticatedFetch('/api/messages', {
+      const response = await fetch('/api/messages', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newMessage)
@@ -126,7 +128,7 @@ export default function MessagesPage() {
 
   const markAsRead = async (messageId: string) => {
     try {
-      await authenticatedFetch(`/api/messages/${messageId}/read`, {
+      await fetch(`/api/messages/${messageId}/read`, {
         method: 'PATCH'
       })
       loadData() // 重新載入資料
@@ -137,7 +139,7 @@ export default function MessagesPage() {
 
   const markAllNotificationsRead = async () => {
     try {
-      await authenticatedFetch('/api/notifications', {
+      await fetch('/api/notifications', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({})
