@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { useAuthContext } from '@/lib/AuthProvider'
 import { authenticatedFetch } from '@/lib/api'
@@ -46,7 +46,7 @@ interface GroupBooking {
   }>
 }
 
-export default function GroupBookingPage() {
+function GroupBookingContent() {
   const searchParams = useSearchParams()
   const partnerId = searchParams.get('partnerId')
   const { user, isAuthenticated, loading: authLoading } = useAuthContext()
@@ -458,5 +458,20 @@ export default function GroupBookingPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function GroupBookingPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">載入中...</p>
+        </div>
+      </div>
+    }>
+      <GroupBookingContent />
+    </Suspense>
   )
 }
