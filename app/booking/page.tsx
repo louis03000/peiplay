@@ -485,6 +485,18 @@ function BookingWizardContent() {
                 onChange={e => setSearch(e.target.value)}
               />
             </div>
+
+            {/* 群組預約按鈕 */}
+            <div className="mb-6 text-center">
+              <a
+                href="/booking/group"
+                className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-full hover:from-green-600 hover:to-emerald-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
+              >
+                <span className="text-lg">🎮</span>
+                <span className="font-medium">群組預約</span>
+                <span className="text-sm opacity-90">與其他玩家一起預約</span>
+              </a>
+            </div>
             
             {/* 載入狀態 */}
             {loading ? (

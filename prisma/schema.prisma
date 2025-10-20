@@ -67,6 +67,7 @@ model Partner {
   bankAccountNumber String?
   bankCode          String?
   contractFile      String?
+  allowGroupBooking Boolean       @default(false) // 是否允許群組預約
   // 推薦系統相關欄位
   referralEarnings  Float         @default(0)
   referralCount     Int           @default(0)
@@ -77,23 +78,25 @@ model Partner {
   user              User          @relation(fields: [userId], references: [id])
   schedules         Schedule[]
   withdrawalRequests WithdrawalRequest[]
+  groupBookings     GroupBooking[] // 群組預約
   // 推薦關係
   referralsGiven    ReferralRecord[] @relation("Inviter")
   referralsReceived ReferralRecord[] @relation("Invitee")
 }
 
 model Customer {
-  id        String    @id @default(cuid())
-  name      String
-  birthday  DateTime
-  phone     String
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  lineId    String?   @unique
-  userId    String    @unique
-  bookings  Booking[]
-  user      User      @relation(fields: [userId], references: [id])
-  orders    Order[]
+  id            String         @id @default(cuid())
+  name          String
+  birthday      DateTime
+  phone         String
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  lineId        String?        @unique
+  userId        String         @unique
+  bookings      Booking[]
+  groupBookings GroupBooking[] // 創建的群組預約
+  user          User           @relation(fields: [userId], references: [id])
+  orders        Order[]
 }
 
 model Schedule {
@@ -131,6 +134,10 @@ model Booking {
   extensionButtonShown        Boolean       @default(false) // 延長按鈕是否已顯示
   ratingCompleted             Boolean       @default(false) // 評價是否已完成
   textChannelCleaned          Boolean       @default(false) // 文字頻道是否已清理
+  // 群組預約相關欄位
+  isGroupBooking              Boolean       @default(false) // 是否為群組預約
+  groupBookingId              String?       // 群組預約 ID
+  groupBooking                GroupBooking? @relation(fields: [groupBookingId], references: [id])
   customer                    Customer      @relation(fields: [customerId], references: [id])
   schedule                    Schedule      @relation(fields: [scheduleId], references: [id])
   orders                      Order[]
@@ -146,6 +153,28 @@ model Order {
   createdAt  DateTime @default(now())
   booking    Booking  @relation(fields: [bookingId], references: [id])
   customer   Customer @relation(fields: [customerId], references: [id])
+}
+
+model GroupBooking {
+  id                    String   @id @default(cuid())
+  partnerId             String
+  creatorId             String   // 群組創建者 ID
+  title                 String   // 群組標題
+  description           String?  // 群組描述
+  maxParticipants       Int      @default(4) // 最大參與人數
+  currentParticipants   Int      @default(1) // 當前參與人數
+  startTime             DateTime
+  endTime               DateTime
+  status                GroupBookingStatus @default(ACTIVE)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  // Discord 相關
+  discordTextChannelId  String?  // 群組文字頻道 ID
+  discordVoiceChannelId String?  // 群組語音頻道 ID
+  // 關聯
+  partner               Partner  @relation(fields: [partnerId], references: [id])
+  creator               Customer @relation(fields: [creatorId], references: [id])
+  bookings              Booking[] // 群組內的所有預約
 }
 
 model Review {
@@ -283,6 +312,13 @@ enum SecurityEventType {
   EMAIL_VERIFIED
   TWO_FACTOR_ENABLED
   TWO_FACTOR_DISABLED
+}
+
+enum GroupBookingStatus {
+  ACTIVE      // 活躍中，可以加入
+  FULL        // 已滿員
+  CANCELLED   // 已取消
+  COMPLETED   // 已完成
 }
 
 model SecurityLog {
