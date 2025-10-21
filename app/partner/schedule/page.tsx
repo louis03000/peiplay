@@ -40,6 +40,19 @@ export default function PartnerSchedulePage() {
   } | null>(null);
   const [rankBoosterImages, setRankBoosterImages] = useState<string[]>([]);
   const [uploadingImages, setUploadingImages] = useState<boolean[]>(new Array(5).fill(false));
+  
+  // 群組預約相關狀態
+  const [showGroupForm, setShowGroupForm] = useState(false);
+  const [groupForm, setGroupForm] = useState({
+    title: '',
+    description: '',
+    date: '',
+    startTime: '',
+    endTime: '',
+    pricePerPerson: 0,
+    maxParticipants: 4
+  });
+  const [myGroups, setMyGroups] = useState<any[]>([]);
 
   useEffect(() => {
     setMounted(true);
@@ -186,6 +199,7 @@ export default function PartnerSchedulePage() {
               availableNowSince: data.partner.availableNowSince
             });
             fetchSchedules();
+            fetchMyGroups();
           } else {
             router.replace('/profile');
           }
@@ -212,6 +226,64 @@ export default function PartnerSchedulePage() {
       }
     } catch (error) {
       console.error('Error fetching schedules:', error);
+    }
+  };
+
+  const fetchMyGroups = async () => {
+    try {
+      const response = await fetch('/api/partner/groups');
+      if (response.ok) {
+        const data = await response.json();
+        setMyGroups(data);
+      }
+    } catch (error) {
+      console.error('Error fetching my groups:', error);
+    }
+  };
+
+  const createGroup = async () => {
+    if (!groupForm.title || !groupForm.date || !groupForm.startTime || !groupForm.endTime || !groupForm.pricePerPerson) {
+      alert('請填寫所有必要欄位');
+      return;
+    }
+
+    if (groupForm.maxParticipants > 9) {
+      alert('最大人數不能超過9人');
+      return;
+    }
+
+    try {
+      setSaving(true);
+      const response = await fetch('/api/partner/groups', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(groupForm)
+      });
+
+      if (response.ok) {
+        alert('群組創建成功！');
+        setShowGroupForm(false);
+        setGroupForm({
+          title: '',
+          description: '',
+          date: '',
+          startTime: '',
+          endTime: '',
+          pricePerPerson: 0,
+          maxParticipants: 4
+        });
+        fetchMyGroups();
+      } else {
+        const error = await response.json();
+        alert(error.error || '創建失敗');
+      }
+    } catch (error) {
+      console.error('Error creating group:', error);
+      alert('創建失敗');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -598,6 +670,152 @@ export default function PartnerSchedulePage() {
                 </div>
                 <div className="mt-3 text-xs text-indigo-500">
                   💡 建議上傳：遊戲內段位截圖、排行榜截圖、戰績截圖等
+                </div>
+              </div>
+            )}
+
+            {/* 群組預約管理區域 */}
+            {partnerStatus?.allowGroupBooking && (
+              <div className="p-4 bg-green-50 border border-green-200 rounded-lg mt-4">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-lg font-semibold text-green-800">🎮 群組預約管理</h3>
+                  <button
+                    onClick={() => setShowGroupForm(!showGroupForm)}
+                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                  >
+                    {showGroupForm ? '取消' : '創建新群組'}
+                  </button>
+                </div>
+
+                {/* 創建群組表單 */}
+                {showGroupForm && (
+                  <div className="bg-white rounded-lg p-4 mb-4">
+                    <h4 className="font-semibold text-gray-800 mb-3">創建新群組預約</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">群組標題 *</label>
+                        <input
+                          type="text"
+                          value={groupForm.title}
+                          onChange={(e) => setGroupForm({...groupForm, title: e.target.value})}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                          placeholder="例如：一起上分！"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">日期 *</label>
+                        <input
+                          type="date"
+                          value={groupForm.date}
+                          onChange={(e) => setGroupForm({...groupForm, date: e.target.value})}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                          min={new Date().toISOString().split('T')[0]}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">開始時間 *</label>
+                        <input
+                          type="time"
+                          value={groupForm.startTime}
+                          onChange={(e) => setGroupForm({...groupForm, startTime: e.target.value})}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">結束時間 *</label>
+                        <input
+                          type="time"
+                          value={groupForm.endTime}
+                          onChange={(e) => setGroupForm({...groupForm, endTime: e.target.value})}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">每人費用 *</label>
+                        <input
+                          type="number"
+                          value={groupForm.pricePerPerson}
+                          onChange={(e) => setGroupForm({...groupForm, pricePerPerson: parseInt(e.target.value) || 0})}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                          placeholder="例如：100"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">最大人數 (最多9人)</label>
+                        <select
+                          value={groupForm.maxParticipants}
+                          onChange={(e) => setGroupForm({...groupForm, maxParticipants: parseInt(e.target.value)})}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                        >
+                          {[2,3,4,5,6,7,8,9].map(num => (
+                            <option key={num} value={num}>{num} 人</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                    <div className="mt-4">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">群組描述</label>
+                      <textarea
+                        value={groupForm.description}
+                        onChange={(e) => setGroupForm({...groupForm, description: e.target.value})}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                        rows={3}
+                        placeholder="描述群組的目標或規則..."
+                      />
+                    </div>
+                    <div className="flex justify-end space-x-3 mt-4">
+                      <button
+                        onClick={() => setShowGroupForm(false)}
+                        className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
+                      >
+                        取消
+                      </button>
+                      <button
+                        onClick={createGroup}
+                        disabled={saving}
+                        className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
+                      >
+                        {saving ? '創建中...' : '創建群組'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* 我的群組列表 */}
+                <div className="mt-4">
+                  <h4 className="font-semibold text-gray-800 mb-3">我的群組預約</h4>
+                  {myGroups.length > 0 ? (
+                    <div className="space-y-3">
+                      {myGroups.map((group) => (
+                        <div key={group.id} className="bg-white rounded-lg p-3 border border-gray-200">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <h5 className="font-medium text-gray-900">{group.title}</h5>
+                              <p className="text-sm text-gray-600">{group.description}</p>
+                              <div className="flex items-center space-x-4 mt-2 text-sm text-gray-500">
+                                <span>📅 {new Date(group.startTime).toLocaleDateString('zh-TW')}</span>
+                                <span>⏰ {new Date(group.startTime).toLocaleTimeString('zh-TW', {hour: '2-digit', minute: '2-digit'})}</span>
+                                <span>💰 ${group.pricePerPerson}/人</span>
+                                <span>👥 {group.currentParticipants}/{group.maxParticipants} 人</span>
+                              </div>
+                            </div>
+                            <div className="flex space-x-2">
+                              <span className={`px-2 py-1 rounded-full text-xs ${
+                                group.status === 'ACTIVE' ? 'bg-green-100 text-green-800' :
+                                group.status === 'FULL' ? 'bg-yellow-100 text-yellow-800' :
+                                'bg-gray-100 text-gray-800'
+                              }`}>
+                                {group.status === 'ACTIVE' ? '開放中' :
+                                 group.status === 'FULL' ? '已滿' : '已關閉'}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-gray-500 text-sm">您還沒有創建任何群組預約</p>
+                  )}
                 </div>
               </div>
             )}
