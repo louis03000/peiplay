@@ -698,7 +698,7 @@ export default function PartnerSchedulePage() {
                           type="text"
                           value={groupForm.title}
                           onChange={(e) => setGroupForm({...groupForm, title: e.target.value})}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-900"
                           placeholder="例如：一起上分！"
                         />
                       </div>
@@ -708,7 +708,7 @@ export default function PartnerSchedulePage() {
                           type="date"
                           value={groupForm.date}
                           onChange={(e) => setGroupForm({...groupForm, date: e.target.value})}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-900"
                           min={new Date().toISOString().split('T')[0]}
                         />
                       </div>
@@ -718,7 +718,7 @@ export default function PartnerSchedulePage() {
                           type="time"
                           value={groupForm.startTime}
                           onChange={(e) => setGroupForm({...groupForm, startTime: e.target.value})}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-900"
                         />
                       </div>
                       <div>
@@ -727,7 +727,7 @@ export default function PartnerSchedulePage() {
                           type="time"
                           value={groupForm.endTime}
                           onChange={(e) => setGroupForm({...groupForm, endTime: e.target.value})}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-900"
                         />
                       </div>
                       <div>
@@ -736,7 +736,7 @@ export default function PartnerSchedulePage() {
                           type="number"
                           value={groupForm.pricePerPerson}
                           onChange={(e) => setGroupForm({...groupForm, pricePerPerson: parseInt(e.target.value) || 0})}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-900"
                           placeholder="例如：100"
                         />
                       </div>
@@ -745,7 +745,7 @@ export default function PartnerSchedulePage() {
                         <select
                           value={groupForm.maxParticipants}
                           onChange={(e) => setGroupForm({...groupForm, maxParticipants: parseInt(e.target.value)})}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-900"
                         >
                           {[2,3,4,5,6,7,8,9].map(num => (
                             <option key={num} value={num}>{num} 人</option>
@@ -758,7 +758,7 @@ export default function PartnerSchedulePage() {
                       <textarea
                         value={groupForm.description}
                         onChange={(e) => setGroupForm({...groupForm, description: e.target.value})}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-900"
                         rows={3}
                         placeholder="描述群組的目標或規則..."
                       />

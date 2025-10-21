@@ -280,13 +280,15 @@ function GroupBookingContent() {
               </select>
             </div>
           </div>
-          <button
-            onClick={searchAvailablePartners}
-            disabled={loading}
-            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
-          >
-            {loading ? '搜尋中...' : '🔍 搜尋可用夥伴'}
-          </button>
+          <div className="flex justify-center">
+            <button
+              onClick={searchAvailablePartners}
+              disabled={loading}
+              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+            >
+              {loading ? '搜尋中...' : '🔍 搜尋有空夥伴'}
+            </button>
+          </div>
         </div>
 
         {/* 搜尋結果 - 可用群組預約 */}
