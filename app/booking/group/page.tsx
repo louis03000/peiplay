@@ -232,7 +232,7 @@ function GroupBookingContent() {
 
         {/* 時間篩選器 */}
         <div className="bg-white rounded-lg shadow-md p-6 mb-8">
-          <h2 className="text-xl font-semibold mb-4">🎯 選擇時間和遊戲</h2>
+          <h2 className="text-xl font-semibold mb-4 text-gray-900">🎯 選擇時間和遊戲</h2>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">日期</label>
@@ -240,7 +240,7 @@ function GroupBookingContent() {
                 type="date"
                 value={selectedDate}
                 onChange={(e) => setSelectedDate(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
                 min={new Date().toISOString().split('T')[0]}
               />
             </div>
@@ -250,7 +250,7 @@ function GroupBookingContent() {
                 type="time"
                 value={selectedStartTime}
                 onChange={(e) => setSelectedStartTime(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
               />
             </div>
             <div>
@@ -259,7 +259,7 @@ function GroupBookingContent() {
                 type="time"
                 value={selectedEndTime}
                 onChange={(e) => setSelectedEndTime(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
               />
             </div>
             <div>
@@ -267,7 +267,7 @@ function GroupBookingContent() {
               <select
                 value={selectedGame}
                 onChange={(e) => setSelectedGame(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
               >
                 <option value="">不限遊戲</option>
                 <option value="英雄聯盟">英雄聯盟</option>
@@ -397,7 +397,7 @@ function GroupBookingContent() {
 
         {/* 現有群組預約 */}
         <div className="bg-white rounded-lg shadow-md p-6">
-          <h2 className="text-xl font-semibold mb-4">🔥 熱門群組預約</h2>
+          <h2 className="text-xl font-semibold mb-4 text-gray-900">🔥 熱門群組預約</h2>
           {loading ? (
             <div className="text-center py-8">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>

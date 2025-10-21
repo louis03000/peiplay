@@ -463,7 +463,7 @@ function BookingWizardContent() {
                     onChange={e => setOnlyAvailable(e.target.checked)}
                     className="accent-indigo-500 w-4 h-4 sm:w-5 sm:h-5"
                   />
-                  <span className="text-xs sm:text-sm">只看現在有空</span>
+                  <span className="text-xs sm:text-sm text-white font-medium">只看現在有空</span>
                 </label>
                 <label className="flex items-center gap-2 text-white text-sm select-none cursor-pointer">
                   <input
@@ -473,7 +473,7 @@ function BookingWizardContent() {
                     onChange={e => setOnlyRankBooster(e.target.checked)}
                     className="accent-purple-500 w-4 h-4 sm:w-5 sm:h-5"
                   />
-                  <span className="text-xs sm:text-sm">只看上分高手</span>
+                  <span className="text-xs sm:text-sm text-white font-medium">只看上分高手</span>
                 </label>
               </div>
               
