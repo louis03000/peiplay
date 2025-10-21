@@ -58,6 +58,7 @@ function GroupBookingContent() {
 
   const [partners, setPartners] = useState<Partner[]>([])
   const [groupBookings, setGroupBookings] = useState<GroupBooking[]>([])
+  const [availableGroupBookings, setAvailableGroupBookings] = useState<GroupBooking[]>([])
   const [loading, setLoading] = useState(false)
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [selectedPartner, setSelectedPartner] = useState<Partner | null>(null)
@@ -117,7 +118,8 @@ function GroupBookingContent() {
       const response = await fetch(`/api/group-booking/available-partners?${params}`)
       if (response.ok) {
         const data = await response.json()
-        setPartners(data)
+        setPartners(data.partners || [])
+        setAvailableGroupBookings(data.groupBookings || [])
       } else {
         console.error('搜尋夥伴失敗')
       }
@@ -286,6 +288,64 @@ function GroupBookingContent() {
             {loading ? '搜尋中...' : '🔍 搜尋可用夥伴'}
           </button>
         </div>
+
+        {/* 搜尋結果 - 可用群組預約 */}
+        {availableGroupBookings.length > 0 && (
+          <div className="bg-white rounded-lg shadow-md p-6 mb-8">
+            <h2 className="text-xl font-semibold mb-4 text-gray-900">🎮 可用群組預約 ({availableGroupBookings.length} 個)</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {availableGroupBookings.map((group) => (
+                <div key={group.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+                  <div className="flex items-center space-x-3 mb-3">
+                    <img 
+                      src={group.partner.coverImage} 
+                      alt={group.partner.name}
+                      className="w-12 h-12 rounded-full object-cover"
+                    />
+                    <div>
+                      <h3 className="font-semibold">{group.partner.name}</h3>
+                      <p className="text-sm text-gray-600">每半小時 ${group.partner.halfHourlyRate}</p>
+                      {group.partner.averageRating > 0 && (
+                        <div className="flex items-center space-x-1">
+                          <span className="text-yellow-500">⭐</span>
+                          <span className="text-sm">{group.partner.averageRating}</span>
+                          <span className="text-sm text-gray-500">({group.partner.reviewCount})</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  
+                  <div className="mb-3">
+                    <h4 className="font-medium text-gray-900">{group.title}</h4>
+                    {group.description && (
+                      <p className="text-sm text-gray-600 mt-1">{group.description}</p>
+                    )}
+                  </div>
+                  
+                  <div className="flex items-center justify-between text-sm text-gray-500 mb-3">
+                    <span>👥 {group.currentParticipants}/{group.maxParticipants} 人</span>
+                    <span>💰 ${group.pricePerPerson}/人</span>
+                    <span>📅 {new Date(group.startTime).toLocaleDateString('zh-TW')}</span>
+                  </div>
+                  
+                  {group.currentParticipants < group.maxParticipants ? (
+                    <button
+                      onClick={() => joinGroupBooking(group.id)}
+                      disabled={loading}
+                      className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+                    >
+                      {loading ? '加入中...' : '加入群組'}
+                    </button>
+                  ) : (
+                    <span className="w-full px-4 py-2 bg-gray-300 text-gray-600 rounded-lg text-center">
+                      已滿
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* 搜尋結果 - 可用夥伴 */}
         {partners.length > 0 && (

@@ -104,6 +104,47 @@ export async function GET(request: Request) {
       });
     });
 
+    // 同時獲取該時段的群組預約
+    const thirtyMinutesFromNow = new Date(now.getTime() + 30 * 60 * 1000);
+    const groupBookings = await prisma.groupBooking.findMany({
+      where: {
+        status: 'ACTIVE',
+        startTime: { 
+          lte: end,
+          gt: thirtyMinutesFromNow // 開始前30分鐘的群組不顯示
+        },
+        endTime: { gt: start }
+      },
+      include: {
+        partner: {
+          select: {
+            id: true,
+            name: true,
+            coverImage: true,
+            halfHourlyRate: true,
+            user: {
+              select: {
+                isSuspended: true,
+                suspensionEndsAt: true,
+                reviewsReceived: {
+                  where: { isApproved: true },
+                  select: { rating: true }
+                }
+              }
+            }
+          }
+        },
+        bookings: {
+          include: {
+            customer: {
+              include: { user: true }
+            }
+          }
+        }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
     // 計算平均評分
     const partnersWithRating = availablePartners.map(partner => {
       const reviews = partner.user.reviewsReceived;
@@ -118,7 +159,27 @@ export async function GET(request: Request) {
       };
     });
 
-    return NextResponse.json(partnersWithRating);
+    // 計算群組預約的評分
+    const groupBookingsWithRating = groupBookings.map(group => {
+      const reviews = group.partner.user.reviewsReceived;
+      const averageRating = reviews.length > 0 
+        ? reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length 
+        : 0;
+
+      return {
+        ...group,
+        partner: {
+          ...group.partner,
+          averageRating: Math.round(averageRating * 10) / 10,
+          reviewCount: reviews.length
+        }
+      };
+    });
+
+    return NextResponse.json({
+      partners: partnersWithRating,
+      groupBookings: groupBookingsWithRating
+    });
 
   } catch (error) {
     console.error('獲取可用夥伴失敗:', error);

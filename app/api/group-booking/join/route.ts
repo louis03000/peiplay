@@ -50,6 +50,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: '群組預約已結束或已取消' }, { status: 400 });
     }
 
+    // 檢查是否在開始前30分鐘內
+    const now = new Date();
+    const thirtyMinutesBeforeStart = new Date(groupBooking.startTime.getTime() - 30 * 60 * 1000);
+    if (now >= thirtyMinutesBeforeStart) {
+      return NextResponse.json({ error: '群組已關閉報名' }, { status: 400 });
+    }
+
     // 檢查是否已經加入
     const existingBooking = groupBooking.bookings.find(
       booking => booking.customerId === customer.id
