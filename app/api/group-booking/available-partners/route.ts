@@ -8,6 +8,7 @@ export const dynamic = 'force-dynamic';
 // 獲取符合群組預約條件的夥伴
 export async function GET(request: Request) {
   try {
+    const now = new Date();
     const { searchParams } = new URL(request.url);
     const startTime = searchParams.get('startTime');
     const endTime = searchParams.get('endTime');
