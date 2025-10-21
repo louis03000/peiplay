@@ -102,7 +102,8 @@ export async function POST(request: Request) {
         data: {
           userId: session.user.id,
           name: session.user.name || '夥伴',
-          email: session.user.email || ''
+          birthday: new Date('1990-01-01'), // 預設生日
+          phone: '0000000000' // 預設電話
         }
       });
     }
