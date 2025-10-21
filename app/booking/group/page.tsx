@@ -11,8 +11,12 @@ interface Partner {
   games: string[]
   halfHourlyRate: number
   allowGroupBooking: boolean
+  averageRating: number
+  reviewCount: number
   user: {
     email: string
+    isSuspended: boolean
+    suspensionEndsAt?: string
   }
 }
 
@@ -24,21 +28,20 @@ interface GroupBooking {
   currentParticipants: number
   startTime: string
   endTime: string
-  status: 'ACTIVE' | 'FULL' | 'CANCELLED' | 'COMPLETED'
+  status: string
   partner: Partner
   creator: {
     id: string
-    name: string
     user: {
+      name: string
       email: string
     }
   }
   bookings: Array<{
     id: string
     customer: {
-      id: string
-      name: string
       user: {
+        name: string
         email: string
       }
     }
@@ -52,139 +55,153 @@ function GroupBookingContent() {
   const user = session?.user
   const isAuthenticated = status === 'authenticated'
   const authLoading = status === 'loading'
-  
-  const [partner, setPartner] = useState<Partner | null>(null)
-  const [groupBookings, setGroupBookings] = useState<GroupBooking[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
-  const [showCreateForm, setShowCreateForm] = useState(false)
-  const [joining, setJoining] = useState<string | null>(null)
 
-  // 表單狀態
-  const [formData, setFormData] = useState({
+  const [partners, setPartners] = useState<Partner[]>([])
+  const [groupBookings, setGroupBookings] = useState<GroupBooking[]>([])
+  const [loading, setLoading] = useState(false)
+  const [showCreateForm, setShowCreateForm] = useState(false)
+  const [selectedPartner, setSelectedPartner] = useState<Partner | null>(null)
+  const [selectedDate, setSelectedDate] = useState('')
+  const [selectedStartTime, setSelectedStartTime] = useState('')
+  const [selectedEndTime, setSelectedEndTime] = useState('')
+  const [selectedGame, setSelectedGame] = useState('')
+
+  // 創建群組表單狀態
+  const [createForm, setCreateForm] = useState({
     title: '',
     description: '',
-    maxParticipants: 4,
-    startTime: '',
-    endTime: ''
+    maxParticipants: 4
   })
 
   useEffect(() => {
-    if (authLoading) return
-    if (!isAuthenticated) {
-      window.location.href = '/auth/login'
-      return
+    if (isAuthenticated && user?.id) {
+      loadGroupBookings()
     }
-    loadData()
-  }, [isAuthenticated, authLoading, partnerId])
+  }, [isAuthenticated, user?.id])
 
-  const loadData = async () => {
+  const loadGroupBookings = async () => {
     try {
       setLoading(true)
-      
-      if (partnerId) {
-        // 載入特定夥伴的群組預約
-        const [partnerRes, groupBookingsRes] = await Promise.all([
-          fetch(`/api/partners/${partnerId}`),
-          fetch(`/api/group-booking?partnerId=${partnerId}&status=ACTIVE`)
-        ])
-
-        if (partnerRes.ok) {
-          const partnerData = await partnerRes.json()
-          setPartner(partnerData)
-        }
-
-        if (groupBookingsRes.ok) {
-          const groupBookingsData = await groupBookingsRes.json()
-          setGroupBookings(groupBookingsData)
-        }
-      } else {
-        // 載入所有活躍的群組預約
-        const groupBookingsRes = await fetch('/api/group-booking?status=ACTIVE')
-        if (groupBookingsRes.ok) {
-          const groupBookingsData = await groupBookingsRes.json()
-          setGroupBookings(groupBookingsData)
-        }
+      const response = await fetch('/api/group-booking?status=ACTIVE')
+      if (response.ok) {
+        const data = await response.json()
+        setGroupBookings(data)
       }
     } catch (error) {
-      console.error('載入資料失敗:', error)
-      setError('載入資料失敗')
+      console.error('載入群組預約失敗:', error)
     } finally {
       setLoading(false)
     }
   }
 
-  const handleCreateGroup = async (e: React.FormEvent) => {
-    e.preventDefault()
-    
-    if (!partnerId) {
-      setError('請先選擇夥伴')
+  const searchAvailablePartners = async () => {
+    if (!selectedDate || !selectedStartTime || !selectedEndTime) {
+      alert('請選擇日期和時間')
       return
     }
 
     try {
+      setLoading(true)
+      const startDateTime = `${selectedDate}T${selectedStartTime}`
+      const endDateTime = `${selectedDate}T${selectedEndTime}`
+      
+      const params = new URLSearchParams({
+        startTime: startDateTime,
+        endTime: endDateTime
+      })
+      
+      if (selectedGame) {
+        params.append('game', selectedGame)
+      }
+
+      const response = await fetch(`/api/group-booking/available-partners?${params}`)
+      if (response.ok) {
+        const data = await response.json()
+        setPartners(data)
+      } else {
+        console.error('搜尋夥伴失敗')
+      }
+    } catch (error) {
+      console.error('搜尋夥伴失敗:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const createGroupBooking = async (partner: Partner) => {
+    if (!createForm.title.trim()) {
+      alert('請輸入群組標題')
+      return
+    }
+
+    try {
+      setLoading(true)
+      const startDateTime = `${selectedDate}T${selectedStartTime}`
+      const endDateTime = `${selectedDate}T${selectedEndTime}`
+
       const response = await fetch('/api/group-booking', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify({
-          partnerId,
-          ...formData
+          partnerId: partner.id,
+          title: createForm.title,
+          description: createForm.description,
+          maxParticipants: createForm.maxParticipants,
+          startTime: startDateTime,
+          endTime: endDateTime
         })
       })
 
       if (response.ok) {
+        alert('群組預約創建成功！')
         setShowCreateForm(false)
-        setFormData({
-          title: '',
-          description: '',
-          maxParticipants: 4,
-          startTime: '',
-          endTime: ''
-        })
-        loadData() // 重新載入資料
+        setCreateForm({ title: '', description: '', maxParticipants: 4 })
+        loadGroupBookings()
       } else {
-        const errorData = await response.json()
-        setError(errorData.error || '創建群組預約失敗')
+        const error = await response.json()
+        alert(error.error || '創建失敗')
       }
     } catch (error) {
       console.error('創建群組預約失敗:', error)
-      setError('創建群組預約失敗')
+      alert('創建失敗')
+    } finally {
+      setLoading(false)
     }
   }
 
-  const handleJoinGroup = async (groupBookingId: string) => {
+  const joinGroupBooking = async (groupBookingId: string) => {
     try {
-      setJoining(groupBookingId)
-      
+      setLoading(true)
       const response = await fetch('/api/group-booking/join', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ groupBookingId })
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          groupBookingId
+        })
       })
 
       if (response.ok) {
-        loadData() // 重新載入資料
+        alert('成功加入群組預約！')
+        loadGroupBookings()
       } else {
-        const errorData = await response.json()
-        setError(errorData.error || '加入群組預約失敗')
+        const error = await response.json()
+        alert(error.error || '加入失敗')
       }
     } catch (error) {
       console.error('加入群組預約失敗:', error)
-      setError('加入群組預約失敗')
+      alert('加入失敗')
     } finally {
-      setJoining(null)
+      setLoading(false)
     }
   }
 
-  const isUserInGroup = (groupBooking: GroupBooking) => {
-    return groupBooking.bookings.some(booking => 
-      booking.customer.user.email === user?.email
-    )
-  }
-
-  if (authLoading || loading) {
+  if (authLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
           <p className="mt-4 text-gray-600">載入中...</p>
@@ -193,20 +210,12 @@ function GroupBookingContent() {
     )
   }
 
-  if (error) {
+  if (!isAuthenticated) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <p className="text-red-600 mb-4">{error}</p>
-          <button 
-            onClick={() => {
-              setError('')
-              loadData()
-            }}
-            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-          >
-            重試
-          </button>
+          <h1 className="text-2xl font-bold text-gray-900 mb-4">請先登入</h1>
+          <p className="text-gray-600">您需要登入才能使用群組預約功能</p>
         </div>
       </div>
     )
@@ -217,245 +226,237 @@ function GroupBookingContent() {
       <div className="max-w-6xl mx-auto px-4">
         {/* 標題 */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            {partner ? `${partner.name} 的群組預約` : '群組預約'}
-          </h1>
-          <p className="text-gray-600">
-            {partner ? '與其他玩家一起預約，享受更優惠的價格' : '尋找有趣的群組預約，與其他玩家一起遊戲'}
-          </p>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">群組預約</h1>
+          <p className="text-gray-600">尋找有趣的群組預約，與其他玩家一起遊戲</p>
         </div>
 
-        {/* 夥伴資訊 */}
-        {partner && (
-          <div className="bg-white rounded-lg shadow-md p-6 mb-8">
-            <div className="flex items-center space-x-4">
-              <img 
-                src={partner.coverImage} 
-                alt={partner.name}
-                className="w-16 h-16 rounded-full object-cover"
+        {/* 時間篩選器 */}
+        <div className="bg-white rounded-lg shadow-md p-6 mb-8">
+          <h2 className="text-xl font-semibold mb-4">🎯 選擇時間和遊戲</h2>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">日期</label>
+              <input
+                type="date"
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                min={new Date().toISOString().split('T')[0]}
               />
-              <div>
-                <h2 className="text-xl font-semibold">{partner.name}</h2>
-                <p className="text-gray-600">每半小時 ${partner.halfHourlyRate}</p>
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {partner.games.map((game, index) => (
-                    <span key={index} className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
-                      {game}
-                    </span>
-                  ))}
-                </div>
-              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">開始時間</label>
+              <input
+                type="time"
+                value={selectedStartTime}
+                onChange={(e) => setSelectedStartTime(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">結束時間</label>
+              <input
+                type="time"
+                value={selectedEndTime}
+                onChange={(e) => setSelectedEndTime(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">遊戲 (可選)</label>
+              <select
+                value={selectedGame}
+                onChange={(e) => setSelectedGame(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">不限遊戲</option>
+                <option value="英雄聯盟">英雄聯盟</option>
+                <option value="傳說對決">傳說對決</option>
+                <option value="王者榮耀">王者榮耀</option>
+                <option value="原神">原神</option>
+                <option value="其他">其他</option>
+              </select>
             </div>
           </div>
-        )}
+          <button
+            onClick={searchAvailablePartners}
+            disabled={loading}
+            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+          >
+            {loading ? '搜尋中...' : '🔍 搜尋可用夥伴'}
+          </button>
+        </div>
 
-        {/* 創建群組按鈕 */}
-        {partner && partner.allowGroupBooking && (
-          <div className="mb-6">
-            <button
-              onClick={() => setShowCreateForm(true)}
-              className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-            >
-              🎮 創建群組預約
-            </button>
+        {/* 搜尋結果 - 可用夥伴 */}
+        {partners.length > 0 && (
+          <div className="bg-white rounded-lg shadow-md p-6 mb-8">
+            <h2 className="text-xl font-semibold mb-4">🎮 可用夥伴 ({partners.length} 位)</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {partners.map((partner) => (
+                <div key={partner.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+                  <div className="flex items-center space-x-3 mb-3">
+                    <img 
+                      src={partner.coverImage} 
+                      alt={partner.name}
+                      className="w-12 h-12 rounded-full object-cover"
+                    />
+                    <div>
+                      <h3 className="font-semibold">{partner.name}</h3>
+                      <p className="text-sm text-gray-600">每半小時 ${partner.halfHourlyRate}</p>
+                      {partner.averageRating > 0 && (
+                        <div className="flex items-center space-x-1">
+                          <span className="text-yellow-500">⭐</span>
+                          <span className="text-sm">{partner.averageRating}</span>
+                          <span className="text-sm text-gray-500">({partner.reviewCount})</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-1 mb-3">
+                    {partner.games.map((game, index) => (
+                      <span key={index} className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">
+                        {game}
+                      </span>
+                    ))}
+                  </div>
+                  <button
+                    onClick={() => {
+                      setSelectedPartner(partner)
+                      setShowCreateForm(true)
+                    }}
+                    className="w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                  >
+                    創建群組預約
+                  </button>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
         {/* 創建群組表單 */}
-        {showCreateForm && (
+        {showCreateForm && selectedPartner && (
           <div className="bg-white rounded-lg shadow-md p-6 mb-8">
-            <h3 className="text-xl font-semibold mb-4">創建群組預約</h3>
-            <form onSubmit={handleCreateGroup} className="space-y-4">
+            <h2 className="text-xl font-semibold mb-4">創建群組預約 - {selectedPartner.name}</h2>
+            <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  群組標題
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">群組標題 *</label>
                 <input
                   type="text"
-                  value={formData.title}
-                  onChange={(e) => setFormData({...formData, title: e.target.value})}
+                  value={createForm.title}
+                  onChange={(e) => setCreateForm({...createForm, title: e.target.value})}
+                  placeholder="例如：一起上分！"
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="例如：英雄聯盟五排上分"
-                  required
                 />
               </div>
-              
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  群組描述
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">群組描述</label>
                 <textarea
-                  value={formData.description}
-                  onChange={(e) => setFormData({...formData, description: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  value={createForm.description}
+                  onChange={(e) => setCreateForm({...createForm, description: e.target.value})}
+                  placeholder="描述一下這個群組的目標或規則..."
                   rows={3}
-                  placeholder="描述一下這次群組預約的內容..."
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    最大人數
-                  </label>
-                  <select
-                    value={formData.maxParticipants}
-                    onChange={(e) => setFormData({...formData, maxParticipants: parseInt(e.target.value)})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value={2}>2 人</option>
-                    <option value={3}>3 人</option>
-                    <option value={4}>4 人</option>
-                    <option value={5}>5 人</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    開始時間
-                  </label>
-                  <input
-                    type="datetime-local"
-                    value={formData.startTime}
-                    onChange={(e) => setFormData({...formData, startTime: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    結束時間
-                  </label>
-                  <input
-                    type="datetime-local"
-                    value={formData.endTime}
-                    onChange={(e) => setFormData({...formData, endTime: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    required
-                  />
-                </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">最大參與人數</label>
+                <select
+                  value={createForm.maxParticipants}
+                  onChange={(e) => setCreateForm({...createForm, maxParticipants: parseInt(e.target.value)})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value={2}>2 人</option>
+                  <option value={3}>3 人</option>
+                  <option value={4}>4 人</option>
+                  <option value={5}>5 人</option>
+                  <option value={6}>6 人</option>
+                </select>
               </div>
-
               <div className="flex space-x-4">
                 <button
-                  type="submit"
-                  className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                  onClick={() => createGroupBooking(selectedPartner)}
+                  disabled={loading}
+                  className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
                 >
-                  創建群組
+                  {loading ? '創建中...' : '創建群組'}
                 </button>
                 <button
-                  type="button"
-                  onClick={() => setShowCreateForm(false)}
-                  className="px-6 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400 transition-colors"
+                  onClick={() => {
+                    setShowCreateForm(false)
+                    setSelectedPartner(null)
+                  }}
+                  className="px-6 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
                 >
                   取消
                 </button>
               </div>
-            </form>
+            </div>
           </div>
         )}
 
-        {/* 群組預約列表 */}
-        <div className="space-y-6">
-          {groupBookings.length === 0 ? (
-            <div className="text-center py-12">
-              <p className="text-gray-500 text-lg">目前沒有可用的群組預約</p>
-              {partner && partner.allowGroupBooking && (
-                <button
-                  onClick={() => setShowCreateForm(true)}
-                  className="mt-4 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-                >
-                  創建第一個群組預約
-                </button>
-              )}
+        {/* 現有群組預約 */}
+        <div className="bg-white rounded-lg shadow-md p-6">
+          <h2 className="text-xl font-semibold mb-4">🔥 熱門群組預約</h2>
+          {loading ? (
+            <div className="text-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+              <p className="mt-2 text-gray-600">載入中...</p>
             </div>
-          ) : (
-            groupBookings.map((groupBooking) => (
-              <div key={groupBooking.id} className="bg-white rounded-lg shadow-md p-6">
-                <div className="flex justify-between items-start mb-4">
-                  <div>
-                    <h3 className="text-xl font-semibold text-gray-900">
-                      {groupBooking.title}
-                    </h3>
-                    {groupBooking.description && (
-                      <p className="text-gray-600 mt-1">{groupBooking.description}</p>
-                    )}
-                  </div>
-                  <div className="text-right">
-                    <div className={`px-3 py-1 rounded-full text-sm font-medium ${
-                      groupBooking.status === 'ACTIVE' ? 'bg-green-100 text-green-800' :
-                      groupBooking.status === 'FULL' ? 'bg-yellow-100 text-yellow-800' :
-                      'bg-gray-100 text-gray-800'
-                    }`}>
-                      {groupBooking.status === 'ACTIVE' ? '招募中' :
-                       groupBooking.status === 'FULL' ? '已滿員' :
-                       groupBooking.status}
+          ) : groupBookings.length > 0 ? (
+            <div className="space-y-4">
+              {groupBookings.map((booking) => (
+                <div key={booking.id} className="border border-gray-200 rounded-lg p-4">
+                  <div className="flex justify-between items-start mb-3">
+                    <div>
+                      <h3 className="font-semibold text-lg">{booking.title}</h3>
+                      {booking.description && (
+                        <p className="text-gray-600 text-sm mt-1">{booking.description}</p>
+                      )}
+                    </div>
+                    <div className="text-right">
+                      <div className="text-sm text-gray-500">
+                        {booking.currentParticipants}/{booking.maxParticipants} 人
+                      </div>
+                      <div className="text-sm text-gray-500">
+                        {new Date(booking.startTime).toLocaleString('zh-TW')}
+                      </div>
                     </div>
                   </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                  <div>
-                    <p className="text-sm text-gray-500">夥伴</p>
-                    <p className="font-medium">{groupBooking.partner.name}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">時間</p>
-                    <p className="font-medium">
-                      {new Date(groupBooking.startTime).toLocaleString('zh-TW')}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">參與人數</p>
-                    <p className="font-medium">
-                      {groupBooking.currentParticipants} / {groupBooking.maxParticipants}
-                    </p>
-                  </div>
-                </div>
-
-                {/* 參與者列表 */}
-                <div className="mb-4">
-                  <p className="text-sm text-gray-500 mb-2">參與者：</p>
-                  <div className="flex flex-wrap gap-2">
-                    {groupBooking.bookings.map((booking) => (
-                      <div key={booking.id} className="flex items-center space-x-2 bg-gray-100 rounded-full px-3 py-1">
-                        <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs">
-                          {booking.customer.name.charAt(0)}
-                        </div>
-                        <span className="text-sm">{booking.customer.name}</span>
-                        {booking.customer.id === groupBooking.creator.id && (
-                          <span className="text-xs bg-yellow-200 text-yellow-800 px-2 py-0.5 rounded-full">
-                            創建者
-                          </span>
-                        )}
-                      </div>
-                    ))}
+                  
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                      <img 
+                        src={booking.partner.coverImage} 
+                        alt={booking.partner.name}
+                        className="w-8 h-8 rounded-full object-cover"
+                      />
+                      <span className="text-sm font-medium">{booking.partner.name}</span>
+                      <span className="text-sm text-gray-500">每半小時 ${booking.partner.halfHourlyRate}</span>
+                    </div>
+                    
+                    {booking.currentParticipants < booking.maxParticipants ? (
+                      <button
+                        onClick={() => joinGroupBooking(booking.id)}
+                        disabled={loading}
+                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+                      >
+                        加入群組
+                      </button>
+                    ) : (
+                      <span className="px-4 py-2 bg-gray-300 text-gray-600 rounded-lg">
+                        已滿
+                      </span>
+                    )}
                   </div>
                 </div>
-
-                {/* 操作按鈕 */}
-                <div className="flex justify-end">
-                  {isUserInGroup(groupBooking) ? (
-                    <span className="px-4 py-2 bg-green-100 text-green-800 rounded-md">
-                      已加入
-                    </span>
-                  ) : groupBooking.status === 'ACTIVE' && groupBooking.currentParticipants < groupBooking.maxParticipants ? (
-                    <button
-                      onClick={() => handleJoinGroup(groupBooking.id)}
-                      disabled={joining === groupBooking.id}
-                      className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50"
-                    >
-                      {joining === groupBooking.id ? '加入中...' : '加入群組'}
-                    </button>
-                  ) : (
-                    <span className="px-4 py-2 bg-gray-100 text-gray-500 rounded-md">
-                      {groupBooking.status === 'FULL' ? '已滿員' : '無法加入'}
-                    </span>
-                  )}
-                </div>
-              </div>
-            ))
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8">
+              <p className="text-gray-500">目前沒有可用的群組預約</p>
+              <p className="text-sm text-gray-400 mt-2">請選擇時間搜尋可用夥伴，或創建新的群組預約</p>
+            </div>
           )}
         </div>
       </div>
@@ -466,7 +467,7 @@ function GroupBookingContent() {
 export default function GroupBookingPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
           <p className="mt-4 text-gray-600">載入中...</p>

@@ -98,7 +98,7 @@ export async function POST(request: Request) {
     const booking = await prisma.booking.create({
       data: {
         customerId: customer.id,
-        scheduleId: '', // 群組預約暫時不需要 schedule
+        scheduleId: null, // 群組預約不需要 schedule
         status: 'CONFIRMED',
         originalAmount: 0,
         finalAmount: 0,
