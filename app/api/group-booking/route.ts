@@ -14,9 +14,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: '請先登入' }, { status: 401 });
     }
 
-    const { partnerId, title, description, maxParticipants, startTime, endTime } = await request.json();
+    const { partnerId, title, description, maxParticipants, pricePerPerson, startTime, endTime } = await request.json();
 
-    if (!partnerId || !title || !startTime || !endTime) {
+    if (!partnerId || !title || !startTime || !endTime || !pricePerPerson) {
       return NextResponse.json({ error: '缺少必要參數' }, { status: 400 });
     }
 
@@ -80,6 +80,7 @@ export async function POST(request: Request) {
         description: description || null,
         maxParticipants: maxParticipants || 4,
         currentParticipants: 1,
+        pricePerPerson,
         startTime: start,
         endTime: end,
         status: 'ACTIVE'
