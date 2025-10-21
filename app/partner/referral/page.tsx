@@ -175,7 +175,10 @@ export default function ReferralPage() {
               </div>
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-500">推薦獎勵比例</p>
-                <p className="text-2xl font-bold text-gray-900">5%</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {stats?.partner.referralCount <= 3 ? '2%' : 
+                   stats?.partner.referralCount <= 10 ? '3%' : '4%'}
+                </p>
               </div>
             </div>
           </div>
@@ -226,7 +229,7 @@ export default function ReferralPage() {
               <ul className="ml-4 mt-1 space-y-1 text-sm">
                 <li>📈 推薦 1-3 人：獲得 2% 推薦獎勵</li>
                 <li>📈 推薦 4-10 人：獲得 3% 推薦獎勵</li>
-                <li>📈 推薦 10 人以上：獲得 5% 推薦獎勵</li>
+                <li>📈 推薦 10 人以上：獲得 4% 推薦獎勵</li>
               </ul>
             </li>
             <li>• 推薦獎勵會自動計算並加入您的可提領餘額</li>

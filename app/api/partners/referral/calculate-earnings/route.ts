@@ -11,7 +11,7 @@ const DEFAULT_REFERRAL_CONFIG = {
   TIERED_REFERRAL_RATES: {
     1: 0.02,  // 1-3人：2%
     3: 0.03,  // 4-10人：3%
-    10: 0.05  // 10人以上：5%
+    10: 0.04  // 10人以上：4%
   }
 };
 
@@ -22,7 +22,7 @@ function calculateTieredReferralRate(referralCount: number): number {
   } else if (referralCount <= 10) {
     return DEFAULT_REFERRAL_CONFIG.TIERED_REFERRAL_RATES[3]; // 3%
   } else {
-    return DEFAULT_REFERRAL_CONFIG.TIERED_REFERRAL_RATES[10]; // 5%
+    return DEFAULT_REFERRAL_CONFIG.TIERED_REFERRAL_RATES[10]; // 4%
   }
 }
 
