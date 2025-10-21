@@ -91,11 +91,20 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: '開始時間必須早於結束時間' }, { status: 400 });
     }
 
+    // 獲取夥伴的客戶記錄
+    const partnerCustomer = await prisma.customer.findUnique({
+      where: { userId: session.user.id }
+    });
+
+    if (!partnerCustomer) {
+      return NextResponse.json({ error: '客戶資料不存在' }, { status: 404 });
+    }
+
     // 創建群組預約
     const groupBooking = await prisma.groupBooking.create({
       data: {
         partnerId: partner.id,
-        creatorId: session.user.id, // 夥伴自己作為創建者
+        creatorId: partnerCustomer.id, // 夥伴的客戶記錄作為創建者
         title,
         description: description || null,
         maxParticipants,
