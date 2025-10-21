@@ -95,10 +95,12 @@ export async function POST(request: Request) {
     });
 
     // 為創建者創建預約記錄
+    // 注意：群組預約不需要 schedule，所以我們跳過創建 booking 記錄
+    // 或者可以創建一個虛擬的 schedule 來滿足資料庫約束
     const booking = await prisma.booking.create({
       data: {
         customerId: customer.id,
-        scheduleId: null, // 群組預約不需要 schedule
+        scheduleId: 'group-booking-virtual', // 使用虛擬 ID
         status: 'CONFIRMED',
         originalAmount: 0,
         finalAmount: 0,
