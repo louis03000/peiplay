@@ -463,9 +463,9 @@ function BookingWizardContent() {
                     onChange={e => setOnlyAvailable(e.target.checked)}
                     className="accent-indigo-500 w-4 h-4 sm:w-5 sm:h-5"
                   />
-                  <span className="text-xs sm:text-sm text-white font-medium">只看現在有空</span>
+                  <span className="text-xs sm:text-sm text-gray-900 font-bold">只看現在有空</span>
                 </label>
-                <label className="flex items-center gap-2 text-white text-sm select-none cursor-pointer">
+                <label className="flex items-center gap-2 text-gray-900 text-sm select-none cursor-pointer">
                   <input
                     id="only-rank-booster"
                     type="checkbox"
@@ -473,7 +473,7 @@ function BookingWizardContent() {
                     onChange={e => setOnlyRankBooster(e.target.checked)}
                     className="accent-purple-500 w-4 h-4 sm:w-5 sm:h-5"
                   />
-                  <span className="text-xs sm:text-sm text-white font-medium">只看上分高手</span>
+                  <span className="text-xs sm:text-sm text-gray-900 font-bold">只看上分高手</span>
                 </label>
               </div>
               
@@ -563,8 +563,8 @@ function BookingWizardContent() {
         )}
         {onlyAvailable && step === 1 && selectedPartner && (
           <div>
-            <div className="text-lg text-white/90 mb-4">（2）選擇預約時長</div>
-            <div className="text-sm text-gray-400 mb-6 text-center">
+            <div className="text-lg text-gray-900 font-bold mb-4">（2）選擇預約時長</div>
+            <div className="text-sm text-gray-700 mb-6 text-center">
               選擇您想要預約的時長，系統會自動安排最適合的時間
             </div>
             <div className="flex flex-wrap gap-3 justify-center">
@@ -581,7 +581,7 @@ function BookingWizardContent() {
                 </button>
               ))}
             </div>
-                         <div className="mt-4 text-center text-sm text-gray-400">
+                         <div className="mt-4 text-center text-sm text-gray-900 font-medium">
                費用：${(selectedDuration * selectedPartner.halfHourlyRate * 2).toFixed(0)} (${selectedPartner.halfHourlyRate}/半小時)
              </div>
           </div>
@@ -633,15 +633,15 @@ function BookingWizardContent() {
               <div className="space-y-3">
                 {onlyAvailable ? (
                   <div className="flex justify-between items-center">
-                    <span className="text-gray-300">預約時長：</span>
-                    <span className="text-white font-medium">
+                    <span className="text-gray-900 font-medium">預約時長：</span>
+                    <span className="text-gray-900 font-bold">
                       {selectedDuration === 0.5 ? '30分鐘' : selectedDuration === 1 ? '1小時' : `${selectedDuration}小時`}
                     </span>
                   </div>
                 ) : (
                   <div className="flex justify-between items-center">
-                    <span className="text-gray-300">選擇日期：</span>
-                    <span className="text-white font-medium">
+                    <span className="text-gray-900 font-medium">選擇日期：</span>
+                    <span className="text-gray-900 font-bold">
                       {selectedDate ? `${selectedDate.getFullYear()}-${selectedDate.getMonth() + 1}-${selectedDate.getDate()}` : '未選擇'}
                     </span>
                   </div>
@@ -649,14 +649,14 @@ function BookingWizardContent() {
                 
                 {!onlyAvailable && (
                   <div className="flex justify-between items-center">
-                    <span className="text-gray-300">選擇時段：</span>
-                    <span className="text-white font-medium">{selectedTimes.length} 個時段</span>
+                    <span className="text-gray-900 font-medium">選擇時段：</span>
+                    <span className="text-gray-900 font-bold">{selectedTimes.length} 個時段</span>
                   </div>
                 )}
                 
                 <div className="flex justify-between items-center">
-                  <span className="text-gray-300">總費用：</span>
-                  <span className="text-white font-bold text-lg">
+                  <span className="text-gray-900 font-medium">總費用：</span>
+                  <span className="text-gray-900 font-bold text-lg">
                     ${onlyAvailable 
                       ? (selectedDuration * selectedPartner.halfHourlyRate * 2).toFixed(0)
                       : selectedTimes.length * selectedPartner.halfHourlyRate

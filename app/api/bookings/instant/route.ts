@@ -162,26 +162,28 @@ export async function POST(request: NextRequest) {
     // 關閉資料庫連接
     await prisma.$disconnect()
 
-    // 發送 email 通知和站內通知給夥伴
-    try {
-      // 發送 Email 通知
-      await sendBookingNotificationToPartner(
-        partner.user.email,
-        partner.user.name || '夥伴',
-        customer.user.name || '客戶',
-        {
-          duration: duration,
-          startTime: result.startTime.toISOString(),
-          endTime: result.endTime.toISOString(),
-          totalCost: result.totalCost,
-          isInstantBooking: true
-        }
-      )
-      console.log('✅ 即時預約通知 email 已發送給夥伴')
-    } catch (emailError) {
-      console.error('❌ 發送即時預約通知失敗:', emailError)
-      // 不影響預約創建，只記錄錯誤
-    }
+    // 發送 email 通知和站內通知給夥伴（非阻塞）
+    setImmediate(async () => {
+      try {
+        // 發送 Email 通知
+        await sendBookingNotificationToPartner(
+          partner.user.email,
+          partner.user.name || '夥伴',
+          customer.user.name || '客戶',
+          {
+            duration: duration,
+            startTime: result.startTime.toISOString(),
+            endTime: result.endTime.toISOString(),
+            totalCost: result.totalCost,
+            isInstantBooking: true
+          }
+        )
+        console.log('✅ 即時預約通知 email 已發送給夥伴')
+      } catch (emailError) {
+        console.error('❌ 發送即時預約通知失敗:', emailError)
+        // 不影響預約創建，只記錄錯誤
+      }
+    })
 
     return NextResponse.json({
       id: result.booking.id,
