@@ -37,7 +37,7 @@ export async function POST(request: Request) {
     const participants = [
       groupBooking.partner.user.discord,
       ...groupBooking.bookings.map(booking => booking.customer.user.discord)
-    ].filter(discord => discord); // 過濾掉空的 Discord ID
+    ].filter((discord): discord is string => discord !== null && discord !== undefined); // 過濾掉空的 Discord ID
 
     if (participants.length === 0) {
       return NextResponse.json({ error: 'No participants with Discord IDs' }, { status: 400 });
