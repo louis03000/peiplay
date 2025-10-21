@@ -50,12 +50,18 @@ export async function GET() {
     const bookings = await prisma.booking.findMany({
       where: {
         customerId: customer.id,
+        // 排除群組預約的虛擬 schedule
+        scheduleId: { not: 'group-booking-virtual' },
         schedule: { 
           startTime: { gt: now }  // 只顯示未來的預約
         },
       },
       include: {
-        schedule: { include: { partner: { select: { name: true } } } },
+        schedule: { 
+          include: { 
+            partner: { select: { name: true } } 
+          } 
+        },
       },
       orderBy: { schedule: { startTime: 'asc' } },
     });
