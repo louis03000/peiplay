@@ -166,6 +166,7 @@ model GroupBooking {
   description           String?  // 群組描述
   maxParticipants       Int      @default(4) // 最大參與人數
   currentParticipants   Int      @default(1) // 當前參與人數
+  pricePerPerson        Int      // 每人費用
   startTime             DateTime
   endTime               DateTime
   status                GroupBookingStatus @default(ACTIVE)

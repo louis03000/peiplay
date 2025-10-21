@@ -100,6 +100,7 @@ export async function POST(request: Request) {
         description: description || null,
         maxParticipants,
         currentParticipants: 1, // 夥伴自己算1人
+        pricePerPerson,
         startTime: startDateTime,
         endTime: endDateTime,
         status: 'ACTIVE',
