@@ -33,7 +33,7 @@ export async function GET() {
       // 關閉群組（不再接受新成員）
       await prisma.groupBooking.update({
         where: { id: group.id },
-        data: { status: 'CLOSED' }
+        data: { status: 'FULL' }
       });
 
       // 創建文字頻道
@@ -55,7 +55,7 @@ export async function GET() {
     const threeMinutesFromNow = new Date(now.getTime() + 3 * 60 * 1000);
     const groupsForVoice = await prisma.groupBooking.findMany({
       where: {
-        status: 'CLOSED',
+        status: 'FULL',
         startTime: {
           lte: threeMinutesFromNow,
           gt: now
@@ -84,7 +84,7 @@ export async function GET() {
     // 3. 處理已結束的群組（刪除頻道，標記為完成）
     const endedGroups = await prisma.groupBooking.findMany({
       where: {
-        status: { in: ['CLOSED', 'ACTIVE'] },
+        status: { in: ['FULL', 'ACTIVE'] },
         endTime: { lte: now }
       }
     });
