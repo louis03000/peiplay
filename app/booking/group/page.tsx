@@ -26,6 +26,7 @@ interface GroupBooking {
   description?: string
   maxParticipants: number
   currentParticipants: number
+  pricePerPerson: number
   startTime: string
   endTime: string
   status: string
