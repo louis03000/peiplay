@@ -11,13 +11,36 @@ export async function GET() {
     if (!session?.user?.id) {
       return NextResponse.json({ partner: null })
     }
+    
+    // 測試資料庫連接
+    await prisma.$connect()
+    
     const partner = await prisma.partner.findUnique({
       where: { userId: session.user.id }
     })
+    
     return NextResponse.json({ partner })
   } catch (error) {
     console.error('Partners self GET error:', error)
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
+    
+    // 如果是資料庫連接錯誤，返回更友好的錯誤信息
+    if (error instanceof Error && error.message.includes('connect')) {
+      return NextResponse.json({ 
+        error: '資料庫連接失敗，請稍後再試',
+        partner: null 
+      }, { status: 503 })
+    }
+    
+    return NextResponse.json({ 
+      error: 'Internal Server Error',
+      partner: null 
+    }, { status: 500 })
+  } finally {
+    try {
+      await prisma.$disconnect()
+    } catch (disconnectError) {
+      console.error('Database disconnect error:', disconnectError)
+    }
   }
 }
 

@@ -108,6 +108,9 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: '請先登入' }, { status: 401 });
   }
   try {
+    // 測試資料庫連接
+    await prisma.$connect()
+    
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
       select: {
@@ -125,6 +128,24 @@ export async function GET(request: Request) {
     }
     return NextResponse.json({ user });
   } catch (error: any) {
-    return NextResponse.json({ error: '取得個人資料失敗', detail: error?.message || '未知錯誤' }, { status: 500 });
+    console.error('User profile GET error:', error)
+    
+    // 如果是資料庫連接錯誤，返回更友好的錯誤信息
+    if (error instanceof Error && error.message.includes('connect')) {
+      return NextResponse.json({ 
+        error: '資料庫連接失敗，請稍後再試' 
+      }, { status: 503 })
+    }
+    
+    return NextResponse.json({ 
+      error: '取得個人資料失敗', 
+      detail: error?.message || '未知錯誤' 
+    }, { status: 500 });
+  } finally {
+    try {
+      await prisma.$disconnect()
+    } catch (disconnectError) {
+      console.error('Database disconnect error:', disconnectError)
+    }
   }
 } 

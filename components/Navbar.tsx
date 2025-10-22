@@ -5,41 +5,67 @@ import { useSession, signOut } from 'next-auth/react'
 import { useEffect, useState, useRef } from 'react'
 
 export default function Navbar() {
-  const { data: session } = useSession()
+  const { data: session, status } = useSession()
   const [hasPartner, setHasPartner] = useState(false)
   const [isPartner, setIsPartner] = useState(false)
+  const [partnerLoading, setPartnerLoading] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    if (session?.user?.id) {
-      fetch('/api/partners/self')
-      .then(res => {
-        if (!res.ok) {
-          // If response is not OK, don't proceed with JSON parsing
-          return res.json().then(errorData => {
-            throw new Error(errorData.error || 'Failed to fetch partner status');
-          });
+    if (session?.user?.id && status === 'authenticated') {
+      setPartnerLoading(true)
+      
+      const checkPartnerStatus = async (retryCount = 0) => {
+        try {
+          const res = await fetch('/api/partners/self')
+          
+          if (res.ok) {
+            const data = await res.json()
+            if (data && data.partner) {
+              setHasPartner(data.partner.status === 'APPROVED')
+              setIsPartner(true)
+            } else {
+              setHasPartner(false)
+              setIsPartner(false)
+            }
+          } else if (res.status === 503 && retryCount < 2) {
+            // 如果是資料庫連接錯誤，等待後重試
+            console.warn(`夥伴狀態檢查失敗 (${res.status})，${retryCount + 1}秒後重試...`)
+            setTimeout(() => {
+              checkPartnerStatus(retryCount + 1)
+            }, (retryCount + 1) * 1000)
+            return
+          } else {
+            console.warn('夥伴狀態檢查失敗:', res.status)
+            setHasPartner(false)
+            setIsPartner(false)
+          }
+        } catch (error) {
+          console.error('檢查夥伴狀態失敗:', error)
+          if (retryCount < 2) {
+            console.warn(`${retryCount + 1}秒後重試...`)
+            setTimeout(() => {
+              checkPartnerStatus(retryCount + 1)
+            }, (retryCount + 1) * 1000)
+            return
+          }
+          setHasPartner(false)
+          setIsPartner(false)
+        } finally {
+          if (retryCount >= 2) {
+            setPartnerLoading(false)
+          }
         }
-        return res.json();
-      })
-      .then(data => {
-        if (data && data.partner) {
-          setHasPartner(data.partner.status === 'APPROVED');
-          setIsPartner(true);
-        } else {
-          setHasPartner(false);
-          setIsPartner(false);
-        }
-      }).catch(() => {
-        setHasPartner(false);
-        setIsPartner(false);
-      })
+      }
+      
+      checkPartnerStatus()
     } else {
       setHasPartner(false)
       setIsPartner(false)
+      setPartnerLoading(false)
     }
-  }, [session])
+  }, [session, status])
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -94,7 +120,13 @@ export default function Navbar() {
                   )}
                 
                 {/* 夥伴功能 */}
-                  {isPartner && (
+                {partnerLoading ? (
+                  <div className="mt-2">
+                    <div className="block w-full px-3 sm:px-4 py-2 text-xs sm:text-sm text-gray-500 text-center">
+                      🔄 載入中...
+                    </div>
+                  </div>
+                ) : isPartner && (
                   <div className="mt-2">
                     <Link href="/partner/schedule" className="block w-full px-3 sm:px-4 py-2 text-xs sm:text-sm text-gray-900 hover:text-indigo-600 hover:bg-indigo-50 transition-colors text-center">
                       📅 時段管理
