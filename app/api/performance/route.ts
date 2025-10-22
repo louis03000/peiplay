@@ -111,7 +111,11 @@ export async function POST(request: NextRequest) {
 }
 
 function analyzePerformance(metrics: any) {
-  const analysis = {
+  const analysis: {
+    issues: string[]
+    strengths: string[]
+    score: number
+  } = {
     issues: [],
     strengths: [],
     score: 100
@@ -141,7 +145,12 @@ function analyzePerformance(metrics: any) {
 }
 
 function generateOptimizationSuggestions(page: string, analysis: any) {
-  const suggestions = []
+  const suggestions: Array<{
+    type: string
+    priority: string
+    title: string
+    description: string
+  }> = []
   
   if (analysis.issues.includes('響應時間過長')) {
     suggestions.push({
