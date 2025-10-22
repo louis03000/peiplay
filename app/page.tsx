@@ -16,6 +16,8 @@ export default function Home() {
   const { data: session, status } = useSession()
   const router = useRouter()
   const [reviews, setReviews] = useState<Review[]>([])
+  const [isPartner, setIsPartner] = useState(false)
+  const [hasPartner, setHasPartner] = useState(false)
 
   useEffect(() => {
     // 如果用戶已登入但沒有完整資料，跳轉到 onboarding
@@ -58,7 +60,35 @@ export default function Home() {
         }
       }
       
+      // 檢查夥伴狀態
+      const checkPartnerStatus = async () => {
+        try {
+          const res = await fetch('/api/partners/self')
+          if (res.ok) {
+            const data = await res.json()
+            if (data && data.partner) {
+              setHasPartner(data.partner.status === 'APPROVED')
+              setIsPartner(true)
+            } else {
+              setHasPartner(false)
+              setIsPartner(false)
+            }
+          } else {
+            setHasPartner(false)
+            setIsPartner(false)
+          }
+        } catch (error) {
+          console.error('檢查夥伴狀態失敗:', error)
+          setHasPartner(false)
+          setIsPartner(false)
+        }
+      }
+      
       checkUserProfile()
+      checkPartnerStatus()
+    } else {
+      setHasPartner(false)
+      setIsPartner(false)
     }
   }, [session, status, router])
 
@@ -106,12 +136,22 @@ export default function Home() {
               >
                 🎮 立即預約陪玩
               </button>
-              <button
-                onClick={() => router.push('/join')}
-                className="bg-white text-blue-600 hover:bg-blue-50 border-2 border-blue-600 font-bold py-4 px-8 rounded-xl text-lg shadow-lg transform hover:scale-105 transition-all duration-200"
-              >
-                💼 成為陪玩夥伴
-              </button>
+              {!isPartner && (
+                <button
+                  onClick={() => router.push('/join')}
+                  className="bg-white text-blue-600 hover:bg-blue-50 border-2 border-blue-600 font-bold py-4 px-8 rounded-xl text-lg shadow-lg transform hover:scale-105 transition-all duration-200"
+                >
+                  💼 成為陪玩夥伴
+                </button>
+              )}
+              {isPartner && (
+                <button
+                  onClick={() => router.push('/partner/schedule')}
+                  className="bg-green-600 hover:bg-green-700 text-white font-bold py-4 px-8 rounded-xl text-lg shadow-lg transform hover:scale-105 transition-all duration-200"
+                >
+                  🎯 夥伴管理
+                </button>
+              )}
             </div>
 
           </div>
@@ -211,12 +251,22 @@ export default function Home() {
                 >
                   🎮 立即體驗
                 </button>
-                <button
-                  onClick={() => router.push('/join')}
-                  className="bg-white text-blue-600 hover:bg-blue-50 border-2 border-blue-600 font-bold py-4 px-8 rounded-xl text-lg shadow-lg transform hover:scale-105 transition-all duration-200"
-                >
-                  💼 成為夥伴
-                </button>
+                {!isPartner && (
+                  <button
+                    onClick={() => router.push('/join')}
+                    className="bg-white text-blue-600 hover:bg-blue-50 border-2 border-blue-600 font-bold py-4 px-8 rounded-xl text-lg shadow-lg transform hover:scale-105 transition-all duration-200"
+                  >
+                    💼 成為夥伴
+                  </button>
+                )}
+                {isPartner && (
+                  <button
+                    onClick={() => router.push('/partner/schedule')}
+                    className="bg-green-600 hover:bg-green-700 text-white font-bold py-4 px-8 rounded-xl text-lg shadow-lg transform hover:scale-105 transition-all duration-200"
+                  >
+                    🎯 夥伴管理
+                  </button>
+                )}
               </div>
             </div>
           )}
@@ -240,12 +290,22 @@ export default function Home() {
             >
               🎮 立即預約
             </button>
-            <button
-              onClick={() => router.push('/join')}
-              className="bg-white text-blue-600 hover:bg-blue-50 border-2 border-blue-600 font-bold py-4 px-8 rounded-xl text-lg shadow-lg transform hover:scale-105 transition-all duration-200"
-            >
-              💼 成為夥伴
-            </button>
+            {!isPartner && (
+              <button
+                onClick={() => router.push('/join')}
+                className="bg-white text-blue-600 hover:bg-blue-50 border-2 border-blue-600 font-bold py-4 px-8 rounded-xl text-lg shadow-lg transform hover:scale-105 transition-all duration-200"
+              >
+                💼 成為夥伴
+              </button>
+            )}
+            {isPartner && (
+              <button
+                onClick={() => router.push('/partner/schedule')}
+                className="bg-green-600 hover:bg-green-700 text-white font-bold py-4 px-8 rounded-xl text-lg shadow-lg transform hover:scale-105 transition-all duration-200"
+              >
+                🎯 夥伴管理
+              </button>
+            )}
           </div>
         </div>
       </div>
