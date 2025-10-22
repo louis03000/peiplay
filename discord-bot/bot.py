@@ -233,7 +233,7 @@ async def check_early_communication_channels(guild, now):
         # 查找已確認但還沒有提前溝通頻道的預約
         bookings = session.execute(text("""
             SELECT b.id, b.customerId, b.scheduleId, b.discordEarlyTextChannelId,
-                   c.name as customer_name, p.name as partner_name, b.isInstantBooking
+                   c.name as customer_name, p.name as partner_name, b."paymentInfo"
             FROM "Booking" b
             JOIN "Customer" c ON b.customerId = c.id
             JOIN "Schedule" s ON b.scheduleId = s.id
@@ -247,13 +247,18 @@ async def check_early_communication_channels(guild, now):
         
         for booking in bookings:
             try:
+                # 判斷是否為即時預約
+                is_instant_booking = False
+                if booking.paymentInfo and isinstance(booking.paymentInfo, dict):
+                    is_instant_booking = booking.paymentInfo.get('isInstantBooking') == 'true'
+                
                 # 創建提前溝通文字頻道
                 channel = create_booking_text_channel(
                     guild, 
                     booking.id, 
                     booking.customer_name, 
                     booking.partner_name,
-                    booking.isInstantBooking
+                    is_instant_booking
                 )
                 
                 if channel:
@@ -294,7 +299,7 @@ async def check_voice_channel_creation(guild, now):
         five_minutes_later = now + timedelta(minutes=5)
         bookings = session.execute(text("""
             SELECT b.id, b.customerId, b.scheduleId, b.discordEarlyTextChannelId, b.discordTextChannelId, b.discordVoiceChannelId,
-                   c.name as customer_name, p.name as partner_name, s.startTime, b.isInstantBooking
+                   c.name as customer_name, p.name as partner_name, s.startTime, b."paymentInfo"
             FROM "Booking" b
             JOIN "Customer" c ON b.customerId = c.id
             JOIN "Schedule" s ON b.scheduleId = s.id
@@ -573,7 +578,7 @@ async def check_new_bookings():
         
         # 查找已確認但還沒有 Discord 頻道的新預約
         new_bookings = session.execute(text("""
-            SELECT b.id, b.customerId, b.scheduleId, b.isInstantBooking, b.discordDelayMinutes,
+            SELECT b.id, b.customerId, b.scheduleId, b."paymentInfo", b.discordDelayMinutes,
                    c.name as customer_name, p.name as partner_name, s.startTime
             FROM "Booking" b
             JOIN "Customer" c ON b.customerId = c.id
@@ -588,13 +593,18 @@ async def check_new_bookings():
         
         for booking in new_bookings:
             try:
+                # 判斷是否為即時預約
+                is_instant_booking = False
+                if booking.paymentInfo and isinstance(booking.paymentInfo, dict):
+                    is_instant_booking = booking.paymentInfo.get('isInstantBooking') == 'true'
+                
                 # 創建提前溝通文字頻道
                 channel = create_booking_text_channel(
                     guild, 
                     booking.id, 
                     booking.customer_name, 
                     booking.partner_name,
-                    booking.isInstantBooking
+                    is_instant_booking
                 )
                 
                 if channel:
@@ -644,13 +654,13 @@ async def check_instant_bookings_for_voice_channel():
         now = datetime.now(timezone.utc)
         instant_bookings = session.execute(text("""
             SELECT b.id, b.customerId, b.scheduleId, b.discordEarlyTextChannelId, b.discordVoiceChannelId,
-                   c.name as customer_name, p.name as partner_name, s.startTime
+                   c.name as customer_name, p.name as partner_name, s.startTime, b."paymentInfo"
             FROM "Booking" b
             JOIN "Customer" c ON b.customerId = c.id
             JOIN "Schedule" s ON b.scheduleId = s.id
             JOIN "Partner" p ON s.partnerId = p.id
             WHERE b.status = 'CONFIRMED' 
-            AND b.isInstantBooking = true
+            AND b."paymentInfo"->>'isInstantBooking' = 'true'
             AND b.discordEarlyTextChannelId IS NOT NULL
             AND b.discordVoiceChannelId IS NULL
             AND s.startTime <= :now
@@ -1280,7 +1290,10 @@ async def debug_booking(interaction: discord.Interaction, booking_id: str):
             embed.add_field(name="Discord 頻道", value="\n".join(discord_info), inline=False)
         
         # 其他信息
-        embed.add_field(name="即時預約", value="是" if booking_info.isInstantBooking else "否", inline=True)
+        is_instant_booking = False
+        if booking_info.paymentInfo and isinstance(booking_info.paymentInfo, dict):
+            is_instant_booking = booking_info.paymentInfo.get('isInstantBooking') == 'true'
+        embed.add_field(name="即時預約", value="是" if is_instant_booking else "否", inline=True)
         embed.add_field(name="延長按鈕", value="已顯示" if booking_info.extensionButtonShown else "未顯示", inline=True)
         embed.add_field(name="評價完成", value="是" if booking_info.ratingCompleted else "否", inline=True)
         
