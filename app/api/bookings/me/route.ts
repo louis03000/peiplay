@@ -15,6 +15,9 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // 測試資料庫連接
+    await prisma.$connect()
+
     // 如果沒有角色信息，從數據庫查詢
     if (!role) {
       const user = await prisma.user.findUnique({ where: { id: userId } });
@@ -68,6 +71,24 @@ export async function GET() {
     return NextResponse.json({ bookings });
   } catch (err) {
     console.error('GET /api/bookings/me error:', err);
-    return NextResponse.json({ error: (err instanceof Error ? err.message : 'Internal Server Error') }, { status: 500 });
+    
+    // 如果是資料庫連接錯誤，返回更友好的錯誤信息
+    if (err instanceof Error && err.message.includes('connect')) {
+      return NextResponse.json({ 
+        error: '資料庫連接失敗，請稍後再試',
+        bookings: []
+      }, { status: 503 })
+    }
+    
+    return NextResponse.json({ 
+      error: (err instanceof Error ? err.message : 'Internal Server Error'),
+      bookings: []
+    }, { status: 500 });
+  } finally {
+    try {
+      await prisma.$disconnect()
+    } catch (disconnectError) {
+      console.error('Database disconnect error:', disconnectError)
+    }
   }
 } 

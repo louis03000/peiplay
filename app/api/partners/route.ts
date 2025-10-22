@@ -7,6 +7,9 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(request: Request) {
   try {
+    // 測試資料庫連接
+    await prisma.$connect()
+    
     const session = await getServerSession(authOptions);
     console.log('session.user.id', session?.user?.id);
     const user = session?.user?.id ? await prisma.user.findUnique({ where: { id: session.user.id } }) : null;
@@ -177,7 +180,25 @@ export async function GET(request: Request) {
     return NextResponse.json(partnersWithSchedules);
   } catch (error) {
     console.error("Error fetching partners:", error);
-    return NextResponse.json({ error: "Error fetching partners" }, { status: 500 });
+    
+    // 如果是資料庫連接錯誤，返回更友好的錯誤信息
+    if (error instanceof Error && error.message.includes('connect')) {
+      return NextResponse.json({ 
+        error: '資料庫連接失敗，請稍後再試',
+        partners: []
+      }, { status: 503 })
+    }
+    
+    return NextResponse.json({ 
+      error: "Error fetching partners",
+      partners: []
+    }, { status: 500 });
+  } finally {
+    try {
+      await prisma.$disconnect()
+    } catch (disconnectError) {
+      console.error('Database disconnect error:', disconnectError)
+    }
   }
 }
 
