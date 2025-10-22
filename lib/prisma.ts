@@ -1,9 +1,11 @@
 import { PrismaClient } from '@prisma/client'
+import { getDatabaseConnection } from './db-connection'
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined
 }
 
+// 使用新的連接管理系統
 export const prisma =
   globalForPrisma.prisma ??
   new PrismaClient({
@@ -15,4 +17,7 @@ export const prisma =
     },
   })
 
-if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma 
+if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
+
+// 導出新的連接管理函數
+export { getDatabaseConnection, checkDatabaseHealth, getDatabaseStats } from './db-connection' 
