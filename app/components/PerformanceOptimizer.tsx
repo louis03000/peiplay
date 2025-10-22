@@ -1,7 +1,35 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback, useMemo, memo } from 'react'
-import { debounce, throttle } from 'lodash'
+
+// 自定義防抖函數
+function debounce<T extends (...args: any[]) => any>(
+  func: T,
+  wait: number
+): (...args: Parameters<T>) => void {
+  let timeout: NodeJS.Timeout | null = null
+  
+  return (...args: Parameters<T>) => {
+    if (timeout) clearTimeout(timeout)
+    timeout = setTimeout(() => func(...args), wait)
+  }
+}
+
+// 自定義節流函數
+function throttle<T extends (...args: any[]) => any>(
+  func: T,
+  limit: number
+): (...args: Parameters<T>) => void {
+  let inThrottle: boolean = false
+  
+  return (...args: Parameters<T>) => {
+    if (!inThrottle) {
+      func(...args)
+      inThrottle = true
+      setTimeout(() => inThrottle = false, limit)
+    }
+  }
+}
 
 // 性能監控 Hook
 export function usePerformanceMonitor(componentName: string) {
