@@ -10,8 +10,7 @@ const nextConfig = {
       bodySizeLimit: '10mb'
     },
     // 啟用性能優化
-    optimizeCss: true,
-    optimizePackageImports: ['lodash', 'react-icons'],
+    optimizePackageImports: ['react-icons'],
   },
   eslint: {
     ignoreDuringBuilds: true,
