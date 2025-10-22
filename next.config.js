@@ -9,17 +9,34 @@ const nextConfig = {
     serverActions: {
       bodySizeLimit: '10mb'
     },
+    // 啟用性能優化
+    optimizeCss: true,
+    optimizePackageImports: ['lodash', 'react-icons'],
   },
   eslint: {
     ignoreDuringBuilds: true,
   },
+  // 編譯優化
+  compiler: {
+    removeConsole: process.env.NODE_ENV === 'production',
+  },
+  // 圖片優化
   images: {
     domains: ['placehold.co', 'res.cloudinary.com'],
     // 加強圖片安全
     dangerouslyAllowSVG: false,
     contentDispositionType: 'attachment',
     contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
+    // 性能優化
+    formats: ['image/webp', 'image/avif'],
+    minimumCacheTTL: 60,
+    deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
+    imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
   },
+  // 壓縮優化
+  compress: true,
+  // 生產環境優化
+  swcMinify: true,
   // 安全標頭
   async headers() {
     return [

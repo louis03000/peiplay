@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, memo, useMemo } from 'react'
 import SecureImage from './SecureImage'
 import { FaBolt, FaCrown, FaMedal, FaTrophy, FaComments, FaHeart, FaStar, FaQuoteLeft, FaQuoteRight } from 'react-icons/fa'
 
@@ -27,7 +27,7 @@ interface PartnerCardProps {
   onFlip?: () => void
 }
 
-export default function PartnerCard({ partner, onQuickBook, showNextStep = false, flipped = false, onFlip }: PartnerCardProps) {
+const PartnerCard = memo(function PartnerCard({ partner, onQuickBook, showNextStep = false, flipped = false, onFlip }: PartnerCardProps) {
   const [imageError, setImageError] = useState(false)
   const [imageLoaded, setImageLoaded] = useState(false)
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
@@ -52,9 +52,19 @@ export default function PartnerCard({ partner, onQuickBook, showNextStep = false
     }
   }, [partner.images])
 
-  const currentImage = partner.images && partner.images.length > 0 
-    ? partner.images[currentImageIndex] 
-    : partner.coverImage
+  // 性能優化：使用 useMemo 緩存計算結果
+  const availableSchedules = useMemo(() => {
+    return partner.schedules?.filter(schedule => schedule.isAvailable) || []
+  }, [partner.schedules])
+
+  const hasMultipleImages = useMemo(() => {
+    return partner.images && partner.images.length > 1
+  }, [partner.images])
+
+  const currentImage = useMemo(() => {
+    if (!partner.images || partner.images.length === 0) return partner.coverImage
+    return partner.images[currentImageIndex] || partner.coverImage
+  }, [partner.images, currentImageIndex, partner.coverImage])
 
   const handleCardClick = useCallback((e: React.MouseEvent) => {
     // 移除 e.preventDefault() 和 e.stopPropagation()，讓事件可以冒泡
@@ -306,4 +316,6 @@ export default function PartnerCard({ partner, onQuickBook, showNextStep = false
       )}
     </div>
   )
-} 
+})
+
+export default PartnerCard 
