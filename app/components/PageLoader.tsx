@@ -163,11 +163,11 @@ export function SmartLoader({
 }) {
   switch (type) {
     case 'skeleton':
-      return <SkeletonLoader {...props}>{children}</SkeletonLoader>
+      return <SkeletonLoader {...props} />
     case 'fade':
       return <FadeLoader {...props}>{children}</FadeLoader>
     case 'progress':
-      return <ProgressLoader {...props}>{children}</ProgressLoader>
+      return <ProgressLoader {...props} />
     default:
       return <PageLoader {...props}>{children}</PageLoader>
   }
