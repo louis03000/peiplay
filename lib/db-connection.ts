@@ -63,22 +63,6 @@ class DatabaseConnectionManager {
           url: process.env.DATABASE_URL,
         },
       },
-      // 連接池配置
-      __internal: {
-        engine: {
-          connectTimeout: CONNECTION_POOL_CONFIG.connectionTimeout,
-          pool: {
-            max: CONNECTION_POOL_CONFIG.maxConnections,
-            min: CONNECTION_POOL_CONFIG.minConnections,
-            acquireTimeoutMillis: CONNECTION_POOL_CONFIG.connectionTimeout,
-            createTimeoutMillis: CONNECTION_POOL_CONFIG.connectionTimeout,
-            destroyTimeoutMillis: CONNECTION_POOL_CONFIG.connectionTimeout,
-            idleTimeoutMillis: CONNECTION_POOL_CONFIG.idleTimeout,
-            reapIntervalMillis: 1000,
-            createRetryIntervalMillis: 200,
-          },
-        },
-      },
     })
 
     // 測試連接
