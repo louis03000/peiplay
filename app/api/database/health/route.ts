@@ -152,7 +152,13 @@ async function runBasicTests() {
   // 測試 3: 關聯查詢
   const start3 = performance.now()
   await prisma.user.findMany({
-    include: { bookings: true },
+    include: { 
+      customer: {
+        include: {
+          bookings: true
+        }
+      }
+    },
     take: 5
   })
   const time3 = performance.now() - start3
