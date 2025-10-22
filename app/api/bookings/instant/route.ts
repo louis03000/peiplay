@@ -38,16 +38,24 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '夥伴不存在' }, { status: 404 })
     }
 
-    // 獲取客戶資訊
-    const customer = await prisma.customer.findUnique({
+    // 獲取或創建客戶資訊
+    let customer = await prisma.customer.findUnique({
       where: { userId: session.user.id },
       include: { user: true }
     })
 
     if (!customer) {
-      console.error('客戶資料不存在:', { userId: session.user.id })
-      await prisma.$disconnect()
-      return NextResponse.json({ error: '客戶資料不存在，請先完成個人資料設定' }, { status: 404 })
+      console.log('客戶資料不存在，自動創建客戶記錄:', { userId: session.user.id })
+      // 自動創建客戶記錄
+      customer = await prisma.customer.create({
+        data: {
+          userId: session.user.id,
+          name: session.user.name || '客戶',
+          birthday: new Date('1990-01-01'), // 預設生日
+          phone: '0000000000' // 預設電話
+        },
+        include: { user: true }
+      })
     }
 
     // 計算預約開始時間（現在）
