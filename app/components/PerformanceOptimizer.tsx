@@ -87,7 +87,7 @@ export function useDebounce<T>(value: T, delay: number): T {
 export function useThrottle<T extends (...args: any[]) => any>(
   callback: T,
   delay: number
-): T {
+): ((...args: Parameters<T>) => void) & { cancel: () => void } {
   const throttledCallback = useMemo(
     () => throttle(callback, delay),
     [callback, delay]
