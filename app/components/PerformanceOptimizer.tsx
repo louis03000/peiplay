@@ -19,16 +19,27 @@ function debounce<T extends (...args: any[]) => any>(
 function throttle<T extends (...args: any[]) => any>(
   func: T,
   limit: number
-): (...args: Parameters<T>) => void {
+): ((...args: Parameters<T>) => void) & { cancel: () => void } {
   let inThrottle: boolean = false
+  let timeoutId: NodeJS.Timeout | null = null
   
-  return (...args: Parameters<T>) => {
+  const throttled = (...args: Parameters<T>) => {
     if (!inThrottle) {
       func(...args)
       inThrottle = true
-      setTimeout(() => inThrottle = false, limit)
+      timeoutId = setTimeout(() => inThrottle = false, limit)
     }
   }
+  
+  throttled.cancel = () => {
+    if (timeoutId) {
+      clearTimeout(timeoutId)
+      timeoutId = null
+    }
+    inThrottle = false
+  }
+  
+  return throttled
 }
 
 // 性能監控 Hook
@@ -446,4 +457,5 @@ export function OptimizedList<T>({
       ))}
     </div>
   )
+}
 }
