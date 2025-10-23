@@ -29,6 +29,8 @@ export default function Navbar() {
               setHasPartner(false)
               setIsPartner(false)
             }
+            // 成功時立即停止載入
+            setPartnerLoading(false)
           } else if (res.status === 503 && retryCount < 2) {
             // 如果是資料庫連接錯誤，等待後重試
             console.warn(`夥伴狀態檢查失敗 (${res.status})，${retryCount + 1}秒後重試...`)
@@ -40,6 +42,7 @@ export default function Navbar() {
             console.warn('夥伴狀態檢查失敗:', res.status)
             setHasPartner(false)
             setIsPartner(false)
+            setPartnerLoading(false)
           }
         } catch (error) {
           console.error('檢查夥伴狀態失敗:', error)
@@ -52,10 +55,7 @@ export default function Navbar() {
           }
           setHasPartner(false)
           setIsPartner(false)
-        } finally {
-          if (retryCount >= 2) {
-            setPartnerLoading(false)
-          }
+          setPartnerLoading(false)
         }
       }
       
