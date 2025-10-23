@@ -7,6 +7,9 @@ import { prisma } from '@/lib/prisma'
 export const dynamic = 'force-dynamic';
 export async function GET(request: NextRequest) {
   try {
+    // 測試資料庫連接
+    await prisma.$connect()
+    
     const session = await getServerSession(authOptions)
     if (!session?.user?.id) {
       return NextResponse.json({ error: '請先登入' }, { status: 401 })
@@ -44,6 +47,24 @@ export async function GET(request: NextRequest) {
 
   } catch (error) {
     console.error('獲取提領歷史時發生錯誤:', error)
-    return NextResponse.json({ error: '獲取提領歷史失敗' }, { status: 500 })
+    
+    // 如果是資料庫連接錯誤，返回更友好的錯誤信息
+    if (error instanceof Error && error.message.includes('connect')) {
+      return NextResponse.json({ 
+        error: '資料庫連接失敗，請稍後再試',
+        withdrawals: []
+      }, { status: 503 })
+    }
+    
+    return NextResponse.json({ 
+      error: '獲取提領歷史失敗',
+      withdrawals: []
+    }, { status: 500 })
+  } finally {
+    try {
+      await prisma.$disconnect()
+    } catch (disconnectError) {
+      console.error('Database disconnect error:', disconnectError)
+    }
   }
 }

@@ -8,6 +8,9 @@ export const dynamic = 'force-dynamic';
 // 獲取夥伴的群組預約
 export async function GET() {
   try {
+    // 測試資料庫連接
+    await prisma.$connect()
+    
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -41,7 +44,25 @@ export async function GET() {
 
   } catch (error) {
     console.error('Error fetching partner groups:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    
+    // 如果是資料庫連接錯誤，返回更友好的錯誤信息
+    if (error instanceof Error && error.message.includes('connect')) {
+      return NextResponse.json({ 
+        error: '資料庫連接失敗，請稍後再試',
+        groups: []
+      }, { status: 503 })
+    }
+    
+    return NextResponse.json({ 
+      error: 'Internal Server Error',
+      groups: []
+    }, { status: 500 });
+  } finally {
+    try {
+      await prisma.$disconnect()
+    } catch (disconnectError) {
+      console.error('Database disconnect error:', disconnectError)
+    }
   }
 }
 
