@@ -86,5 +86,11 @@ export async function GET() {
       schedules: [],
       groups: []
     }, { status: 500 })
+  } finally {
+    try {
+      await prisma.$disconnect()
+    } catch (disconnectError) {
+      console.error('Database disconnect error:', disconnectError)
+    }
   }
 }

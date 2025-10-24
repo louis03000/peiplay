@@ -15,8 +15,7 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // 測試資料庫連接
-    await prisma.$connect()
+    // 資料庫連接由 Prisma 自動管理
 
     // 如果沒有角色信息，從數據庫查詢
     if (!role) {
