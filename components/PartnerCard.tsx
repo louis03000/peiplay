@@ -1,6 +1,5 @@
 'use client'
 
-<<<<<<< HEAD
 import { useState, useCallback, memo, useMemo } from 'react'
 import SecureImage from './SecureImage'
 import { FaBolt, FaCrown, FaMedal, FaTrophy, FaComments, FaHeart, FaStar, FaQuoteLeft, FaQuoteRight } from 'react-icons/fa'
@@ -19,10 +18,6 @@ interface Partner {
   averageRating?: number
   totalReviews?: number
 }
-=======
-import { useState } from 'react'
-import { Partner } from '@/app/partners/page'
->>>>>>> 2723628dad138cdde67a84ff04e55b6cc76544e5
 
 interface PartnerCardProps {
   partner: Partner
@@ -32,19 +27,10 @@ interface PartnerCardProps {
   onFlip?: () => void
 }
 
-<<<<<<< HEAD
 const PartnerCard = memo(function PartnerCard({ partner, onQuickBook, showNextStep = false, flipped = false, onFlip }: PartnerCardProps) {
-=======
-export default function PartnerCard({ 
-  partner, 
-  onQuickBook, 
-  showNextStep = false,
-  flipped = false,
-  onFlip 
-}: PartnerCardProps) {
->>>>>>> 2723628dad138cdde67a84ff04e55b6cc76544e5
   const [imageError, setImageError] = useState(false)
   const [isHovered, setIsHovered] = useState(false)
+  const [currentImageIndex, setCurrentImageIndex] = useState(0)
 
   const handleImageError = () => {
     setImageError(true)
@@ -61,12 +47,18 @@ export default function PartnerCard({
       'LOL': '⚔️',
       'APEX': '🚀'
     }
-<<<<<<< HEAD
-  }, [partner.images])
+    return gameIcons[game] || '🎮'
+  }
 
   const handlePrevImage = useCallback(() => {
     if (partner.images && partner.images.length > 1) {
       setCurrentImageIndex((prev) => (prev - 1 + partner.images!.length) % partner.images!.length)
+    }
+  }, [partner.images])
+
+  const handleNextImage = useCallback(() => {
+    if (partner.images && partner.images.length > 1) {
+      setCurrentImageIndex((prev) => (prev + 1) % partner.images!.length)
     }
   }, [partner.images])
 
@@ -75,313 +67,223 @@ export default function PartnerCard({
     return partner.schedules?.filter(schedule => schedule.isAvailable) || []
   }, [partner.schedules])
 
-  const hasMultipleImages = useMemo(() => {
-    return partner.images && partner.images.length > 1
-  }, [partner.images])
-
-  const currentImage = useMemo(() => {
-    if (!partner.images || partner.images.length === 0) return partner.coverImage
-    return partner.images[currentImageIndex] || partner.coverImage
-  }, [partner.images, currentImageIndex, partner.coverImage])
-
-  const handleCardClick = useCallback((e: React.MouseEvent) => {
-    // 移除 e.preventDefault() 和 e.stopPropagation()，讓事件可以冒泡
+  const handleFlip = useCallback(() => {
     if (onFlip) {
-      onFlip();
+      onFlip()
     }
-  }, [onFlip]);
-=======
-    return gameIcons[game] || '🎮'
-  }
->>>>>>> 2723628dad138cdde67a84ff04e55b6cc76544e5
+  }, [onFlip])
 
   return (
     <div 
       className={`relative w-full transition-all duration-700 transform ${
         flipped ? 'rotate-y-180' : ''
-      }`} 
-      style={{ perspective: '1000px' }}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
+      }`}
+      style={{ transformStyle: 'preserve-3d' }}
     >
       {/* 正面 */}
-      <div className={`absolute inset-0 w-full h-full transition-all duration-700 ${
-        flipped ? 'rotate-y-180 opacity-0' : 'opacity-100'
-      }`}>
-        <div className={`group h-full rounded-3xl overflow-hidden transition-all duration-700 transform ${
-          isHovered ? '-translate-y-6 scale-105' : ''
-        }`} 
-             style={{
-               backgroundColor: 'white', 
-               boxShadow: isHovered 
-                 ? '0 24px 80px rgba(0, 0, 0, 0.2)' 
-                 : '0 16px 64px rgba(0, 0, 0, 0.1)'
-             }}>
-          
-          {/* 封面圖片區域 */}
-          <div className="relative h-80 overflow-hidden">
-            {partner.coverImage && !imageError ? (
-              <img
-                src={partner.coverImage}
-                alt={`${partner.name} 的封面`}
-                className={`w-full h-full object-cover transition-all duration-700 ${
-                  isHovered ? 'scale-110' : 'scale-100'
-                }`}
+      <div className={`w-full ${flipped ? 'hidden' : 'block'}`}>
+        <div className="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow duration-300">
+          {/* 圖片區域 */}
+          <div className="relative h-48 overflow-hidden">
+            {partner.images && partner.images.length > 0 ? (
+              <SecureImage
+                src={partner.images[currentImageIndex]}
+                alt={partner.name}
+                fill
+                className="object-cover"
                 onError={handleImageError}
               />
             ) : (
-              <div className="w-full h-full flex items-center justify-center relative" 
-                   style={{background: 'linear-gradient(135deg, #1A73E8 0%, #5C7AD6 100%)'}}>
-                <div className="text-center">
-                  <div className={`text-9xl mb-6 transition-all duration-700 ${
-                    isHovered ? 'scale-125 rotate-12' : ''
-                  }`}>🎮</div>
-                  <div className="text-white text-2xl font-black">{partner.name}</div>
-                </div>
-                {/* 動態背景裝飾 */}
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white to-transparent opacity-10 animate-pulse"></div>
+              <div className="w-full h-full bg-gray-200 flex items-center justify-center">
+                <span className="text-gray-400 text-lg">無圖片</span>
               </div>
             )}
             
+            {/* 圖片切換按鈕 */}
+            {partner.images && partner.images.length > 1 && (
+              <div className="absolute inset-0 flex items-center justify-between p-2 opacity-0 hover:opacity-100 transition-opacity">
+                <button
+                  onClick={handlePrevImage}
+                  className="bg-black bg-opacity-50 text-white p-2 rounded-full hover:bg-opacity-70 transition-all"
+                >
+                  ←
+                </button>
+                <button
+                  onClick={handleNextImage}
+                  className="bg-black bg-opacity-50 text-white p-2 rounded-full hover:bg-opacity-70 transition-all"
+                >
+                  →
+                </button>
+              </div>
+            )}
+
             {/* 狀態標籤 */}
-            <div className="absolute top-6 left-6 flex gap-3">
+            <div className="absolute top-2 left-2 flex flex-col gap-1">
               {partner.isAvailableNow && (
-                <div className={`px-5 py-3 rounded-2xl text-lg font-black bg-green-500 text-white shadow-xl transition-all duration-500 ${
-                  isHovered ? 'scale-110' : ''
-                }`}>
-                  <span className="animate-pulse">●</span> 即時可用
-                </div>
+                <span className="bg-green-500 text-white px-2 py-1 rounded-full text-xs font-bold flex items-center gap-1">
+                  <FaBolt className="text-yellow-300" />
+                  現在有空
+                </span>
               )}
               {partner.isRankBooster && (
-                <div className={`px-5 py-3 rounded-2xl text-lg font-black bg-yellow-500 text-white shadow-xl transition-all duration-500 ${
-                  isHovered ? 'scale-110' : ''
-                }`}>
-                  🏆 排名提升
-                </div>
+                <span className="bg-purple-500 text-white px-2 py-1 rounded-full text-xs font-bold flex items-center gap-1">
+                  <FaCrown className="text-yellow-300" />
+                  上分高手
+                </span>
               )}
             </div>
 
-            {/* 翻轉按鈕 */}
-            {onFlip && (
-              <button
-                onClick={onFlip}
-                className={`absolute top-6 right-6 w-14 h-14 rounded-2xl bg-white bg-opacity-90 hover:bg-opacity-100 transition-all duration-500 flex items-center justify-center shadow-xl ${
-                  isHovered ? 'scale-110 rotate-12' : 'hover:scale-110'
-                }`}
-              >
-                <span className="text-2xl animate-spin">🔄</span>
-              </button>
+            {/* 評分 */}
+            {partner.averageRating && partner.averageRating > 0 && (
+              <div className="absolute top-2 right-2 bg-black bg-opacity-70 text-white px-2 py-1 rounded-full text-xs flex items-center gap-1">
+                <FaStar className="text-yellow-400" />
+                {partner.averageRating.toFixed(1)}
+                {partner.totalReviews && ` (${partner.totalReviews})`}
+              </div>
             )}
-
-            {/* 懸停效果覆蓋層 */}
-            <div className={`absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent transition-opacity duration-500 ${
-              isHovered ? 'opacity-30' : 'opacity-0'
-            }`}></div>
           </div>
 
           {/* 內容區域 */}
-          <div className="p-10">
-            {/* 姓名和基本資訊 */}
-            <div className="mb-8">
-              <h3 className={`text-4xl font-black mb-4 transition-all duration-500 ${
-                isHovered ? 'text-#1A73E8' : ''
-              }`} style={{color: '#333140'}}>
-                {partner.name}
-              </h3>
-              <div className="flex items-center gap-4 mb-6">
-                <span className="text-yellow-400 text-2xl animate-pulse">⭐</span>
-                <span className="text-2xl font-black" style={{color: '#333140'}}>4.8</span>
-                <span className="text-lg font-bold" style={{color: '#333140', opacity: 0.7}}>(128 評價)</span>
-              </div>
-            </div>
-
+          <div className="p-4">
+            <h3 className="text-lg font-bold text-gray-900 mb-2">{partner.name}</h3>
+            
             {/* 遊戲標籤 */}
-            <div className="mb-10">
-              <div className="flex flex-wrap gap-3">
-                {partner.games.slice(0, 3).map((game, index) => (
-                  <div key={index} className={`flex items-center gap-2 px-5 py-3 rounded-2xl text-lg font-bold transition-all duration-500 ${
-                    isHovered ? 'scale-105' : ''
-                  }`} 
-                       style={{backgroundColor: '#E4E7EB', color: '#333140'}}>
-                    <span className={`transition-transform duration-500 ${
-                      isHovered ? 'scale-125' : ''
-                    }`}>{getGameIcon(game)}</span>
-                    <span>{game}</span>
-                  </div>
-                ))}
-                {partner.games.length > 3 && (
-                  <div className={`px-5 py-3 rounded-2xl text-lg font-bold transition-all duration-500 ${
-                    isHovered ? 'scale-105' : ''
-                  }`} 
-                       style={{backgroundColor: '#E4E7EB', color: '#333140'}}>
-                    +{partner.games.length - 3}
-                  </div>
-                )}
-              </div>
+            <div className="flex flex-wrap gap-1 mb-3">
+              {partner.games.slice(0, 3).map((game, index) => (
+                <span
+                  key={index}
+                  className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs font-medium"
+                >
+                  {getGameIcon(game)} {game}
+                </span>
+              ))}
+              {partner.games.length > 3 && (
+                <span className="bg-gray-100 text-gray-600 px-2 py-1 rounded-full text-xs">
+                  +{partner.games.length - 3}
+                </span>
+              )}
             </div>
 
-            {/* 價格和行動按鈕 */}
-            <div className="flex items-center justify-between">
-              <div>
-                <div className={`text-5xl font-black transition-all duration-500 ${
-                  isHovered ? 'scale-110' : ''
-                }`} style={{color: '#1A73E8'}}>
-                  ${partner.halfHourlyRate}
-                </div>
-                <div className="text-lg font-bold" style={{color: '#333140', opacity: 0.7}}>
-                  每半小時
+            {/* 價格 */}
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-2xl font-bold text-green-600">
+                ${partner.halfHourlyRate}/30分鐘
+              </span>
+              {partner.isAvailableNow && (
+                <span className="text-green-600 text-sm font-medium">即時預約</span>
+              )}
+            </div>
+
+            {/* 客戶留言 */}
+            {partner.customerMessage && (
+              <div className="bg-gray-50 p-3 rounded-lg mb-3">
+                <div className="flex items-start gap-2">
+                  <FaQuoteLeft className="text-gray-400 text-sm mt-1" />
+                  <p className="text-gray-700 text-sm italic">{partner.customerMessage}</p>
+                  <FaQuoteRight className="text-gray-400 text-sm mt-1" />
                 </div>
               </div>
+            )}
+
+            {/* 按鈕區域 */}
+            <div className="flex gap-2">
+              {partner.isAvailableNow && onQuickBook && (
+                <button
+                  onClick={() => onQuickBook(partner.id)}
+                  className="flex-1 bg-green-500 hover:bg-green-600 text-white py-2 px-4 rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
+                >
+                  <FaBolt />
+                  立即預約
+                </button>
+              )}
               
-              <div className="flex gap-4">
-                {onQuickBook && (
-                  <button
-                    onClick={() => onQuickBook(partner.id)}
-                    className={`px-8 py-4 rounded-2xl font-black text-lg transition-all duration-500 hover:shadow-xl transform ${
-                      isHovered ? 'scale-105' : 'hover:scale-105'
-                    }`}
-                    style={{
-                      background: 'linear-gradient(135deg, #1A73E8 0%, #5C7AD6 100%)',
-                      color: 'white',
-                      boxShadow: '0 12px 32px rgba(26, 115, 232, 0.4)',
-                      textShadow: '1px 1px 2px rgba(0,0,0,0.3)'
-                    }}
-                  >
-                    快速預約
-                  </button>
-                )}
-                {showNextStep && (
-                  <button
-                    onClick={() => window.location.href = `/booking?partnerId=${partner.id}`}
-                    className={`px-8 py-4 rounded-2xl font-black text-lg border-3 transition-all duration-500 hover:shadow-xl transform ${
-                      isHovered ? 'scale-105' : 'hover:scale-105'
-                    }`}
-                    style={{
-                      backgroundColor: 'transparent',
-                      color: '#1A73E8',
-                      borderColor: '#1A73E8'
-                    }}
-                  >
-                    詳細預約
-                  </button>
-                )}
-              </div>
+              {onFlip && (
+                <button
+                  onClick={handleFlip}
+                  className="bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
+                >
+                  <FaComments />
+                  查看詳情
+                </button>
+              )}
             </div>
           </div>
         </div>
       </div>
 
       {/* 背面 */}
-      <div className={`absolute inset-0 w-full h-full transition-all duration-700 ${
-        flipped ? 'opacity-100' : 'rotate-y-180 opacity-0'
-      }`}>
-        <div className={`h-full rounded-3xl overflow-hidden transition-all duration-700 ${
-          isHovered ? '-translate-y-4' : ''
-        }`} 
-             style={{
-               backgroundColor: 'white', 
-               boxShadow: '0 16px 64px rgba(0, 0, 0, 0.1)'
-             }}>
-          
-          {/* 背面標題 */}
-          <div className="h-24 flex items-center justify-center relative" 
-               style={{background: 'linear-gradient(135deg, #1A73E8 0%, #5C7AD6 100%)'}}>
-            <h3 className="text-3xl font-black text-white">{partner.name}</h3>
-            {/* 動態背景 */}
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white to-transparent opacity-10 animate-pulse"></div>
-          </div>
+      <div className={`w-full ${flipped ? 'block' : 'hidden'}`}>
+        <div className="bg-white rounded-xl shadow-lg overflow-hidden">
+          <div className="p-4">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-gray-900">{partner.name} - 詳細資訊</h3>
+              {onFlip && (
+                <button
+                  onClick={handleFlip}
+                  className="text-gray-500 hover:text-gray-700"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
 
-          {/* 詳細資訊 */}
-          <div className="p-10">
-            {/* 個人訊息 */}
-            {partner.customerMessage && (
-              <div className="mb-10">
-                <h4 className="text-2xl font-black mb-6 flex items-center gap-3" style={{color: '#333140'}}>
-                  <span className="text-3xl">💬</span>
-                  個人訊息
-                </h4>
-                <div className="p-6 rounded-3xl" style={{backgroundColor: '#E4E7EB'}}>
-                  <p className="text-lg leading-relaxed font-medium" style={{color: '#333140', opacity: 0.8}}>
-                    "{partner.customerMessage}"
-                  </p>
+            {/* 時段資訊 */}
+            <div className="mb-4">
+              <h4 className="font-semibold text-gray-700 mb-2">可用時段</h4>
+              {availableSchedules.length > 0 ? (
+                <div className="space-y-1">
+                  {availableSchedules.slice(0, 3).map((schedule) => (
+                    <div key={schedule.id} className="text-sm text-gray-600">
+                      {new Date(schedule.startTime).toLocaleString('zh-TW')} - {new Date(schedule.endTime).toLocaleString('zh-TW')}
+                    </div>
+                  ))}
+                  {availableSchedules.length > 3 && (
+                    <div className="text-sm text-gray-500">
+                      還有 {availableSchedules.length - 3} 個時段...
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <p className="text-gray-500 text-sm">暫無可用時段</p>
+              )}
+            </div>
+
+            {/* 評分詳情 */}
+            {partner.averageRating && partner.averageRating > 0 && (
+              <div className="mb-4">
+                <h4 className="font-semibold text-gray-700 mb-2">評分</h4>
+                <div className="flex items-center gap-2">
+                  <div className="flex">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <FaStar
+                        key={star}
+                        className={`text-sm ${
+                          star <= Math.round(partner.averageRating!)
+                            ? 'text-yellow-400'
+                            : 'text-gray-300'
+                        }`}
+                      />
+                    ))}
+                  </div>
+                  <span className="text-sm text-gray-600">
+                    {partner.averageRating.toFixed(1)} ({partner.totalReviews} 則評價)
+                  </span>
                 </div>
               </div>
             )}
 
-            {/* 所有遊戲 */}
-            <div className="mb-10">
-              <h4 className="text-2xl font-black mb-6 flex items-center gap-3" style={{color: '#333140'}}>
-                <span className="text-3xl">🎮</span>
-                擅長遊戲
-              </h4>
-              <div className="flex flex-wrap gap-3">
-                {partner.games.map((game, index) => (
-                  <div key={index} className={`flex items-center gap-2 px-5 py-3 rounded-2xl text-lg font-bold transition-all duration-500 ${
-                    isHovered ? 'scale-105' : ''
-                  }`} 
-                       style={{backgroundColor: '#E4E7EB', color: '#333140'}}>
-                    <span className={`transition-transform duration-500 ${
-                      isHovered ? 'scale-125' : ''
-                    }`}>{getGameIcon(game)}</span>
-                    <span>{game}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* 可用時段 */}
-            <div className="mb-10">
-              <h4 className="text-2xl font-black mb-6 flex items-center gap-3" style={{color: '#333140'}}>
-                <span className="text-3xl">⏰</span>
-                可用時段
-              </h4>
-              <div className="grid grid-cols-2 gap-4">
-                {partner.schedules.slice(0, 4).map((schedule, index) => (
-                  <div key={index} className={`text-sm p-4 rounded-2xl text-center transition-all duration-500 ${
-                    isHovered ? 'scale-105' : ''
-                  }`} 
-                       style={{backgroundColor: schedule.isAvailable ? '#E8F5E8' : '#FFE8E8', 
-                               color: schedule.isAvailable ? '#2E7D32' : '#D32F2F'}}>
-                    <div className="font-black text-base">
-                      {new Date(schedule.date).toLocaleDateString('zh-TW', { month: 'short', day: 'numeric' })}
-                    </div>
-                    <div className="font-bold">
-                      {new Date(schedule.startTime).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' })}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* 翻回正面按鈕 */}
-            <div className="text-center">
-              <button
-                onClick={onFlip}
-                className={`px-10 py-5 rounded-2xl font-black text-xl transition-all duration-500 hover:shadow-xl transform ${
-                  isHovered ? 'scale-105' : 'hover:scale-105'
-                }`}
-                style={{
-                  background: 'linear-gradient(135deg, #1A73E8 0%, #5C7AD6 100%)',
-                  color: 'white',
-                  boxShadow: '0 12px 32px rgba(26, 115, 232, 0.4)',
-                  textShadow: '1px 1px 2px rgba(0,0,0,0.3)'
-                }}
-              >
-                <span className="flex items-center gap-3">
-                  查看正面
-                  <span className="text-2xl">👀</span>
-                </span>
-              </button>
-            </div>
+            {/* 返回按鈕 */}
+            <button
+              onClick={handleFlip}
+              className="w-full bg-gray-500 hover:bg-gray-600 text-white py-2 px-4 rounded-lg font-medium transition-colors"
+            >
+              返回
+            </button>
           </div>
         </div>
       </div>
     </div>
   )
-<<<<<<< HEAD
 })
 
-export default PartnerCard 
-=======
-}
->>>>>>> 2723628dad138cdde67a84ff04e55b6cc76544e5
+export default PartnerCard

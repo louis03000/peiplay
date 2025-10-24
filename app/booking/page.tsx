@@ -606,13 +606,8 @@ function BookingWizardContent() {
         )}
         {onlyAvailable && step === 1 && selectedPartner && (
           <div>
-<<<<<<< HEAD
             <div className="text-lg text-gray-900 font-bold mb-4">（2）選擇預約時長</div>
             <div className="text-sm text-gray-700 mb-6 text-center">
-=======
-            <div className="text-lg text-white/90 mb-4 text-center">（2）選擇預約時長</div>
-            <div className="text-sm text-gray-600 mb-6 text-center">
->>>>>>> 2723628dad138cdde67a84ff04e55b6cc76544e5
               選擇您想要預約的時長，系統會自動安排最適合的時間
             </div>
             <div className="flex flex-wrap gap-3 justify-center">
@@ -634,11 +629,7 @@ function BookingWizardContent() {
                 </button>
               ))}
             </div>
-<<<<<<< HEAD
-                         <div className="mt-4 text-center text-sm text-gray-900 font-medium">
-=======
-                         <div className="mt-4 text-center text-sm text-gray-600">
->>>>>>> 2723628dad138cdde67a84ff04e55b6cc76544e5
+            <div className="mt-4 text-center text-sm text-gray-900 font-medium">
                費用：${(selectedDuration * selectedPartner.halfHourlyRate * 2).toFixed(0)} (${selectedPartner.halfHourlyRate}/半小時)
              </div>
           </div>
