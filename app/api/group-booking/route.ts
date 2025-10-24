@@ -63,7 +63,7 @@ export async function POST(request: Request) {
           startTime: { lt: end },
           endTime: { gt: start }
         },
-        status: { notIn: ['CANCELLED', 'REJECTED'] }
+        status: { notIn: ['CANCELLED', 'REJECTED'] as any }
       }
     });
 

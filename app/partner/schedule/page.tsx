@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { Switch } from '@headlessui/react';
@@ -53,6 +53,8 @@ export default function PartnerSchedulePage() {
     maxParticipants: 4
   });
   const [myGroups, setMyGroups] = useState<any[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
 
   useEffect(() => {
     setMounted(true);
@@ -77,43 +79,8 @@ export default function PartnerSchedulePage() {
   useEffect(() => {
     if (!mounted) return;
 
-    const updatePartnerStatus = async () => {
-      try {
-        const response = await fetch('/api/partners/self');
-        if (response.ok) {
-          const data = await response.json();
-          setPartnerStatus({
-            id: data.partner.id,
-            isAvailableNow: !!data.partner.isAvailableNow,
-            isRankBooster: !!data.partner.isRankBooster,
-            allowGroupBooking: !!data.partner.allowGroupBooking,
-            availableNowSince: data.partner.availableNowSince
-          });
-        }
-      } catch (error) {
-        console.error('更新夥伴狀態時發生錯誤:', error);
-      }
-    };
-
-    const fetchRankBoosterImages = async () => {
-      try {
-        const response = await fetch('/api/partners/rank-booster-images');
-        if (response.ok) {
-          const data = await response.json();
-          setRankBoosterImages(data.rankBoosterImages || []);
-        }
-      } catch (error) {
-        console.error('獲取段位證明圖片失敗:', error);
-      }
-    };
-
-
     // 每2分鐘更新一次狀態（檢查是否被後台自動關閉）
-    const interval = setInterval(updatePartnerStatus, 2 * 60 * 1000);
-    
-    // 立即更新一次
-    updatePartnerStatus();
-    fetchRankBoosterImages();
+    const interval = setInterval(refreshData, 2 * 60 * 1000);
 
     return () => clearInterval(interval);
   }, [mounted]);
@@ -182,15 +149,17 @@ export default function PartnerSchedulePage() {
       return;
     }
     if (mounted && session?.user?.id) {
-      fetch('/api/partners/self')
+      // 使用新的dashboard API一次性獲取所有數據
+      fetch('/api/partner/dashboard')
         .then(res => {
-          if (!res.ok) throw new Error('Failed to fetch partner status');
+          if (!res.ok) throw new Error('Failed to fetch dashboard data');
           return res.json();
         })
         .then(data => {
           if (data && data.partner) {
             setHasPartner(true);
             setLoading(false);
+            setError(null);
             setPartnerStatus({
               id: data.partner.id,
               isAvailableNow: !!data.partner.isAvailableNow,
@@ -198,46 +167,48 @@ export default function PartnerSchedulePage() {
               allowGroupBooking: !!data.partner.allowGroupBooking,
               availableNowSince: data.partner.availableNowSince
             });
-            fetchSchedules();
-            fetchMyGroups();
+            setRankBoosterImages(data.partner.rankBoosterImages || []);
+            setSchedules(data.schedules || []);
+            setMyGroups(data.groups || []);
           } else {
             router.replace('/profile');
           }
         })
-        .catch(() => router.replace('/profile'));
+        .catch((err) => {
+          console.error('Failed to load dashboard data:', err);
+          setError('載入資料失敗，請稍後再試');
+          setLoading(false);
+          // 自動重試，最多3次
+          if (retryCount < 3) {
+            setTimeout(() => {
+              setRetryCount(prev => prev + 1);
+              setLoading(true);
+            }, 2000);
+          }
+        });
     }
   }, [mounted, status, session, router]);
 
-  const fetchSchedules = async () => {
+  const refreshData = async () => {
     try {
-      const response = await fetch('/api/partner/schedule');
+      const response = await fetch('/api/partner/dashboard');
       if (response.ok) {
         const data = await response.json();
-        console.log('Fetched schedules:', data);
-        console.log('Schedules count:', data.length);
-        if (data.length > 0) {
-          console.log('First schedule:', data[0]);
+        if (data && data.partner) {
+          setPartnerStatus({
+            id: data.partner.id,
+            isAvailableNow: !!data.partner.isAvailableNow,
+            isRankBooster: !!data.partner.isRankBooster,
+            allowGroupBooking: !!data.partner.allowGroupBooking,
+            availableNowSince: data.partner.availableNowSince
+          });
+          setRankBoosterImages(data.partner.rankBoosterImages || []);
+          setSchedules(data.schedules || []);
+          setMyGroups(data.groups || []);
         }
-        setSchedules(data);
-        setPendingAdd({});
-        setPendingDelete({});
-      } else {
-        console.error('Failed to fetch schedules:', response.status, response.statusText);
       }
     } catch (error) {
-      console.error('Error fetching schedules:', error);
-    }
-  };
-
-  const fetchMyGroups = async () => {
-    try {
-      const response = await fetch('/api/partner/groups');
-      if (response.ok) {
-        const data = await response.json();
-        setMyGroups(data);
-      }
-    } catch (error) {
-      console.error('Error fetching my groups:', error);
+      console.error('Error refreshing data:', error);
     }
   };
 
@@ -274,7 +245,7 @@ export default function PartnerSchedulePage() {
           pricePerPerson: 0,
           maxParticipants: 4
         });
-        fetchMyGroups();
+        refreshData();
       } else {
         const error = await response.json();
         alert(error.error || '創建失敗');
@@ -305,27 +276,31 @@ export default function PartnerSchedulePage() {
     }
   };
 
-  // 生成時間軸（30分鐘間隔）
-  const timeSlots = Array.from({ length: 48 }, (_, i) => {
-    const hour = Math.floor(i / 2);
-    const minute = (i % 2) * 30;
-    return `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
-  });
+  // 生成時間軸（30分鐘間隔）- 使用useMemo優化
+  const timeSlots = useMemo(() => 
+    Array.from({ length: 48 }, (_, i) => {
+      const hour = Math.floor(i / 2);
+      const minute = (i % 2) * 30;
+      return `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+    }), []
+  );
 
-  // 生成日期軸
-  const dateSlots = Array.from({ length: 7 }, (_, i) => {
-    const date = new Date(dateRange.start);
-    date.setDate(date.getDate() + i);
-    return date;
-  });
+  // 生成日期軸 - 使用useMemo優化
+  const dateSlots = useMemo(() => 
+    Array.from({ length: 7 }, (_, i) => {
+      const date = new Date(dateRange.start);
+      date.setDate(date.getDate() + i);
+      return date;
+    }), [dateRange.start]
+  );
 
-  // 取得 yyyy-mm-dd（本地時區）
-  function getLocalDateString(date: Date) {
+  // 取得 yyyy-mm-dd（本地時區）- 使用useCallback優化
+  const getLocalDateString = useCallback((date: Date) => {
     return `${date.getFullYear()}-${(date.getMonth()+1).toString().padStart(2,'0')}-${date.getDate().toString().padStart(2,'0')}`;
-  }
+  }, []);
 
-  // 獲取指定日期和時間的時段（本地時區比對）
-  const getScheduleAtTime = (date: Date, timeSlot: string) => {
+  // 獲取指定日期和時間的時段（本地時區比對）- 使用useCallback優化
+  const getScheduleAtTime = useCallback((date: Date, timeSlot: string) => {
     const dateStr = getLocalDateString(date);
     const [hour, minute] = timeSlot.split(':');
     
@@ -348,10 +323,10 @@ export default function PartnerSchedulePage() {
       
       return scheduleStartLocal.getTime() === slotStartLocal.getTime();
     });
-  };
+  }, [schedules, getLocalDateString]);
 
-  // 決定每個 cell 的狀態（本地時區比對）
-  const getCellState = (date: Date, timeSlot: string): CellState => {
+  // 決定每個 cell 的狀態（本地時區比對）- 使用useCallback優化
+  const getCellState = useCallback((date: Date, timeSlot: string): CellState => {
     const now = new Date();
     const [hour, minute] = timeSlot.split(':');
     const timeDate = new Date(date);
@@ -359,16 +334,6 @@ export default function PartnerSchedulePage() {
     if (timeDate.getTime() <= now.getTime()) return 'past';
     const key = `${getLocalDateString(date)}_${timeSlot}`;
     const schedule = getScheduleAtTime(date, timeSlot);
-    
-    // 調試信息
-    if (timeSlot === '00:00' && schedules.length > 0) {
-      console.log('getCellState debug:', {
-        date: getLocalDateString(date),
-        timeSlot,
-        schedule,
-        schedulesCount: schedules.length
-      });
-    }
     
     if (schedule) {
       if (schedule.booked) return 'booked';
@@ -378,7 +343,7 @@ export default function PartnerSchedulePage() {
       if (pendingAdd[key]) return 'toAdd';
       return 'empty';
     }
-  };
+  }, [getLocalDateString, getScheduleAtTime, pendingDelete, pendingAdd]);
 
   // 點擊 cell 的行為
   const handleCellClick = (date: Date, timeSlot: string) => {
@@ -454,7 +419,7 @@ export default function PartnerSchedulePage() {
       // 立即清空 pending 狀態，提升體感速度
       setPendingAdd({});
       setPendingDelete({});
-      await fetchSchedules(); // 先 fetch 最新資料再顯示成功提示
+      await refreshData(); // 先 fetch 最新資料再顯示成功提示
       setShowSuccess(true);
       setTimeout(() => setShowSuccess(false), 3000);
       // 可選：自動滾到頂部
@@ -501,7 +466,9 @@ export default function PartnerSchedulePage() {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
           <div className="text-white text-lg">載入中...</div>
+          <div className="text-gray-300 text-sm mt-2">正在獲取您的時段資料</div>
         </div>
       </div>
     );
@@ -515,6 +482,26 @@ export default function PartnerSchedulePage() {
       </div>
     );
   }
+  if (error && !loading) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="text-center">
+          <div className="text-red-500 text-lg mb-4">{error}</div>
+          <button
+            onClick={() => {
+              setError(null);
+              setLoading(true);
+              setRetryCount(0);
+            }}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            重新載入
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   if (!hasPartner) {
     return (
       <div className="container mx-auto px-4 py-8">

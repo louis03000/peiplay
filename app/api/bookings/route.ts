@@ -72,7 +72,7 @@ export async function POST(request: Request) {
       await tx.booking.deleteMany({
         where: {
           scheduleId: { in: scheduleIds },
-          status: { in: ['CANCELLED', 'REJECTED'] }
+          status: { in: ['CANCELLED', 'REJECTED'] as any }
         }
       });
 

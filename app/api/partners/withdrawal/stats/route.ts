@@ -53,7 +53,7 @@ export async function GET(request: NextRequest) {
       prisma.withdrawalRequest.count({
         where: {
           partnerId: partner.id,
-          status: 'PENDING'
+          status: 'PENDING' as any
         }
       })
     ])
@@ -63,7 +63,7 @@ export async function GET(request: NextRequest) {
       where: {
         partnerId: partner.id,
         status: {
-          in: ['APPROVED', 'COMPLETED']
+          in: ['APPROVED', 'COMPLETED'] as any
         }
       },
       _sum: {

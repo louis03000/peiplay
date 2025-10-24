@@ -169,7 +169,7 @@ export async function POST(request: NextRequest) {
         data: {
           customerId: customer.id,
           scheduleId: tempSchedule.id,
-          status: 'CONFIRMED', // 即時預約直接確認，不需要夥伴再次確認
+          status: 'CONFIRMED' as any, // 即時預約直接確認，不需要夥伴再次確認
           orderNumber: `INST-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`,
           originalAmount: totalCost,
           finalAmount: totalCost,

@@ -99,56 +99,56 @@ async function handleBatchCreate(schedules: any[], userId: string) {
 
 export async function GET(request: Request) {
   try {
-    // 測試資料庫連接
-    await prisma.$connect()
-    
     const session = await getServerSession(authOptions)
     if (!session?.user?.id) {
       return NextResponse.json({ error: '未登入' }, { status: 401 })
     }
-    const partner = await prisma.partner.findUnique({ where: { userId: session.user.id } })
-    if (!partner) return NextResponse.json({ error: '不是夥伴' }, { status: 403 })
     
-    // 簡化查詢，先不包含 bookings
-    const schedules = await prisma.schedule.findMany({
-      where: { partnerId: partner.id },
-      orderBy: { date: 'asc' },
+    // 優化：使用單一查詢獲取partner和schedules
+    const partner = await prisma.partner.findUnique({ 
+      where: { userId: session.user.id },
+      select: {
+        id: true,
+        schedules: {
+          select: {
+            id: true,
+            date: true,
+            startTime: true,
+            endTime: true,
+            isAvailable: true,
+            bookings: {
+              select: {
+                status: true
+              }
+            }
+          },
+          orderBy: { date: 'asc' }
+        }
+      }
     })
     
-    // 簡化結果，暫時設為未預約
-    const result = schedules.map(s => ({
+    if (!partner) return NextResponse.json({ error: '不是夥伴' }, { status: 403 })
+    
+    // 處理結果，判斷是否已預約
+    const result = partner.schedules.map(s => ({
       ...s,
-      booked: false,
+      booked: s.bookings && s.bookings.status && !['CANCELLED', 'REJECTED'].includes(s.bookings.status)
     }))
     
     console.log('[GET /api/partner/schedule]', {
       userId: session.user.id,
       partnerId: partner.id,
-      schedulesLength: schedules.length,
-      schedules: schedules.map(s => ({ id: s.id, date: s.date, startTime: s.startTime, endTime: s.endTime }))
+      schedulesLength: result.length
     })
+    
     return NextResponse.json(result)
   } catch (err) {
     console.error('GET /api/partner/schedule error:', err);
-    
-    // 如果是資料庫連接錯誤，返回更友好的錯誤信息
-    if (err instanceof Error && err.message.includes('connect')) {
-      return NextResponse.json({ 
-        error: '資料庫連接失敗，請稍後再試',
-        schedules: []
-      }, { status: 503 })
-    }
     
     return NextResponse.json({ 
       error: (err instanceof Error ? err.message : 'Internal Server Error'),
       schedules: []
     }, { status: 500 });
-  } finally {
-    try {
-      await prisma.$disconnect()
-    } catch (disconnectError) {
-      console.error('Database disconnect error:', disconnectError)
-    }
   }
 }
 

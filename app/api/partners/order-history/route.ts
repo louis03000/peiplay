@@ -126,9 +126,9 @@ export async function GET(request: NextRequest) {
         schedule: {
           partnerId: partner.id
         },
-        status: {
-          in: ['COMPLETED', 'CONFIRMED']
-        }
+          status: {
+            in: ['COMPLETED', 'CONFIRMED'] as any
+          }
       },
       _sum: {
         finalAmount: true
@@ -231,7 +231,7 @@ export async function DELETE(request: NextRequest) {
         schedule: {
           partnerId: partner.id
         },
-        status: 'COMPLETED',
+        status: 'COMPLETED' as any,
         createdAt: {
           lt: cutoffDate
         }

@@ -191,7 +191,7 @@ export async function POST(request: Request) {
       pricePerPerson,
       startTime: startDateTime,
       endTime: endDateTime,
-      status: 'ACTIVE' as const, // 明確指定為枚舉值
+      status: 'ACTIVE' as any, // 明確指定為枚舉值
       // 這裡可以添加 Discord 頻道相關的欄位
       discordTextChannelId: null,
       discordVoiceChannelId: null
