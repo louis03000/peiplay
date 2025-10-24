@@ -4,10 +4,13 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 
 export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
 export async function GET() {
+  console.log('🚀 Partner dashboard API triggered');
   try {
     const session = await getServerSession(authOptions)
+    console.log('📝 Session check:', session?.user?.id ? 'User logged in' : 'No user session');
     if (!session?.user?.id) {
       return NextResponse.json({ error: '未登入' }, { status: 401 })
     }

@@ -4,10 +4,13 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
 export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
 export async function GET() {
+  console.log('🚀 Bookings API triggered');
   try {
     const session = await getServerSession(authOptions);
+    console.log('📝 Session check:', session?.user?.id ? 'User logged in' : 'No user session');
     let role = session?.user?.role;
     let userId = session?.user?.id;
     
