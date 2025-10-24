@@ -247,9 +247,9 @@ export default function MyBookings({ showCompletedOnly }: MyBookingsProps) {
           </div>
         ) : bookings.length === 0 ? (
           <div className="text-center p-8">
-            <div className="text-gray-400 text-4xl mb-3">📅</div>
-            <p className="text-gray-400">您目前沒有任何預約</p>
-            <p className="text-gray-500 text-sm mt-1">快去預約喜歡的夥伴吧！</p>
+            <div className="text-gray-600 text-4xl mb-3">📅</div>
+            <p className="text-gray-600">您目前沒有任何預約</p>
+            <p className="text-gray-600 text-sm mt-1">快去預約喜歡的夥伴吧！</p>
           </div>
         ) : (
           <>

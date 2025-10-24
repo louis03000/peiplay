@@ -8,6 +8,8 @@ import 'react-datepicker/dist/react-datepicker.css'
 import PartnerCard from '@/components/PartnerCard'
 import { useSearchParams } from 'next/navigation'
 import { useSession } from 'next-auth/react'
+import Link from 'next/link'
+import Navigation from '@/app/components/Navigation'
 
 // 防抖 Hook
 function useDebounce<T>(value: T, delay: number): T {
@@ -425,30 +427,65 @@ function BookingWizardContent() {
   }, [step, selectedPartner, selectedDate, selectedTimes, selectedDuration, onlyAvailable])
 
   return (
-    <div className="max-w-2xl mx-auto mt-16 sm:mt-36 rounded-3xl p-0 shadow-2xl bg-white/95 backdrop-blur-lg border border-gray-200 overflow-hidden">
-      {/* 移除金幣餘額顯示 */}
+    <div className="min-h-screen" style={{backgroundColor: '#E4E7EB'}}>
+      <Navigation />
 
-      {/* 步驟指示器 */}
-      <div className="px-4 sm:px-10 pt-6 sm:pt-10 pb-4 sm:pb-6 bg-gradient-to-r from-blue-50 to-indigo-50">
-        <div className="flex items-center justify-between relative">
-          <div className="absolute top-1/2 left-4 sm:left-6 right-4 sm:right-6 h-1 bg-gray-300 -z-10 rounded-full" style={{transform:'translateY(-50%)'}} />
-          {getSteps(onlyAvailable).map((s, i) => (
-            <div key={s} className="flex-1 flex flex-col items-center">
-              <div className={`w-6 h-6 sm:w-8 sm:h-8 flex items-center justify-center rounded-full border-2 transition-all duration-300 text-xs sm:text-sm
-                ${i < step ? 'bg-blue-600 border-blue-600 text-white shadow-lg' :
-                  i === step ? 'bg-indigo-600 border-indigo-600 text-white shadow-xl scale-110' :
-                  'bg-gray-200 border-gray-400 text-gray-500'}`}>{i+1}</div>
-              <div className={`mt-1 sm:mt-2 text-xs ${i === step ? 'text-indigo-600 font-bold' : 'text-gray-500'}`}>
-                <span className="hidden sm:inline">{s}</span>
-                <span className="sm:hidden">{s.split(' ')[1] || s}</span>
-              </div>
-            </div>
-          ))}
+      {/* Hero Section */}
+      <div className="relative py-16 px-6 overflow-hidden">
+        {/* 背景漸層 */}
+        <div className="absolute inset-0 bg-gradient-to-br from-#1A73E8 via-#5C7AD6 to-#1A73E8 opacity-95"></div>
+        
+        {/* 幾何裝飾元素 */}
+        <div className="absolute top-10 left-10 w-32 h-32 bg-white opacity-10 rounded-full blur-xl"></div>
+        <div className="absolute bottom-10 right-10 w-48 h-48 bg-white opacity-5 rounded-full blur-2xl"></div>
+        
+        <div className="relative z-10 max-w-6xl mx-auto text-center">
+          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold mb-6" style={{color: 'white'}}>
+            預約陪玩服務
+          </h1>
+          <div className="w-24 h-1 mx-auto mb-6" style={{backgroundColor: '#5C7AD6'}}></div>
+          <p className="text-xl max-w-3xl mx-auto" style={{color: 'white', opacity: 0.95}}>
+            選擇專業夥伴，享受優質的遊戲陪玩體驗
+          </p>
         </div>
       </div>
 
-      {/* 步驟內容 */}
-      <div className="min-h-[200px] flex flex-col items-center justify-center px-10 py-12 transition-all duration-300 animate-fadein">
+      <div className="py-8 px-6">
+        <div className="max-w-6xl mx-auto">
+          <div className="rounded-3xl p-8" style={{backgroundColor: 'white', boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)'}}>
+          {/* 步驟指示器 */}
+          <div className="mb-16">
+            <div className="flex items-center justify-between relative">
+              <div className="absolute top-1/2 left-8 right-8 h-2 -z-10 rounded-full" style={{
+                backgroundColor: '#E4E7EB'
+              }} />
+              {getSteps(onlyAvailable).map((s, i) => (
+                <div key={s} className="flex-1 flex flex-col items-center">
+                  <div className={`w-16 h-16 flex items-center justify-center rounded-2xl border-2 transition-all duration-300 text-lg font-bold
+                    ${i < step ? 'shadow-lg' :
+                      i === step ? 'shadow-xl scale-110' :
+                      ''}`}
+                    style={{
+                      background: i <= step ? 'linear-gradient(135deg, #1A73E8 0%, #5C7AD6 100%)' : 'white',
+                      borderColor: i <= step ? '#1A73E8' : '#E4E7EB',
+                      color: i <= step ? 'white' : '#333140'
+                    }}
+                  >
+                    {i+1}
+                  </div>
+                  <div className={`mt-4 text-lg text-center font-medium ${i === step ? 'font-bold' : ''}`} style={{
+                    color: i === step ? '#1A73E8' : '#333140',
+                    opacity: i === step ? 1 : 0.7
+                  }}>
+                    {s}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* 步驟內容 */}
+          <div className="min-h-[400px] transition-all duration-300">
         {step === 0 && (
           <div className="px-4 sm:px-10 pb-10">
             {/* 篩選器和搜尋 - 改為響應式橫向排列 */}
@@ -479,7 +516,7 @@ function BookingWizardContent() {
               
               {/* 搜尋框 - 手機上獨占一行 */}
               <input
-                className="w-full sm:flex-1 px-3 sm:px-4 py-2 rounded-full bg-white text-gray-900 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-gray-500 text-sm sm:text-base shadow-sm"
+                className="w-full sm:flex-1 px-3 sm:px-4 py-2 rounded-full bg-palette-400 text-palette-900 border border-palette-600 focus:outline-none focus:ring-2 focus:ring-palette-700 focus:border-transparent placeholder-palette-600 text-sm sm:text-base shadow-sm"
                 placeholder="搜尋夥伴姓名或專長..."
                 value={search}
                 onChange={e => setSearch(e.target.value)}
@@ -502,13 +539,13 @@ function BookingWizardContent() {
             {loading ? (
               <div className="flex flex-col items-center justify-center py-12">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500 mb-4"></div>
-                <p className="text-gray-400 text-sm">載入夥伴資料中...</p>
+                <p className="text-gray-600 text-sm">載入夥伴資料中...</p>
               </div>
             ) : (
               /* 夥伴卡片網格 - 改善手機版佈局 */
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                 {filteredPartners.length === 0 && (
-                  <div className="col-span-1 sm:col-span-2 text-gray-400 text-center py-8">
+                  <div className="col-span-1 sm:col-span-2 text-gray-600 text-center py-8">
                     {search ? '搜尋無結果' : '查無夥伴'}
                   </div>
                 )}
@@ -539,7 +576,7 @@ function BookingWizardContent() {
         )}
         {!onlyAvailable && step === 1 && selectedPartner && (
           <div>
-            <div className="text-lg text-white/90 mb-4">（2）選擇日期</div>
+            <div className="text-lg text-white/90 mb-4 text-center">（2）選擇日期</div>
             <div className="flex flex-wrap gap-2 justify-center">
               {availableDates.map(ts => {
                   const d = new Date(ts);
@@ -549,10 +586,16 @@ function BookingWizardContent() {
                     <button
                       key={ts}
                       onClick={() => handleDateSelect(d)}
-                      className={`px-4 py-2 rounded-lg border-2 transition-all duration-200 text-sm font-medium
+                      className={`px-4 py-2 rounded-lg transition-all duration-200 text-sm font-medium
                         ${isSelected 
-                          ? 'bg-indigo-500 border-indigo-400 text-white shadow-lg scale-105' 
-                          : 'bg-gray-800/50 border-gray-600 text-gray-300 hover:bg-gray-700/50 hover:border-gray-500'}`}
+                          ? 'shadow-lg scale-105' 
+                          : 'hover:shadow-md'}`}
+                      style={{
+                        backgroundColor: isSelected ? '#1A73E8' : 'white',
+                        color: isSelected ? 'white' : '#333140',
+                        borderColor: '#E4E7EB',
+                        border: '1px solid #E4E7EB'
+                      }}
                     >
                       {label}
                     </button>
@@ -563,8 +606,13 @@ function BookingWizardContent() {
         )}
         {onlyAvailable && step === 1 && selectedPartner && (
           <div>
+<<<<<<< HEAD
             <div className="text-lg text-gray-900 font-bold mb-4">（2）選擇預約時長</div>
             <div className="text-sm text-gray-700 mb-6 text-center">
+=======
+            <div className="text-lg text-white/90 mb-4 text-center">（2）選擇預約時長</div>
+            <div className="text-sm text-gray-600 mb-6 text-center">
+>>>>>>> 2723628dad138cdde67a84ff04e55b6cc76544e5
               選擇您想要預約的時長，系統會自動安排最適合的時間
             </div>
             <div className="flex flex-wrap gap-3 justify-center">
@@ -572,26 +620,35 @@ function BookingWizardContent() {
                 <button
                   key={duration}
                   onClick={() => setSelectedDuration(duration)}
-                  className={`px-4 py-3 rounded-lg border-2 transition-all duration-200 text-sm font-medium
+                  className={`px-4 py-3 border-2 border-black transition-all duration-200 text-sm font-medium
                     ${selectedDuration === duration 
-                      ? 'bg-indigo-500 border-indigo-400 text-white shadow-lg scale-105' 
-                      : 'bg-gray-800/50 border-gray-600 text-gray-300 hover:bg-gray-700/50 hover:border-gray-500'}`}
+                      ? 'bg-black text-white shadow-lg scale-105' 
+                      : 'bg-white text-black hover:bg-gray-100'}`}
+                  style={{
+                    backgroundColor: selectedDuration === duration ? 'black' : 'white',
+                    color: selectedDuration === duration ? 'white' : 'black',
+                    borderColor: 'black'
+                  }}
                 >
                   {duration === 0.5 ? '30分鐘' : duration === 1 ? '1小時' : `${duration}小時`}
                 </button>
               ))}
             </div>
+<<<<<<< HEAD
                          <div className="mt-4 text-center text-sm text-gray-900 font-medium">
+=======
+                         <div className="mt-4 text-center text-sm text-gray-600">
+>>>>>>> 2723628dad138cdde67a84ff04e55b6cc76544e5
                費用：${(selectedDuration * selectedPartner.halfHourlyRate * 2).toFixed(0)} (${selectedPartner.halfHourlyRate}/半小時)
              </div>
           </div>
         )}
         {!onlyAvailable && step === 2 && selectedPartner && selectedDate && (
           <div>
-            <div className="text-lg text-white/90 mb-4">（3）選擇時段</div>
+            <div className="text-lg text-white/90 mb-4 text-center">（3）選擇時段</div>
             <div className="flex flex-wrap gap-2 justify-center">
               {availableTimeSlots.length === 0 ? (
-                <div className="text-gray-400 text-center py-8">
+                <div className="text-gray-600 text-center py-8">
                   該日期沒有可預約的時段
                 </div>
               ) : (
@@ -603,10 +660,16 @@ function BookingWizardContent() {
                     <button
                       key={schedule.id}
                       onClick={() => handleTimeSelect(schedule.id)}
-                      className={`px-4 py-2 rounded-lg border-2 transition-all duration-200 text-sm font-medium
+                      className={`px-4 py-2 rounded-lg transition-all duration-200 text-sm font-medium
                         ${isSelected 
-                          ? 'bg-indigo-500 border-indigo-400 text-white shadow-lg scale-105' 
-                          : 'bg-gray-800/50 border-gray-600 text-gray-300 hover:bg-gray-700/50 hover:border-gray-500'}`}
+                          ? 'shadow-lg scale-105' 
+                          : 'hover:shadow-md'}`}
+                      style={{
+                        backgroundColor: isSelected ? '#00BFA5' : 'white',
+                        color: isSelected ? 'white' : '#333140',
+                        borderColor: '#E4E7EB',
+                        border: '1px solid #E4E7EB'
+                      }}
                     >
                       {startTime} - {endTime}
                     </button>
@@ -618,15 +681,15 @@ function BookingWizardContent() {
         )}
         {((onlyAvailable && step === 2) || (!onlyAvailable && step === 3)) && selectedPartner && (
           <div>
-            <div className="text-lg text-gray-900 mb-4">（3）確認預約</div>
-            <div className="bg-gray-50 rounded-lg p-6 mb-6 border border-gray-200">
+            <div className="text-lg text-gray-900 mb-4 text-center">（3）確認預約</div>
+            <div className="bg-palette-500 rounded-lg p-6 mb-6 border border-palette-600">
               <div className="flex items-center gap-4 mb-4">
-                <div className="w-16 h-16 rounded-full bg-indigo-500 flex items-center justify-center text-white font-bold">
+                <div className="w-16 h-16 rounded-full bg-palette-700 flex items-center justify-center text-white font-bold">
                   {selectedPartner.name.charAt(0)}
                 </div>
                 <div>
                   <h3 className="text-white font-semibold text-lg">{selectedPartner.name}</h3>
-                  <p className="text-gray-400 text-sm">{selectedPartner.games.join(', ')}</p>
+                  <p className="text-gray-600 text-sm">{selectedPartner.games.join(', ')}</p>
                 </div>
               </div>
               
@@ -677,7 +740,7 @@ function BookingWizardContent() {
                     <button
                       onClick={validatePromoCode}
                       disabled={!promoCode.trim() || isValidatingPromoCode}
-                      className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="px-4 py-2 bg-palette-800 text-white rounded hover:bg-palette-900 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {isValidatingPromoCode ? '驗證中...' : '驗證'}
                     </button>
@@ -707,14 +770,24 @@ function BookingWizardContent() {
             <div className="flex gap-4 justify-center">
                 <button
                   onClick={handlePrevStep}
-                  className="px-6 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors shadow-lg"
+                  className="px-8 py-3 rounded-lg font-semibold transition-all duration-200 hover:shadow-lg"
+                  style={{
+                    backgroundColor: 'white',
+                    color: '#333140',
+                    border: '2px solid #E4E7EB'
+                  }}
                 >
                   上一步
                 </button>
                 <button
                   onClick={handleCreateBooking}
                   disabled={creating}
-                  className="px-6 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
+                  className="px-8 py-3 rounded-lg font-semibold transition-all duration-200 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                  style={{
+                    backgroundColor: '#00BFA5',
+                    color: 'white',
+                    boxShadow: '0 4px 20px rgba(0, 191, 165, 0.3)'
+                  }}
                 >
                   {creating ? '處理中...' : '確認預約'}
                 </button>
@@ -724,9 +797,9 @@ function BookingWizardContent() {
                          {/* 付款步驟暫時移除
         {((onlyAvailable && step === 3) || (!onlyAvailable && step === 4)) && (
           <div className="text-center">
-            <div className="text-lg text-white/90 mb-4">（5）付款</div>
+            <div className="text-lg text-white/90 mb-4 text-center">（5）付款</div>
             <div className="text-6xl mb-4">💳</div>
-            <p className="text-gray-400 mb-4">請在新視窗中完成付款</p>
+            <p className="text-gray-600 mb-4">請在新視窗中完成付款</p>
             <div className="bg-yellow-900/30 border border-yellow-500 rounded-lg p-4 mt-4">
               <p className="text-yellow-300 text-sm">
                 ⚠️ 重要：請在新開啟的付款頁面中完成付款，付款完成後預約才會生效。
@@ -745,9 +818,9 @@ function BookingWizardContent() {
         */}
                                    {((onlyAvailable && step === 3) || (!onlyAvailable && step === 4)) && (
            <div className="text-center">
-                           <div className="text-lg text-white/90 mb-4">（4）完成</div>
+                           <div className="text-lg text-white/90 mb-4 text-center">（4）完成</div>
              <div className="text-6xl mb-4">✅</div>
-                           <p className="text-gray-400 mb-4">預約已確認，等待夥伴確認即可。</p>
+                           <p className="text-gray-600 mb-4">預約已確認，等待夥伴確認即可。</p>
               <div className="bg-green-900/30 border border-green-500 rounded-lg p-4 mt-4">
                 <p className="text-green-300 text-sm">
                   🎉 恭喜！您的預約已成功建立。
@@ -762,25 +835,39 @@ function BookingWizardContent() {
          )}
       </div>
 
-      {/* 導航按鈕 */}
-      {((onlyAvailable && step < 2) || (!onlyAvailable && step < 3)) && (
-        <div className="px-10 pb-10 flex justify-between">
-          <button
-            onClick={handlePrevStep}
-            disabled={step === 0}
-            className="px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            上一步
-          </button>
-          <button
-            onClick={handleNextStep}
-            disabled={!canProceed}
-            className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            下一步
-          </button>
+          {/* 導航按鈕 */}
+          {((onlyAvailable && step < 2) || (!onlyAvailable && step < 3)) && (
+            <div className="flex justify-between gap-6 mt-12">
+              <button
+                onClick={handlePrevStep}
+                disabled={step === 0}
+                className="px-10 py-4 rounded-2xl font-semibold transition-all duration-300 hover:shadow-xl hover:scale-105 transform disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                style={{
+                  backgroundColor: 'white',
+                  color: '#333140',
+                  border: '2px solid #E4E7EB',
+                  boxShadow: '0 4px 20px rgba(0, 0, 0, 0.1)'
+                }}
+              >
+                上一步
+              </button>
+              <button
+                onClick={handleNextStep}
+                disabled={!canProceed}
+                className="px-10 py-4 rounded-2xl font-semibold transition-all duration-300 hover:shadow-xl hover:scale-105 transform disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                style={{
+                  background: 'linear-gradient(135deg, #1A73E8 0%, #5C7AD6 100%)',
+                  color: 'white',
+                  boxShadow: '0 8px 32px rgba(26, 115, 232, 0.3)'
+                }}
+              >
+                下一步
+              </button>
+            </div>
+          )}
+          </div>
         </div>
-      )}
+      </div>
     </div>
   )
 }

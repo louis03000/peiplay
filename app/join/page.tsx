@@ -8,6 +8,8 @@ import * as z from 'zod'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
+import Link from 'next/link'
+import Navigation from '@/app/components/Navigation'
 
 const MAX_GAMES = 10;
 
@@ -320,8 +322,8 @@ export default function JoinPage() {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center">
         <div className="bg-white p-8 rounded-lg shadow-lg text-center">
-          <h2 className="text-2xl font-bold mb-4 text-gray-800">請先登入</h2>
-          <p className="mb-4 text-gray-600">登入後才能申請成為遊戲夥伴</p>
+            <h2 className="text-2xl font-bold mb-4 text-gray-800 text-center">請先登入</h2>
+          <p className="mb-4 text-gray-600 text-center">登入後才能申請成為遊戲夥伴</p>
           <a href="/auth/login" className="inline-block px-6 py-3 bg-indigo-600 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-700 transition-colors">前往登入</a>
         </div>
       </div>
@@ -332,7 +334,7 @@ export default function JoinPage() {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center">
         <div className="bg-white p-8 rounded-lg shadow-lg text-center">
-          <h2 className="text-2xl font-bold mb-4 text-gray-800">載入中...</h2>
+          <h2 className="text-2xl font-bold mb-4 text-gray-800 text-center">載入中...</h2>
         </div>
       </div>
     )
@@ -474,10 +476,10 @@ export default function JoinPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
               </svg>
             </div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-4">
+            <h1 className="text-3xl font-bold text-gray-900 mb-4 text-center">
               🎉 申請已成功提交！
             </h1>
-            <p className="text-lg text-gray-600">
+            <p className="text-lg text-gray-600 text-center">
               感謝您申請成為 PeiPlay 的遊戲夥伴
             </p>
           </div>
@@ -542,20 +544,19 @@ export default function JoinPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      <div className="max-w-3xl mx-auto py-12 px-4 sm:px-6 lg:px-8 pt-32">
-        <div className="text-center">
-          <h1 className="text-3xl font-bold text-gray-900 sm:text-4xl">
+    <div className="min-h-screen bg-white">
+      <Navigation />
+
+      <div className="min-h-[calc(100vh-80px)] flex items-center justify-center px-4 sm:px-6 lg:px-8">
+        <div className="bg-white shadow-xl rounded-lg px-8 pt-6 pb-8 mb-4 border border-gray-200 max-w-4xl mx-auto text-center w-full">
+          <h1 className="text-3xl font-bold text-black mb-6 text-center" style={{color: 'black'}}>
             加入我們的遊戲夥伴
           </h1>
-          <p className="mt-3 text-xl text-gray-500">
+          <p className="text-lg text-black mb-8 text-center" style={{color: 'black'}}>
             填寫以下資料，開始您的遊戲夥伴之旅
           </p>
-        </div>
 
-        <div className="mt-12">
-          <div className="bg-white shadow sm:rounded-lg">
-            <div className="px-4 py-5 sm:p-6">
+          <div className="text-left">
               {error && (
                 <div className="mb-4 p-4 text-sm text-red-700 bg-red-100 rounded-lg">
                   {error}
@@ -974,7 +975,6 @@ export default function JoinPage() {
                   </button>
                 </div>
               </form>
-            </div>
           </div>
         </div>
       </div>

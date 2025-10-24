@@ -126,8 +126,8 @@ export default function RegisterPage() {
       <div className="w-full max-w-md">
         <div className="bg-[#1e293b] shadow-xl rounded-lg px-8 pt-6 pb-8 mb-4">
           <div className="text-center mb-6">
-            <h2 className="text-2xl font-bold text-white mb-2">註冊 PeiPlay</h2>
-            <p className="text-gray-400">加入我們的遊戲夥伴社群</p>
+            <h2 className="text-2xl font-bold text-white mb-2 text-center">註冊 PeiPlay</h2>
+            <p className="text-gray-600 text-center">加入我們的遊戲夥伴社群</p>
           </div>
           
           {/* Discord 重要提醒 */}
@@ -139,7 +139,7 @@ export default function RegisterPage() {
                 </svg>
               </div>
               <div className="ml-3">
-                <h3 className="text-sm font-medium text-indigo-200">🎮 Discord 互動平台</h3>
+                <h3 className="text-sm font-medium text-indigo-200 text-center">🎮 Discord 互動平台</h3>
                 <div className="mt-2 text-sm text-indigo-100">
                   <p className="mb-2">PeiPlay 使用 Discord 作為主要的互動平台，所有預約和溝通都透過 Discord 進行。</p>
                   <div className="space-y-1">
@@ -213,7 +213,7 @@ export default function RegisterPage() {
                   type="date"
                   {...register('birthday')}
                 />
-                <p className="text-gray-400 text-xs mt-1">⚠️ 必須年滿18歲才能註冊</p>
+                <p className="text-gray-600 text-xs mt-1">⚠️ 必須年滿18歲才能註冊</p>
               </div>
               {errors.birthday && (
                 <p className="text-red-400 text-sm">{errors.birthday.message}</p>
@@ -224,7 +224,7 @@ export default function RegisterPage() {
                   placeholder="Discord 用戶名 (例如: yourusername)"
                   {...register('discord')}
                 />
-                <p className="text-gray-400 text-xs mt-1">
+                <p className="text-gray-600 text-xs mt-1">
                   💡 請輸入您的 Discord 用戶名，不需要 # 後面的數字
                 </p>
               </div>
