@@ -191,6 +191,14 @@ export async function POST(request: NextRequest) {
     console.error('即時預約創建失敗:', error)
     console.error('錯誤堆疊:', error instanceof Error ? error.stack : 'No stack trace')
     
+    // 如果是資料庫連接錯誤，返回更友好的錯誤信息
+    if (error instanceof Error && error.message.includes('connect')) {
+      return NextResponse.json({ 
+        error: '資料庫連接失敗，請稍後再試',
+        success: false
+      }, { status: 503 })
+    }
+    
     // 確保連接關閉
     try {
       await prisma.$disconnect()
@@ -200,8 +208,8 @@ export async function POST(request: NextRequest) {
     
     return NextResponse.json({ 
       error: '預約創建失敗，請重試',
-      details: error instanceof Error ? error.message : 'Unknown error',
-      stack: error instanceof Error ? error.stack : undefined
+      success: false,
+      details: error instanceof Error ? error.message : 'Unknown error'
     }, { status: 500 })
   }
 }

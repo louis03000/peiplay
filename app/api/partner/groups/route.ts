@@ -69,6 +69,9 @@ export async function GET() {
 // 創建新的群組預約
 export async function POST(request: Request) {
   try {
+    // 測試資料庫連接
+    await prisma.$connect()
+    
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -160,6 +163,24 @@ export async function POST(request: Request) {
 
   } catch (error) {
     console.error('Error creating group booking:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    
+    // 如果是資料庫連接錯誤，返回更友好的錯誤信息
+    if (error instanceof Error && error.message.includes('connect')) {
+      return NextResponse.json({ 
+        error: '資料庫連接失敗，請稍後再試',
+        success: false
+      }, { status: 503 })
+    }
+    
+    return NextResponse.json({ 
+      error: 'Internal Server Error',
+      success: false
+    }, { status: 500 });
+  } finally {
+    try {
+      await prisma.$disconnect()
+    } catch (disconnectError) {
+      console.error('Database disconnect error:', disconnectError)
+    }
   }
 }
