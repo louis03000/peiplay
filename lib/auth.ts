@@ -102,12 +102,19 @@ export const authOptions: NextAuthOptions = {
       if (user) {
         token.sub = user.id;
         token.provider = account?.provider;
+        token.role = user.role;
       }
-      // 每次都查一次 DB，把 role 補進 token
+      // 只在沒有 role 時才查 DB
       if (!token.role && token.sub) {
-        const dbUser = await prisma.user.findUnique({ where: { id: token.sub as string } });
-        if (dbUser) {
-          token.role = dbUser.role;
+        try {
+          const dbUser = await prisma.user.findUnique({ where: { id: token.sub as string } });
+          if (dbUser) {
+            token.role = dbUser.role;
+          }
+        } catch (error) {
+          console.error('JWT callback DB error:', error);
+          // 如果 DB 查詢失敗，使用預設 role
+          token.role = 'CUSTOMER';
         }
       }
       return token;
