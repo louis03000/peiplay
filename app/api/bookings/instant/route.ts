@@ -7,44 +7,53 @@ import { prisma } from '@/lib/prisma'
 export const dynamic = 'force-dynamic';
 export async function POST(request: NextRequest) {
   try {
-    console.log('即時預約 API 開始處理...')
+    console.log('🚀 即時預約 API 開始處理...')
     
     const session = await getServerSession(authOptions)
+    console.log('🔍 會話檢查:', { hasSession: !!session, userId: session?.user?.id })
     if (!session?.user?.id) {
-      console.log('用戶未登入')
+      console.log('❌ 用戶未登入')
       return NextResponse.json({ error: '請先登入' }, { status: 401 })
     }
 
+    console.log('📝 解析請求數據...')
     const { partnerId, duration } = await request.json()
-    console.log('請求參數:', { partnerId, duration, userId: session.user.id })
+    console.log('📊 請求參數:', { partnerId, duration, userId: session.user.id })
 
     if (!partnerId || !duration || duration <= 0) {
-      console.log('參數不完整:', { partnerId, duration })
+      console.log('❌ 參數不完整:', { partnerId, duration })
       return NextResponse.json({ error: '缺少必要參數' }, { status: 400 })
     }
 
     // 確保資料庫連接
+    console.log('🔌 測試資料庫連接...')
     await prisma.$connect()
+    console.log('✅ 資料庫連接成功')
     
     // 檢查夥伴是否存在
+    console.log('👤 檢查夥伴是否存在...')
     const partner = await prisma.partner.findUnique({
       where: { id: partnerId },
       include: { user: true }
     })
+    console.log('🔍 夥伴查詢結果:', { partnerId, hasPartner: !!partner, partnerName: partner?.user?.name })
 
     if (!partner) {
+      console.log('❌ 夥伴不存在')
       await prisma.$disconnect()
       return NextResponse.json({ error: '夥伴不存在' }, { status: 404 })
     }
 
     // 獲取或創建客戶資訊
+    console.log('👥 檢查客戶記錄...')
     let customer = await prisma.customer.findUnique({
       where: { userId: session.user.id },
       include: { user: true }
     })
+    console.log('🔍 客戶記錄查詢結果:', { hasCustomer: !!customer, customerId: customer?.id })
 
     if (!customer) {
-      console.log('客戶資料不存在，自動創建客戶記錄:', { userId: session.user.id })
+      console.log('➕ 客戶資料不存在，自動創建客戶記錄:', { userId: session.user.id })
       // 自動創建客戶記錄
       customer = await prisma.customer.create({
         data: {
@@ -55,18 +64,29 @@ export async function POST(request: NextRequest) {
         },
         include: { user: true }
       })
+      console.log('✅ 客戶記錄創建成功:', { customerId: customer.id })
     }
 
     // 計算預約開始時間（現在）
+    console.log('⏰ 計算預約時間...')
     const now = new Date()
     const startTime = new Date(now.getTime() + 15 * 60 * 1000) // 15分鐘後開始
     const endTime = new Date(startTime.getTime() + duration * 60 * 60 * 1000) // 加上預約時長
+    console.log('📅 時間計算結果:', { 
+      now: now.toISOString(), 
+      startTime: startTime.toISOString(), 
+      endTime: endTime.toISOString(),
+      duration 
+    })
 
     // 計算費用（直接以台幣計算）
+    console.log('💰 計算費用...')
     const halfHourlyRate = partner.halfHourlyRate || 10 // 預設每半小時 10 元
     const totalCost = Math.ceil(duration * halfHourlyRate * 2) // 每小時 = 2個半小時
+    console.log('💵 費用計算結果:', { halfHourlyRate, totalCost, duration })
 
     // 檢查時間衝突 - 檢查夥伴是否有其他預約與新預約時間重疊
+    console.log('🔍 檢查時間衝突...')
     const conflictingBookings = await prisma.booking.findMany({
       where: {
         schedule: {
@@ -104,7 +124,9 @@ export async function POST(request: NextRequest) {
       }
     })
 
+    console.log('🔍 衝突檢查結果:', { conflictCount: conflictingBookings.length })
     if (conflictingBookings.length > 0) {
+      console.log('❌ 發現時間衝突')
       await prisma.$disconnect()
       const conflictTimes = conflictingBookings.map(b => 
         `${b.schedule.startTime.toLocaleString('zh-TW')} - ${b.schedule.endTime.toLocaleString('zh-TW')}`
@@ -115,7 +137,9 @@ export async function POST(request: NextRequest) {
     }
 
     // 使用事務確保資料一致性
+    console.log('🔄 開始資料庫事務...')
     const result = await prisma.$transaction(async (tx) => {
+      console.log('🔒 關閉夥伴「現在有空」狀態...')
       // 立即關閉夥伴的「現在有空」狀態，防止重複預約
       await tx.partner.update({
         where: { id: partnerId },
@@ -124,8 +148,10 @@ export async function POST(request: NextRequest) {
           availableNowSince: null
         }
       })
+      console.log('✅ 夥伴狀態已更新')
 
       // 為即時預約創建一個臨時的 schedule
+      console.log('📅 創建臨時時段...')
       const tempSchedule = await tx.schedule.create({
         data: {
           partnerId: partnerId,
@@ -135,8 +161,10 @@ export async function POST(request: NextRequest) {
           isAvailable: false,
         }
       })
+      console.log('✅ 臨時時段創建成功:', { scheduleId: tempSchedule.id })
 
       // 創建預約記錄
+      console.log('📝 創建預約記錄...')
       const booking = await tx.booking.create({
         data: {
           customerId: customer.id,
@@ -165,6 +193,7 @@ export async function POST(request: NextRequest) {
 
       return { booking, totalCost, startTime, endTime }
     })
+    console.log('✅ 資料庫事務完成')
 
     // 關閉資料庫連接
     await prisma.$disconnect()
