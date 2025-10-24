@@ -93,9 +93,9 @@ export async function GET(request: Request) {
             isAvailable: true,
             bookings: {
               where: {
-                status: {
-                  notIn: ['CANCELLED', 'REJECTED']
-                }
+                  status: {
+                    notIn: ['CANCELLED', 'REJECTED'] as any
+                  }
               },
               select: {
                 status: true,

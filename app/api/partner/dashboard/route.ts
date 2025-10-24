@@ -61,7 +61,7 @@ export async function GET() {
     // 處理時段數據
     const schedules = partner.schedules.map(s => ({
       ...s,
-      booked: s.bookings && s.bookings.status && !['CANCELLED', 'REJECTED'].includes(s.bookings.status)
+      booked: s.bookings && s.bookings.status && !['CANCELLED', 'REJECTED'].includes(s.bookings.status as any)
     }))
     
     // 返回所有數據
