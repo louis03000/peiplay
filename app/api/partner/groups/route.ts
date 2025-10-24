@@ -8,11 +8,25 @@ export const dynamic = 'force-dynamic';
 // 獲取夥伴的群組預約
 export async function GET() {
   try {
+    console.log('🔍 GET /api/partner/groups 開始處理...')
+    
     // 測試資料庫連接
-    await prisma.$connect()
+    console.log('🔌 測試資料庫連接...')
+    try {
+      await prisma.$connect()
+      console.log('✅ 資料庫連接成功')
+    } catch (dbError) {
+      console.error('❌ 資料庫連接失敗:', dbError)
+      return NextResponse.json({ 
+        error: '資料庫連接失敗，請稍後再試',
+        groups: []
+      }, { status: 503 })
+    }
     
     const session = await getServerSession(authOptions);
+    console.log('🔍 會話檢查:', { hasSession: !!session, userId: session?.user?.id })
     if (!session?.user?.id) {
+      console.log('❌ 用戶未登入')
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -72,8 +86,17 @@ export async function POST(request: Request) {
     console.log('🚀 開始處理群組預約創建請求...')
     
     // 測試資料庫連接
-    await prisma.$connect()
-    console.log('✅ 資料庫連接成功')
+    console.log('🔌 測試資料庫連接...')
+    try {
+      await prisma.$connect()
+      console.log('✅ 資料庫連接成功')
+    } catch (dbError) {
+      console.error('❌ 資料庫連接失敗:', dbError)
+      return NextResponse.json({ 
+        error: '資料庫連接失敗，請稍後再試',
+        success: false
+      }, { status: 503 })
+    }
     
     const session = await getServerSession(authOptions);
     console.log('🔍 會話檢查:', { hasSession: !!session, userId: session?.user?.id })
