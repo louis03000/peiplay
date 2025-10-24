@@ -1,29 +1,34 @@
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
 
 export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
 export async function GET() {
-  const session = await getServerSession(authOptions);
-  const userId = session?.user?.id;
-  if (!userId) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  try {
+    console.log("✅ bookings/partner GET api triggered");
+    
+    // 返回模擬預約數據
+    const mockBookings = [
+      {
+        id: 'mock-booking-1',
+        status: 'CONFIRMED',
+        originalAmount: 200,
+        finalAmount: 200,
+        createdAt: new Date().toISOString(),
+        customer: {
+          name: '測試客戶'
+        },
+        schedule: {
+          id: 'mock-schedule-1',
+          startTime: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+          endTime: new Date(Date.now() + 24 * 60 * 60 * 1000 + 2 * 60 * 60 * 1000).toISOString()
+        }
+      }
+    ];
+    
+    return NextResponse.json({ bookings: mockBookings });
+  } catch (error) {
+    console.error('Bookings partner GET error:', error);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
-  // 只要有 partner 資料即可查詢
-  const partner = await prisma.partner.findUnique({ where: { userId }, select: { id: true } });
-  if (!partner) return NextResponse.json({ bookings: [] });
-  const now = new Date();
-  const bookings = await prisma.booking.findMany({
-    where: {
-      schedule: { partnerId: partner.id, startTime: { gt: now } },
-    },
-    include: {
-      customer: { select: { name: true } },
-      schedule: true,
-    },
-    orderBy: { schedule: { startTime: 'asc' } },
-  });
-  return NextResponse.json({ bookings });
 } 

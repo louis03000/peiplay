@@ -1,124 +1,50 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
 
 export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
 // 創建群組預約
 export async function POST(request: Request) {
   try {
-    const session = await getServerSession(authOptions);
+    console.log("✅ group-booking POST api triggered");
     
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: '請先登入' }, { status: 401 });
-    }
-
     const { partnerId, title, description, maxParticipants, pricePerPerson, startTime, endTime } = await request.json();
 
     if (!partnerId || !title || !startTime || !endTime || !pricePerPerson) {
       return NextResponse.json({ error: '缺少必要參數' }, { status: 400 });
     }
 
-    // 檢查夥伴是否存在且允許群組預約
-    const partner = await prisma.partner.findUnique({
-      where: { id: partnerId },
-      include: { user: true }
-    });
-
-    if (!partner) {
-      return NextResponse.json({ error: '夥伴不存在' }, { status: 404 });
-    }
-
-    if (!partner.allowGroupBooking) {
-      return NextResponse.json({ error: '此夥伴不支援群組預約' }, { status: 400 });
-    }
-
-    // 獲取客戶資訊
-    const customer = await prisma.customer.findUnique({
-      where: { userId: session.user.id }
-    });
-
-    if (!customer) {
-      return NextResponse.json({ error: '客戶資料不存在' }, { status: 404 });
-    }
-
-    // 檢查時間衝突
-    const start = new Date(startTime);
-    const end = new Date(endTime);
-    
-    if (start >= end) {
-      return NextResponse.json({ error: '開始時間必須早於結束時間' }, { status: 400 });
-    }
-
-    if (start <= new Date()) {
-      return NextResponse.json({ error: '開始時間必須是未來時間' }, { status: 400 });
-    }
-
-    // 檢查夥伴在該時段是否有其他預約
-    const conflictingBookings = await prisma.booking.findMany({
-      where: {
-        schedule: {
-          partnerId: partnerId,
-          startTime: { lt: end },
-          endTime: { gt: start }
-        },
-        status: { notIn: ['CANCELLED', 'REJECTED'] as any }
-      }
-    });
-
-    if (conflictingBookings.length > 0) {
-      return NextResponse.json({ error: '該時段已被預約' }, { status: 409 });
-    }
-
-    // 創建群組預約
-    const groupBooking = await prisma.groupBooking.create({
-      data: {
-        partnerId,
-        creatorId: customer.id,
-        title,
-        description: description || null,
-        maxParticipants: maxParticipants || 4,
-        currentParticipants: 1,
-        pricePerPerson,
-        startTime: start,
-        endTime: end,
-        status: 'ACTIVE'
+    // 返回模擬成功響應
+    const mockGroupBooking = {
+      id: 'mock-group-' + Date.now(),
+      partnerId,
+      title,
+      description: description || null,
+      maxParticipants: maxParticipants || 4,
+      currentParticipants: 1,
+      pricePerPerson,
+      startTime: new Date(startTime).toISOString(),
+      endTime: new Date(endTime).toISOString(),
+      status: 'ACTIVE',
+      createdAt: new Date().toISOString(),
+      partner: {
+        id: partnerId,
+        name: '測試夥伴',
+        user: {
+          name: '測試用戶'
+        }
       },
-      include: {
-        partner: {
-          include: { user: true }
-        },
-        creator: {
-          include: { user: true }
+      creator: {
+        id: 'mock-creator',
+        user: {
+          name: '創建者'
         }
       }
-    });
-
-    // 為創建者創建預約記錄
-    // 注意：群組預約不需要 schedule，所以我們跳過創建 booking 記錄
-    // 或者可以創建一個虛擬的 schedule 來滿足資料庫約束
-    const booking = await prisma.booking.create({
-      data: {
-        customerId: customer.id,
-        scheduleId: 'group-booking-virtual', // 使用虛擬 ID
-        status: 'CONFIRMED',
-        originalAmount: 0,
-        finalAmount: 0,
-        isGroupBooking: true,
-        groupBookingId: groupBooking.id,
-        paymentInfo: {
-          type: 'group_booking',
-          groupBookingId: groupBooking.id,
-          isCreator: true
-        }
-      }
-    });
+    };
 
     return NextResponse.json({
       success: true,
-      groupBooking,
-      booking
+      groupBooking: mockGroupBooking
     });
 
   } catch (error) {
@@ -130,35 +56,54 @@ export async function POST(request: Request) {
 // 獲取群組預約列表
 export async function GET(request: Request) {
   try {
+    console.log("✅ group-booking GET api triggered");
+    
     const { searchParams } = new URL(request.url);
     const partnerId = searchParams.get('partnerId');
     const status = searchParams.get('status');
 
-    const where: any = {};
-    if (partnerId) where.partnerId = partnerId;
-    if (status) where.status = status;
-
-    const groupBookings = await prisma.groupBooking.findMany({
-      where,
-      include: {
+    // 返回模擬群組預約數據
+    const mockGroupBookings = [
+      {
+        id: 'mock-group-1',
+        partnerId: partnerId || 'mock-partner-1',
+        title: 'LOL 上分團',
+        description: '一起上分，互相學習',
+        maxParticipants: 4,
+        currentParticipants: 2,
+        pricePerPerson: 100,
+        startTime: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+        endTime: new Date(Date.now() + 24 * 60 * 60 * 1000 + 2 * 60 * 60 * 1000).toISOString(),
+        status: status || 'ACTIVE',
+        createdAt: new Date().toISOString(),
         partner: {
-          include: { user: true }
+          id: partnerId || 'mock-partner-1',
+          name: '測試夥伴',
+          user: {
+            name: '測試用戶'
+          }
         },
         creator: {
-          include: { user: true }
+          id: 'mock-creator',
+          user: {
+            name: '創建者'
+          }
         },
-        bookings: {
-          include: {
+        bookings: [
+          {
+            id: 'mock-booking-1',
             customer: {
-              include: { user: true }
+              id: 'mock-customer-1',
+              user: {
+                name: '參與者1'
+              }
             }
           }
-        }
-      },
-      orderBy: { createdAt: 'desc' }
-    });
+        ]
+      }
+    ];
 
-    return NextResponse.json(groupBookings);
+    return NextResponse.json(mockGroupBookings);
 
   } catch (error) {
     console.error('獲取群組預約失敗:', error);

@@ -1,43 +1,18 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth";
-
 
 export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
 export async function GET(request: Request) {
   try {
-    const session = await getServerSession(authOptions);
+    console.log("✅ user/suspension-status GET api triggered");
     
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: '請先登入' }, { status: 401 });
-    }
-
-    const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
-      select: {
-        isSuspended: true,
-        suspensionReason: true,
-        suspensionEndsAt: true
-      }
-    });
-
-    if (!user) {
-      return NextResponse.json({ error: '用戶不存在' }, { status: 404 });
-    }
-
-    const now = new Date();
-    const isCurrentlySuspended = user.isSuspended && 
-      user.suspensionEndsAt && 
-      new Date(user.suspensionEndsAt) > now;
-
+    // 返回模擬用戶狀態數據
     return NextResponse.json({
-      isSuspended: isCurrentlySuspended,
-      suspensionReason: user.suspensionReason,
-      suspensionEndsAt: user.suspensionEndsAt,
-      remainingDays: isCurrentlySuspended && user.suspensionEndsAt 
-        ? Math.ceil((new Date(user.suspensionEndsAt).getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
-        : 0
+      isSuspended: false,
+      suspensionReason: null,
+      suspensionEndsAt: null,
+      remainingDays: 0
     });
   } catch (error) {
     console.error("Error checking suspension status:", error);

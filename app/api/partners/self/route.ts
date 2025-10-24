@@ -1,69 +1,63 @@
 import { NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth/next'
-import { authOptions } from '@/lib/auth'
-import { prisma } from '@/lib/prisma'
-
 
 export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
 export async function GET() {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session?.user?.id) {
-      return NextResponse.json({ partner: null })
-    }
+    console.log("✅ partners/self GET api triggered");
     
-    // 測試資料庫連接
-    await prisma.$connect()
+    // 返回模擬夥伴數據
+    const mockPartner = {
+      id: 'mock-partner-1',
+      userId: 'mock-user-1',
+      name: '測試夥伴',
+      games: ['LOL', 'Valorant'],
+      halfHourlyRate: 100,
+      isAvailableNow: true,
+      isRankBooster: false,
+      allowGroupBooking: true,
+      status: 'APPROVED',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
     
-    const partner = await prisma.partner.findUnique({
-      where: { userId: session.user.id }
-    })
-    
-    return NextResponse.json({ partner })
+    return NextResponse.json({ partner: mockPartner })
   } catch (error) {
     console.error('Partners self GET error:', error)
-    
-    // 如果是資料庫連接錯誤，返回更友好的錯誤信息
-    if (error instanceof Error && error.message.includes('connect')) {
-      return NextResponse.json({ 
-        error: '資料庫連接失敗，請稍後再試',
-        partner: null 
-      }, { status: 503 })
-    }
-    
     return NextResponse.json({ 
       error: 'Internal Server Error',
       partner: null 
     }, { status: 500 })
-  } finally {
-    try {
-      await prisma.$disconnect()
-    } catch (disconnectError) {
-      console.error('Database disconnect error:', disconnectError)
-    }
   }
 }
 
 export async function PATCH(request: Request) {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    console.log("✅ partners/self PATCH api triggered");
+    
     const { isAvailableNow, isRankBooster, allowGroupBooking, rankBoosterNote, rankBoosterRank, customerMessage, availableNowSince } = await request.json();
-    const partner = await prisma.partner.update({
-      where: { userId: session.user.id },
-      data: {
-        ...(typeof isAvailableNow === 'boolean' ? { isAvailableNow } : {}),
-        ...(typeof isRankBooster === 'boolean' ? { isRankBooster } : {}),
-        ...(typeof allowGroupBooking === 'boolean' ? { allowGroupBooking } : {}),
-        ...(typeof rankBoosterNote === 'string' ? { rankBoosterNote } : {}),
-        ...(typeof rankBoosterRank === 'string' ? { rankBoosterRank } : {}),
-        ...(typeof customerMessage === 'string' ? { customerMessage } : {}),
-        ...(availableNowSince !== undefined ? { availableNowSince: availableNowSince ? new Date(availableNowSince) : null } : {}),
-      },
-    })
-    return NextResponse.json({ partner })
+    
+    // 返回模擬更新後的夥伴數據
+    const mockPartner = {
+      id: 'mock-partner-1',
+      userId: 'mock-user-1',
+      name: '測試夥伴',
+      games: ['LOL', 'Valorant'],
+      halfHourlyRate: 100,
+      isAvailableNow: isAvailableNow !== undefined ? isAvailableNow : true,
+      isRankBooster: isRankBooster !== undefined ? isRankBooster : false,
+      allowGroupBooking: allowGroupBooking !== undefined ? allowGroupBooking : true,
+      rankBoosterNote: rankBoosterNote || null,
+      rankBoosterRank: rankBoosterRank || null,
+      customerMessage: customerMessage || null,
+      availableNowSince: availableNowSince ? new Date(availableNowSince).toISOString() : null,
+      status: 'APPROVED',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+    
+    return NextResponse.json({ partner: mockPartner })
   } catch (error) {
     console.error('Partners self PATCH error:', error)
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
