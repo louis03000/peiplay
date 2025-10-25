@@ -8,17 +8,7 @@ export const runtime = 'nodejs';
 
 export async function GET(request: Request) {
   try {
-    // 測試資料庫連接
-    await prisma.$connect()
-    
-    const session = await getServerSession(authOptions);
-    console.log('session.user.id', session?.user?.id);
-    const user = session?.user?.id ? await prisma.user.findUnique({ where: { id: session.user.id } }) : null;
-    console.log('user 查詢結果', user);
-    // 允許未登入用戶查看夥伴列表（用於預約頁面）
-    // if (!session?.user?.id) {
-    //   return NextResponse.json({ error: '請先登入' }, { status: 401 });
-    // }
+    // 移除不必要的連線測試和用戶查詢以加速載入
     const url = new URL(request.url);
     const startDate = url.searchParams.get("startDate");
     const endDate = url.searchParams.get("endDate");
@@ -50,8 +40,6 @@ export async function GET(request: Request) {
       where.isAvailableNow = true;
     }
 
-    console.log('🔍 API 查詢條件:', where);
-    
     const partners = await prisma.partner.findMany({
       where,
       select: {
@@ -104,8 +92,6 @@ export async function GET(request: Request) {
       orderBy: { createdAt: 'desc' },
     });
 
-    console.log('📊 原始查詢結果:', partners.map(p => ({ name: p.name, isAvailableNow: p.isAvailableNow, schedulesCount: p.schedules.length })));
-
     // 過濾掉沒有時段的夥伴，但「現在有空」的夥伴除外
     let partnersWithSchedules = partners;
     if (!rankBooster && !availableNow) {
@@ -114,8 +100,6 @@ export async function GET(request: Request) {
         partner.schedules.length > 0 || partner.isAvailableNow
       );
     }
-
-    console.log('📊 篩選後結果:', partnersWithSchedules.map(p => ({ name: p.name, isAvailableNow: p.isAvailableNow, schedulesCount: p.schedules.length })));
 
     // 過濾掉已預約的時段，只保留可用的時段，並計算平均星等
     partnersWithSchedules = partnersWithSchedules.map(partner => {

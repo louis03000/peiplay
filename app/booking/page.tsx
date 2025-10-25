@@ -490,24 +490,22 @@ function BookingWizardContent() {
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 mb-6">
               {/* 篩選器 - 手機上橫向排列 */}
               <div className="flex gap-3 sm:gap-4 w-full sm:w-auto">
-                <label className={`flex items-center gap-2 text-white text-sm select-none ${loading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}>
+                <label className="flex items-center gap-2 text-white text-sm select-none cursor-pointer">
                   <input
                     id="only-available"
                     type="checkbox"
                     checked={onlyAvailable}
                     onChange={e => setOnlyAvailable(e.target.checked)}
-                    disabled={loading}
                     className="accent-indigo-500 w-4 h-4 sm:w-5 sm:h-5"
                   />
                   <span className="text-xs sm:text-sm text-gray-900 font-bold">只看現在有空</span>
                 </label>
-                <label className={`flex items-center gap-2 text-gray-900 text-sm select-none ${loading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}>
+                <label className="flex items-center gap-2 text-gray-900 text-sm select-none cursor-pointer">
                   <input
                     id="only-rank-booster"
                     type="checkbox"
                     checked={onlyRankBooster}
                     onChange={e => setOnlyRankBooster(e.target.checked)}
-                    disabled={loading}
                     className="accent-purple-500 w-4 h-4 sm:w-5 sm:h-5"
                   />
                   <span className="text-xs sm:text-sm text-gray-900 font-bold">只看上分高手</span>
