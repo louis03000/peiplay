@@ -126,7 +126,10 @@ export async function GET() {
     
     // 5. 健康檢查
     const healthCheck = await checkDatabaseHealth()
-    results.connection.healthCheck = healthCheck
+    results.connection = {
+      ...results.connection,
+      healthCheck
+    }
     
     // 6. 提供修復建議
     const suggestions = []
