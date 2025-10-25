@@ -9,7 +9,6 @@ import PartnerCard from '@/components/PartnerCard'
 import { useSearchParams } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import Link from 'next/link'
-import Navigation from '@/app/components/Navigation'
 
 // 防抖 Hook
 function useDebounce<T>(value: T, delay: number): T {
@@ -428,7 +427,6 @@ function BookingWizardContent() {
 
   return (
     <div className="min-h-screen" style={{backgroundColor: '#E4E7EB'}}>
-      <Navigation />
 
       {/* Hero Section */}
       <div className="relative py-16 px-6 overflow-hidden">

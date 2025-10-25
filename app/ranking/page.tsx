@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import Navigation from '@/app/components/Navigation'
 
 interface RankingData {
   id: string
@@ -134,7 +133,6 @@ export default function RankingPage() {
 
   return (
     <div className="min-h-screen" style={{backgroundColor: '#E4E7EB'}}>
-      <Navigation />
 
       {/* Hero Section */}
       <div className="relative py-24 px-6 overflow-hidden">

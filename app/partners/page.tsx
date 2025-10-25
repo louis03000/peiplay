@@ -7,7 +7,6 @@ import PartnerHero from '@/components/PartnerHero'
 import PartnerFilter from '@/components/PartnerFilter'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import Navigation from '@/app/components/Navigation'
 
 // 防抖 Hook
 function useDebounce<T>(value: T, delay: number): T {
@@ -213,7 +212,6 @@ export default function PartnersPage() {
 
   return (
     <div className="min-h-screen" style={{backgroundColor: '#E4E7EB'}}>
-      <Navigation />
 
       {/* 超大 Hero Section */}
       <div className="relative py-32 px-8 overflow-hidden">
