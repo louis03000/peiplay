@@ -111,29 +111,11 @@ export async function POST(request: NextRequest) {
     })
 
   } catch (error) {
-    console.error('即時預約創建失敗:', error)
-    
-    // 如果資料庫錯誤，返回模擬數據
-    console.log("🔄 使用模擬數據作為備用");
-    const { partnerId, duration } = requestData
-    const now = new Date()
-    const startTime = new Date(now.getTime() + 15 * 60 * 1000)
-    const endTime = new Date(startTime.getTime() + duration * 60 * 60 * 1000)
-    const totalCost = Math.ceil(duration * 20)
+    console.error('❌ 即時預約創建失敗:', error)
     
     return NextResponse.json({
-      id: 'mock-booking-' + Date.now(),
-      message: '即時預約創建成功',
-      totalCost: totalCost,
-      booking: {
-        id: 'mock-booking-' + Date.now(),
-        status: 'CONFIRMED',
-        orderNumber: `INST-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`,
-        duration: duration,
-        startTime: startTime.toISOString(),
-        endTime: endTime.toISOString(),
-        totalCost: totalCost
-      }
-    })
+      error: '即時預約創建失敗',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    }, { status: 500 });
   }
 }

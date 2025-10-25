@@ -47,24 +47,9 @@ export async function GET() {
   } catch (error) {
     console.error("❌ 獲取預約記錄失敗:", error);
     
-    // 如果資料庫錯誤，返回模擬數據
-    console.log("🔄 使用模擬數據作為備用");
-    return NextResponse.json({ 
-      bookings: [
-        {
-          id: 'mock-booking-1',
-          status: 'CONFIRMED',
-          schedule: {
-            id: 'mock-schedule-1',
-            startTime: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-            endTime: new Date(Date.now() + 24 * 60 * 60 * 1000 + 2 * 60 * 60 * 1000).toISOString(),
-            partner: {
-              name: '測試夥伴'
-            }
-          },
-          createdAt: new Date().toISOString()
-        }
-      ]
-    });
+    return NextResponse.json({
+      error: '獲取預約記錄失敗',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    }, { status: 500 });
   }
 }
