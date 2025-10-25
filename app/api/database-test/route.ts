@@ -15,14 +15,14 @@ export async function GET() {
     
     // 2. 檢查 Prisma 連接
     let prismaTest = false
-    let prismaError = null
+    let prismaError: Error | null = null
     try {
       await prisma.$connect()
       await prisma.$queryRaw`SELECT 1`
       prismaTest = true
       console.log("✅ Prisma 連接成功")
     } catch (error) {
-      prismaError = error
+      prismaError = error instanceof Error ? error : new Error(String(error))
       console.error("❌ Prisma 連接失敗:", error)
     } finally {
       try {
@@ -38,13 +38,13 @@ export async function GET() {
     
     // 4. 嘗試簡單查詢
     let queryTest = false
-    let queryError = null
+    let queryError: Error | null = null
     try {
       const result = await prisma.user.count()
       queryTest = true
       console.log("✅ 查詢測試成功，用戶數量:", result)
     } catch (error) {
-      queryError = error
+      queryError = error instanceof Error ? error : new Error(String(error))
       console.error("❌ 查詢測試失敗:", error)
     }
     
