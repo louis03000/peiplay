@@ -9,6 +9,14 @@ export const runtime = 'nodejs';
 export async function POST(request: NextRequest) {
   console.log('🚀 即時預約 API 開始處理...')
   
+  // 先讀取請求數據
+  let requestData;
+  try {
+    requestData = await request.json();
+  } catch (e) {
+    return NextResponse.json({ error: '無效的請求數據' }, { status: 400 });
+  }
+  
   try {
     // 檢查認證
     const session = await getServerSession(authOptions);
@@ -16,7 +24,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '請先登入' }, { status: 401 });
     }
 
-    const { partnerId, duration } = await request.json()
+    const { partnerId, duration } = requestData
     console.log('📊 請求參數:', { partnerId, duration })
 
     if (!partnerId || !duration || duration <= 0) {
@@ -107,7 +115,7 @@ export async function POST(request: NextRequest) {
     
     // 如果資料庫錯誤，返回模擬數據
     console.log("🔄 使用模擬數據作為備用");
-    const { partnerId, duration } = await request.json()
+    const { partnerId, duration } = requestData
     const now = new Date()
     const startTime = new Date(now.getTime() + 15 * 60 * 1000)
     const endTime = new Date(startTime.getTime() + duration * 60 * 60 * 1000)
