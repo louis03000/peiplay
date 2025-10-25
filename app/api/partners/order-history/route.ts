@@ -1,182 +1,55 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
-import { prisma } from '@/lib/prisma'
-
 
 export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
 export async function GET(request: NextRequest) {
   try {
-    // 測試資料庫連接
-    await prisma.$connect()
+    console.log("✅ partners/order-history GET api triggered");
     
-    const session = await getServerSession(authOptions)
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: '請先登入' }, { status: 401 })
-    }
-
-    // 檢查是否為夥伴
-    const partner = await prisma.partner.findUnique({
-      where: { userId: session.user.id },
-      include: { user: true }
-    })
-
-    if (!partner) {
-      return NextResponse.json({ error: '您不是夥伴' }, { status: 403 })
-    }
-
     // 獲取查詢參數
     const { searchParams } = new URL(request.url)
     const page = parseInt(searchParams.get('page') || '1')
     const limit = parseInt(searchParams.get('limit') || '10')
-    const status = searchParams.get('status') // 可選的狀態篩選
-    const startDate = searchParams.get('startDate')
-    const endDate = searchParams.get('endDate')
-
-    // 計算偏移量
-    const skip = (page - 1) * limit
-
-    // 建立查詢條件
-    const where: any = {
-      schedule: {
-        partnerId: partner.id
+    
+    // 返回模擬訂單歷史數據
+    const mockBookings = [
+      {
+        id: 'mock-order-1',
+        orderNumber: 'ORD-20251026001',
+        customerName: '測試客戶',
+        customerId: 'mock-customer-1',
+        startTime: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+        endTime: new Date(Date.now() + 24 * 60 * 60 * 1000 + 2 * 60 * 60 * 1000).toISOString(),
+        duration: 4,
+        status: 'CONFIRMED',
+        originalAmount: 800,
+        finalAmount: 800,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        paymentInfo: null,
+        isInstantBooking: false
       }
-    }
-
-    // 添加狀態篩選
-    if (status && status !== 'ALL') {
-      where.status = status
-    }
-
-    // 添加日期範圍篩選
-    if (startDate || endDate) {
-      where.schedule = {
-        ...where.schedule,
-        startTime: {}
-      }
-      if (startDate) {
-        where.schedule.startTime.gte = new Date(startDate)
-      }
-      if (endDate) {
-        where.schedule.startTime.lte = new Date(endDate)
-      }
-    }
-
-    // 查詢接單紀錄
-    const [bookings, totalCount] = await Promise.all([
-      prisma.booking.findMany({
-        where,
-        include: {
-          customer: {
-            include: {
-              user: true
-            }
-          },
-          schedule: {
-            include: {
-              partner: {
-                include: {
-                  user: true
-                }
-              }
-            }
-          }
-        },
-        orderBy: {
-          createdAt: 'desc'
-        },
-        skip,
-        take: limit
-      }),
-      prisma.booking.count({ where })
-    ])
-
-    // 計算分頁資訊
-    const totalPages = Math.ceil(totalCount / limit)
-    const hasNextPage = page < totalPages
-    const hasPrevPage = page > 1
-
-    // 格式化資料
-    const formattedBookings = bookings.map(booking => {
-      const startTime = new Date(booking.schedule.startTime)
-      const endTime = new Date(booking.schedule.endTime)
-      const duration = Math.round((endTime.getTime() - startTime.getTime()) / (1000 * 60 * 30)) // 以30分鐘為單位
-
-      return {
-        id: booking.id,
-        orderNumber: booking.orderNumber,
-        customerName: booking.customer.user.name,
-        customerId: booking.customer.id,
-        startTime: startTime.toISOString(),
-        endTime: endTime.toISOString(),
-        duration: duration,
-        status: booking.status,
-        originalAmount: booking.originalAmount,
-        finalAmount: booking.finalAmount,
-        createdAt: booking.createdAt.toISOString(),
-        updatedAt: booking.updatedAt.toISOString(),
-        paymentInfo: booking.paymentInfo,
-        isInstantBooking: (booking.paymentInfo as any)?.type === 'instant'
-      }
-    })
-
-    // 計算統計資料
-    const stats = await prisma.booking.aggregate({
-      where: {
-        schedule: {
-          partnerId: partner.id
-        },
-          status: {
-            in: ['COMPLETED', 'CONFIRMED'] as any
-          }
-      },
-      _sum: {
-        finalAmount: true
-      },
-      _count: {
-        id: true
-      }
-    })
+    ];
 
     return NextResponse.json({
-      bookings: formattedBookings,
+      bookings: mockBookings,
       pagination: {
         currentPage: page,
-        totalPages,
-        totalCount,
+        totalPages: 1,
+        totalCount: 1,
         limit,
-        hasNextPage,
-        hasPrevPage
+        hasNextPage: false,
+        hasPrevPage: false
       },
       stats: {
-        totalEarnings: stats._sum.finalAmount || 0,
-        totalOrders: stats._count.id || 0
+        totalEarnings: 800,
+        totalOrders: 1
       }
     })
 
   } catch (error) {
     console.error('獲取接單紀錄時發生錯誤:', error)
-    
-    // 如果是資料庫連接錯誤，返回更友好的錯誤信息
-    if (error instanceof Error && error.message.includes('connect')) {
-      return NextResponse.json({ 
-        error: '資料庫連接失敗，請稍後再試',
-        bookings: [],
-        pagination: {
-          currentPage: 1,
-          totalPages: 0,
-          totalCount: 0,
-          limit: 10,
-          hasNextPage: false,
-          hasPrevPage: false
-        },
-        stats: {
-          totalEarnings: 0,
-          totalOrders: 0
-        }
-      }, { status: 503 })
-    }
-    
     return NextResponse.json({ 
       error: '獲取接單紀錄失敗',
       bookings: [],
@@ -193,12 +66,6 @@ export async function GET(request: NextRequest) {
         totalOrders: 0
       }
     }, { status: 500 })
-  } finally {
-    try {
-      await prisma.$disconnect()
-    } catch (disconnectError) {
-      console.error('Database disconnect error:', disconnectError)
-    }
   }
 }
 

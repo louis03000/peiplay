@@ -81,47 +81,54 @@ export default function Navbar() {
 
   return (
     <nav className="bg-gradient-to-r from-gray-800 to-gray-900 shadow-lg sticky top-0 z-50">
-      <div className="max-w-7xl mx-auto flex items-center justify-between px-4 sm:px-6 py-4">
-        {/* 品牌標誌 */}
-        <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
-            <span className="text-white font-bold text-lg">P</span>
+      <div className="w-full flex items-center justify-between px-4 sm:px-6 py-3">
+        {/* 左側：品牌標誌 + 導航項目 */}
+        <div className="flex items-center space-x-8">
+          {/* 品牌標誌 */}
+          <div className="flex items-center space-x-2">
+            <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+              <span className="text-white font-bold">P</span>
+            </div>
+            <span className="text-white font-bold">PeiPlay</span>
           </div>
-          <span className="text-white text-xl font-bold">PeiPlay</span>
+          
+          {/* 左側導航項目 */}
+          <div className="flex items-center space-x-4">
+            <Link href="/booking" className="flex items-center space-x-1.5 text-white hover:text-blue-300 transition-colors">
+              <span className="text-lg">🎮</span>
+              <span className="font-medium text-sm">預約陪玩</span>
+            </Link>
+            <Link href="/ranking" className="flex items-center space-x-1.5 text-white hover:text-yellow-300 transition-colors">
+              <span className="text-lg">🏆</span>
+              <span className="font-medium text-sm">排行榜</span>
+            </Link>
+          </div>
         </div>
 
-        {/* 導航項目 */}
-        <div className="flex items-center space-x-6">
-          <Link href="/booking" className="flex items-center space-x-2 text-white hover:text-blue-300 transition-colors">
-            <span className="text-2xl">🎮</span>
-            <span className="font-medium">預約陪玩</span>
-          </Link>
-          <Link href="/ranking" className="flex items-center space-x-2 text-white hover:text-yellow-300 transition-colors">
-            <span className="text-2xl">🏆</span>
-            <span className="font-medium">排行榜</span>
-          </Link>
-          <Link href="/partners" className="flex items-center space-x-2 text-white hover:text-blue-300 transition-colors">
-            <span className="text-2xl">🔍</span>
-            <span className="font-medium">搜尋夥伴</span>
+        {/* 右側：導航項目 + 用戶圖標 */}
+        <div className="flex items-center space-x-4">
+          <Link href="/partners" className="flex items-center space-x-1.5 text-white hover:text-blue-300 transition-colors">
+            <span className="text-lg">🔍</span>
+            <span className="font-medium text-sm">搜尋夥伴</span>
           </Link>
           {!isPartner && (
-            <Link href="/join" className="flex items-center space-x-2 text-white hover:text-red-300 transition-colors">
-              <span className="text-2xl">💼</span>
-              <span className="font-medium">加入我們</span>
+            <Link href="/join" className="flex items-center space-x-1.5 text-white hover:text-red-300 transition-colors">
+              <span className="text-lg">💼</span>
+              <span className="font-medium text-sm">加入我們</span>
             </Link>
           )}
           
-          {/* 用戶圖標 */}
+          {/* 用戶圖標 - 縮小 */}
           <div className="relative" ref={menuRef}>
             {session?.user ? (
               <button 
                 onClick={() => setMenuOpen(!menuOpen)} 
-                className="w-10 h-10 bg-gray-700/50 hover:bg-gray-600/50 rounded-lg flex items-center justify-center transition-all duration-200 border border-gray-600 hover:border-purple-400"
+                className="w-7 h-7 bg-gray-700/50 hover:bg-gray-600/50 rounded flex items-center justify-center transition-all duration-200 border border-gray-600 hover:border-purple-400"
               >
-                <span className="text-purple-400 text-xl">👤</span>
+                <span className="text-purple-400 text-sm">👤</span>
               </button>
             ) : (
-              <Link href="/auth/login" className="px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 rounded-lg text-white font-semibold transition-all">
+              <Link href="/auth/login" className="px-3 py-1.5 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 rounded-lg text-white text-sm font-semibold transition-all">
                 登入
               </Link>
             )}

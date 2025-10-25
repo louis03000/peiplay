@@ -114,7 +114,7 @@ export default function Navigation() {
         boxShadow: isScrolled ? '0 10px 40px rgba(0, 0, 0, 0.5)' : 'none'
       }}
     >
-      <div className="max-w-7xl mx-auto px-6">
+      <div className="w-full px-6">
         <div className="flex justify-between items-center">
           
           {/* Logo */}
@@ -140,7 +140,7 @@ export default function Navigation() {
               <Link
                 key={item.path}
                 href={item.path}
-                className={`relative px-5 py-3 rounded-xl font-bold text-base transition-all duration-300 whitespace-nowrap ${
+                className={`relative px-4 py-2 rounded-lg font-semibold text-sm transition-all duration-300 whitespace-nowrap ${
                   isActive(item.path)
                     ? 'text-white scale-105'
                     : 'text-white hover:scale-105'
@@ -166,8 +166,8 @@ export default function Navigation() {
                   }
                 }}
               >
-                <span className="flex items-center gap-2">
-                  <span className="text-xl">{item.icon}</span>
+                <span className="flex items-center gap-1.5">
+                  <span className="text-base">{item.icon}</span>
                   <span>{item.label}</span>
                 </span>
               </Link>
@@ -179,7 +179,7 @@ export default function Navigation() {
             {session?.user ? (
               <button
                 onClick={() => setUserMenuOpen(!userMenuOpen)}
-                className="w-11 h-11 rounded-xl flex items-center justify-center transition-all duration-300 border-2"
+                className="w-7 h-7 rounded flex items-center justify-center transition-all duration-300 border-2"
                 style={{
                   background: 'rgba(255, 255, 255, 0.1)',
                   borderColor: 'rgba(255, 255, 255, 0.2)',
@@ -196,7 +196,7 @@ export default function Navigation() {
                   e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.2)'
                 }}
               >
-                <span className="text-white text-lg">👤</span>
+                <span className="text-white text-sm">👤</span>
               </button>
             ) : (
               <Link href="/auth/login" className="px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 rounded-lg text-white font-semibold transition-all">
