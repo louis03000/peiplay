@@ -12,6 +12,11 @@
     @apply scroll-smooth;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, 'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
     letter-spacing: -0.015em;
+    /* 整體縮小 5% */
+    transform: scale(0.95);
+    transform-origin: top left;
+    width: 105.26%; /* 補償縮放後的寬度 */
+    height: 105.26%; /* 補償縮放後的高度 */
   }
   
   body {
