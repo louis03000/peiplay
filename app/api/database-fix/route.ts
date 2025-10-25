@@ -13,7 +13,13 @@ export async function GET() {
       environment: {},
       connection: {},
       schema: {},
-      fixes: []
+      fixes: [] as Array<{
+        type: string;
+        success: boolean;
+        message: string;
+        userId?: string;
+        error?: string;
+      }>
     }
     
     // 1. 檢查環境變數
