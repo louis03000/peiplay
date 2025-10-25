@@ -83,12 +83,12 @@ export default function Navbar() {
     <nav className="bg-gradient-to-r from-gray-800 to-gray-900 shadow-lg sticky top-0 z-50">
       <div className="w-full flex items-center justify-between px-4 sm:px-6 py-4">
         {/* 左側：品牌標誌 */}
-        <div className="flex items-center space-x-3">
+        <Link href="/" className="flex items-center space-x-3 hover:opacity-80 transition-opacity">
           <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
             <span className="text-white font-bold text-lg">P</span>
           </div>
           <span className="text-white text-xl font-bold">PeiPlay</span>
-        </div>
+        </Link>
 
         {/* 右側：導航項目 + 用戶圖標 */}
         <div className="flex items-center space-x-6">

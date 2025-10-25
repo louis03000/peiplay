@@ -15,8 +15,9 @@
     /* 整體縮小 5% */
     transform: scale(0.95);
     transform-origin: top left;
-    width: 105.26%; /* 補償縮放後的寬度 */
-    height: 105.26%; /* 補償縮放後的高度 */
+    width: 100vw; /* 使用視窗寬度 */
+    height: 100vh; /* 使用視窗高度 */
+    overflow-x: hidden; /* 防止水平滾動 */
   }
   
   body {

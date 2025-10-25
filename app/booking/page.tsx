@@ -426,7 +426,7 @@ function BookingWizardContent() {
   }, [step, selectedPartner, selectedDate, selectedTimes, selectedDuration, onlyAvailable])
 
   return (
-    <div className="min-h-screen" style={{backgroundColor: '#E4E7EB'}}>
+    <div className="min-h-screen w-full overflow-x-hidden" style={{backgroundColor: '#E4E7EB'}}>
 
       {/* Hero Section */}
       <div className="relative py-16 px-6 overflow-hidden">
@@ -448,8 +448,8 @@ function BookingWizardContent() {
         </div>
       </div>
 
-      <div className="py-8 px-6">
-        <div className="max-w-6xl mx-auto">
+      <div className="py-8 px-6 w-full">
+        <div className="max-w-6xl mx-auto w-full">
           <div className="rounded-3xl p-8" style={{backgroundColor: 'white', boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)'}}>
           {/* 步驟指示器 */}
           <div className="mb-16">
