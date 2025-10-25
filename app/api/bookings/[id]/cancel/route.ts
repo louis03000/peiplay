@@ -86,25 +86,11 @@ export async function POST(
 
   } catch (error) {
     console.error('取消預約時發生錯誤:', error);
+    console.error('錯誤詳情:', error);
     
-    // 如果資料庫錯誤，返回模擬成功響應
-    console.log("🔄 使用模擬數據作為備用");
-    const bookingId = params.id;
-    const mockBooking = {
-      id: bookingId,
-      status: 'CANCELLED',
-      customerId: 'mock-customer-1',
-      scheduleId: 'mock-schedule-1',
-      originalAmount: 200,
-      finalAmount: 200,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
-
     return NextResponse.json({ 
-      success: true, 
-      message: '預約已成功取消',
-      booking: mockBooking 
-    });
+      error: '取消預約失敗，請稍後再試',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    }, { status: 500 });
   }
 } 
