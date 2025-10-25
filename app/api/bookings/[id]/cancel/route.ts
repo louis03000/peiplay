@@ -8,10 +8,13 @@ export const runtime = 'nodejs';
 
 export async function POST(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     console.log("✅ bookings cancel POST api triggered");
+    
+    // 解析 params
+    const resolvedParams = await params;
     
     // 檢查認證
     const session = await getServerSession(authOptions);
@@ -19,7 +22,7 @@ export async function POST(
       return NextResponse.json({ error: '請先登入' }, { status: 401 });
     }
     
-    const bookingId = params.id;
+    const bookingId = resolvedParams.id;
     
     if (!bookingId) {
       return NextResponse.json({ error: '預約 ID 是必需的' }, { status: 400 });
