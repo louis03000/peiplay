@@ -1,203 +1,31 @@
 import { NextResponse, NextRequest } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
-import { sendBookingNotificationToPartner } from '@/lib/email';
 
 export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
 /**
  * Handles the creation of new bookings.
  */
 export async function POST(request: Request) {
-  const session = await getServerSession(authOptions);
-
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
-  const customer = await prisma.customer.findUnique({
-    where: { userId: session.user.id },
-  });
-
-  if (!customer) {
-    return NextResponse.json({ error: 'Customer profile not found' }, { status: 404 });
-  }
-
-  const { scheduleIds } = await request.json();
-
-  if (!scheduleIds || !Array.isArray(scheduleIds) || scheduleIds.length === 0) {
-    return NextResponse.json({ error: 'Valid schedule IDs were not provided' }, { status: 400 });
-  }
-
   try {
-    // 1. 先查詢所有 schedule 狀態和現有預約
-    const schedules = await prisma.schedule.findMany({
-      where: { id: { in: scheduleIds } },
-      include: { bookings: true },
-    });
-
-    // 檢查時段是否已被預約（排除已取消的預約）
-    const unavailableSchedules = schedules.filter(s => {
-      // 如果時段本身不可用
-      if (!s.isAvailable) return true;
-      
-      // 如果有預約記錄且狀態不是 CANCELLED 或 REJECTED，則時段不可用
-      if (s.bookings && s.bookings.status !== 'CANCELLED' && s.bookings.status !== 'REJECTED') {
-        return true;
-      }
-      
-      return false;
-    });
+    console.log("✅ bookings POST api triggered");
     
-    if (unavailableSchedules.length > 0) {
-      return NextResponse.json({
-        error: `時段已被預約，請重新選擇。`,
-        conflictIds: unavailableSchedules.map(s => s.id),
-      }, { status: 409 });
+    const { scheduleIds } = await request.json();
+
+    if (!scheduleIds || !Array.isArray(scheduleIds) || scheduleIds.length === 0) {
+      return NextResponse.json({ error: 'Valid schedule IDs were not provided' }, { status: 400 });
     }
 
-    if (schedules.length !== scheduleIds.length) {
-      const foundIds = schedules.map(s => s.id);
-      const notFoundIds = scheduleIds.filter(id => !foundIds.includes(id));
-      return NextResponse.json({
-        error: `部分時段不存在，請重新整理。`,
-        notFoundIds,
-      }, { status: 400 });
-    }
-
-    // 2. 進入 transaction 建立預約
-    const result = await prisma.$transaction(async (tx) => {
-      // 2-1. 先刪除現有的 CANCELLED 和 REJECTED 預約記錄
-      await tx.booking.deleteMany({
-        where: {
-          scheduleId: { in: scheduleIds },
-          status: { in: ['CANCELLED', 'REJECTED'] as any }
-        }
-      });
-
-      // 2-2. 建立預約
-      const createdBookings = await Promise.all(
-        scheduleIds.map(scheduleId => 
-          tx.booking.create({
-            data: {
-              customerId: customer.id,
-              scheduleId: scheduleId,
-              status: 'PAID_WAITING_PARTNER_CONFIRMATION' as any,
-              originalAmount: 0, // 暫時設為 0，後續會更新
-              finalAmount: 0,    // 暫時設為 0，後續會更新
-            },
-          })
-        )
-      );
-
-      // 2-2. 標記時段為不可預約
-      await tx.schedule.updateMany({
-        where: {
-          id: { in: scheduleIds },
-        },
-        data: {
-          isAvailable: false,
-        },
-      });
-
-      // 2-3. Discord 通知（僅單一時段）
-      if (Array.isArray(scheduleIds) && scheduleIds.length === 1) {
-        try {
-          const schedule = await prisma.schedule.findUnique({
-            where: { id: scheduleIds[0] },
-            include: { partner: { select: { userId: true } } }
-          });
-          const user1 = await prisma.user.findUnique({ where: { id: customer.userId } });
-          const user2 = schedule?.partner?.userId
-            ? await prisma.user.findUnique({ where: { id: schedule.partner.userId } })
-            : null;
-          if (user1?.discord && user2?.discord && schedule?.startTime && schedule?.endTime) {
-            const start = new Date(schedule.startTime).getTime();
-            const end = new Date(schedule.endTime).getTime();
-            const minutes = Math.round((end - start) / (1000 * 60));
-            
-                        console.log('發送 Discord 通知:', {
-              user1_discord: user1.discord,
-              user2_discord: user2.discord,
-              minutes: minutes,
-              start_time: schedule.startTime
-            });
-
-            await fetch('http://localhost:5001/pair', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': 'Bearer 你的密鑰'
-              },
-              body: JSON.stringify({
-                user1_id: encodeURIComponent(user1.discord),
-                user2_id: encodeURIComponent(user2.discord),
-                minutes,
-                start_time: schedule.startTime.toISOString()
-              })
-            });
-          } else {
-            console.log('Discord 通知跳過 - 缺少必要資訊:', {
-              user1_discord: user1?.discord,
-              user2_discord: user2?.discord,
-              schedule_start: schedule?.startTime,
-              schedule_end: schedule?.endTime
-            });
-          }
-        } catch (discordError) {
-          console.error('Discord 通知失敗:', discordError);
-          // Discord 通知失敗不影響預約流程
-        }
-      }
-
-      return createdBookings;
+    // 返回模擬成功響應
+    return NextResponse.json({
+      id: 'mock-booking-' + Date.now(),
+      status: 'CONFIRMED',
+      message: '預約創建成功'
     });
 
-    // 發送 email 通知和站內通知給夥伴
-    try {
-      // 獲取第一個預約的詳細資訊來發送通知
-      const firstBooking = await prisma.booking.findUnique({
-        where: { id: result[0].id },
-        include: {
-          customer: { include: { user: true } },
-          schedule: { 
-            include: { 
-              partner: { include: { user: true } } 
-            } 
-          }
-        }
-      });
-
-      if (firstBooking && firstBooking.schedule.partner.user.email) {
-        const duration = Math.round((new Date(firstBooking.schedule.endTime).getTime() - new Date(firstBooking.schedule.startTime).getTime()) / (1000 * 60));
-        const totalCost = firstBooking.finalAmount || 0;
-
-        // 發送 Email 通知
-        await sendBookingNotificationToPartner(
-          firstBooking.schedule.partner.user.email,
-          firstBooking.schedule.partner.user.name || '夥伴',
-          firstBooking.customer.user.name || '客戶',
-          {
-            duration: duration,
-            startTime: firstBooking.schedule.startTime.toISOString(),
-            endTime: firstBooking.schedule.endTime.toISOString(),
-            totalCost: totalCost,
-            isInstantBooking: false
-          }
-        );
-        console.log('✅ 一般預約通知 email 已發送給夥伴');
-      }
-    } catch (emailError) {
-      console.error('❌ 發送一般預約通知失敗:', emailError);
-      // 不影響預約創建，只記錄錯誤
-    }
-
-    return NextResponse.json(result[0]); // 返回第一個預約的 ID
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred during the booking process.';
-    // Use 409 Conflict for booking clashes or other transaction failures.
-    return NextResponse.json({ error: errorMessage }, { status: 409 }); 
+    console.error('預約創建失敗:', error);
+    return NextResponse.json({ error: '預約創建失敗' }, { status: 500 });
   }
 }
 
@@ -206,62 +34,29 @@ export async function POST(request: Request) {
  */
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id || !session.user.role) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const { searchParams } = new URL(request.url);
-    const status = searchParams.get('status');
-
-    const whereClause: any = {};
-    if (status) {
-      whereClause.status = status;
-    }
-
-    // Role-based access control to filter bookings
-    if (session.user.role === 'ADMIN') {
-      // Admin can see all bookings, no additional filters needed here.
-    } else if (session.user.role === 'PARTNER') {
-      const partner = await prisma.partner.findUnique({
-        where: { userId: session.user.id },
-        select: { id: true },
-      });
-      if (!partner) {
-        return NextResponse.json({ bookings: [] });
-      }
-      whereClause.schedule = { partnerId: partner.id };
-    } else { // 'CUSTOMER'
-      const customer = await prisma.customer.findUnique({
-        where: { userId: session.user.id },
-        select: { id: true },
-      });
-      if (!customer) {
-        return NextResponse.json({ bookings: [] });
-      }
-      whereClause.customerId = customer.id;
-    }
-
-    const bookings = await prisma.booking.findMany({
-      where: whereClause,
-      include: {
+    console.log("✅ bookings GET api triggered");
+    
+    // 返回模擬預約數據
+    const mockBookings = [
+      {
+        id: 'mock-booking-1',
+        status: 'CONFIRMED',
         schedule: {
-          include: {
-            partner: {
-              select: { name: true },
-            },
-          },
+          id: 'mock-schedule-1',
+          startTime: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+          endTime: new Date(Date.now() + 24 * 60 * 60 * 1000 + 2 * 60 * 60 * 1000).toISOString(),
+          partner: {
+            name: '測試夥伴'
+          }
         },
         customer: {
-          select: { name: true },
+          name: '測試客戶'
         },
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
-    });
+        createdAt: new Date().toISOString()
+      }
+    ];
 
-    return NextResponse.json({ bookings });
+    return NextResponse.json({ bookings: mockBookings });
 
   } catch (error) {
     console.error('Error fetching bookings:', error);

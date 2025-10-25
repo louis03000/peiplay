@@ -11,14 +11,16 @@ export async function GET() {
     bookings: [
       {
         id: 'mock-booking-1',
-        status: 'PENDING',
+        status: 'CONFIRMED',
         schedule: {
           id: 'mock-schedule-1',
           startTime: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+          endTime: new Date(Date.now() + 24 * 60 * 60 * 1000 + 2 * 60 * 60 * 1000).toISOString(),
           partner: {
             name: '測試夥伴'
           }
-        }
+        },
+        createdAt: new Date().toISOString()
       }
     ]
   });
