@@ -10,9 +10,23 @@ export async function GET() {
     console.log("🔧 開始資料庫診斷和修復...")
     
     const results = {
-      environment: {},
-      connection: {},
-      schema: {},
+      environment: {} as {
+        hasDatabaseUrl: boolean;
+        nodeEnv: string | undefined;
+        vercelEnv: string | undefined;
+        databaseUrlPrefix: string;
+      },
+      connection: {} as {
+        success: boolean;
+        error: string | undefined;
+        type: string | undefined;
+        healthCheck?: any;
+      },
+      schema: {} as {
+        success: boolean;
+        tableCounts?: any;
+        error?: string;
+      },
       fixes: [] as Array<{
         type: string;
         success: boolean;
