@@ -26,14 +26,14 @@ export async function GET() {
     
     // 2. 測試基本連接
     let connectionTest = false
-    let connectionError = null
+    let connectionError: Error | null = null
     try {
       await prisma.$connect()
       await prisma.$queryRaw`SELECT 1 as test`
       connectionTest = true
       console.log("✅ 基本連接測試成功")
     } catch (error) {
-      connectionError = error
+      connectionError = error instanceof Error ? error : new Error(String(error))
       console.error("❌ 基本連接測試失敗:", error)
     } finally {
       try {
@@ -103,7 +103,7 @@ export async function GET() {
             type: 'test_data_creation',
             success: false,
             message: '測試數據創建失敗',
-            error: testError.message
+            error: testError instanceof Error ? testError.message : String(testError)
           })
         }
         
@@ -112,7 +112,7 @@ export async function GET() {
       } catch (schemaError) {
         results.schema = {
           success: false,
-          error: schemaError.message
+          error: schemaError instanceof Error ? schemaError.message : String(schemaError)
         }
         console.error("❌ Schema 測試失敗:", schemaError)
       }
