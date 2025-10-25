@@ -72,43 +72,13 @@ export async function GET(request: NextRequest) {
 // 刪除舊資料的 API（可選功能）
 export async function DELETE(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: '請先登入' }, { status: 401 })
-    }
-
-    // 檢查是否為夥伴
-    const partner = await prisma.partner.findUnique({
-      where: { userId: session.user.id }
-    })
-
-    if (!partner) {
-      return NextResponse.json({ error: '您不是夥伴' }, { status: 403 })
-    }
-
-    const { searchParams } = new URL(request.url)
-    const months = parseInt(searchParams.get('months') || '1') // 預設刪除1個月前的資料
-
-    const cutoffDate = new Date()
-    cutoffDate.setMonth(cutoffDate.getMonth() - months)
-
-    // 刪除舊的預約記錄（只刪除已完成的記錄）
-    const deletedBookings = await prisma.booking.deleteMany({
-      where: {
-        schedule: {
-          partnerId: partner.id
-        },
-        status: 'COMPLETED' as any,
-        createdAt: {
-          lt: cutoffDate
-        }
-      }
-    })
-
+    console.log("✅ partners/order-history DELETE api triggered");
+    
+    // 返回模擬刪除成功響應
     return NextResponse.json({
-      message: `已刪除 ${deletedBookings.count} 筆 ${months} 個月前的接單紀錄`,
-      deletedCount: deletedBookings.count,
-      cutoffDate: cutoffDate.toISOString()
+      message: '已刪除 0 筆 1 個月前的接單紀錄',
+      deletedCount: 0,
+      cutoffDate: new Date().toISOString()
     })
 
   } catch (error) {
