@@ -50,26 +50,27 @@ export async function POST(request: NextRequest) {
     const originalAmount = duration * partner.halfHourlyRate * 2
     const finalAmount = originalAmount
 
+    // 先創建 Schedule 記錄
+    const schedule = await prisma.schedule.create({
+      data: {
+        partnerId: partner.id,
+        date: startTime,
+        startTime: startTime,
+        endTime: endTime,
+        isAvailable: false
+      }
+    });
+
     // 創建即時預約記錄
     const booking = await prisma.booking.create({
       data: {
         customerId: customer.id,
-        scheduleId: 'instant-' + Date.now(), // 即時預約使用特殊的 scheduleId
+        scheduleId: schedule.id, // 使用創建的 schedule ID
         status: 'CONFIRMED',
         originalAmount: originalAmount,
         finalAmount: finalAmount,
         paymentInfo: {
           isInstantBooking: true
-        },
-        // 創建對應的 Schedule 記錄
-        schedule: {
-          create: {
-            partnerId: partner.id,
-            date: startTime,
-            startTime: startTime,
-            endTime: endTime,
-            isAvailable: false
-          }
         }
       },
       include: {
