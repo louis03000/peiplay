@@ -59,16 +59,26 @@ export async function GET(request: Request) {
         user: {
           select: {
             isSuspended: true,
-            suspensionEndsAt: true,
-            reviewsReceived: {
+            suspensionEndsAt: true
+          }
+        },
+        _count: {
+          select: {
+            reviews: {
               where: {
                 isApproved: true
-              },
-              select: {
-                rating: true
               }
             }
           }
+        },
+        reviews: {
+          where: {
+            isApproved: true
+          },
+          select: {
+            rating: true
+          },
+          take: 10 // 只取前10個評價來計算平均
         },
         schedules: {
           where: {
@@ -104,15 +114,16 @@ export async function GET(request: Request) {
     // 過濾掉已預約的時段，只保留可用的時段，並計算平均星等
     partnersWithSchedules = partnersWithSchedules.map(partner => {
       // 計算平均星等
-      const reviews = partner.user?.reviewsReceived || [];
+      const reviews = (partner as any).reviews || [];
       const averageRating = reviews.length > 0 
         ? reviews.reduce((sum: number, review: any) => sum + review.rating, 0) / reviews.length
         : 0;
+      const totalReviews = (partner as any)._count?.reviews || 0;
       
       return {
         ...partner,
         averageRating: Math.round(averageRating * 10) / 10, // 保留一位小數
-        totalReviews: reviews.length,
+        totalReviews,
         schedules: partner.schedules.filter(schedule => {
           // 如果時段本身不可用，則過濾掉
           if (!schedule.isAvailable) return false;

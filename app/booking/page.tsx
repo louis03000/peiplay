@@ -181,9 +181,9 @@ function BookingWizardContent() {
         if (onlyAvailable) params.push('availableNow=true');
         if (onlyRankBooster) params.push('rankBooster=true');
         
-        // 傳遞更寬的日期範圍，確保能獲取到足夠的時段資料
+        // 只查詢未來7天，減少資料傳輸量，加快載入速度
         const now = new Date();
-        const endDate = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000); // 30天後
+        const endDate = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000); // 7天後
         params.push(`startDate=${now.toISOString()}`);
         params.push(`endDate=${endDate.toISOString()}`);
         
@@ -196,12 +196,7 @@ function BookingWizardContent() {
         }
         
         const data = await res.json()
-        console.log('🔍 夥伴 API 回應:', data)
-        console.log('📊 夥伴數量:', Array.isArray(data) ? data.length : '非陣列')
         if (Array.isArray(data)) {
-          data.forEach((partner, index) => {
-            console.log(`${index + 1}. ${partner.name} - 現在有空: ${partner.isAvailableNow} - 時段數: ${partner.schedules?.length || 0}`)
-          })
           setPartners(data)
         } else {
           setPartners([])
