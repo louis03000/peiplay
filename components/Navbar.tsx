@@ -80,107 +80,109 @@ export default function Navbar() {
   }, [menuRef])
 
   return (
-    <nav className="bg-white/90 backdrop-blur-sm shadow-lg border-b border-gray-200 sticky top-0 z-50">
+    <nav className="bg-gradient-to-r from-gray-800 to-gray-900 shadow-lg sticky top-0 z-50">
       <div className="max-w-7xl mx-auto flex items-center justify-between px-4 sm:px-6 py-4">
-        <div className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-          <Link href="/">PeiPlay</Link>
+        {/* 品牌標誌 */}
+        <div className="flex items-center space-x-3">
+          <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+            <span className="text-white font-bold text-lg">P</span>
+          </div>
+          <span className="text-white text-xl font-bold">PeiPlay</span>
         </div>
-        <div className="flex gap-2 sm:gap-4 md:gap-8 items-center text-gray-700">
-          <Link href="/booking" className="hover:text-blue-600 transition-colors text-sm sm:text-base font-medium">預約</Link>
-          <Link href="/ranking" className="hover:text-blue-600 transition-colors text-sm sm:text-base font-medium">排行榜</Link>
-          <Link href="/partners" className="hover:text-blue-600 transition-colors text-sm sm:text-base font-medium">搜尋</Link>
-          {!isPartner && <Link href="/join" className="hover:text-blue-600 transition-colors text-sm sm:text-base hidden sm:inline font-medium">加入我們</Link>}
+
+        {/* 導航項目 */}
+        <div className="flex items-center space-x-6">
+          <Link href="/booking" className="flex items-center space-x-2 text-white hover:text-blue-300 transition-colors">
+            <span className="text-2xl">🎮</span>
+            <span className="font-medium">預約陪玩</span>
+          </Link>
+          <Link href="/ranking" className="flex items-center space-x-2 text-white hover:text-yellow-300 transition-colors">
+            <span className="text-2xl">🏆</span>
+            <span className="font-medium">排行榜</span>
+          </Link>
+          <Link href="/partners" className="flex items-center space-x-2 text-white hover:text-blue-300 transition-colors">
+            <span className="text-2xl">🔍</span>
+            <span className="font-medium">搜尋夥伴</span>
+          </Link>
+          {!isPartner && (
+            <Link href="/join" className="flex items-center space-x-2 text-white hover:text-red-300 transition-colors">
+              <span className="text-2xl">💼</span>
+              <span className="font-medium">加入我們</span>
+            </Link>
+          )}
           
+          {/* 用戶圖標 */}
           <div className="relative" ref={menuRef}>
             {session?.user ? (
-              <button onClick={() => setMenuOpen(!menuOpen)} className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 flex items-center justify-center text-sm sm:text-lg font-bold text-white border-2 border-transparent hover:border-blue-400 transition-all shadow-lg">
-                {session.user.name?.charAt(0) || session.user.email?.charAt(0)}
+              <button 
+                onClick={() => setMenuOpen(!menuOpen)} 
+                className="w-10 h-10 bg-gray-700/50 hover:bg-gray-600/50 rounded-lg flex items-center justify-center transition-all duration-200 border border-gray-600 hover:border-purple-400"
+              >
+                <span className="text-purple-400 text-xl">👤</span>
               </button>
             ) : (
-              <Link href="/auth/login" className="px-2 sm:px-4 py-1.5 sm:py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 transition-colors font-semibold text-sm sm:text-base text-white shadow-lg">登入</Link>
+              <Link href="/auth/login" className="px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 rounded-lg text-white font-semibold transition-all">
+                登入
+              </Link>
             )}
 
+            {/* 下拉選單 */}
             {menuOpen && session?.user && (
-              <div className="absolute right-0 md:left-1/2 md:-translate-x-1/2 mt-3 w-48 sm:w-56 bg-white rounded-xl shadow-xl py-2 border border-gray-200">
-                <div className="px-3 sm:px-4 py-3 border-b border-gray-200 text-center">
-                  <p className="text-xs sm:text-sm text-gray-500">Signed in as</p>
-                  <p className="font-semibold truncate text-gray-900 text-sm sm:text-base">{session.user.name || session.user.email}</p>
+              <div className="absolute right-0 mt-3 w-64 bg-white rounded-xl shadow-xl py-4 border border-gray-200">
+                <div className="px-4 py-3 border-b border-gray-200 text-center">
+                  <p className="text-sm text-gray-500">Signed in as</p>
+                  <p className="font-semibold text-gray-900 text-lg">{session.user.name || session.user.email}</p>
                 </div>
                 
-                {/* 管理員功能 */}
-                  {session?.user?.role === 'ADMIN' && (
-                  <div className="mt-2">
-                    <Link href="/admin/partners" className="block w-full px-3 sm:px-4 py-2 text-xs sm:text-sm text-gray-900 hover:text-indigo-600 hover:bg-indigo-50 transition-colors text-center">
-                      🔧 夥伴審核
-                    </Link>
-                    <Link href="/admin/reviews" className="block w-full px-3 sm:px-4 py-2 text-xs sm:text-sm text-gray-900 hover:text-indigo-600 hover:bg-indigo-50 transition-colors text-center">
-                      📝 評價審核
-                    </Link>
-                  </div>
-                  )}
-                
-                {/* 夥伴功能 */}
+                {/* 時段管理 - 夥伴功能 */}
                 {partnerLoading ? (
-                  <div className="mt-2">
-                    <div className="block w-full px-3 sm:px-4 py-2 text-xs sm:text-sm text-gray-500 text-center">
-                      🔄 載入中...
+                  <div className="px-4 py-3">
+                    <div className="flex items-center space-x-3 text-gray-500">
+                      <span className="text-xl">🔄</span>
+                      <span className="text-sm">載入中...</span>
                     </div>
                   </div>
                 ) : isPartner && (
-                  <div className="mt-2">
-                    <Link href="/partner/schedule" className="block w-full px-3 sm:px-4 py-2 text-xs sm:text-sm text-gray-900 hover:text-indigo-600 hover:bg-indigo-50 transition-colors text-center">
-                      📅 時段管理
+                  <div className="px-4 py-3">
+                    <Link href="/partner/schedule" className="flex items-center space-x-3 text-gray-900 hover:text-blue-600 hover:bg-blue-50 transition-colors rounded-lg px-2 py-2">
+                      <span className="text-xl">📅</span>
+                      <span className="font-medium">時段管理</span>
                     </Link>
                   </div>
                 )}
                 
-                {/* 預約管理 - 所有用戶都可以訪問 */}
-                <div className="mt-2">
-                  <Link href="/bookings" className="block w-full px-3 sm:px-4 py-2 text-xs sm:text-sm text-gray-900 hover:text-indigo-600 hover:bg-indigo-50 transition-colors text-center">
-                    📋 預約管理
+                {/* 預約管理 */}
+                <div className="px-4 py-3">
+                  <Link href="/bookings" className="flex items-center space-x-3 text-gray-900 hover:text-orange-600 hover:bg-orange-50 transition-colors rounded-lg px-2 py-2">
+                    <span className="text-xl">📋</span>
+                    <span className="font-medium">預約管理</span>
                   </Link>
                 </div>
                 
-                
                 {/* 個人資料 */}
-                <div className="mt-2">
-                  <Link href="/profile" className="block w-full px-3 sm:px-4 py-2 text-xs sm:text-sm text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 transition-colors text-center">
-                    👤 個人資料
+                <div className="px-4 py-3">
+                  <Link href="/profile" className="flex items-center space-x-3 text-purple-600 hover:text-purple-700 hover:bg-purple-50 transition-colors rounded-lg px-2 py-2">
+                    <span className="text-xl">👤</span>
+                    <span className="font-medium">個人資料</span>
                   </Link>
                 </div>
                 
                 {/* 設定 */}
-                <div className="mt-2">
-                  <Link href="/profile/settings" className="block w-full px-3 sm:px-4 py-2 text-xs sm:text-sm text-gray-900 hover:text-indigo-600 hover:bg-indigo-50 transition-colors text-center">
-                    ⚙️ 設定
+                <div className="px-4 py-3">
+                  <Link href="/profile/settings" className="flex items-center space-x-3 text-gray-900 hover:text-gray-600 hover:bg-gray-50 transition-colors rounded-lg px-2 py-2">
+                    <span className="text-xl">⚙️</span>
+                    <span className="font-medium">設定</span>
                   </Link>
                 </div>
                 
-                {/* 管理員功能 */}
-                {session?.user?.role === 'ADMIN' && (
-                  <>
-                    <div className="border-t border-white/40 mt-2 pt-2">
-                      <div className="px-3 sm:px-4 py-1 text-xs text-gray-500 font-medium">管理員功能</div>
-                    </div>
-                    <div className="mt-2">
-                      <Link href="/admin/verify-users" className="block w-full px-3 sm:px-4 py-2 text-xs sm:text-sm text-gray-900 hover:text-indigo-600 hover:bg-indigo-50 transition-colors text-center">
-                        ✅ 用戶驗證管理
-                      </Link>
-                    </div>
-                    <div className="mt-2">
-                      <Link href="/admin/security" className="block w-full px-3 sm:px-4 py-2 text-xs sm:text-sm text-gray-900 hover:text-indigo-600 hover:bg-indigo-50 transition-colors text-center">
-                        🔒 安全監控
-                      </Link>
-                    </div>
-                  </>
-                )}
-                
-                <div className="border-t border-white/40 mt-2">
+                {/* 登出 */}
+                <div className="border-t border-gray-200 mt-2 pt-2">
                   <button 
                     onClick={() => signOut()} 
-                    className="block w-full px-3 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm text-red-500 hover:bg-red-50 hover:text-red-700 transition-colors text-center"
+                    className="w-full flex items-center space-x-3 text-red-500 hover:text-red-700 hover:bg-red-50 transition-colors rounded-lg px-4 py-3"
                   >
-                    登出
+                    <span className="text-xl">🚪</span>
+                    <span className="font-medium">登出</span>
                   </button>
                 </div>
               </div>
