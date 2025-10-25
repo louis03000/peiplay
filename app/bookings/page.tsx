@@ -85,15 +85,14 @@ export default function BookingsPage() {
 
       if (response.ok) {
         alert('預約已成功取消！');
-        // 重新載入資料
-        setLoading(true)
-        setError(null)
-        const url = tab === 'me' ? '/api/bookings/me' : '/api/bookings/partner'
-        fetch(url)
-          .then(res => res.json())
-          .then(data => setBookings(data.bookings || []))
-          .catch(err => setError('載入失敗'))
-          .finally(() => setLoading(false))
+        // 直接更新本地狀態，將預約狀態改為已取消
+        setBookings(prevBookings => 
+          prevBookings.map(booking => 
+            booking.id === bookingId 
+              ? { ...booking, status: 'CANCELLED' }
+              : booking
+          )
+        );
       } else {
         alert(data.error || '取消預約失敗');
       }
