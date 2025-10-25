@@ -206,7 +206,7 @@ export default function Navigation() {
 
             {/* 用戶下拉選單 */}
             {userMenuOpen && session?.user && (
-              <div className="absolute right-0 mt-3 w-64 bg-white rounded-xl shadow-xl py-4 border border-gray-200">
+              <div className="absolute right-0 mt-3 w-64 bg-white rounded-xl shadow-xl py-4 border border-gray-200 z-50">
                 <div className="px-4 py-3 border-b border-gray-200 text-center">
                   <p className="text-sm text-gray-500">Signed in as</p>
                   <p className="font-semibold text-gray-900 text-lg">{session.user.name || session.user.email}</p>
