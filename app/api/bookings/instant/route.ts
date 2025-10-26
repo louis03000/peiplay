@@ -132,7 +132,8 @@ export async function POST(request: NextRequest) {
         duration: duration,
         startTime: startTime.toISOString(),
         endTime: endTime.toISOString(),
-        totalCost: totalCost
+        totalCost: totalCost,
+        partnerId: partnerId // 加入實際的夥伴 ID
       }
     })
   }

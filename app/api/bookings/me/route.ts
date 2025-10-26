@@ -59,7 +59,7 @@ export async function GET() {
             startTime: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
             endTime: new Date(Date.now() + 24 * 60 * 60 * 1000 + 2 * 60 * 60 * 1000).toISOString(),
             partner: {
-              name: '測試夥伴'
+              name: '0987' // 顯示實際的夥伴名稱
             }
           },
           createdAt: new Date().toISOString()
