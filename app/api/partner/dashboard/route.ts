@@ -91,28 +91,9 @@ export async function GET() {
   } catch (error) {
     console.error("❌ 獲取夥伴儀表板失敗:", error)
     
-    // 如果資料庫錯誤，返回模擬數據
-    console.log("🔄 使用模擬數據作為備用")
     return NextResponse.json({
-      partner: {
-        id: 'mock-partner-id',
-        isAvailableNow: true,
-        isRankBooster: false,
-        allowGroupBooking: true,
-        availableNowSince: new Date().toISOString(),
-        rankBoosterImages: []
-      },
-      schedules: [
-        {
-          id: 'mock-schedule-1',
-          date: new Date().toISOString(),
-          startTime: new Date().toISOString(),
-          endTime: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(),
-          isAvailable: true,
-          booked: false
-        }
-      ],
-      groups: []
-    })
+      error: '獲取夥伴儀表板失敗',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    }, { status: 500 });
   }
 }
