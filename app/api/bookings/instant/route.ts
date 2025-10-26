@@ -31,6 +31,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '缺少必要參數' }, { status: 400 })
     }
 
+    // 確保資料庫連線
+    await prisma.$connect();
+
     // 查找客戶資料
     const customer = await prisma.customer.findUnique({
       where: { userId: session.user.id }
@@ -117,5 +120,12 @@ export async function POST(request: NextRequest) {
       error: '即時預約創建失敗',
       details: error instanceof Error ? error.message : 'Unknown error'
     }, { status: 500 });
+  } finally {
+    // 確保斷開連線
+    try {
+      await prisma.$disconnect();
+    } catch (disconnectError) {
+      console.error("❌ 斷開連線失敗:", disconnectError);
+    }
   }
 }
