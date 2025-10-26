@@ -16,6 +16,9 @@ export async function GET() {
       return NextResponse.json({ error: '請先登入' }, { status: 401 })
     }
 
+    // 確保資料庫連線
+    await prisma.$connect();
+
     // 查找夥伴資料
     const partner = await prisma.partner.findUnique({
       where: { userId: session.user.id },
@@ -95,5 +98,12 @@ export async function GET() {
       error: '獲取夥伴儀表板失敗',
       details: error instanceof Error ? error.message : 'Unknown error'
     }, { status: 500 });
+  } finally {
+    // 確保斷開連線
+    try {
+      await prisma.$disconnect();
+    } catch (disconnectError) {
+      console.error("❌ 斷開連線失敗:", disconnectError);
+    }
   }
 }
