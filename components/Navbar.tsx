@@ -134,6 +134,42 @@ export default function Navbar() {
                   <p className="font-semibold text-gray-900 text-lg">{session.user.name || session.user.email}</p>
                 </div>
                 
+                {/* 管理員功能 */}
+                {session.user.role === 'ADMIN' && (
+                  <>
+                    <div className="px-4 py-3">
+                      <Link href="/admin/users" className="flex items-center space-x-3 text-gray-900 hover:text-blue-600 hover:bg-blue-50 transition-colors rounded-lg px-2 py-2">
+                        <span className="text-xl">👥</span>
+                        <span className="font-medium">用戶管理</span>
+                      </Link>
+                    </div>
+                    <div className="px-4 py-3">
+                      <Link href="/admin/partners" className="flex items-center space-x-3 text-gray-900 hover:text-green-600 hover:bg-green-50 transition-colors rounded-lg px-2 py-2">
+                        <span className="text-xl">🤝</span>
+                        <span className="font-medium">夥伴管理</span>
+                      </Link>
+                    </div>
+                    <div className="px-4 py-3">
+                      <Link href="/admin/reviews" className="flex items-center space-x-3 text-gray-900 hover:text-yellow-600 hover:bg-yellow-50 transition-colors rounded-lg px-2 py-2">
+                        <span className="text-xl">⭐</span>
+                        <span className="font-medium">評價管理</span>
+                      </Link>
+                    </div>
+                    <div className="px-4 py-3">
+                      <Link href="/admin/withdrawals" className="flex items-center space-x-3 text-gray-900 hover:text-purple-600 hover:bg-purple-50 transition-colors rounded-lg px-2 py-2">
+                        <span className="text-xl">💰</span>
+                        <span className="font-medium">提領管理</span>
+                      </Link>
+                    </div>
+                    <div className="px-4 py-3">
+                      <Link href="/admin/security" className="flex items-center space-x-3 text-gray-900 hover:text-red-600 hover:bg-red-50 transition-colors rounded-lg px-2 py-2">
+                        <span className="text-xl">🔒</span>
+                        <span className="font-medium">安全管理</span>
+                      </Link>
+                    </div>
+                  </>
+                )}
+
                 {/* 時段管理 - 夥伴功能 */}
                 {partnerLoading ? (
                   <div className="px-4 py-3">
@@ -142,7 +178,7 @@ export default function Navbar() {
                       <span className="text-sm">載入中...</span>
                     </div>
                   </div>
-                ) : isPartner && (
+                ) : isPartner && session.user.role !== 'ADMIN' && (
                   <div className="px-4 py-3">
                     <Link href="/partner/schedule" className="flex items-center space-x-3 text-gray-900 hover:text-blue-600 hover:bg-blue-50 transition-colors rounded-lg px-2 py-2">
                       <span className="text-xl">📅</span>
