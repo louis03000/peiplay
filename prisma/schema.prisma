@@ -8,98 +8,97 @@ datasource db {
 }
 
 model User {
-  id                 String    @id @default(cuid())
-  email              String    @unique
-  password           String
-  name               String?
-  birthday           DateTime?
-  phone              String?
-  role               UserRole  @default(CUSTOMER)
-  createdAt          DateTime  @default(now())
-  updatedAt          DateTime  @updatedAt
-  isTwoFactorEnabled Boolean   @default(false)
-  lockUntil          DateTime?
-  loginAttempts      Int       @default(0)
-  twoFactorSecret    String?
-  discord            String?
-  isSuspended        Boolean   @default(false)
-  suspensionEndsAt   DateTime?
-  suspensionReason   String?
-  emailVerified      Boolean   @default(false)
-  emailVerificationCode String?
+  id                       String        @id @default(cuid())
+  email                    String        @unique
+  password                 String
+  name                     String?
+  birthday                 DateTime?
+  phone                    String?
+  role                     UserRole      @default(CUSTOMER)
+  createdAt                DateTime      @default(now())
+  updatedAt                DateTime      @updatedAt
+  isTwoFactorEnabled       Boolean       @default(false)
+  lockUntil                DateTime?
+  loginAttempts            Int           @default(0)
+  twoFactorSecret          String?
+  discord                  String?
+  isSuspended              Boolean       @default(false)
+  suspensionEndsAt         DateTime?
+  suspensionReason         String?
+  emailVerified            Boolean       @default(false)
+  emailVerificationCode    String?
   emailVerificationExpires DateTime?
-  // 用戶設定
-  emailNotifications Boolean  @default(true)
-  messageNotifications Boolean @default(true)
-  bookingNotifications Boolean @default(true)
-  twoFactorEnabled   Boolean  @default(false)
-  loginAlerts        Boolean  @default(true)
-  securityAlerts     Boolean  @default(true)
-  customer           Customer?
-  partner            Partner?
-  reviewsReceived    Review[]  @relation("Reviewee")
-  reviewsGiven       Review[]  @relation("Reviewer")
-  securityLogs       SecurityLog[]
-  sentMessages       Message[] @relation("SentMessages")
-  receivedMessages   Message[] @relation("ReceivedMessages")
-  notifications      Notification[]
+  emailNotifications       Boolean       @default(true)
+  messageNotifications     Boolean       @default(true)
+  bookingNotifications     Boolean       @default(true)
+  twoFactorEnabled         Boolean       @default(false)
+  loginAlerts              Boolean       @default(true)
+  securityAlerts           Boolean       @default(true)
+  customer                 Customer?
+  partner                  Partner?
+  reviewsReceived          Review[]      @relation("Reviewee")
+  reviewsGiven             Review[]      @relation("Reviewer")
+  securityLogs             SecurityLog[]
 }
 
 model Partner {
-  id                String        @id @default(cuid())
-  name              String
-  birthday          DateTime
-  phone             String
-  coverImage        String
-  games             String[]
-  createdAt         DateTime      @default(now())
-  updatedAt         DateTime      @updatedAt
-  isAvailableNow    Boolean       @default(false)
-  availableNowSince DateTime?
-  userId            String        @unique
-  status            PartnerStatus @default(PENDING)
-  isRankBooster     Boolean       @default(false)
-  rankBoosterNote   String?
-  rankBoosterRank   String?
-  rankBoosterImages String[]      @default([])
-  customerMessage   String?
-  halfHourlyRate    Float
-  images            String[]      @default([])
-  inviteCode        String?
-  invitedBy         String?
-  bankAccountNumber String?
-  bankCode          String?
-  contractFile      String?
-  allowGroupBooking Boolean       @default(false) // 是否允許群組預約
-  // 推薦系統相關欄位
-  referralEarnings  Float         @default(0)
-  referralCount     Int           @default(0)
-  totalReferralEarnings Float     @default(0)
-  // 推薦配置（每個夥伴可以有不同的配置）
-  referralPlatformFee Float       @default(10.00)  // 推薦後的平台抽成比例
-  referralBonusPercentage Float   @default(5.00)   // 推薦人獲得的差額比例
-  user              User          @relation(fields: [userId], references: [id])
-  schedules         Schedule[]
-  withdrawalRequests WithdrawalRequest[]
-  groupBookings     GroupBooking[] // 群組預約
-  // 推薦關係
-  referralsGiven    ReferralRecord[] @relation("Inviter")
-  referralsReceived ReferralRecord[] @relation("Invitee")
+  id                      String                    @id @default(cuid())
+  name                    String
+  birthday                DateTime
+  phone                   String
+  coverImage              String
+  games                   String[]
+  createdAt               DateTime                  @default(now())
+  updatedAt               DateTime                  @updatedAt
+  isAvailableNow          Boolean                   @default(false)
+  availableNowSince       DateTime?
+  userId                  String                    @unique
+  status                  PartnerStatus             @default(PENDING)
+  isRankBooster           Boolean                   @default(false)
+  rankBoosterNote         String?
+  rankBoosterRank         String?
+  rankBoosterImages       String[]                  @default([])
+  customerMessage         String?
+  halfHourlyRate          Float
+  chatHourlyRate          Float?
+  images                  String[]                  @default([])
+  inviteCode              String?
+  invitedBy               String?
+  bankAccountNumber       String?
+  bankCode                String?
+  contractFile            String?
+  referralEarnings        Float                     @default(0)
+  referralCount           Int                       @default(0)
+  totalReferralEarnings   Float                     @default(0)
+  referralPlatformFee     Float                     @default(10.00)
+  referralBonusPercentage Float                     @default(5.00)
+  noResponseCount         Int                       @default(0)
+  lastNoResponseReset     DateTime?
+  allowGroupBooking       Boolean                   @default(false)
+  FavoritePartner         FavoritePartner[]
+  GroupBookingParticipant GroupBookingParticipant[]
+  user                    User                      @relation(fields: [userId], references: [id])
+  referralsReceived       ReferralRecord?           @relation("Invitee")
+  referralsGiven          ReferralRecord[]          @relation("Inviter")
+  schedules               Schedule[]
+  withdrawalRequests      WithdrawalRequest[]
 }
 
 model Customer {
-  id            String         @id @default(cuid())
-  name          String
-  birthday      DateTime
-  phone         String
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
-  lineId        String?        @unique
-  userId        String         @unique
-  bookings      Booking[]
-  groupBookings GroupBooking[] // 創建的群組預約
-  user          User           @relation(fields: [userId], references: [id])
-  orders        Order[]
+  id                      String                    @id @default(cuid())
+  name                    String
+  birthday                DateTime
+  phone                   String
+  createdAt               DateTime                  @default(now())
+  updatedAt               DateTime                  @updatedAt
+  lineId                  String?                   @unique
+  userId                  String                    @unique
+  bookings                Booking[]
+  user                    User                      @relation(fields: [userId], references: [id])
+  FavoritePartner         FavoritePartner[]
+  GroupBookingParticipant GroupBookingParticipant[]
+  GroupBookingReview      GroupBookingReview[]
+  orders                  Order[]
 }
 
 model Schedule {
@@ -116,36 +115,38 @@ model Schedule {
 }
 
 model Booking {
-  id                          String        @id @default(cuid())
-  customerId                  String
-  scheduleId                  String        @unique
-  status                      BookingStatus @default(PENDING)
-  createdAt                   DateTime      @default(now())
-  updatedAt                   DateTime      @updatedAt
-  reminderSent                Boolean       @default(false)
-  rejectReason                String?
-  discountAmount              Float         @default(0)
-  finalAmount                 Float
-  originalAmount              Float
-  promoCode                   String?
-  orderNumber                 String?
-  paymentError                String?
-  paymentInfo                 Json?
-  discordEarlyTextChannelId   String?       // 提前溝通文字頻道 ID
-  discordTextChannelId        String?       // 正式文字頻道 ID
-  discordVoiceChannelId       String?       // 語音頻道 ID
-  extensionButtonShown        Boolean       @default(false) // 延長按鈕是否已顯示
-  ratingCompleted             Boolean       @default(false) // 評價是否已完成
-  textChannelCleaned          Boolean       @default(false) // 文字頻道是否已清理
-  // 群組預約相關欄位
-  isGroupBooking              Boolean       @default(false) // 是否為群組預約
-  groupBookingId              String?       // 群組預約 ID
-  groupBooking                GroupBooking? @relation(fields: [groupBookingId], references: [id])
-  customer                    Customer      @relation(fields: [customerId], references: [id])
-  schedule                    Schedule      @relation(fields: [scheduleId], references: [id])
-  orders                      Order[]
-  reviews        Review[]
-  referralEarnings ReferralEarning[]
+  id                        String            @id @default(cuid())
+  customerId                String
+  scheduleId                String            @unique
+  status                    BookingStatus     @default(PENDING)
+  createdAt                 DateTime          @default(now())
+  updatedAt                 DateTime          @updatedAt
+  reminderSent              Boolean           @default(false)
+  rejectReason              String?
+  discountAmount            Float             @default(0)
+  finalAmount               Float
+  originalAmount            Float
+  promoCode                 String?
+  orderNumber               String?
+  paymentError              String?
+  paymentInfo               Json?
+  discordEarlyTextChannelId String?
+  discordTextChannelId      String?
+  discordVoiceChannelId     String?
+  extensionButtonShown      Boolean           @default(false)
+  ratingCompleted           Boolean           @default(false)
+  textChannelCleaned        Boolean           @default(false)
+  partnerResponseDeadline   DateTime?
+  isWaitingPartnerResponse  Boolean           @default(false)
+  serviceType               String            @default("GAMING")
+  groupBookingId            String?
+  isGroupBooking            Boolean           @default(false)
+  customer                  Customer          @relation(fields: [customerId], references: [id])
+  groupBooking              GroupBooking?     @relation(fields: [groupBookingId], references: [id])
+  schedule                  Schedule          @relation(fields: [scheduleId], references: [id])
+  orders                    Order[]
+  referralEarnings          ReferralEarning[]
+  reviews                   Review[]
 }
 
 model Order {
@@ -159,69 +160,72 @@ model Order {
 }
 
 model GroupBooking {
-  id                    String   @id @default(cuid())
-  partnerId             String
-  creatorId             String   // 群組創建者 ID
-  title                 String   // 群組標題
-  description           String?  // 群組描述
-  maxParticipants       Int      @default(4) // 最大參與人數
-  currentParticipants   Int      @default(1) // 當前參與人數
-  pricePerPerson        Int      // 每人費用
-  startTime             DateTime
-  endTime               DateTime
-  status                GroupBookingStatus @default(ACTIVE)
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
-  // Discord 相關
-  discordTextChannelId  String?  // 群組文字頻道 ID
-  discordVoiceChannelId String?  // 群組語音頻道 ID
-  // 關聯
-  partner               Partner  @relation(fields: [partnerId], references: [id])
-  creator               Customer @relation(fields: [creatorId], references: [id])
-  bookings              Booking[] // 群組內的所有預約
+  id                      String                    @id @default(cuid())
+  type                    GroupBookingType
+  title                   String?
+  description             String?
+  date                    DateTime
+  startTime               DateTime
+  endTime                 DateTime
+  maxParticipants         Int                       @default(10)
+  currentParticipants     Int                       @default(0)
+  pricePerPerson          Float?
+  totalPrice              Float?
+  status                  GroupBookingStatus        @default(ACTIVE)
+  createdAt               DateTime                  @default(now())
+  updatedAt               DateTime                  @updatedAt
+  initiatorId             String
+  initiatorType           String
+  bookings                Booking[]
+  GroupBookingParticipant GroupBookingParticipant[]
+  GroupBookingReview      GroupBookingReview[]
+
+  @@index([date, startTime])
+  @@index([status])
 }
 
 model Review {
-  id         String   @id @default(cuid())
+  id         String    @id @default(cuid())
   bookingId  String
   reviewerId String
   revieweeId String
   rating     Int
   comment    String?
-  createdAt  DateTime @default(now())
-  isApproved Boolean  @default(false) // 管理員審核狀態
-  approvedAt DateTime? // 審核通過時間
-  booking    Booking  @relation(fields: [bookingId], references: [id])
-  reviewee   User     @relation("Reviewee", fields: [revieweeId], references: [id])
-  reviewer   User     @relation("Reviewer", fields: [reviewerId], references: [id])
+  createdAt  DateTime  @default(now())
+  isApproved Boolean   @default(false)
+  approvedAt DateTime?
+  booking    Booking   @relation(fields: [bookingId], references: [id])
+  reviewee   User      @relation("Reviewee", fields: [revieweeId], references: [id])
+  reviewer   User      @relation("Reviewer", fields: [reviewerId], references: [id])
 }
 
 model PromoCode {
-  id          String        @id @default(cuid())
-  code        String        @unique
-  type        PromoCodeType
-  value       Float
-  maxUses     Int           @default(-1)
-  usedCount   Int           @default(0)
-  validFrom   DateTime      @default(now())
-  validUntil  DateTime?
-  isActive    Boolean       @default(true)
-  description String?
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+  id           String        @id @default(cuid())
+  code         String        @unique
+  type         PromoCodeType
+  value        Float
+  minimumSpend Float?
+  maxUses      Int           @default(-1)
+  usedCount    Int           @default(0)
+  validFrom    DateTime      @default(now())
+  validUntil   DateTime?
+  isActive     Boolean       @default(true)
+  description  String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
 }
 
 model WithdrawalRequest {
-  id          String              @id @default(cuid())
+  id          String           @id @default(cuid())
   partnerId   String
   amount      Float
-  status      WithdrawalStatus    @default(PENDING)
-  requestedAt DateTime            @default(now())
+  status      WithdrawalStatus @default(PENDING)
+  requestedAt DateTime         @default(now())
   processedAt DateTime?
   adminNote   String?
-  createdAt   DateTime            @default(now())
-  updatedAt   DateTime            @updatedAt
-  partner     Partner             @relation(fields: [partnerId], references: [id])
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  partner     Partner          @relation(fields: [partnerId], references: [id])
 }
 
 model PairingRecord {
@@ -240,38 +244,90 @@ model PairingRecord {
 }
 
 model ReferralRecord {
-  id         String   @id @default(cuid())
+  id         String            @id @default(cuid())
   inviterId  String
-  inviteeId  String   @unique
+  inviteeId  String            @unique
   inviteCode String
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-  inviter    Partner  @relation("Inviter", fields: [inviterId], references: [id])
-  invitee    Partner  @relation("Invitee", fields: [inviteeId], references: [id])
+  createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
   earnings   ReferralEarning[]
+  invitee    Partner           @relation("Invitee", fields: [inviteeId], references: [id])
+  inviter    Partner           @relation("Inviter", fields: [inviterId], references: [id])
 }
 
 model ReferralEarning {
-  id                String         @id @default(cuid())
-  referralRecordId  String
-  bookingId         String
-  amount            Float
-  percentage        Float
-  createdAt         DateTime       @default(now())
-  updatedAt         DateTime       @updatedAt
-  referralRecord    ReferralRecord @relation(fields: [referralRecordId], references: [id])
-  booking           Booking        @relation(fields: [bookingId], references: [id])
+  id               String         @id @default(cuid())
+  referralRecordId String
+  bookingId        String
+  amount           Float
+  percentage       Float
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  booking          Booking        @relation(fields: [bookingId], references: [id])
+  referralRecord   ReferralRecord @relation(fields: [referralRecordId], references: [id])
 }
 
+model SecurityLog {
+  id        String            @id @default(cuid())
+  userId    String
+  eventType SecurityEventType
+  details   String
+  ipAddress String
+  userAgent String
+  timestamp DateTime          @default(now())
+  user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([userId, timestamp])
+  @@index([eventType, timestamp])
+  @@index([ipAddress, timestamp])
+}
 
+model FavoritePartner {
+  id         String   @id
+  customerId String
+  partnerId  String
+  createdAt  DateTime @default(now())
+  Customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  Partner    Partner  @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+
+  @@unique([customerId, partnerId])
+  @@index([customerId])
+  @@index([partnerId])
+}
+
+model GroupBookingParticipant {
+  id             String            @id
+  groupBookingId String
+  customerId     String
+  partnerId      String?
+  status         ParticipantStatus @default(ACTIVE)
+  joinedAt       DateTime          @default(now())
+  Customer       Customer          @relation(fields: [customerId], references: [id])
+  GroupBooking   GroupBooking      @relation(fields: [groupBookingId], references: [id])
+  Partner        Partner?          @relation(fields: [partnerId], references: [id])
+
+  @@unique([groupBookingId, customerId])
+}
+
+model GroupBookingReview {
+  id             String       @id
+  groupBookingId String
+  reviewerId     String
+  rating         Int
+  comment        String?
+  createdAt      DateTime     @default(now())
+  isApproved     Boolean      @default(false)
+  GroupBooking   GroupBooking @relation(fields: [groupBookingId], references: [id])
+  Customer       Customer     @relation(fields: [reviewerId], references: [id])
+
+  @@unique([groupBookingId, reviewerId])
+}
 
 enum UserRole {
   CUSTOMER
   PARTNER
   ADMIN
 }
-
 
 enum PartnerStatus {
   PENDING
@@ -319,69 +375,19 @@ enum SecurityEventType {
 }
 
 enum GroupBookingStatus {
-  ACTIVE      // 活躍中，可以加入
-  FULL        // 已滿員
-  CANCELLED   // 已取消
-  COMPLETED   // 已完成
+  ACTIVE
+  COMPLETED
+  CANCELLED
+  FULL
 }
 
-enum NotificationType {
-  BOOKING_CONFIRMED    // 預約確認
-  BOOKING_CANCELLED    // 預約取消
-  BOOKING_REMINDER     // 預約提醒
-  MESSAGE_RECEIVED     // 收到訊息
-  PAYMENT_SUCCESS      // 付款成功
-  PAYMENT_FAILED       // 付款失敗
-  PARTNER_ACCEPTED     // 夥伴接受預約
-  PARTNER_REJECTED     // 夥伴拒絕預約
-  SYSTEM_ANNOUNCEMENT  // 系統公告
-  SECURITY_ALERT       // 安全警告
+enum GroupBookingType {
+  USER_INITIATED
+  PARTNER_INITIATED
 }
 
-model SecurityLog {
-  id          String           @id @default(cuid())
-  userId      String
-  eventType   SecurityEventType
-  details     String           // JSON 格式的詳細信息
-  ipAddress   String
-  userAgent   String
-  timestamp   DateTime         @default(now())
-  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  @@index([userId, timestamp])
-  @@index([eventType, timestamp])
-  @@index([ipAddress, timestamp])
-}
-
-model Message {
-  id          String   @id @default(cuid())
-  senderId    String
-  receiverId  String
-  content     String
-  isRead      Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  sender      User     @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
-  receiver    User     @relation("ReceivedMessages", fields: [receiverId], references: [id], onDelete: Cascade)
-  
-  @@index([senderId, createdAt])
-  @@index([receiverId, createdAt])
-  @@index([receiverId, isRead])
-}
-
-model Notification {
-  id          String   @id @default(cuid())
-  userId      String
-  title       String
-  content     String
-  type        NotificationType
-  isRead      Boolean  @default(false)
-  data        Json?    // 額外的資料，如預約ID等
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  @@index([userId, createdAt])
-  @@index([userId, isRead])
-  @@index([type, createdAt])
+enum ParticipantStatus {
+  ACTIVE
+  CANCELLED
+  COMPLETED
 }
