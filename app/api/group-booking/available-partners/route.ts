@@ -117,19 +117,23 @@ export async function GET(request: Request) {
         endTime: { gt: start }
       },
       include: {
-        partner: {
-          select: {
-            id: true,
-            name: true,
-            coverImage: true,
-            halfHourlyRate: true,
-            user: {
+        GroupBookingParticipant: {
+          include: {
+            Partner: {
               select: {
-                isSuspended: true,
-                suspensionEndsAt: true,
-                reviewsReceived: {
-                  where: { isApproved: true },
-                  select: { rating: true }
+                id: true,
+                name: true,
+                coverImage: true,
+                halfHourlyRate: true,
+                user: {
+                  select: {
+                    isSuspended: true,
+                    suspensionEndsAt: true,
+                    reviewsReceived: {
+                      where: { isApproved: true },
+                      select: { rating: true }
+                    }
+                  }
                 }
               }
             }
@@ -162,7 +166,10 @@ export async function GET(request: Request) {
 
     // 計算群組預約的評分
     const groupBookingsWithRating = groupBookings.map(group => {
-      const reviews = group.partner.user.reviewsReceived;
+      const partner = group.GroupBookingParticipant.find(p => p.Partner)?.Partner;
+      if (!partner) return null;
+      
+      const reviews = partner.user.reviewsReceived;
       const averageRating = reviews.length > 0 
         ? reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length 
         : 0;
@@ -170,12 +177,12 @@ export async function GET(request: Request) {
       return {
         ...group,
         partner: {
-          ...group.partner,
+          ...partner,
           averageRating: Math.round(averageRating * 10) / 10,
           reviewCount: reviews.length
         }
       };
-    });
+    }).filter(Boolean);
 
     return NextResponse.json({
       partners: partnersWithRating,

@@ -16,8 +16,12 @@ export async function POST(request: Request) {
     const groupBooking = await prisma.groupBooking.findUnique({
       where: { id: groupBookingId },
       include: {
-        partner: {
-          include: { user: true }
+        GroupBookingParticipant: {
+          include: {
+            Partner: {
+              include: { user: true }
+            }
+          }
         },
         bookings: {
           include: {
@@ -35,7 +39,9 @@ export async function POST(request: Request) {
 
     // 收集所有參與者的 Discord ID
     const participants = [
-      groupBooking.partner.user.discord,
+      ...groupBooking.GroupBookingParticipant
+        .filter(p => p.Partner)
+        .map(p => p.Partner!.user.discord),
       ...groupBooking.bookings.map(booking => booking.customer.user.discord)
     ].filter((discord): discord is string => discord !== null && discord !== undefined); // 過濾掉空的 Discord ID
 

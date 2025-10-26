@@ -1,1 +1,0 @@
-ALTER TABLE "Booking" ADD COLUMN "isGroupBooking" BOOLEAN NOT NULL DEFAULT false;

@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
     }
 
     const partner = booking.schedule.partner;
-    const referralRecord = partner.referralsReceived[0]; // 假設每個夥伴只有一個推薦人
+    const referralRecord = partner.referralsReceived; // 推薦記錄
 
     if (!referralRecord) {
       // 沒有推薦關係，使用原本的抽成比例

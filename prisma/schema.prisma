@@ -39,6 +39,9 @@ model User {
   reviewsReceived          Review[]      @relation("Reviewee")
   reviewsGiven             Review[]      @relation("Reviewer")
   securityLogs             SecurityLog[]
+  messagesSent             Message[]     @relation("MessageSender")
+  messagesReceived         Message[]     @relation("MessageReceiver")
+  notifications            Notification[]
 }
 
 model Partner {
@@ -176,6 +179,8 @@ model GroupBooking {
   updatedAt               DateTime                  @updatedAt
   initiatorId             String
   initiatorType           String
+  discordTextChannelId    String?
+  discordVoiceChannelId   String?
   bookings                Booking[]
   GroupBookingParticipant GroupBookingParticipant[]
   GroupBookingReview      GroupBookingReview[]
@@ -390,4 +395,34 @@ enum ParticipantStatus {
   ACTIVE
   CANCELLED
   COMPLETED
+}
+
+model Message {
+  id          String    @id @default(cuid())
+  senderId    String
+  receiverId  String
+  content     String
+  isRead      Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  sender      User      @relation("MessageSender", fields: [senderId], references: [id])
+  receiver    User      @relation("MessageReceiver", fields: [receiverId], references: [id])
+
+  @@index([receiverId, isRead])
+  @@index([senderId])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  title     String
+  content   String
+  type      String   @default("info")
+  data      Json?
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@index([userId, isRead])
 }
