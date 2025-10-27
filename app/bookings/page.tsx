@@ -195,31 +195,31 @@ export default function BookingsPage() {
       </div>
 
       {/* Tab 切換按鈕 */}
-      <div className="flex justify-center gap-2 sm:gap-4 mb-6 sm:mb-8">
+      <div className="flex justify-center gap-4 sm:gap-6 mb-6 sm:mb-8">
         <button
-          className={`px-4 sm:px-8 py-3 rounded-lg font-bold transition-all duration-200 ${
+          className={`px-6 sm:px-10 py-4 rounded-xl font-bold transition-all duration-300 border-2 ${
             tab === 'me' 
-              ? 'bg-palette-700 text-white shadow-lg' 
-              : 'bg-palette-600 text-gray-200 hover:bg-palette-500'
+              ? 'bg-blue-600 text-white border-blue-400 shadow-lg shadow-blue-500/30 hover:bg-blue-700' 
+              : 'bg-gray-700/50 text-gray-200 border-gray-500 hover:bg-gray-600/50 hover:border-gray-400 hover:text-white'
           }`}
           onClick={() => setTab('me')}
         >
           <div className="text-center">
-            <div className="text-sm sm:text-lg">我的預約</div>
-            <div className="text-xs opacity-90 hidden sm:block">我預約的夥伴</div>
+            <div className="text-base sm:text-lg font-semibold">我的預約</div>
+            <div className="text-xs opacity-90 hidden sm:block mt-1">我預約的夥伴</div>
           </div>
         </button>
         <button
-          className={`px-4 sm:px-8 py-3 rounded-lg font-bold transition-all duration-200 ${
+          className={`px-6 sm:px-10 py-4 rounded-xl font-bold transition-all duration-300 border-2 ${
             tab === 'partner' 
-              ? 'bg-palette-700 text-white shadow-lg' 
-              : 'bg-palette-600 text-gray-200 hover:bg-palette-500'
+              ? 'bg-blue-600 text-white border-blue-400 shadow-lg shadow-blue-500/30 hover:bg-blue-700' 
+              : 'bg-gray-700/50 text-gray-200 border-gray-500 hover:bg-gray-600/50 hover:border-gray-400 hover:text-white'
           }`}
           onClick={() => setTab('partner')}
         >
           <div className="text-center">
-            <div className="text-sm sm:text-lg">我的訂單</div>
-            <div className="text-xs opacity-90 hidden sm:block">預約我的顧客</div>
+            <div className="text-base sm:text-lg font-semibold">我的訂單</div>
+            <div className="text-xs opacity-90 hidden sm:block mt-1">預約我的顧客</div>
           </div>
         </button>
       </div>
