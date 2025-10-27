@@ -21,7 +21,7 @@
   }
   
   body {
-    @apply text-slate-100;
+    @apply text-gray-800;
     font-weight: 500;
   }
 }
