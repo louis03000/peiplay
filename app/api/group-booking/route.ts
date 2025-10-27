@@ -27,7 +27,10 @@ export async function POST(request: Request) {
 
     // 查找夥伴資料
     const partner = await prisma.partner.findUnique({
-      where: { id: partnerId }
+      where: { id: partnerId },
+      include: {
+        user: true
+      }
     });
 
     if (!partner) {
