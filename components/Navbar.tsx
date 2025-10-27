@@ -128,43 +128,43 @@ export default function Navbar() {
 
             {/* 下拉選單 */}
             {menuOpen && session?.user && (
-              <div className="absolute right-0 mt-3 w-64 bg-white rounded-xl shadow-xl py-4 border border-gray-200 z-50">
-                <div className="px-4 py-3 border-b border-gray-200 text-center">
-                  <p className="text-sm text-gray-500">Signed in as</p>
-                  <p className="font-semibold text-gray-900 text-lg">{session.user.name || session.user.email}</p>
+              <div className="absolute right-0 mt-3 w-56 bg-white rounded-xl shadow-xl py-3 border border-gray-200 z-50">
+                <div className="px-3 py-2 border-b border-gray-200 text-center">
+                  <p className="text-xs text-gray-500">Signed in as</p>
+                  <p className="font-semibold text-gray-900 text-base">{session.user.name || session.user.email}</p>
                 </div>
                 
                 {/* 管理員功能 */}
                 {session.user.role === 'ADMIN' && (
                   <>
-                    <div className="px-4 py-3">
-                      <Link href="/admin/users" className="flex items-center space-x-3 text-gray-900 hover:text-blue-600 hover:bg-blue-50 transition-colors rounded-lg px-2 py-2">
-                        <span className="text-xl">👥</span>
-                        <span className="font-medium">用戶管理</span>
+                    <div className="px-3 py-2">
+                      <Link href="/admin/users" className="flex items-center justify-center space-x-2 text-gray-900 hover:text-blue-600 hover:bg-blue-50 transition-colors rounded-lg px-2 py-2">
+                        <span className="text-lg">👥</span>
+                        <span className="font-medium text-sm">用戶管理</span>
                       </Link>
                     </div>
-                    <div className="px-4 py-3">
-                      <Link href="/admin/partners" className="flex items-center space-x-3 text-gray-900 hover:text-green-600 hover:bg-green-50 transition-colors rounded-lg px-2 py-2">
-                        <span className="text-xl">🤝</span>
-                        <span className="font-medium">夥伴管理</span>
+                    <div className="px-3 py-2">
+                      <Link href="/admin/partners" className="flex items-center justify-center space-x-2 text-gray-900 hover:text-green-600 hover:bg-green-50 transition-colors rounded-lg px-2 py-2">
+                        <span className="text-lg">🤝</span>
+                        <span className="font-medium text-sm">夥伴管理</span>
                       </Link>
                     </div>
-                    <div className="px-4 py-3">
-                      <Link href="/admin/reviews" className="flex items-center space-x-3 text-gray-900 hover:text-yellow-600 hover:bg-yellow-50 transition-colors rounded-lg px-2 py-2">
-                        <span className="text-xl">⭐</span>
-                        <span className="font-medium">評價管理</span>
+                    <div className="px-3 py-2">
+                      <Link href="/admin/reviews" className="flex items-center justify-center space-x-2 text-gray-900 hover:text-yellow-600 hover:bg-yellow-50 transition-colors rounded-lg px-2 py-2">
+                        <span className="text-lg">⭐</span>
+                        <span className="font-medium text-sm">評價管理</span>
                       </Link>
                     </div>
-                    <div className="px-4 py-3">
-                      <Link href="/admin/withdrawals" className="flex items-center space-x-3 text-gray-900 hover:text-purple-600 hover:bg-purple-50 transition-colors rounded-lg px-2 py-2">
-                        <span className="text-xl">💰</span>
-                        <span className="font-medium">提領管理</span>
+                    <div className="px-3 py-2">
+                      <Link href="/admin/withdrawals" className="flex items-center justify-center space-x-2 text-gray-900 hover:text-purple-600 hover:bg-purple-50 transition-colors rounded-lg px-2 py-2">
+                        <span className="text-lg">💰</span>
+                        <span className="font-medium text-sm">提領管理</span>
                       </Link>
                     </div>
-                    <div className="px-4 py-3">
-                      <Link href="/admin/security" className="flex items-center space-x-3 text-gray-900 hover:text-red-600 hover:bg-red-50 transition-colors rounded-lg px-2 py-2">
-                        <span className="text-xl">🔒</span>
-                        <span className="font-medium">安全管理</span>
+                    <div className="px-3 py-2">
+                      <Link href="/admin/security" className="flex items-center justify-center space-x-2 text-gray-900 hover:text-red-600 hover:bg-red-50 transition-colors rounded-lg px-2 py-2">
+                        <span className="text-lg">🔒</span>
+                        <span className="font-medium text-sm">安全管理</span>
                       </Link>
                     </div>
                   </>
@@ -172,53 +172,53 @@ export default function Navbar() {
 
                 {/* 時段管理 - 夥伴功能 */}
                 {partnerLoading ? (
-                  <div className="px-4 py-3">
-                    <div className="flex items-center space-x-3 text-gray-500">
-                      <span className="text-xl">🔄</span>
-                      <span className="text-sm">載入中...</span>
+                  <div className="px-3 py-2">
+                    <div className="flex items-center justify-center space-x-2 text-gray-500">
+                      <span className="text-lg">🔄</span>
+                      <span className="text-xs">載入中...</span>
                     </div>
                   </div>
                 ) : isPartner && session.user.role !== 'ADMIN' && (
-                  <div className="px-4 py-3">
-                    <Link href="/partner/schedule" className="flex items-center space-x-3 text-gray-900 hover:text-blue-600 hover:bg-blue-50 transition-colors rounded-lg px-2 py-2">
-                      <span className="text-xl">📅</span>
-                      <span className="font-medium">時段管理</span>
+                  <div className="px-3 py-2">
+                    <Link href="/partner/schedule" className="flex items-center justify-center space-x-2 text-gray-900 hover:text-blue-600 hover:bg-blue-50 transition-colors rounded-lg px-2 py-2">
+                      <span className="text-lg">📅</span>
+                      <span className="font-medium text-sm">時段管理</span>
                     </Link>
                   </div>
                 )}
                 
                 {/* 預約管理 */}
-                <div className="px-4 py-3">
-                  <Link href="/bookings" className="flex items-center space-x-3 text-gray-900 hover:text-orange-600 hover:bg-orange-50 transition-colors rounded-lg px-2 py-2">
-                    <span className="text-xl">📋</span>
-                    <span className="font-medium">預約管理</span>
+                <div className="px-3 py-2">
+                  <Link href="/bookings" className="flex items-center justify-center space-x-2 text-gray-900 hover:text-orange-600 hover:bg-orange-50 transition-colors rounded-lg px-2 py-2">
+                    <span className="text-lg">📋</span>
+                    <span className="font-medium text-sm">預約管理</span>
                   </Link>
                 </div>
                 
                 {/* 個人資料 */}
-                <div className="px-4 py-3">
-                  <Link href="/profile" className="flex items-center space-x-3 text-purple-600 hover:text-purple-700 hover:bg-purple-50 transition-colors rounded-lg px-2 py-2">
-                    <span className="text-xl">👤</span>
-                    <span className="font-medium">個人資料</span>
+                <div className="px-3 py-2">
+                  <Link href="/profile" className="flex items-center justify-center space-x-2 text-purple-600 hover:text-purple-700 hover:bg-purple-50 transition-colors rounded-lg px-2 py-2">
+                    <span className="text-lg">👤</span>
+                    <span className="font-medium text-sm">個人資料</span>
                   </Link>
                 </div>
                 
                 {/* 設定 */}
-                <div className="px-4 py-3">
-                  <Link href="/profile/settings" className="flex items-center space-x-3 text-gray-900 hover:text-gray-600 hover:bg-gray-50 transition-colors rounded-lg px-2 py-2">
-                    <span className="text-xl">⚙️</span>
-                    <span className="font-medium">設定</span>
+                <div className="px-3 py-2">
+                  <Link href="/profile/settings" className="flex items-center justify-center space-x-2 text-gray-900 hover:text-gray-600 hover:bg-gray-50 transition-colors rounded-lg px-2 py-2">
+                    <span className="text-lg">⚙️</span>
+                    <span className="font-medium text-sm">設定</span>
                   </Link>
                 </div>
                 
                 {/* 登出 */}
-                <div className="border-t border-gray-200 mt-2 pt-2">
+                <div className="border-t border-gray-200 mt-1 pt-1">
                   <button 
                     onClick={() => signOut()} 
-                    className="w-full flex items-center space-x-3 text-red-500 hover:text-red-700 hover:bg-red-50 transition-colors rounded-lg px-4 py-3"
+                    className="w-full flex items-center justify-center space-x-2 text-red-500 hover:text-red-700 hover:bg-red-50 transition-colors rounded-lg px-3 py-2"
                   >
-                    <span className="text-xl">🚪</span>
-                    <span className="font-medium">登出</span>
+                    <span className="text-lg">🚪</span>
+                    <span className="font-medium text-sm">登出</span>
                   </button>
                 </div>
               </div>
