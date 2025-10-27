@@ -424,20 +424,13 @@ function BookingWizardContent() {
     <div className="min-h-screen w-full overflow-x-hidden" style={{backgroundColor: '#E4E7EB'}}>
 
       {/* Hero Section */}
-      <div className="relative py-16 px-6 overflow-hidden">
-        {/* 背景漸層 */}
-        <div className="absolute inset-0 bg-gradient-to-br from-#1A73E8 via-#5C7AD6 to-#1A73E8 opacity-95"></div>
-        
-        {/* 幾何裝飾元素 */}
-        <div className="absolute top-10 left-10 w-32 h-32 bg-white opacity-10 rounded-full blur-xl"></div>
-        <div className="absolute bottom-10 right-10 w-48 h-48 bg-white opacity-5 rounded-full blur-2xl"></div>
-        
+      <div className="relative py-16 px-6 overflow-hidden" style={{backgroundColor: '#E4E7EB'}}>
         <div className="relative z-10 max-w-6xl mx-auto text-center">
-          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold mb-6" style={{color: 'white'}}>
+          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold mb-6 text-gray-800">
             預約陪玩服務
           </h1>
-          <div className="w-24 h-1 mx-auto mb-6" style={{backgroundColor: '#5C7AD6'}}></div>
-          <p className="text-xl max-w-3xl mx-auto" style={{color: 'white', opacity: 0.95}}>
+          <div className="w-24 h-1 mx-auto mb-6 bg-blue-600"></div>
+          <p className="text-xl max-w-3xl mx-auto text-gray-700">
             選擇專業夥伴，享受優質的遊戲陪玩體驗
           </p>
         </div>

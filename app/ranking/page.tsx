@@ -135,21 +135,13 @@ export default function RankingPage() {
     <div className="min-h-screen" style={{backgroundColor: '#E4E7EB'}}>
 
       {/* Hero Section */}
-      <div className="relative py-24 px-6 overflow-hidden">
-        {/* 背景漸層 */}
-        <div className="absolute inset-0 bg-gradient-to-br from-#1A73E8 via-#5C7AD6 to-#1A73E8 opacity-95"></div>
-        
-        {/* 幾何裝飾元素 */}
-        <div className="absolute top-10 left-10 w-32 h-32 bg-white opacity-10 rounded-full blur-xl"></div>
-        <div className="absolute bottom-10 right-10 w-48 h-48 bg-white opacity-5 rounded-full blur-2xl"></div>
-        <div className="absolute top-1/2 left-1/4 w-16 h-16 bg-white opacity-20 rotate-45 blur-lg"></div>
-        
+      <div className="relative py-24 px-6 overflow-hidden" style={{backgroundColor: '#E4E7EB'}}>
         <div className="relative z-10 max-w-6xl mx-auto text-center">
-          <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold mb-8" style={{color: 'white'}}>
+          <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold mb-8 text-gray-800">
             夥伴排行榜
           </h1>
-          <div className="w-24 h-1 mx-auto mb-8" style={{backgroundColor: '#5C7AD6'}}></div>
-          <p className="text-xl sm:text-2xl mb-12 max-w-4xl mx-auto" style={{color: 'white', opacity: 0.95}}>
+          <div className="w-24 h-1 mx-auto mb-8 bg-blue-600"></div>
+          <p className="text-xl sm:text-2xl mb-12 max-w-4xl mx-auto text-gray-700">
             看看最受歡迎的遊戲夥伴，選擇最適合您的陪玩專家
           </p>
         </div>

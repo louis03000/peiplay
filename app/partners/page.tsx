@@ -214,23 +214,13 @@ export default function PartnersPage() {
     <div className="min-h-screen" style={{backgroundColor: '#E4E7EB'}}>
 
       {/* 超大 Hero Section */}
-      <div className="relative py-32 px-8 overflow-hidden">
-        {/* 背景漸層 */}
-        <div className="absolute inset-0 bg-gradient-to-br from-#1A73E8 via-#5C7AD6 to-#1A73E8 opacity-95"></div>
-        
-        {/* 幾何裝飾元素 */}
-        <div className="absolute top-10 left-10 w-48 h-48 bg-white opacity-10 rounded-full blur-2xl"></div>
-        <div className="absolute bottom-10 right-10 w-64 h-64 bg-white opacity-5 rounded-full blur-3xl"></div>
-        <div className="absolute top-1/2 left-1/4 w-24 h-24 bg-white opacity-20 rotate-45 blur-xl"></div>
-        
+      <div className="relative py-32 px-8 overflow-hidden" style={{backgroundColor: '#E4E7EB'}}>
         <div className="relative z-10 max-w-8xl mx-auto text-center">
-          <h1 className="text-6xl sm:text-7xl lg:text-8xl font-black mb-12" style={{color: 'white'}}>
+          <h1 className="text-6xl sm:text-7xl lg:text-8xl font-black mb-12 text-gray-800">
             尋找遊戲夥伴
           </h1>
-          <div className="w-48 h-3 mx-auto mb-12 rounded-full" style={{
-            background: 'linear-gradient(90deg, #00BFA5, #5C7AD6, #1A73E8)'
-          }}></div>
-          <p className="text-2xl sm:text-3xl lg:text-4xl mb-16 max-w-5xl mx-auto font-bold" style={{color: 'white', opacity: 0.95}}>
+          <div className="w-48 h-3 mx-auto mb-12 rounded-full bg-blue-600"></div>
+          <p className="text-2xl sm:text-3xl lg:text-4xl mb-16 max-w-5xl mx-auto font-bold text-gray-700">
             從專業的遊戲陪玩夥伴中選擇最適合您的一位
           </p>
           
@@ -242,14 +232,11 @@ export default function PartnersPage() {
                 placeholder="搜尋遊戲或夥伴..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full px-12 py-10 rounded-3xl text-2xl focus:outline-none focus:ring-4 focus:ring-opacity-50 transition-all duration-500 group-hover:scale-105 font-black"
+                className="w-full px-12 py-10 rounded-3xl text-2xl focus:outline-none focus:ring-4 focus:ring-opacity-50 transition-all duration-500 group-hover:scale-105 font-black text-gray-800 placeholder-gray-500"
                 style={{
-                  backgroundColor: 'rgba(255, 255, 255, 0.25)',
-                  color: 'white',
-                  border: '3px solid rgba(255, 255, 255, 0.3)',
-                  boxShadow: '0 16px 48px rgba(0, 0, 0, 0.2)',
-                  backdropFilter: 'blur(15px)',
-                  textShadow: '1px 1px 2px rgba(0,0,0,0.3)'
+                  backgroundColor: 'white',
+                  border: '3px solid #E4E7EB',
+                  boxShadow: '0 16px 48px rgba(0, 0, 0, 0.2)'
                 }}
               />
               <div className="absolute right-12 top-1/2 transform -translate-y-1/2">
