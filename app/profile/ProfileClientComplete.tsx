@@ -253,7 +253,7 @@ export default function ProfileClientComplete() {
             <span className="mr-2">👤</span>
             個人資料
           </h2>
-          <p className="text-gray-300 text-sm mb-4">
+          <p className="text-gray-200 text-sm mb-4">
             管理您的個人基本資料，這些資訊會用於服務聯繫和身份驗證
           </p>
           
@@ -261,34 +261,34 @@ export default function ProfileClientComplete() {
             <div className="bg-gray-800/60 p-8 rounded-lg">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <div className="p-4 bg-gray-700/40 rounded-lg">
-                  <span className="block text-gray-300 mb-2 text-sm font-medium">姓名</span>
+                  <span className="block text-gray-200 mb-2 text-sm font-medium">姓名</span>
                   <span className="text-white font-semibold text-lg">{userData.name}</span>
                 </div>
                 <div className="p-4 bg-gray-700/40 rounded-lg">
-                  <span className="block text-gray-300 mb-2 text-sm font-medium">電話</span>
+                  <span className="block text-gray-200 mb-2 text-sm font-medium">電話</span>
                   <span className="text-white font-semibold text-lg">{userData.phone || '-'}</span>
                 </div>
                 <div className="p-4 bg-gray-700/40 rounded-lg">
-                  <span className="block text-gray-300 mb-2 text-sm font-medium">生日</span>
+                  <span className="block text-gray-200 mb-2 text-sm font-medium">生日</span>
                   <span className="text-white font-semibold text-lg">{userData.birthday ? userData.birthday.slice(0, 10) : '-'}</span>
                 </div>
                 <div className="p-4 bg-gray-700/40 rounded-lg">
-                  <span className="block text-gray-300 mb-2 text-sm font-medium">Discord 名稱</span>
+                  <span className="block text-gray-200 mb-2 text-sm font-medium">Discord 名稱</span>
                   <span className="text-white font-semibold text-lg">{userData.discord || '-'}</span>
                 </div>
               </div>
               
                              {isPartner && userData.partner?.halfHourlyRate && (
                  <div className="mt-8 p-4 bg-indigo-600/20 rounded-lg border border-indigo-500/30">
-                   <div className="text-indigo-300 mb-2 text-sm font-medium">每半小時收費</div>
+                   <div className="text-indigo-200 mb-2 text-sm font-medium">每半小時收費</div>
                    <span className="text-white font-bold text-xl">{`$${userData.partner.halfHourlyRate}`}</span>
                  </div>
                )}
                
                <div className="mt-8 p-4 bg-green-600/20 rounded-lg border border-green-500/30">
-                 <div className="text-green-300 mb-2 text-sm font-medium">留言板（顧客預約時會看到）</div>
+                 <div className="text-green-200 mb-2 text-sm font-medium">留言板（顧客預約時會看到）</div>
                  <div className="bg-gray-900 rounded p-4 text-white min-h-[60px] border border-green-500/50 text-base">
-                   {userData.partner?.customerMessage ? userData.partner.customerMessage : <span className="text-gray-300">（尚未填寫留言）</span>}
+                   {userData.partner?.customerMessage ? userData.partner.customerMessage : <span className="text-gray-200">（尚未填寫留言）</span>}
                  </div>
                </div>
               

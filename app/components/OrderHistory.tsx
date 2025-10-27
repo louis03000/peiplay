@@ -44,7 +44,7 @@ export default function OrderHistory() {
       {/* 標題和說明 */}
       <div className="mb-6">
         <h2 className="text-xl font-bold mb-2 text-white">消費紀錄</h2>
-        <p className="text-gray-300 text-sm">
+        <p className="text-gray-200 text-sm">
           顯示您作為顧客，向夥伴購買服務的消費記錄
         </p>
       </div>
@@ -53,7 +53,7 @@ export default function OrderHistory() {
         {loading ? (
           <div className="text-center p-8">
             <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white mx-auto mb-3"></div>
-            <p className="text-gray-300">正在載入消費紀錄...</p>
+            <p className="text-gray-200">正在載入消費紀錄...</p>
           </div>
         ) : error ? (
           <div className="text-center p-4">
@@ -62,12 +62,12 @@ export default function OrderHistory() {
         ) : orders.length === 0 ? (
           <div className="text-center p-8">
             <div className="text-gray-400 text-4xl mb-3">💰</div>
-            <p className="text-gray-400">您目前沒有任何消費紀錄</p>
-            <p className="text-gray-500 text-sm mt-1">完成預約後會顯示在這裡</p>
+            <p className="text-gray-300">您目前沒有任何消費紀錄</p>
+            <p className="text-gray-400 text-sm mt-1">完成預約後會顯示在這裡</p>
           </div>
         ) : (
-          <table className="w-full text-sm text-left text-gray-300">
-            <thead className="text-xs text-gray-400 uppercase bg-gray-700/50">
+          <table className="w-full text-sm text-left text-gray-200">
+            <thead className="text-xs text-gray-300 uppercase bg-gray-700/50">
               <tr>
                 <th className="py-3 px-6">消費日期</th>
                 <th className="py-3 px-6">消費金額</th>

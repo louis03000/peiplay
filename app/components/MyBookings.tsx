@@ -227,7 +227,7 @@ export default function MyBookings({ showCompletedOnly }: MyBookingsProps) {
       {/* 標題和說明 */}
       <div className="mb-6">
         <h2 className="text-xl font-bold mb-2 text-white">預約紀錄</h2>
-        <p className="text-gray-300 text-sm">
+        <p className="text-gray-200 text-sm">
           {session?.user?.role === 'CUSTOMER' 
             ? '顯示您作為顧客的預約記錄，包括待確認、已確認、已完成等狀態'
             : '顯示您作為夥伴的預約記錄，包括待確認、已確認、已完成等狀態'
@@ -239,7 +239,7 @@ export default function MyBookings({ showCompletedOnly }: MyBookingsProps) {
         {loading ? (
           <div className="text-center p-8">
             <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white mx-auto mb-3"></div>
-            <p className="text-gray-300">正在載入您的預約...</p>
+            <p className="text-gray-200">正在載入您的預約...</p>
           </div>
         ) : error ? (
           <div className="text-center p-4">
@@ -247,14 +247,14 @@ export default function MyBookings({ showCompletedOnly }: MyBookingsProps) {
           </div>
         ) : bookings.length === 0 ? (
           <div className="text-center p-8">
-            <div className="text-gray-600 text-4xl mb-3">📅</div>
-            <p className="text-gray-600">您目前沒有任何預約</p>
-            <p className="text-gray-600 text-sm mt-1">快去預約喜歡的夥伴吧！</p>
+            <div className="text-gray-400 text-4xl mb-3">📅</div>
+            <p className="text-gray-300">您目前沒有任何預約</p>
+            <p className="text-gray-400 text-sm mt-1">快去預約喜歡的夥伴吧！</p>
           </div>
         ) : (
           <>
-          <table className="w-full text-sm text-left text-gray-300">
-            <thead className="text-xs text-gray-400 uppercase bg-gray-700/50">
+          <table className="w-full text-sm text-left text-gray-200">
+            <thead className="text-xs text-gray-300 uppercase bg-gray-700/50">
               <tr>
                 <th scope="col" className="py-3 px-6">預約日期</th>
                 <th scope="col" className="py-3 px-6">服務時段</th>
