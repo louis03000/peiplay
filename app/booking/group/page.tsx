@@ -152,6 +152,7 @@ function GroupBookingContent() {
           title: createForm.title,
           description: createForm.description,
           maxParticipants: createForm.maxParticipants,
+          pricePerPerson: partner.halfHourlyRate,
           startTime: startDateTime,
           endTime: endDateTime
         })
