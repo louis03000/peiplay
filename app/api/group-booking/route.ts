@@ -34,24 +34,60 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: '夥伴不存在' }, { status: 404 });
     }
 
+    // 查找或創建客戶記錄（夥伴也需要客戶記錄來參與群組）
+    let customer = await prisma.customer.findUnique({
+      where: { userId: partner.userId }
+    });
+
+    if (!customer) {
+      // 為夥伴創建客戶記錄
+      customer = await prisma.customer.create({
+        data: {
+          name: partner.user.name || '夥伴用戶',
+          birthday: new Date('1990-01-01'), // 默認生日
+          phone: '0000000000', // 默認電話
+          userId: partner.userId
+        }
+      });
+    }
+
     // 創建群組預約
     const groupBooking = await prisma.groupBooking.create({
       data: {
-        partnerId: partner.id,
+        type: 'PARTNER_INITIATED',
         title,
         description: description || null,
-        maxParticipants: maxParticipants || 4,
-        pricePerPerson,
+        date: new Date(startTime),
         startTime: new Date(startTime),
         endTime: new Date(endTime),
-        status: 'ACTIVE'
+        maxParticipants: maxParticipants || 4,
+        currentParticipants: 0,
+        pricePerPerson,
+        status: 'ACTIVE',
+        initiatorId: partner.id,
+        initiatorType: 'PARTNER'
       },
       include: {
-        partner: {
+        GroupBookingParticipant: {
           include: {
-            user: true
+            Partner: {
+              include: {
+                user: true
+              }
+            }
           }
         }
+      }
+    });
+
+    // 創建群組參與者記錄（發起者）
+    await prisma.groupBookingParticipant.create({
+      data: {
+        id: `gbp-${groupBooking.id}-${partner.id}`,
+        groupBookingId: groupBooking.id,
+        customerId: customer.id,
+        partnerId: partner.id,
+        status: 'ACTIVE'
       }
     });
 
@@ -61,7 +97,7 @@ export async function POST(request: Request) {
       success: true,
       groupBooking: {
         id: groupBooking.id,
-        partnerId: groupBooking.partnerId,
+        partnerId: partner.id,
         title: groupBooking.title,
         description: groupBooking.description,
         maxParticipants: groupBooking.maxParticipants,
@@ -72,10 +108,10 @@ export async function POST(request: Request) {
         status: groupBooking.status,
         createdAt: groupBooking.createdAt.toISOString(),
         partner: {
-          id: groupBooking.partner.id,
-          name: groupBooking.partner.name,
+          id: partner.id,
+          name: partner.name,
           user: {
-            name: groupBooking.partner.user.name
+            name: partner.user.name
           }
         }
       }
@@ -122,9 +158,18 @@ export async function GET(request: Request) {
     const groupBookings = await prisma.groupBooking.findMany({
       where,
       include: {
-        partner: {
+        GroupBookingParticipant: {
           include: {
-            user: true
+            Partner: {
+              include: {
+                user: true
+              }
+            },
+            Customer: {
+              include: {
+                user: true
+              }
+            }
           }
         },
         bookings: {
@@ -143,36 +188,47 @@ export async function GET(request: Request) {
     console.log("📊 找到群組預約:", groupBookings.length);
 
     // 格式化返回數據
-    const formattedGroupBookings = groupBookings.map(group => ({
-      id: group.id,
-      partnerId: group.partnerId,
-      title: group.title,
-      description: group.description,
-      maxParticipants: group.maxParticipants,
-      currentParticipants: group.bookings.length + 1, // 參與者 + 創建者
-      pricePerPerson: group.pricePerPerson,
-      startTime: group.startTime.toISOString(),
-      endTime: group.endTime.toISOString(),
-      status: group.status,
-      createdAt: group.createdAt.toISOString(),
-      partner: {
-        id: group.partner.id,
-        name: group.partner.name,
-        user: {
-          name: group.partner.user.name
-        }
-      },
-      bookings: group.bookings.map(booking => ({
-        id: booking.id,
-        customer: {
-          id: booking.customer.id,
+    const formattedGroupBookings = groupBookings.map(group => {
+      // 找到發起者夥伴
+      const initiatorPartner = group.GroupBookingParticipant.find(p => p.partnerId === group.initiatorId)?.Partner;
+      
+      return {
+        id: group.id,
+        partnerId: group.initiatorId,
+        title: group.title,
+        description: group.description,
+        maxParticipants: group.maxParticipants,
+        currentParticipants: group.GroupBookingParticipant.length,
+        pricePerPerson: group.pricePerPerson,
+        startTime: group.startTime.toISOString(),
+        endTime: group.endTime.toISOString(),
+        status: group.status,
+        createdAt: group.createdAt.toISOString(),
+        partner: initiatorPartner ? {
+          id: initiatorPartner.id,
+          name: initiatorPartner.name,
           user: {
-            name: booking.customer.user.name,
-            email: booking.customer.user.email
+            name: initiatorPartner.user.name
           }
-        }
-      }))
-    }));
+        } : {
+          id: group.initiatorId,
+          name: '未知夥伴',
+          user: {
+            name: '未知用戶'
+          }
+        },
+        bookings: group.bookings.map(booking => ({
+          id: booking.id,
+          customer: {
+            id: booking.customer.id,
+            user: {
+              name: booking.customer.user.name,
+              email: booking.customer.user.email
+            }
+          }
+        }))
+      };
+    });
 
     return NextResponse.json(formattedGroupBookings);
 
