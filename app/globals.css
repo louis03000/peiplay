@@ -16,7 +16,7 @@
     transform: scale(0.95);
     transform-origin: top left;
     width: 105.26%; /* 補償縮放後的寬度 */
-    height: 105.26%; /* 補償縮放後的高度 */
+    height: 100vh; /* 改為 100vh 避免底部白色背景 */
     overflow-x: hidden; /* 防止水平滾動 */
   }
   

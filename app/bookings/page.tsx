@@ -189,7 +189,7 @@ export default function BookingsPage() {
         <p className="text-gray-200 text-base sm:text-lg">
           {session?.user?.role === 'PARTNER' 
             ? '管理您的預約服務和客戶訂單' 
-            : '查看您的預約記錄和服務訂單'
+            : '查看您當前有效的預約訂單和服務記錄'
           }
         </p>
       </div>
@@ -232,12 +232,12 @@ export default function BookingsPage() {
             <div className="font-semibold mb-1">
               {tab === 'me' ? '我的預約' : '我的訂單'} 說明：
             </div>
-            <div className="text-sm">
-              {tab === 'me' 
-                ? '顯示您作為顧客，主動預約了哪些夥伴的服務時段。您可以查看預約狀態、時間安排等資訊。距離預約時間 2 小時前可以取消預約。'
-                : '顯示您作為夥伴，被哪些顧客預約了服務時段。您可以查看客戶資訊、預約狀態等詳細資料。'
-              }
-            </div>
+                 <div className="text-sm">
+                   {tab === 'me' 
+                     ? '顯示您當前有效的預約訂單（未取消、未拒絕、未完成）。您可以查看預約狀態、時間安排等資訊。距離預約時間 2 小時前可以取消預約。'
+                     : '顯示您作為夥伴，被哪些顧客預約了服務時段。您可以查看客戶資訊、預約狀態等詳細資料。'
+                   }
+                 </div>
           </div>
         </div>
       </div>
