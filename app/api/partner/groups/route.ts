@@ -132,6 +132,7 @@ export async function POST(request: Request) {
     const groupBooking = await prisma.groupBooking.create({
       data: {
         id: `gb-${Date.now()}`,
+        type: 'PARTNER_INITIATED',
         title: data.title,
         description: data.description || null,
         date: startTime,
