@@ -47,10 +47,13 @@ export async function GET() {
 
   } catch (error) {
     console.error('❌ 獲取公告失敗:', error);
-    return NextResponse.json({
-      error: '獲取公告失敗',
-      details: error instanceof Error ? error.message : 'Unknown error'
-    }, { status: 500 });
+    
+    // 如果資料庫錯誤，返回空公告列表而不是 500 錯誤
+    console.log('🔄 返回空公告列表');
+    return NextResponse.json({ 
+      announcements: [],
+      error: '暫時無法載入公告'
+    });
   } finally {
     try {
       await prisma.$disconnect();
