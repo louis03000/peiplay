@@ -21,6 +21,8 @@ const ANNOUNCEMENT_TYPES = [
 ]
 
 export default function AnnouncementPanel() {
+  console.log('🚀 AnnouncementPanel 組件已載入')
+  
   const [announcements, setAnnouncements] = useState<Announcement[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -28,20 +30,26 @@ export default function AnnouncementPanel() {
   const [hasNewAnnouncements, setHasNewAnnouncements] = useState(false)
 
   useEffect(() => {
+    console.log('🔄 useEffect 觸發，開始載入公告')
     fetchAnnouncements()
   }, [])
 
   const fetchAnnouncements = async () => {
     try {
+      console.log('📡 開始 API 請求...')
       setLoading(true)
       
       const response = await fetch('/api/announcements')
+      console.log('📡 API 回應狀態:', response.status)
       
       if (!response.ok) {
+        console.log('❌ API 回應失敗:', response.status)
         throw new Error('無法載入公告')
       }
       
       const data = await response.json()
+      console.log('📊 收到的公告數據:', data)
+      
       setAnnouncements(data.announcements || [])
       
       // 檢查是否有新公告（今天發布的）
@@ -52,7 +60,10 @@ export default function AnnouncementPanel() {
       )
       setHasNewAnnouncements(hasNew)
       
+      console.log('✅ 公告載入完成，數量:', data.announcements?.length || 0)
+      
     } catch (err) {
+      console.error('❌ 載入公告失敗:', err)
       setError(err instanceof Error ? err.message : '載入失敗')
       setAnnouncements([])
     } finally {
@@ -64,41 +75,17 @@ export default function AnnouncementPanel() {
     return ANNOUNCEMENT_TYPES.find(t => t.value === type) || ANNOUNCEMENT_TYPES[0]
   }
 
-  if (loading) {
-    return (
-      <div className="relative">
-        <button
-          onClick={() => setIsOpen(!isOpen)}
-          className="flex items-center gap-2 text-white hover:text-blue-300 transition-colors"
-        >
-          <span className="text-lg">📢</span>
-          <span className="text-sm font-medium">公告</span>
-          {hasNewAnnouncements && (
-            <div className="w-2 h-2 bg-red-500 rounded-full"></div>
-          )}
-        </button>
-      </div>
-    )
+  const handleButtonClick = () => {
+    console.log('🖱️ 公告按鈕被點擊，當前狀態:', isOpen)
+    setIsOpen(!isOpen)
   }
 
-  if (error || announcements.length === 0) {
-    return (
-      <div className="relative">
-        <button
-          onClick={() => setIsOpen(!isOpen)}
-          className="flex items-center gap-2 text-white hover:text-blue-300 transition-colors"
-        >
-          <span className="text-lg">📢</span>
-          <span className="text-sm font-medium">公告</span>
-        </button>
-      </div>
-    )
-  }
+  console.log('🔄 組件重新渲染，狀態:', { loading, error, announcements: announcements.length, isOpen })
 
   return (
     <div className="relative">
       <button
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={handleButtonClick}
         className="flex items-center gap-2 text-white hover:text-blue-300 transition-colors"
       >
         <span className="text-lg">📢</span>
@@ -111,10 +98,14 @@ export default function AnnouncementPanel() {
       {/* 下拉面板 */}
       {isOpen && (
         <>
+          {console.log('📋 顯示公告面板，公告數量:', announcements.length)}
           {/* 背景遮罩 */}
           <div 
             className="fixed inset-0 z-40" 
-            onClick={() => setIsOpen(false)}
+            onClick={() => {
+              console.log('🖱️ 背景被點擊，關閉面板')
+              setIsOpen(false)
+            }}
           />
           
           {/* 公告面板 */}
@@ -123,7 +114,10 @@ export default function AnnouncementPanel() {
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-semibold text-white">📢 最新公告</h3>
                 <button
-                  onClick={() => setIsOpen(false)}
+                  onClick={() => {
+                    console.log('🖱️ 關閉按鈕被點擊')
+                    setIsOpen(false)
+                  }}
                   className="text-gray-400 hover:text-white transition-colors"
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -134,44 +128,63 @@ export default function AnnouncementPanel() {
             </div>
 
             <div className="p-4 space-y-4">
-              {announcements.map((announcement) => {
-                const typeInfo = getTypeInfo(announcement.type)
-                return (
-                  <div key={announcement.id} className="bg-gray-700/50 rounded-lg p-4">
-                    <div className="flex items-start gap-3 mb-2">
-                      <span className="text-lg">{typeInfo.icon}</span>
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <h4 className="font-semibold text-white text-sm">{announcement.title}</h4>
-                          <span className={`text-xs ${typeInfo.color}`}>
-                            {typeInfo.label}
-                          </span>
+              {loading ? (
+                <div className="text-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-2"></div>
+                  <p className="text-gray-300">載入中...</p>
+                </div>
+              ) : error ? (
+                <div className="text-center py-8">
+                  <p className="text-red-400 mb-2">載入失敗</p>
+                  <p className="text-gray-400 text-sm">{error}</p>
+                </div>
+              ) : announcements.length === 0 ? (
+                <div className="text-center py-8">
+                  <div className="text-gray-500 text-4xl mb-4">📢</div>
+                  <p className="text-gray-300">暫無公告</p>
+                  <p className="text-gray-400 text-sm mt-1">管理員尚未發布任何公告</p>
+                </div>
+              ) : (
+                announcements.map((announcement) => {
+                  const typeInfo = getTypeInfo(announcement.type)
+                  return (
+                    <div key={announcement.id} className="bg-gray-700/50 rounded-lg p-4">
+                      <div className="flex items-start gap-3 mb-2">
+                        <span className="text-lg">{typeInfo.icon}</span>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <h4 className="font-semibold text-white text-sm">{announcement.title}</h4>
+                            <span className={`text-xs ${typeInfo.color}`}>
+                              {typeInfo.label}
+                            </span>
+                          </div>
+                          <p className="text-xs text-gray-400 mb-2">
+                            {new Date(announcement.createdAt).toLocaleString('zh-TW')}
+                          </p>
                         </div>
-                        <p className="text-xs text-gray-400 mb-2">
-                          {new Date(announcement.createdAt).toLocaleString('zh-TW')}
+                      </div>
+                      
+                      <div className="bg-gray-600/50 rounded p-3">
+                        <p className="text-gray-300 text-sm whitespace-pre-wrap line-clamp-3">
+                          {announcement.content}
                         </p>
                       </div>
+                      
+                      {announcement.expiresAt && (
+                        <p className="text-xs text-yellow-400 mt-2">
+                          ⏰ 過期時間：{new Date(announcement.expiresAt).toLocaleString('zh-TW')}
+                        </p>
+                      )}
                     </div>
-                    
-                    <div className="bg-gray-600/50 rounded p-3">
-                      <p className="text-gray-300 text-sm whitespace-pre-wrap line-clamp-3">
-                        {announcement.content}
-                      </p>
-                    </div>
-                    
-                    {announcement.expiresAt && (
-                      <p className="text-xs text-yellow-400 mt-2">
-                        ⏰ 過期時間：{new Date(announcement.expiresAt).toLocaleString('zh-TW')}
-                      </p>
-                    )}
-                  </div>
-                )
-              })}
+                  )
+                })
+              )}
             </div>
 
             <div className="p-4 border-t border-gray-700">
               <button
                 onClick={() => {
+                  console.log('🖱️ 查看所有公告按鈕被點擊')
                   setIsOpen(false)
                   // 這裡可以導航到完整的公告頁面
                 }}
