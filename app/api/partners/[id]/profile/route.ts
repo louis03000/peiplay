@@ -23,6 +23,7 @@ export async function GET(
     });
 
     if (!partner) {
+      console.log(`❌ 找不到夥伴: ${params.id}`);
       return NextResponse.json({ error: '夥伴不存在' }, { status: 404 });
     }
 
@@ -39,18 +40,18 @@ export async function GET(
       orderBy: { createdAt: 'desc' }
     });
 
-    // 格式化數據
+    // 格式化數據，確保所有字段都有默認值
     const formattedPartner = {
       id: partner.id,
       name: partner.name,
       birthday: partner.birthday.toISOString(),
-      gender: partner.gender,
-      interests: partner.interests,
-      games: partner.games,
-      supportsChatOnly: partner.supportsChatOnly,
-      chatOnlyRate: partner.chatOnlyRate,
+      gender: partner.gender || '未提供',
+      interests: partner.interests || [],
+      games: partner.games || [],
+      supportsChatOnly: partner.supportsChatOnly || false,
+      chatOnlyRate: partner.chatOnlyRate || null,
       halfHourlyRate: partner.halfHourlyRate,
-      images: partner.images,
+      images: partner.images || [],
       reviewsReceived: reviewsReceived.map(review => ({
         id: review.id,
         rating: review.rating,
@@ -70,6 +71,9 @@ export async function GET(
 
   } catch (error) {
     console.error('❌ 獲取夥伴資料失敗:', error);
+    console.error('❌ 錯誤詳情:', error instanceof Error ? error.message : 'Unknown error');
+    console.error('❌ 錯誤堆疊:', error instanceof Error ? error.stack : 'No stack trace');
+    
     return NextResponse.json({
       error: '獲取夥伴資料失敗',
       details: error instanceof Error ? error.message : 'Unknown error'
