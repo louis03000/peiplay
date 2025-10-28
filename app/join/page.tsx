@@ -9,7 +9,6 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import Link from 'next/link'
-import Navigation from '@/app/components/Navigation'
 
 const MAX_GAMES = 10;
 
@@ -545,8 +544,6 @@ export default function JoinPage() {
 
   return (
     <div className="min-h-screen bg-white">
-      <Navigation />
-
       <div className="min-h-[calc(100vh-80px)] flex items-center justify-center px-4 sm:px-6 lg:px-8">
         <div className="bg-white shadow-xl rounded-lg px-8 pt-6 pb-8 mb-4 border border-gray-200 max-w-4xl mx-auto text-center w-full">
           <h1 className="text-3xl font-bold text-black mb-6 text-center" style={{color: 'black'}}>
