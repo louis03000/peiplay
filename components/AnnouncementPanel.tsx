@@ -21,6 +21,8 @@ const ANNOUNCEMENT_TYPES = [
 ]
 
 export default function AnnouncementPanel() {
+  console.log('🚀 AnnouncementPanel 組件已載入')
+  
   const [announcements, setAnnouncements] = useState<Announcement[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)

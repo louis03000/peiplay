@@ -114,7 +114,7 @@ export default function Navbar() {
           )}
           
           {/* 公告面板 */}
-          {session?.user && <AnnouncementPanel />}
+          <AnnouncementPanel />
           
           {/* 用戶圖標 */}
           <div className="relative" ref={menuRef}>
