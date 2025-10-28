@@ -63,7 +63,7 @@ export async function POST(request: Request) {
           data: {
             customerId: customer.id,
             scheduleId: scheduleId,
-            status: 'PENDING_PARTNER_CONFIRMATION', // 等待夥伴確認
+            status: 'PAID_WAITING_PARTNER_CONFIRMATION', // 等待夥伴確認
             originalAmount: originalAmount,
             finalAmount: finalAmount
           },

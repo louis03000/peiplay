@@ -71,7 +71,7 @@ export async function POST(
     }
 
     // 檢查預約狀態
-    if (booking.status !== 'PENDING_PARTNER_CONFIRMATION') {
+    if (booking.status !== 'PAID_WAITING_PARTNER_CONFIRMATION') {
       return NextResponse.json({ error: '預約狀態不正確' }, { status: 400 });
     }
 
