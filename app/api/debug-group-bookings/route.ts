@@ -72,7 +72,7 @@ export async function GET() {
         participants: group.GroupBookingParticipant.length,
         createdAt: group.createdAt
       })),
-      activeGroupBookings: activeGroupBookings.map(group => ({
+      activeGroupBookingsList: activeGroupBookings.map(group => ({
         id: group.id,
         title: group.title,
         status: group.status,
