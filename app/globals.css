@@ -18,6 +18,7 @@
     width: 105.26%; /* 補償縮放後的寬度 */
     height: 100vh; /* 改為 100vh 避免底部白色背景 */
     overflow-x: hidden; /* 防止水平滾動 */
+    background: linear-gradient(135deg, #581c87 0%, #1e3a8a 50%, #312e81 100%); /* 統一背景色 */
   }
   
   body {
