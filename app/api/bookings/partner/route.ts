@@ -31,15 +31,15 @@ export async function GET() {
     // 查詢預約記錄（作為夥伴被預約的記錄）
     // 只顯示未取消、未拒絕、未完成的預約，且排除已過期的預約
     const now = new Date();
-    console.log("🕐 當前時間:", now.toISOString());
+    const utcNow = new Date(now.getTime() + (now.getTimezoneOffset() * 60000)); // 轉換為 UTC
+    console.log("🕐 當前時間 (Local):", now.toISOString());
+    console.log("🕐 當前時間 (UTC):", utcNow.toISOString());
     
-    const bookings = await prisma.booking.findMany({
+    // 先獲取所有預約，然後在前端過濾，確保穩定性
+    const allBookings = await prisma.booking.findMany({
       where: {
         schedule: {
-          partnerId: partner.id,
-          endTime: {
-            gte: now // 只顯示未結束的預約
-          }
+          partnerId: partner.id
         },
         status: {
           notIn: ['CANCELLED', 'REJECTED', 'COMPLETED'] // 排除已取消、已拒絕、已完成的預約
@@ -60,16 +60,18 @@ export async function GET() {
       orderBy: { createdAt: 'desc' }
     });
 
-    console.log("📊 找到夥伴訂單記錄:", bookings.length);
-    console.log("📋 訂單詳情:", bookings.map(b => ({
-      id: b.id,
-      customerName: b.customer.name,
-      endTime: b.schedule.endTime.toISOString(),
-      status: b.status,
-      isExpired: b.schedule.endTime < now
-    })));
+    // 在前端過濾過期預約，確保時區處理正確
+    const validBookings = allBookings.filter(booking => {
+      const endTime = new Date(booking.schedule.endTime);
+      const isValid = endTime >= now;
+      console.log(`📋 訂單 ${booking.id}: endTime=${endTime.toISOString()}, now=${now.toISOString()}, isValid=${isValid}`);
+      return isValid;
+    });
 
-    return NextResponse.json({ bookings });
+    console.log("📊 總訂單數:", allBookings.length);
+    console.log("📊 有效訂單數:", validBookings.length);
+
+    return NextResponse.json({ bookings: validBookings });
 
   } catch (error) {
     console.error('❌ 獲取夥伴訂單失敗:', error);
