@@ -37,6 +37,15 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: '夥伴不存在' }, { status: 404 });
     }
 
+    // 查找用戶資料
+    const user = await prisma.user.findUnique({
+      where: { id: partner.userId }
+    });
+
+    if (!user) {
+      return NextResponse.json({ error: '用戶不存在' }, { status: 404 });
+    }
+
     // 查找或創建客戶記錄（夥伴也需要客戶記錄來參與群組）
     let customer = await prisma.customer.findUnique({
       where: { userId: partner.userId }
@@ -46,7 +55,7 @@ export async function POST(request: Request) {
       // 為夥伴創建客戶記錄
       customer = await prisma.customer.create({
         data: {
-          name: partner.user.name || '夥伴用戶',
+          name: user.name || '夥伴用戶',
           birthday: new Date('1990-01-01'), // 默認生日
           phone: '0000000000', // 默認電話
           userId: partner.userId
@@ -114,7 +123,7 @@ export async function POST(request: Request) {
           id: partner.id,
           name: partner.name,
           user: {
-            name: partner.user.name
+            name: user.name
           }
         }
       }
