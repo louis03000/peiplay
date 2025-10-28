@@ -133,23 +133,27 @@ export default function PersonalNotificationPanel() {
           />
           
           {/* 通知內容 */}
-          <div className="absolute right-0 top-full mt-2 w-80 bg-white rounded-lg shadow-xl z-50 border border-gray-200">
+          <div className="absolute right-0 top-full mt-2 w-80 bg-white rounded-xl shadow-2xl z-50 border border-gray-100 overflow-hidden">
             {/* 標題欄 */}
-            <div className="px-4 py-3 border-b border-gray-200 bg-gray-50 rounded-t-lg">
+            <div className="px-4 py-3 bg-gradient-to-r from-blue-600 to-indigo-600">
               <div className="flex items-center justify-between">
-                <h3 className="font-semibold text-gray-800 flex items-center gap-2">
-                  <FaBell className="text-blue-500" />
-                  個人通知
+                <div className="flex items-center gap-2">
+                  <div className="p-1.5 bg-white/20 rounded-lg">
+                    <FaBell className="text-white text-sm" />
+                  </div>
+                  <h3 className="text-white font-medium text-sm tracking-wide">
+                    個人通知
+                  </h3>
                   {unreadCount > 0 && (
-                    <span className="bg-red-500 text-white text-xs px-2 py-1 rounded-full">
+                    <span className="bg-red-500 text-white text-xs px-2 py-0.5 rounded-full font-medium">
                       {unreadCount}
                     </span>
                   )}
-                </h3>
+                </div>
                 {unreadCount > 0 && (
                   <button
                     onClick={markAllAsRead}
-                    className="text-xs text-blue-600 hover:text-blue-800"
+                    className="text-xs text-blue-100 hover:text-white transition-colors font-medium"
                   >
                     全部已讀
                   </button>
@@ -160,23 +164,34 @@ export default function PersonalNotificationPanel() {
             {/* 通知列表 */}
             <div className="max-h-96 overflow-y-auto">
               {notifications.length === 0 ? (
-                <div className="px-4 py-8 text-center text-gray-500">
-                  <FaBell className="text-3xl mx-auto mb-2 opacity-50" />
-                  <p>暫無通知</p>
+                <div className="px-4 py-12 text-center">
+                  <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
+                    <FaBell className="text-2xl text-gray-400" />
+                  </div>
+                  <p className="text-gray-500 text-sm font-medium">暫無通知</p>
+                  <p className="text-gray-400 text-xs mt-1">您目前沒有新的通知</p>
                 </div>
               ) : (
-                <div className="divide-y divide-gray-100">
+                <div className="divide-y divide-gray-50">
                   {notifications.map((notification) => (
                     <div
                       key={notification.id}
-                      className={`px-4 py-3 hover:bg-gray-50 cursor-pointer ${
-                        !notification.isRead ? 'bg-blue-50' : ''
+                      className={`px-4 py-3 hover:bg-gray-50 cursor-pointer transition-colors ${
+                        !notification.isRead ? 'bg-blue-50/50' : ''
                       }`}
                       onClick={() => !notification.isRead && markAsRead(notification.id)}
                     >
                       <div className="flex items-start gap-3">
                         <div className="flex-shrink-0 mt-1">
-                          {getTypeIcon(notification.type)}
+                          <div className={`p-1.5 rounded-lg ${
+                            notification.type === 'WARNING' ? 'bg-yellow-100' :
+                            notification.type === 'VIOLATION' ? 'bg-red-100' :
+                            notification.type === 'REMINDER' ? 'bg-blue-100' :
+                            notification.type === 'SYSTEM' ? 'bg-gray-100' :
+                            'bg-indigo-100'
+                          }`}>
+                            {getTypeIcon(notification.type)}
+                          </div>
                         </div>
                         
                         <div className="flex-1 min-w-0">
@@ -186,31 +201,38 @@ export default function PersonalNotificationPanel() {
                             }`}>
                               {notification.title}
                             </h4>
-                            <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${getPriorityColor(notification.priority)}`}>
+                            <span className={`px-1.5 py-0.5 rounded-full text-xs font-medium ${getPriorityColor(notification.priority)}`}>
                               {notification.priority}
                             </span>
                             {notification.isImportant && (
-                              <span className="px-1.5 py-0.5 bg-red-100 text-red-800 rounded text-xs font-medium">
+                              <span className="px-1.5 py-0.5 bg-red-100 text-red-800 rounded-full text-xs font-medium">
                                 重要
                               </span>
                             )}
                           </div>
                           
-                          <p className={`text-xs text-gray-600 mb-2 line-clamp-2 ${
+                          <p className={`text-xs text-gray-600 mb-2 line-clamp-2 leading-relaxed ${
                             !notification.isRead ? 'font-medium' : ''
                           }`}>
                             {notification.content}
                           </p>
                           
                           <div className="flex items-center justify-between text-xs text-gray-500">
-                            <span>{new Date(notification.createdAt).toLocaleString('zh-TW')}</span>
+                            <span className="font-medium">
+                              {new Date(notification.createdAt).toLocaleDateString('zh-TW', {
+                                month: 'short',
+                                day: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })}
+                            </span>
                             <div className="flex items-center gap-2">
                               {notification.isRead ? (
-                                <FaCheckCircle className="text-green-500" />
+                                <div className="w-2 h-2 bg-green-400 rounded-full"></div>
                               ) : (
                                 <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
                               )}
-                              <span>來自: {notification.sender.name}</span>
+                              <span className="text-gray-400">來自: {notification.sender.name}</span>
                             </div>
                           </div>
                         </div>
@@ -222,8 +244,8 @@ export default function PersonalNotificationPanel() {
             </div>
 
             {/* 底部 */}
-            <div className="px-4 py-2 border-t border-gray-200 bg-gray-50 rounded-b-lg">
-              <p className="text-xs text-gray-500 text-center">
+            <div className="px-4 py-3 bg-gray-50 border-t border-gray-100">
+              <p className="text-xs text-gray-500 text-center font-medium">
                 點擊通知可標記為已讀
               </p>
             </div>
