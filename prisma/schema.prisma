@@ -42,6 +42,7 @@ model User {
   messagesSent             Message[]     @relation("MessageSender")
   messagesReceived         Message[]     @relation("MessageReceiver")
   notifications            Notification[]
+  announcements            Announcement[] @relation("AnnouncementCreator")
 }
 
 model Partner {
@@ -78,6 +79,13 @@ model Partner {
   noResponseCount         Int                       @default(0)
   lastNoResponseReset     DateTime?
   allowGroupBooking       Boolean                   @default(false)
+  // 新增欄位
+  interests               String[]                  @default([])  // 興趣
+  gender                  String?                   // 性別
+  idVerificationPhoto     String?                   // 身分證自拍
+  idVerificationStatus    IdVerificationStatus      @default(PENDING) // 身分驗證狀態
+  supportsChatOnly        Boolean                   @default(false) // 是否支援純聊天
+  chatOnlyRate            Float?                    // 純聊天收費
   FavoritePartner         FavoritePartner[]
   GroupBookingParticipant GroupBookingParticipant[]
   user                    User                      @relation(fields: [userId], references: [id])
@@ -397,6 +405,18 @@ enum ParticipantStatus {
   COMPLETED
 }
 
+enum IdVerificationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum AnnouncementType {
+  SYSTEM_NOTICE    // 系統通知
+  ACTIVITY_NOTICE   // 活動公告
+  SYSTEM_ANNOUNCEMENT // 系統公告
+}
+
 model Message {
   id          String    @id @default(cuid())
   senderId    String
@@ -425,4 +445,19 @@ model Notification {
   user      User     @relation(fields: [userId], references: [id])
 
   @@index([userId, isRead])
+}
+
+model Announcement {
+  id          String            @id @default(cuid())
+  title       String
+  content     String
+  type        AnnouncementType
+  isActive    Boolean           @default(true)
+  expiresAt   DateTime?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  createdBy   String            // 創建者 ID
+  creator     User              @relation("AnnouncementCreator", fields: [createdBy], references: [id])
+
+  @@index([isActive, expiresAt])
 }
