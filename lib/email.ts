@@ -834,3 +834,34 @@ export async function sendBookingRejectionEmail(
     throw error;
   }
 }
+
+// 通用 Email 發送函數
+export async function sendEmail({
+  to,
+  subject,
+  html,
+  text
+}: {
+  to: string;
+  subject: string;
+  html?: string;
+  text?: string;
+}) {
+  try {
+    const transporter = createTransporter();
+    
+    await transporter.sendMail({
+      from: process.env.EMAIL_USER,
+      to: to,
+      subject: subject,
+      html: html,
+      text: text
+    });
+    
+    console.log(`✅ Email 已發送給: ${to}`);
+    
+  } catch (error) {
+    console.error('Email 發送失敗:', error);
+    throw error;
+  }
+}
