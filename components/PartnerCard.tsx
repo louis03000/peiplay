@@ -206,24 +206,14 @@ const PartnerCard = memo(function PartnerCard({ partner, onQuickBook, showNextSt
                 </button>
               )}
               
-              {/* 查看內容按鈕 */}
+              {/* 查看詳情按鈕 - 合併了查看內容功能 */}
               <button
-                onClick={() => window.open(`/partners/${partner.id}/profile`, '_blank')}
-                className="bg-purple-500 hover:bg-purple-600 text-white py-2 px-4 rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
+                onClick={() => window.location.href = `/partners/${partner.id}/profile`}
+                className="bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
               >
-                <FaHeart />
-                查看內容
+                <FaComments />
+                查看詳情
               </button>
-              
-              {onFlip && (
-                <button
-                  onClick={handleFlip}
-                  className="bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
-                >
-                  <FaComments />
-                  查看詳情
-                </button>
-              )}
             </div>
           </div>
         </div>
@@ -242,27 +232,6 @@ const PartnerCard = memo(function PartnerCard({ partner, onQuickBook, showNextSt
                 >
                   ✕
                 </button>
-              )}
-            </div>
-
-            {/* 時段資訊 */}
-            <div className="mb-4">
-              <h4 className="font-semibold text-gray-700 mb-2">可用時段</h4>
-              {availableSchedules.length > 0 ? (
-                <div className="space-y-1">
-                  {availableSchedules.slice(0, 3).map((schedule) => (
-                    <div key={schedule.id} className="text-sm text-gray-600">
-                      {new Date(schedule.startTime).toLocaleString('zh-TW')} - {new Date(schedule.endTime).toLocaleString('zh-TW')}
-                    </div>
-                  ))}
-                  {availableSchedules.length > 3 && (
-                    <div className="text-sm text-gray-500">
-                      還有 {availableSchedules.length - 3} 個時段...
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <p className="text-gray-500 text-sm">暫無可用時段</p>
               )}
             </div>
 
