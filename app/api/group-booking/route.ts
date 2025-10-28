@@ -109,6 +109,12 @@ export async function POST(request: Request) {
       data: { currentParticipants: 1 }
     });
 
+    // 確保夥伴的 allowGroupBooking 狀態為 true
+    await prisma.partner.update({
+      where: { id: partner.id },
+      data: { allowGroupBooking: true }
+    });
+
     console.log("✅ 群組預約創建成功:", groupBooking.id);
 
     return NextResponse.json({
