@@ -102,25 +102,28 @@ export async function POST(request: Request) {
       }
     });
 
+    // 先創建 Schedule 記錄
+    const schedule = await prisma.schedule.create({
+      data: {
+        partnerId: groupBooking.initiatorId,
+        date: groupBooking.date,
+        startTime: groupBooking.startTime,
+        endTime: groupBooking.endTime,
+        isAvailable: false
+      }
+    });
+
     // 創建 Booking 記錄（用於顯示在「我的預約」中）
     const booking = await prisma.booking.create({
       data: {
         id: `booking-${Date.now()}`,
         customerId: customer.id,
+        scheduleId: schedule.id, // 使用創建的 schedule ID
         status: 'CONFIRMED',
         originalAmount: groupBooking.pricePerPerson || 0,
         finalAmount: groupBooking.pricePerPerson || 0,
         isGroupBooking: true,
-        groupBookingId: groupBookingId,
-        schedule: {
-          create: {
-            partnerId: groupBooking.initiatorId,
-            date: groupBooking.date,
-            startTime: groupBooking.startTime,
-            endTime: groupBooking.endTime,
-            isAvailable: false
-          }
-        }
+        groupBookingId: groupBookingId
       },
       include: {
         schedule: {
