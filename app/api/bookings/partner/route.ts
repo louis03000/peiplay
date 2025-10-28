@@ -31,6 +31,8 @@ export async function GET() {
     // 查詢預約記錄（作為夥伴被預約的記錄）
     // 只顯示未取消、未拒絕、未完成的預約，且排除已過期的預約
     const now = new Date();
+    console.log("🕐 當前時間:", now.toISOString());
+    
     const bookings = await prisma.booking.findMany({
       where: {
         schedule: {
@@ -59,6 +61,13 @@ export async function GET() {
     });
 
     console.log("📊 找到夥伴訂單記錄:", bookings.length);
+    console.log("📋 訂單詳情:", bookings.map(b => ({
+      id: b.id,
+      customerName: b.customer.name,
+      endTime: b.schedule.endTime.toISOString(),
+      status: b.status,
+      isExpired: b.schedule.endTime < now
+    })));
 
     return NextResponse.json({ bookings });
 
