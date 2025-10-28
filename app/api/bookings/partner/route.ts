@@ -29,10 +29,18 @@ export async function GET() {
     }
 
     // 查詢預約記錄（作為夥伴被預約的記錄）
+    // 只顯示未取消、未拒絕、未完成的預約，且排除已過期的預約
+    const now = new Date();
     const bookings = await prisma.booking.findMany({
       where: {
         schedule: {
-          partnerId: partner.id
+          partnerId: partner.id,
+          endTime: {
+            gte: now // 只顯示未結束的預約
+          }
+        },
+        status: {
+          notIn: ['CANCELLED', 'REJECTED', 'COMPLETED'] // 排除已取消、已拒絕、已完成的預約
         }
       },
       include: {
@@ -42,7 +50,8 @@ export async function GET() {
         schedule: {
           select: {
             startTime: true,
-            endTime: true
+            endTime: true,
+            date: true
           }
         }
       },
@@ -54,11 +63,14 @@ export async function GET() {
     return NextResponse.json({ bookings });
 
   } catch (error) {
-    console.error('Bookings partner GET error:', error);
+    console.error('❌ 獲取夥伴訂單失敗:', error);
+    
+    // 返回空數據而不是錯誤，避免前端載入失敗
     return NextResponse.json({ 
-      error: '獲取夥伴訂單失敗',
+      bookings: [],
+      error: '獲取夥伴訂單失敗，返回空數據',
       details: error instanceof Error ? error.message : 'Unknown error'
-    }, { status: 500 });
+    });
   } finally {
     // 確保斷開連線
     try {
