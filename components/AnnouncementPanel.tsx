@@ -34,25 +34,35 @@ export default function AnnouncementPanel() {
   const fetchAnnouncements = async () => {
     try {
       setLoading(true)
+      console.log('🔄 開始載入公告...')
+      
       const response = await fetch('/api/announcements')
+      console.log('📡 API 回應狀態:', response.status)
       
       if (!response.ok) {
+        console.log('❌ API 回應失敗:', response.status)
         throw new Error('無法載入公告')
       }
       
       const data = await response.json()
-      setAnnouncements(data.announcements)
+      console.log('📊 收到的公告數據:', data)
+      
+      setAnnouncements(data.announcements || [])
       
       // 檢查是否有新公告（今天發布的）
       const today = new Date()
       today.setHours(0, 0, 0, 0)
-      const hasNew = data.announcements.some((ann: Announcement) => 
+      const hasNew = (data.announcements || []).some((ann: Announcement) => 
         new Date(ann.createdAt) >= today
       )
       setHasNewAnnouncements(hasNew)
       
+      console.log('✅ 公告載入完成，數量:', data.announcements?.length || 0)
+      
     } catch (err) {
+      console.error('❌ 載入公告失敗:', err)
       setError(err instanceof Error ? err.message : '載入失敗')
+      setAnnouncements([]) // 確保有預設值
     } finally {
       setLoading(false)
     }
@@ -96,7 +106,10 @@ export default function AnnouncementPanel() {
   return (
     <div className="relative">
       <button
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={() => {
+          console.log('🖱️ 公告按鈕被點擊，當前狀態:', isOpen)
+          setIsOpen(!isOpen)
+        }}
         className="flex items-center gap-2 text-white hover:text-blue-300 transition-colors"
       >
         <span className="text-lg">📢</span>
@@ -109,10 +122,14 @@ export default function AnnouncementPanel() {
       {/* 下拉面板 */}
       {isOpen && (
         <>
+          {console.log('📋 顯示公告面板，公告數量:', announcements.length)}
           {/* 背景遮罩 */}
           <div 
             className="fixed inset-0 z-40" 
-            onClick={() => setIsOpen(false)}
+            onClick={() => {
+              console.log('🖱️ 背景被點擊，關閉面板')
+              setIsOpen(false)
+            }}
           />
           
           {/* 公告面板 */}
