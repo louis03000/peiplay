@@ -1,44 +1,57 @@
-import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 export async function GET() {
   try {
-    // 檢查環境變數
-    const databaseUrl = process.env.DATABASE_URL
-    const nextAuthSecret = process.env.NEXTAUTH_SECRET
-    const nextAuthUrl = process.env.NEXTAUTH_URL
-
-    // 測試資料庫連接
-    await prisma.$queryRaw`SELECT 1`
+    console.log("🔍 Health check API triggered");
     
+    // 檢查資料庫連線
+    await prisma.$connect();
+    
+    // 簡單的資料庫查詢測試
+    const userCount = await prisma.user.count();
+    const partnerCount = await prisma.partner.count();
+    const bookingCount = await prisma.booking.count();
+    const groupBookingCount = await prisma.groupBooking.count();
+    
+    console.log("📊 Database health check:", {
+      users: userCount,
+      partners: partnerCount,
+      bookings: bookingCount,
+      groupBookings: groupBookingCount
+    });
+
     return NextResponse.json({
       status: 'healthy',
       timestamp: new Date().toISOString(),
-      environment: {
-        databaseUrl: databaseUrl ? '✅ 已設定' : '❌ 未設定',
-        nextAuthSecret: nextAuthSecret ? '✅ 已設定' : '❌ 未設定',
-        nextAuthUrl: nextAuthUrl ? '✅ 已設定' : '❌ 未設定'
-      },
       database: {
         connected: true,
-        message: '資料庫連接正常'
+        users: userCount,
+        partners: partnerCount,
+        bookings: bookingCount,
+        groupBookings: groupBookingCount
       }
-    })
+    });
+
   } catch (error) {
-    console.error('Health check error:', error)
-    
+    console.error("❌ Health check failed:", error);
     return NextResponse.json({
       status: 'unhealthy',
       timestamp: new Date().toISOString(),
-      error: error instanceof Error ? error.message : 'Unknown error',
-      environment: {
-        databaseUrl: process.env.DATABASE_URL ? '✅ 已設定' : '❌ 未設定',
-        nextAuthSecret: process.env.NEXTAUTH_SECRET ? '✅ 已設定' : '❌ 未設定',
-        nextAuthUrl: process.env.NEXTAUTH_URL ? '✅ 已設定' : '❌ 未設定'
+      database: {
+        connected: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
       }
-    }, { status: 500 })
+    }, { status: 500 });
+  } finally {
+    // 確保斷開連線
+    try {
+      await prisma.$disconnect();
+    } catch (disconnectError) {
+      console.error("❌ 斷開連線失敗:", disconnectError);
+    }
   }
 }

@@ -192,23 +192,51 @@ export default function PartnerSchedulePage() {
   const refreshData = async () => {
     try {
       const response = await fetch('/api/partner/dashboard');
-      if (response.ok) {
-        const data = await response.json();
-        if (data && data.partner) {
-          setPartnerStatus({
-            id: data.partner.id,
-            isAvailableNow: !!data.partner.isAvailableNow,
-            isRankBooster: !!data.partner.isRankBooster,
-            allowGroupBooking: !!data.partner.allowGroupBooking,
-            availableNowSince: data.partner.availableNowSince
-          });
-          setRankBoosterImages(data.partner.rankBoosterImages || []);
-          setSchedules(data.schedules || []);
-          setMyGroups(data.groups || []);
+      const data = await response.json();
+      
+      // 無論 API 是否成功，都嘗試處理數據
+      if (data && data.partner) {
+        setPartnerStatus({
+          id: data.partner.id,
+          isAvailableNow: !!data.partner.isAvailableNow,
+          isRankBooster: !!data.partner.isRankBooster,
+          allowGroupBooking: !!data.partner.allowGroupBooking,
+          availableNowSince: data.partner.availableNowSince
+        });
+        setRankBoosterImages(data.partner.rankBoosterImages || []);
+        setSchedules(data.schedules || []);
+        setMyGroups(data.groups || []);
+        
+        // 如果有錯誤信息，在控制台顯示但不影響用戶體驗
+        if (data.error) {
+          console.warn('API 警告:', data.error);
         }
+      } else {
+        // 如果沒有數據，設置默認值
+        setPartnerStatus({
+          id: '',
+          isAvailableNow: false,
+          isRankBooster: false,
+          allowGroupBooking: false,
+          availableNowSince: null
+        });
+        setRankBoosterImages([]);
+        setSchedules([]);
+        setMyGroups([]);
       }
     } catch (error) {
       console.error('Error refreshing data:', error);
+      // 設置默認值，避免頁面崩潰
+      setPartnerStatus({
+        id: '',
+        isAvailableNow: false,
+        isRankBooster: false,
+        allowGroupBooking: false,
+        availableNowSince: null
+      });
+      setRankBoosterImages([]);
+      setSchedules([]);
+      setMyGroups([]);
     }
   };
 

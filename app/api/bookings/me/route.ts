@@ -55,10 +55,12 @@ export async function GET() {
   } catch (error) {
     console.error("❌ 獲取預約記錄失敗:", error);
     
-    return NextResponse.json({
-      error: '獲取預約記錄失敗',
+    // 返回空數據而不是錯誤，避免前端載入失敗
+    return NextResponse.json({ 
+      bookings: [],
+      error: '獲取預約記錄失敗，返回空數據',
       details: error instanceof Error ? error.message : 'Unknown error'
-    }, { status: 500 });
+    });
   } finally {
     // 確保斷開連線
     try {
