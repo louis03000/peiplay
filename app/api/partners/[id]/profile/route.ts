@@ -18,14 +18,6 @@ export async function GET(
       include: {
         user: {
           select: { name: true }
-        },
-        reviewsReceived: {
-          include: {
-            reviewer: {
-              select: { name: true }
-            }
-          },
-          orderBy: { createdAt: 'desc' }
         }
       }
     });
@@ -33,6 +25,19 @@ export async function GET(
     if (!partner) {
       return NextResponse.json({ error: '夥伴不存在' }, { status: 404 });
     }
+
+    // 獲取該夥伴收到的評價
+    const reviewsReceived = await prisma.review.findMany({
+      where: {
+        revieweeId: partner.userId
+      },
+      include: {
+        reviewer: {
+          select: { name: true }
+        }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
 
     // 格式化數據
     const formattedPartner = {
@@ -46,7 +51,7 @@ export async function GET(
       chatOnlyRate: partner.chatOnlyRate,
       halfHourlyRate: partner.halfHourlyRate,
       images: partner.images,
-      reviewsReceived: partner.reviewsReceived.map(review => ({
+      reviewsReceived: reviewsReceived.map(review => ({
         id: review.id,
         rating: review.rating,
         comment: review.comment,
