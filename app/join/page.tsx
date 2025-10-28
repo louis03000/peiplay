@@ -71,6 +71,7 @@ export default function JoinPage() {
     register,
     handleSubmit,
     setValue,
+    watch,
     formState: { errors },
   } = useForm<PartnerFormData>({
     resolver: zodResolver(partnerSchema),
