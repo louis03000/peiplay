@@ -2,6 +2,7 @@ import { NextResponse, NextRequest } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { sendBookingNotificationEmail } from '@/lib/email';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -36,15 +37,77 @@ export async function POST(request: Request) {
     // 創建預約記錄
     const bookings = await Promise.all(
       scheduleIds.map(async (scheduleId: string) => {
-        return await prisma.booking.create({
+        // 獲取 schedule 詳情
+        const schedule = await prisma.schedule.findUnique({
+          where: { id: scheduleId },
+          include: {
+            partner: {
+              include: {
+                user: true
+              }
+            }
+          }
+        });
+
+        if (!schedule) {
+          throw new Error(`Schedule ${scheduleId} not found`);
+        }
+
+        // 計算費用
+        const duration = (schedule.endTime.getTime() - schedule.startTime.getTime()) / (1000 * 60 * 60);
+        const originalAmount = duration * schedule.partner.halfHourlyRate * 2;
+        const finalAmount = originalAmount;
+
+        // 創建預約記錄
+        const booking = await prisma.booking.create({
           data: {
             customerId: customer.id,
             scheduleId: scheduleId,
-            status: 'CONFIRMED',
-            originalAmount: 0, // 需要從 schedule 計算
-            finalAmount: 0
+            status: 'PENDING_PARTNER_CONFIRMATION', // 等待夥伴確認
+            originalAmount: originalAmount,
+            finalAmount: finalAmount
+          },
+          include: {
+            customer: {
+              include: {
+                user: true
+              }
+            },
+            schedule: {
+              include: {
+                partner: {
+                  include: {
+                    user: true
+                  }
+                }
+              }
+            }
           }
         });
+
+        // 發送 email 通知給夥伴
+        try {
+          await sendBookingNotificationEmail(
+            schedule.partner.user.email,
+            schedule.partner.user.name || '夥伴',
+            customer.user.name || '客戶',
+            {
+              bookingId: booking.id,
+              startTime: schedule.startTime.toISOString(),
+              endTime: schedule.endTime.toISOString(),
+              duration: duration,
+              totalCost: finalAmount,
+              customerName: customer.user.name || '客戶',
+              customerEmail: customer.user.email
+            }
+          );
+          console.log(`✅ Email 通知已發送給夥伴: ${schedule.partner.user.email}`);
+        } catch (emailError) {
+          console.error('❌ Email 發送失敗:', emailError);
+          // 不影響預約創建，只記錄錯誤
+        }
+
+        return booking;
       })
     );
 
@@ -52,7 +115,7 @@ export async function POST(request: Request) {
       bookings: bookings.map(b => ({
         id: b.id,
         status: b.status,
-        message: '預約創建成功'
+        message: '預約創建成功，已通知夥伴'
       }))
     });
 

@@ -634,3 +634,203 @@ export async function sendEmailVerificationCode(
     return false;
   }
 }
+
+// 發送預約通知給夥伴
+export async function sendBookingNotificationEmail(
+  partnerEmail: string,
+  partnerName: string,
+  customerName: string,
+  bookingDetails: {
+    bookingId: string;
+    startTime: string;
+    endTime: string;
+    duration: number;
+    totalCost: number;
+    customerName: string;
+    customerEmail: string;
+  }
+) {
+  try {
+    const transporter = createTransporter();
+    
+    const subject = `📅 新預約通知 - ${customerName} 預約了您的服務`;
+    
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; text-align: center; border-radius: 10px 10px 0 0;">
+          <h1 style="margin: 0; font-size: 24px;">📅 新預約通知</h1>
+        </div>
+        
+        <div style="background: #f8f9fa; padding: 30px; border-radius: 0 0 10px 10px;">
+          <h2 style="color: #333; margin-top: 0;">親愛的 ${partnerName}，</h2>
+          
+          <p style="color: #666; font-size: 16px; line-height: 1.6;">
+            您有一個新的預約請求！請儘快登入 PeiPlay 確認或拒絕此預約。
+          </p>
+          
+          <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+            <h3 style="color: #333; margin-top: 0;">📋 預約詳情</h3>
+            <table style="width: 100%; border-collapse: collapse;">
+              <tr>
+                <td style="padding: 8px 0; color: #666; width: 120px;"><strong>客戶姓名：</strong></td>
+                <td style="padding: 8px 0; color: #333;">${bookingDetails.customerName}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; color: #666;"><strong>客戶 Email：</strong></td>
+                <td style="padding: 8px 0; color: #333;">${bookingDetails.customerEmail}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; color: #666;"><strong>預約時間：</strong></td>
+                <td style="padding: 8px 0; color: #333;">${new Date(bookingDetails.startTime).toLocaleString('zh-TW')}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; color: #666;"><strong>結束時間：</strong></td>
+                <td style="padding: 8px 0; color: #333;">${new Date(bookingDetails.endTime).toLocaleString('zh-TW')}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; color: #666;"><strong>時長：</strong></td>
+                <td style="padding: 8px 0; color: #333;">${bookingDetails.duration} 小時</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; color: #666;"><strong>總費用：</strong></td>
+                <td style="padding: 8px 0; color: #333; font-weight: bold; color: #e74c3c;">NT$ ${bookingDetails.totalCost}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; color: #666;"><strong>預約 ID：</strong></td>
+                <td style="padding: 8px 0; color: #333; font-family: monospace;">${bookingDetails.bookingId}</td>
+              </tr>
+            </table>
+          </div>
+          
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="${process.env.NEXTAUTH_URL}/bookings" 
+               style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px 30px; text-decoration: none; border-radius: 25px; font-weight: bold; font-size: 16px;">
+              🔗 前往 PeiPlay 處理預約
+            </a>
+          </div>
+          
+          <div style="background: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; border-radius: 8px; margin: 20px 0;">
+            <p style="margin: 0; color: #856404; font-size: 14px;">
+              <strong>⚠️ 重要提醒：</strong>請在 24 小時內回應此預約請求，逾期未回應將自動取消。
+            </p>
+          </div>
+          
+          <p style="color: #666; font-size: 14px; margin-top: 30px;">
+            如有任何問題，請聯繫我們的客服團隊。
+          </p>
+          
+          <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
+          
+          <p style="color: #999; font-size: 12px; text-align: center; margin: 0;">
+            此郵件由 PeiPlay 系統自動發送，請勿直接回覆。
+          </p>
+        </div>
+      </div>
+    `;
+    
+    await transporter.sendMail({
+      from: process.env.EMAIL_USER,
+      to: partnerEmail,
+      subject: subject,
+      html: html
+    });
+    
+    console.log(`✅ 預約通知 Email 已發送給夥伴: ${partnerEmail}`);
+    
+  } catch (error) {
+    console.error('預約通知 Email 發送失敗:', error);
+    throw error;
+  }
+}
+
+// 發送預約拒絕通知給客戶
+export async function sendBookingRejectionEmail(
+  customerEmail: string,
+  customerName: string,
+  partnerName: string,
+  bookingDetails: {
+    startTime: string;
+    endTime: string;
+    bookingId: string;
+  }
+) {
+  try {
+    const transporter = createTransporter();
+    
+    const subject = `😔 預約被拒絕 - ${partnerName} 無法接受您的預約`;
+    
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <div style="background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%); color: white; padding: 20px; text-align: center; border-radius: 10px 10px 0 0;">
+          <h1 style="margin: 0; font-size: 24px;">😔 預約被拒絕</h1>
+        </div>
+        
+        <div style="background: #f8f9fa; padding: 30px; border-radius: 0 0 10px 10px;">
+          <h2 style="color: #333; margin-top: 0;">親愛的 ${customerName}，</h2>
+          
+          <p style="color: #666; font-size: 16px; line-height: 1.6;">
+            很抱歉，您對 ${partnerName} 的預約請求已被拒絕。請查看其他可用的夥伴或重新安排時間。
+          </p>
+          
+          <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+            <h3 style="color: #333; margin-top: 0;">📋 被拒絕的預約詳情</h3>
+            <table style="width: 100%; border-collapse: collapse;">
+              <tr>
+                <td style="padding: 8px 0; color: #666; width: 120px;"><strong>夥伴姓名：</strong></td>
+                <td style="padding: 8px 0; color: #333;">${partnerName}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; color: #666;"><strong>預約時間：</strong></td>
+                <td style="padding: 8px 0; color: #333;">${new Date(bookingDetails.startTime).toLocaleString('zh-TW')}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; color: #666;"><strong>結束時間：</strong></td>
+                <td style="padding: 8px 0; color: #333;">${new Date(bookingDetails.endTime).toLocaleString('zh-TW')}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; color: #666;"><strong>預約 ID：</strong></td>
+                <td style="padding: 8px 0; color: #333; font-family: monospace;">${bookingDetails.bookingId}</td>
+              </tr>
+            </table>
+          </div>
+          
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="${process.env.NEXTAUTH_URL}/booking" 
+               style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px 30px; text-decoration: none; border-radius: 25px; font-weight: bold; font-size: 16px;">
+              🔍 尋找其他夥伴
+            </a>
+          </div>
+          
+          <div style="background: #d1ecf1; border: 1px solid #bee5eb; padding: 15px; border-radius: 8px; margin: 20px 0;">
+            <p style="margin: 0; color: #0c5460; font-size: 14px;">
+              <strong>💡 建議：</strong>您可以嘗試預約其他夥伴的時段，或選擇不同的時間。
+            </p>
+          </div>
+          
+          <p style="color: #666; font-size: 14px; margin-top: 30px;">
+            如有任何問題，請聯繫我們的客服團隊。
+          </p>
+          
+          <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
+          
+          <p style="color: #999; font-size: 12px; text-align: center; margin: 0;">
+            此郵件由 PeiPlay 系統自動發送，請勿直接回覆。
+          </p>
+        </div>
+      </div>
+    `;
+    
+    await transporter.sendMail({
+      from: process.env.EMAIL_USER,
+      to: customerEmail,
+      subject: subject,
+      html: html
+    });
+    
+    console.log(`✅ 預約拒絕通知 Email 已發送給客戶: ${customerEmail}`);
+    
+  } catch (error) {
+    console.error('預約拒絕通知 Email 發送失敗:', error);
+    throw error;
+  }
+}
