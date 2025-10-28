@@ -54,6 +54,8 @@ export type Partner = {
   halfHourlyRate: number;
   coverImage?: string;
   images?: string[]; // 新增多張圖片支援
+  supportsChatOnly?: boolean; // 新增純聊天支援
+  chatOnlyRate?: number; // 新增純聊天收費
   schedules: { 
     id: string; 
     date: string; 
@@ -90,6 +92,7 @@ function BookingWizardContent() {
   const [selectedPartner, setSelectedPartner] = useState<Partner | null>(null)
   const [onlyAvailable, setOnlyAvailable] = useState(false)
   const [onlyRankBooster, setOnlyRankBooster] = useState(false)
+  const [onlyChat, setOnlyChat] = useState(false)
   const [instantBooking, setInstantBooking] = useState(false)
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
   const [selectedTimes, setSelectedTimes] = useState<string[]>([])
@@ -219,6 +222,9 @@ function BookingWizardContent() {
       
       if (!matchSearch) return false;
       
+      // 純聊天篩選
+      if (onlyChat && !p.supportsChatOnly) return false;
+      
       if (onlyAvailable && onlyRankBooster) {
         return p.isAvailableNow && p.isRankBooster;
       } else if (onlyAvailable) {
@@ -229,7 +235,7 @@ function BookingWizardContent() {
         return true;
       }
     });
-  }, [partners, debouncedSearch, onlyAvailable, onlyRankBooster]);
+  }, [partners, debouncedSearch, onlyAvailable, onlyRankBooster, onlyChat]);
 
   const handleTimeSelect = useCallback((timeId: string) => {
     setSelectedTimes(prev => 
@@ -497,6 +503,16 @@ function BookingWizardContent() {
                     className="accent-purple-500 w-4 h-4 sm:w-5 sm:h-5"
                   />
                   <span className="text-xs sm:text-sm text-gray-900 font-bold">只看上分高手</span>
+                </label>
+                <label className="flex items-center gap-2 text-gray-900 text-sm select-none cursor-pointer">
+                  <input
+                    id="only-chat"
+                    type="checkbox"
+                    checked={onlyChat}
+                    onChange={e => setOnlyChat(e.target.checked)}
+                    className="accent-green-500 w-4 h-4 sm:w-5 sm:h-5"
+                  />
+                  <span className="text-xs sm:text-sm text-gray-900 font-bold">純聊天</span>
                 </label>
               </div>
               

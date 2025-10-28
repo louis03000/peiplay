@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { useSession, signOut } from 'next-auth/react'
 import { useEffect, useState, useRef } from 'react'
+import AnnouncementPanel from './AnnouncementPanel'
 
 export default function Navbar() {
   const { data: session, status } = useSession()
@@ -112,6 +113,9 @@ export default function Navbar() {
             </Link>
           )}
           
+          {/* 公告面板 */}
+          {session?.user && <AnnouncementPanel />}
+          
           {/* 用戶圖標 */}
           <div className="relative" ref={menuRef}>
             {session?.user ? (
@@ -166,6 +170,12 @@ export default function Navbar() {
                       <Link href="/admin/security" className="flex items-center justify-center space-x-2 text-gray-900 hover:text-red-600 hover:bg-red-50 transition-colors rounded-lg px-2 py-2">
                         <span className="text-lg">🔒</span>
                         <span className="font-medium text-sm">安全管理</span>
+                      </Link>
+                    </div>
+                    <div className="px-3 py-2">
+                      <Link href="/admin/announcements" className="flex items-center justify-center space-x-2 text-gray-900 hover:text-indigo-600 hover:bg-indigo-50 transition-colors rounded-lg px-2 py-2">
+                        <span className="text-lg">📢</span>
+                        <span className="font-medium text-sm">公告管理</span>
                       </Link>
                     </div>
                   </>

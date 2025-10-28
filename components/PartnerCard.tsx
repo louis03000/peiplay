@@ -11,6 +11,8 @@ interface Partner {
   halfHourlyRate: number
   coverImage?: string
   images?: string[]
+  supportsChatOnly?: boolean
+  chatOnlyRate?: number
   schedules: { id: string; date: string; startTime: string; endTime: string, isAvailable: boolean }[]
   isAvailableNow: boolean
   isRankBooster: boolean
@@ -166,9 +168,16 @@ const PartnerCard = memo(function PartnerCard({ partner, onQuickBook, showNextSt
 
             {/* 價格 */}
             <div className="flex items-center justify-between mb-3">
-              <span className="text-2xl font-bold text-green-600">
-                ${partner.halfHourlyRate}/30分鐘
-              </span>
+              <div className="flex flex-col">
+                <span className="text-2xl font-bold text-green-600">
+                  ${partner.halfHourlyRate}/30分鐘
+                </span>
+                {partner.supportsChatOnly && partner.chatOnlyRate && (
+                  <span className="text-sm text-purple-500 font-medium">
+                    純聊天 ${partner.chatOnlyRate}/小時
+                  </span>
+                )}
+              </div>
               {partner.isAvailableNow && (
                 <span className="text-green-600 text-sm font-medium">即時預約</span>
               )}
@@ -196,6 +205,15 @@ const PartnerCard = memo(function PartnerCard({ partner, onQuickBook, showNextSt
                   立即預約
                 </button>
               )}
+              
+              {/* 查看內容按鈕 */}
+              <button
+                onClick={() => window.open(`/partners/${partner.id}/profile`, '_blank')}
+                className="bg-purple-500 hover:bg-purple-600 text-white py-2 px-4 rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
+              >
+                <FaHeart />
+                查看內容
+              </button>
               
               {onFlip && (
                 <button

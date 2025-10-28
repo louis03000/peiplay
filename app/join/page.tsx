@@ -16,9 +16,14 @@ const partnerSchema = z.object({
   name: z.string().min(2, '姓名至少需要2個字'),
   birthday: z.string().min(1, '請選擇生日'),
   phone: z.string().min(10, '請輸入有效的電話號碼'),
+  gender: z.string().min(1, '請選擇性別'),
+  interests: z.array(z.string()).min(1, '請至少選擇一個興趣').max(5, '最多 5 個興趣'),
   halfHourlyRate: z.number().min(1, '請設定每半小時收費'),
   games: z.array(z.string()).min(1, '請至少選擇一個遊戲').max(MAX_GAMES, '最多 10 個遊戲'),
+  supportsChatOnly: z.boolean().optional(),
+  chatOnlyRate: z.number().optional(),
   coverImage: z.string().min(1, '請上傳封面照片'),
+  idVerificationPhoto: z.string().min(1, '請上傳身分證自拍'),
   bankCode: z.string().min(1, '請填寫銀行代碼'),
   bankAccountNumber: z.string().min(1, '請填寫銀行帳號'),
   inviteCode: z.string().optional(),
@@ -33,6 +38,26 @@ const GAME_OPTIONS = [
   { value: 'apex', label: 'Apex 英雄' },
   { value: 'csgo', label: 'CS:GO' },
   { value: 'pubg', label: 'PUBG' },
+  { value: 'chat', label: '純聊天' },
+]
+
+const INTEREST_OPTIONS = [
+  { value: 'gaming', label: '遊戲' },
+  { value: 'music', label: '音樂' },
+  { value: 'movies', label: '電影' },
+  { value: 'sports', label: '運動' },
+  { value: 'travel', label: '旅遊' },
+  { value: 'food', label: '美食' },
+  { value: 'art', label: '藝術' },
+  { value: 'technology', label: '科技' },
+  { value: 'books', label: '閱讀' },
+  { value: 'photography', label: '攝影' },
+]
+
+const GENDER_OPTIONS = [
+  { value: 'male', label: '男性' },
+  { value: 'female', label: '女性' },
+  { value: 'other', label: '其他' },
 ]
 
 export default function JoinPage() {
@@ -68,6 +93,7 @@ export default function JoinPage() {
   const [canAgree, setCanAgree] = useState(false)
   const [countdown, setCountdown] = useState(0)
   const [applicationSubmitted, setApplicationSubmitted] = useState(false)
+  const [idVerificationPhoto, setIdVerificationPhoto] = useState<string>('')
 
   // 載入用戶資料
   useEffect(() => {
@@ -463,6 +489,51 @@ export default function JoinPage() {
     }
   }
 
+  const handleIdVerificationUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    
+    // 檢查檔案大小 (限制為 10MB)
+    const maxSize = 10 * 1024 * 1024; // 10MB
+    if (file.size > maxSize) {
+      setError('身分證照片大小不能超過 10MB，請壓縮圖片後重新上傳')
+      return
+    }
+    
+    // 檢查檔案類型
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'application/pdf']
+    if (!allowedTypes.includes(file.type)) {
+      setError('請上傳 JPG、PNG 或 PDF 格式的檔案')
+      return
+    }
+    
+    setUploading(true)
+    setError('')
+    
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      })
+      const result = await res.json()
+      
+      if (!res.ok) {
+        throw new Error(result.error || '上傳失敗')
+      }
+      
+      if (result.url) {
+        setIdVerificationPhoto(result.url)
+        setValue('idVerificationPhoto', result.url, { shouldValidate: true })
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '上傳失敗')
+    } finally {
+      setUploading(false)
+    }
+  }
+
   // 如果申請已提交，顯示等待審核畫面
   if (applicationSubmitted) {
     return (
@@ -661,6 +732,130 @@ export default function JoinPage() {
                         {errors.halfHourlyRate.message}
                       </p>
                     )}
+                  </div>
+                </div>
+
+                {/* 性別選擇 */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">性別</label>
+                  <div className="mt-1">
+                    <select
+                      {...register('gender')}
+                      className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md text-black"
+                    >
+                      <option value="">請選擇性別</option>
+                      {GENDER_OPTIONS.map(option => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                    {errors.gender && (
+                      <p className="mt-2 text-sm text-red-600">
+                        {errors.gender.message}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                {/* 興趣選擇 */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">興趣 (最多選擇5個)</label>
+                  <div className="flex flex-wrap gap-2 mt-1">
+                    {INTEREST_OPTIONS.map(opt => (
+                      <label key={opt.value} className="flex items-center text-gray-800">
+                        <input
+                          type="checkbox"
+                          value={opt.value}
+                          {...register('interests')}
+                          className="rounded border-gray-300 text-indigo-600 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+                        />
+                        <span className="ml-2 text-sm">{opt.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                  {errors.interests && (
+                    <p className="mt-2 text-sm text-red-600">
+                      {errors.interests.message}
+                    </p>
+                  )}
+                </div>
+
+                {/* 純聊天服務 */}
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                  <h3 className="text-lg font-medium text-green-900 mb-4">💬 純聊天服務</h3>
+                  <div className="space-y-4">
+                    <div className="flex items-center">
+                      <input
+                        type="checkbox"
+                        {...register('supportsChatOnly')}
+                        className="rounded border-gray-300 text-indigo-600 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+                      />
+                      <label className="ml-2 text-sm font-medium text-gray-700">
+                        我願意提供純聊天服務
+                      </label>
+                    </div>
+                    
+                    {watch('supportsChatOnly') && (
+                      <div>
+                        <label
+                          htmlFor="chatOnlyRate"
+                          className="block text-sm font-medium text-gray-700"
+                        >
+                          純聊天每小時收費
+                        </label>
+                        <div className="mt-1">
+                          <input
+                            type="number"
+                            {...register('chatOnlyRate', { valueAsNumber: true })}
+                            className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md text-black"
+                            placeholder="請設定純聊天每小時收費"
+                          />
+                          {errors.chatOnlyRate && (
+                            <p className="mt-2 text-sm text-red-600">
+                              {errors.chatOnlyRate.message}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* 身分證自拍 */}
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                  <h3 className="text-lg font-medium text-yellow-900 mb-4">🆔 身分驗證</h3>
+                  <div className="space-y-4">
+                    <div className="bg-white p-4 rounded-lg border border-yellow-300">
+                      <h4 className="font-medium text-yellow-800 mb-2">手持身分證自拍</h4>
+                      <p className="text-sm text-yellow-700 mb-3">
+                        請手持身分證進行自拍，確保身分證上的文字清晰可見。此照片僅用於身分驗證，不會公開顯示。
+                      </p>
+                      <div className="space-y-2">
+                        <input
+                          type="file"
+                          accept="image/*,.pdf"
+                          onChange={handleIdVerificationUpload}
+                          className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-yellow-100 file:text-yellow-700 hover:file:bg-yellow-200"
+                        />
+                        {idVerificationPhoto && (
+                          <div className="mt-2">
+                            <img
+                              src={idVerificationPhoto}
+                              alt="身分證自拍預覽"
+                              className="h-32 w-auto rounded-lg border border-gray-300"
+                            />
+                            <p className="text-xs text-gray-500 mt-1">預覽</p>
+                          </div>
+                        )}
+                        <input type="hidden" {...register('idVerificationPhoto')} value={idVerificationPhoto || ''} />
+                        {errors.idVerificationPhoto && (
+                          <p className="text-sm text-red-600">
+                            {errors.idVerificationPhoto.message}
+                          </p>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 </div>
 
