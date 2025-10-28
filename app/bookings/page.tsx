@@ -43,12 +43,34 @@ export default function BookingsPage() {
     if (status === 'authenticated') {
       setLoading(true)
       setError(null)
+      // 不要立即清空現有數據，避免閃爍
       const url = tab === 'me' ? '/api/bookings/me' : '/api/bookings/partner'
+      
       fetch(url)
-        .then(res => res.json())
-        .then(data => setBookings(data.bookings || []))
-        .catch(err => setError('載入失敗'))
-        .finally(() => setLoading(false))
+        .then(res => {
+          if (!res.ok) {
+            throw new Error(`HTTP ${res.status}`)
+          }
+          return res.json()
+        })
+        .then(data => {
+          // 確保數據有效才更新
+          if (data && Array.isArray(data.bookings)) {
+            setBookings(data.bookings)
+          } else {
+            setBookings([])
+          }
+          setError(null)
+        })
+        .catch(err => {
+          console.error('載入預約資料失敗:', err)
+          setError('載入失敗')
+          setBookings([]) // 只有在錯誤時才清空
+        })
+        .finally(() => {
+          // 添加小延遲確保數據已更新
+          setTimeout(() => setLoading(false), 100)
+        })
     }
   }, [status, tab])
 
@@ -267,8 +289,18 @@ export default function BookingsPage() {
             </p>
           </div>
         ) : (
-          <>
-          <table className="w-full text-sm text-left text-gray-300">
+          <div className="relative">
+            {/* 載入遮罩 */}
+            {loading && (
+              <div className="absolute inset-0 bg-gray-800/80 backdrop-blur-sm z-10 flex items-center justify-center rounded-lg">
+                <div className="text-center">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-2"></div>
+                  <div className="text-white text-sm">載入中...</div>
+                </div>
+              </div>
+            )}
+            
+            <table className="w-full text-sm text-left text-gray-300">
             <thead className="text-xs text-gray-400 uppercase bg-gray-700/50">
               <tr>
                 {tab === 'partner' && <th className="py-3 px-6">顧客姓名</th>}
@@ -428,7 +460,7 @@ export default function BookingsPage() {
               >下一頁</button>
             </div>
           )}
-          </>
+          </div>
         )}
       </div>
 
