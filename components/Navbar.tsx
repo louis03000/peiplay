@@ -22,10 +22,11 @@ export default function Navbar() {
           
           if (res.ok) {
             const data = await res.json()
-            if (data && data.partner) {
-              setHasPartner(data.partner.status === 'APPROVED')
+            if (data && data.partner && data.partner.status === 'APPROVED') {
+              setHasPartner(true)
               setIsPartner(true)
             } else {
+              // 沒有夥伴資料或狀態不是 APPROVED
               setHasPartner(false)
               setIsPartner(false)
             }
