@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useSession, signOut } from 'next-auth/react'
 import { useEffect, useState, useRef } from 'react'
 import AnnouncementPanel from './AnnouncementPanel'
+import PersonalNotificationPanel from './PersonalNotificationPanel'
 
 export default function Navbar() {
   const { data: session, status } = useSession()
@@ -88,7 +89,7 @@ export default function Navbar() {
         <Link href="/" className="flex items-center space-x-3 hover:opacity-80 transition-opacity">
           <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
             <span className="text-white font-bold text-lg">P</span>
-          </div>
+        </div>
           <span className="text-white text-xl font-bold">PeiPlay</span>
         </Link>
 
@@ -115,6 +116,9 @@ export default function Navbar() {
           
           {/* 公告面板 */}
           <AnnouncementPanel />
+          
+          {/* 個人通知面板 */}
+          {session?.user && <PersonalNotificationPanel />}
           
           {/* 用戶圖標 */}
           <div className="relative" ref={menuRef}>
@@ -170,17 +174,29 @@ export default function Navbar() {
                       <Link href="/admin/security" className="flex items-center justify-center space-x-2 text-gray-900 hover:text-red-600 hover:bg-red-50 transition-colors rounded-lg px-2 py-2">
                         <span className="text-lg">🔒</span>
                         <span className="font-medium text-sm">安全管理</span>
-                      </Link>
+                    </Link>
                     </div>
                     <div className="px-3 py-2">
                       <Link href="/admin/announcements" className="flex items-center justify-center space-x-2 text-gray-900 hover:text-indigo-600 hover:bg-indigo-50 transition-colors rounded-lg px-2 py-2">
                         <span className="text-lg">📢</span>
                         <span className="font-medium text-sm">公告管理</span>
-                      </Link>
-                    </div>
+                    </Link>
+                  </div>
+                    <div className="px-3 py-2">
+                      <Link href="/admin/notifications" className="flex items-center justify-center space-x-2 text-gray-900 hover:text-orange-600 hover:bg-orange-50 transition-colors rounded-lg px-2 py-2">
+                        <span className="text-lg">🔔</span>
+                        <span className="font-medium text-sm">通知管理</span>
+                    </Link>
+                  </div>
+                    <div className="px-3 py-2">
+                      <Link href="/admin/messages" className="flex items-center justify-center space-x-2 text-gray-900 hover:text-teal-600 hover:bg-teal-50 transition-colors rounded-lg px-2 py-2">
+                        <span className="text-lg">💬</span>
+                        <span className="font-medium text-sm">私訊管理</span>
+                    </Link>
+                  </div>
                   </>
-                )}
-
+                  )}
+                
                 {/* 時段管理 - 夥伴功能 */}
                 {partnerLoading ? (
                   <div className="px-3 py-2">

@@ -43,6 +43,10 @@ model User {
   messagesReceived         Message[]     @relation("MessageReceiver")
   notifications            Notification[]
   announcements            Announcement[] @relation("AnnouncementCreator")
+  personalNotificationsReceived PersonalNotification[] @relation("PersonalNotificationReceiver")
+  personalNotificationsSent     PersonalNotification[] @relation("PersonalNotificationSender")
+  adminMessagesReceived         AdminMessage[] @relation("AdminMessageReceiver")
+  adminMessagesSent             AdminMessage[] @relation("AdminMessageSender")
 }
 
 model Partner {
@@ -460,4 +464,61 @@ model Announcement {
   creator     User              @relation("AnnouncementCreator", fields: [createdBy], references: [id])
 
   @@index([isActive, expiresAt])
+}
+
+// 個人通知系統
+model PersonalNotification {
+  id          String   @id @default(cuid())
+  userId      String   // 接收者 ID
+  senderId    String   // 發送者 ID (管理員)
+  title       String
+  content     String
+  type        NotificationType  // 通知類型
+  priority    Priority         @default(MEDIUM) // 優先級
+  isRead      Boolean          @default(false)
+  isImportant Boolean          @default(false) // 重要通知
+  expiresAt   DateTime?        // 過期時間
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  
+  user        User             @relation("PersonalNotificationReceiver", fields: [userId], references: [id])
+  sender      User             @relation("PersonalNotificationSender", fields: [senderId], references: [id])
+
+  @@index([userId, isRead])
+  @@index([userId, isImportant])
+}
+
+// 管理員私訊系統
+model AdminMessage {
+  id          String   @id @default(cuid())
+  userId      String   // 接收者 ID
+  adminId     String   // 管理員 ID
+  content     String
+  isRead      Boolean  @default(false)
+  isFromAdmin Boolean  @default(true) // true: 管理員發送, false: 用戶回覆
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  user        User     @relation("AdminMessageReceiver", fields: [userId], references: [id])
+  admin       User     @relation("AdminMessageSender", fields: [adminId], references: [id])
+
+  @@index([userId, isRead])
+  @@index([userId, createdAt])
+}
+
+// 通知類型枚舉
+enum NotificationType {
+  WARNING     // 警告
+  VIOLATION   // 違規
+  REMINDER    // 提醒
+  INFO        // 一般資訊
+  SYSTEM      // 系統通知
+}
+
+// 優先級枚舉
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
 }
