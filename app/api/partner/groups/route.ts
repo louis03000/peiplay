@@ -118,7 +118,9 @@ export async function POST(request: Request) {
         data: {
           id: `customer-${session.user.id}`,
           userId: session.user.id,
-          name: user.name || '未知客戶'
+          name: user.name || '未知客戶',
+          birthday: new Date('1990-01-01'), // 默認生日
+          phone: '0000000000' // 默認電話
         }
       });
     }
