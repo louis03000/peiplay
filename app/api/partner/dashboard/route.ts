@@ -37,11 +37,6 @@ export async function GET() {
           },
           orderBy: { startTime: 'asc' }
         },
-        GroupBookingParticipant: {
-          include: {
-            GroupBooking: true
-          }
-        }
       }
     })
 
@@ -60,21 +55,34 @@ export async function GET() {
                !['CANCELLED', 'REJECTED'].includes(schedule.bookings.status)
     }))
 
-    // 處理群組數據
-    const groups = partner.GroupBookingParticipant
-      .filter(p => p.GroupBooking && p.GroupBooking.status === 'ACTIVE')
-      .map(p => ({
-        id: p.GroupBooking!.id,
-        title: p.GroupBooking!.title,
-        description: p.GroupBooking!.description,
-        maxParticipants: p.GroupBooking!.maxParticipants,
-        currentParticipants: p.GroupBooking!.currentParticipants,
-        pricePerPerson: p.GroupBooking!.pricePerPerson,
-        startTime: p.GroupBooking!.startTime,
-        endTime: p.GroupBooking!.endTime,
-        status: p.GroupBooking!.status
-      }))
-      .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime())
+    // 處理群組數據 - 查詢該夥伴發起的群組預約
+    const groupBookings = await prisma.groupBooking.findMany({
+      where: {
+        initiatorId: partner.id,
+        initiatorType: 'PARTNER',
+        status: 'ACTIVE'
+      },
+      include: {
+        GroupBookingParticipant: {
+          include: {
+            Customer: true
+          }
+        }
+      },
+      orderBy: { startTime: 'asc' }
+    });
+
+    const groups = groupBookings.map(group => ({
+      id: group.id,
+      title: group.title,
+      description: group.description,
+      maxParticipants: group.maxParticipants,
+      currentParticipants: group.GroupBookingParticipant.length,
+      pricePerPerson: group.pricePerPerson,
+      startTime: group.startTime,
+      endTime: group.endTime,
+      status: group.status
+    }));
 
     console.log("📊 找到夥伴資料:", {
       partnerId: partner.id,

@@ -103,6 +103,12 @@ export async function POST(request: Request) {
       }
     });
 
+    // 更新群組預約的當前參與人數
+    await prisma.groupBooking.update({
+      where: { id: groupBooking.id },
+      data: { currentParticipants: 1 }
+    });
+
     console.log("✅ 群組預約創建成功:", groupBooking.id);
 
     return NextResponse.json({
@@ -160,7 +166,8 @@ export async function GET(request: Request) {
     // 構建查詢條件
     const where: any = {};
     if (partnerId) {
-      where.partnerId = partnerId;
+      where.initiatorId = partnerId;
+      where.initiatorType = 'PARTNER';
     }
     if (status) {
       where.status = status;
