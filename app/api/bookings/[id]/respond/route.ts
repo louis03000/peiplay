@@ -10,12 +10,11 @@ export const runtime = 'nodejs';
 // 夥伴接受或拒絕預約
 export async function POST(
   request: Request,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
-    console.log("✅ booking response POST api triggered");
+    console.log("✅ booking respond POST api triggered");
     
-    const { id } = await params;
     const { action } = await request.json(); // 'accept' 或 'reject'
 
     if (!action || !['accept', 'reject'].includes(action)) {
@@ -42,7 +41,7 @@ export async function POST(
 
     // 查找預約記錄
     const booking = await prisma.booking.findUnique({
-      where: { id },
+      where: { id: params.id },
       include: {
         customer: {
           include: {
@@ -70,6 +69,14 @@ export async function POST(
       return NextResponse.json({ error: '無權限操作此預約' }, { status: 403 });
     }
 
+    // 檢查預約狀態 - 群組預約不需要確認
+    const isGroupBooking = booking.schedule.groupBookingId !== null;
+    
+    if (isGroupBooking) {
+      console.log('⚠️ 這是群組預約，不需要夥伴確認');
+      return NextResponse.json({ error: '群組預約不需要確認' }, { status: 400 });
+    }
+
     // 檢查預約狀態
     if (booking.status !== 'PAID_WAITING_PARTNER_CONFIRMATION') {
       return NextResponse.json({ error: '預約狀態不正確' }, { status: 400 });
@@ -79,7 +86,7 @@ export async function POST(
     const newStatus = action === 'accept' ? 'CONFIRMED' : 'REJECTED';
     
     const updatedBooking = await prisma.booking.update({
-      where: { id },
+      where: { id: params.id },
       data: { status: newStatus },
       include: {
         customer: {
