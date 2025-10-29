@@ -94,7 +94,7 @@ export default function Navbar() {
         </Link>
 
         {/* 右側：導航項目 + 用戶圖標 */}
-        <div className="flex items-center space-x-6">
+        <div className="flex items-center space-x-4">
           <Link href="/booking" className="flex items-center space-x-2 text-white hover:text-blue-300 transition-colors">
             <span className="text-xl">🎮</span>
             <span className="font-medium">預約陪玩</span>
