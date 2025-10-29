@@ -70,7 +70,7 @@ export async function POST(
     }
 
     // 檢查預約狀態 - 群組預約不需要確認
-    const isGroupBooking = booking.schedule.groupBookingId !== null;
+    const isGroupBooking = booking.isGroupBooking === true || booking.groupBookingId !== null;
     
     if (isGroupBooking) {
       console.log('⚠️ 這是群組預約，不需要夥伴確認');
