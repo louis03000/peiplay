@@ -10,7 +10,7 @@ if (!process.env.DATABASE_URL) {
   throw new Error('DATABASE_URL 環境變數未設定')
 }
 
-// 創建 Prisma 客戶端，針對 Vercel 優化
+// 創建 Prisma 客戶端，針對 Vercel 和性能優化
 export const prisma =
   globalForPrisma.prisma ??
   new PrismaClient({
@@ -21,6 +21,8 @@ export const prisma =
         url: process.env.DATABASE_URL,
       },
     },
+    // 性能優化設定
+    engineType: 'library', // 使用 library 引擎以提高性能
   })
 
 if (process.env.NODE_ENV !== 'production') {

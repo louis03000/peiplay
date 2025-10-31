@@ -17,8 +17,7 @@ export async function GET() {
       return NextResponse.json({ error: '請先登入' }, { status: 401 });
     }
 
-    // 確保資料庫連線
-    await prisma.$connect();
+    // Prisma 會自動管理連接池，不需要手動 connect
 
     // 查找夥伴資料
     const partner = await prisma.partner.findUnique({
@@ -29,17 +28,26 @@ export async function GET() {
       return NextResponse.json({ error: '夥伴資料不存在' }, { status: 404 });
     }
 
-    // 查詢該夥伴發起的群組預約
+    // 查詢該夥伴發起的群組預約 - 使用 select 優化查詢
     const groupBookings = await prisma.groupBooking.findMany({
       where: {
         initiatorId: partner.id,
         initiatorType: 'PARTNER',
         status: 'ACTIVE'
       },
-      include: {
-        GroupBookingParticipant: {
-          include: {
-            Customer: true
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        maxParticipants: true,
+        pricePerPerson: true,
+        status: true,
+        games: true,
+        startTime: true,
+        endTime: true,
+        _count: {
+          select: {
+            GroupBookingParticipant: true
           }
         }
       },
@@ -51,7 +59,7 @@ export async function GET() {
       title: group.title,
       description: group.description,
       maxParticipants: group.maxParticipants,
-      currentParticipants: group.GroupBookingParticipant.length,
+      currentParticipants: group._count.GroupBookingParticipant,
       pricePerPerson: group.pricePerPerson,
       status: group.status,
       games: group.games || [],
@@ -65,12 +73,6 @@ export async function GET() {
   } catch (error) {
     console.error('❌ 獲取群組預約失敗:', error);
     return NextResponse.json({ error: '獲取群組預約失敗' }, { status: 500 });
-  } finally {
-    try {
-      await prisma.$disconnect();
-    } catch (disconnectError) {
-      console.error("❌ 斷開連線失敗:", disconnectError);
-    }
   }
 }
 
@@ -97,8 +99,7 @@ export async function POST(request: Request) {
       }, { status: 400 });
     }
 
-    // 確保資料庫連線
-    await prisma.$connect();
+    // Prisma 會自動管理連接池，不需要手動 connect
 
     // 查找夥伴資料
     const partner = await prisma.partner.findUnique({
@@ -376,11 +377,5 @@ export async function POST(request: Request) {
       error: '創建群組預約失敗',
       details: error instanceof Error ? error.message : '未知錯誤，請稍後再試'
     }, { status: 500 });
-  } finally {
-    try {
-      await prisma.$disconnect();
-    } catch (disconnectError) {
-      console.error("❌ 斷開連線失敗:", disconnectError);
-    }
   }
 }

@@ -19,8 +19,7 @@ export async function GET() {
       }, { status: 401 });
     }
 
-    await prisma.$connect();
-
+    // Prisma 會自動管理連接池
     const partner = await prisma.partner.findUnique({
       where: { userId: session.user.id },
       include: {
@@ -74,12 +73,6 @@ export async function GET() {
       partner: null,
       error: null  // 不顯示錯誤給用戶
     }, { status: 200 });
-  } finally {
-    try {
-      await prisma.$disconnect();
-    } catch (disconnectError) {
-      console.error("❌ 斷開連線失敗:", disconnectError);
-    }
   }
 }
 
@@ -97,8 +90,7 @@ export async function PATCH(request: Request) {
 
     const { isAvailableNow, isRankBooster, allowGroupBooking, rankBoosterNote, rankBoosterRank, customerMessage, availableNowSince } = await request.json();
     
-    await prisma.$connect();
-
+    // Prisma 會自動管理連接池
     const partner = await prisma.partner.findUnique({
       where: { userId: session.user.id }
     });
@@ -158,11 +150,5 @@ export async function PATCH(request: Request) {
       error: '更新失敗',
       details: error instanceof Error ? error.message : '請稍後再試'
     }, { status: 500 });
-  } finally {
-    try {
-      await prisma.$disconnect();
-    } catch (disconnectError) {
-      console.error("❌ 斷開連線失敗:", disconnectError);
-    }
   }
 } 

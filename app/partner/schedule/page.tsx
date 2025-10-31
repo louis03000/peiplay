@@ -182,12 +182,12 @@ export default function PartnerSchedulePage() {
           console.error('Failed to load dashboard data:', err);
           setError('載入資料失敗，請稍後再試');
           setLoading(false);
-          // 自動重試，最多3次
-          if (retryCount < 3) {
+          // 快速重試一次，如果還失敗就不再重試
+          if (retryCount < 1) {
             setTimeout(() => {
               setRetryCount(prev => prev + 1);
               setLoading(true);
-            }, 2000);
+            }, 500); // 減少等待時間到 500ms
           }
         });
     }

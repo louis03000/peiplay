@@ -23,9 +23,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: '缺少群組預約 ID' }, { status: 400 });
     }
 
-    // 確保資料庫連線
-    await prisma.$connect();
-
+    // Prisma 會自動管理連接池
     // 查找群組預約
     const groupBooking = await prisma.groupBooking.findUnique({
       where: { id: groupBookingId },
@@ -361,11 +359,5 @@ export async function POST(request: Request) {
       error: '加入群組預約失敗',
       details: error instanceof Error ? error.message : '未知錯誤，請稍後再試'
     }, { status: 500 });
-  } finally {
-    try {
-      await prisma.$disconnect();
-    } catch (disconnectError) {
-      console.error("❌ 斷開連線失敗:", disconnectError);
-    }
   }
 }
