@@ -225,6 +225,7 @@ export async function GET(request: Request) {
         maxParticipants: group.maxParticipants,
         currentParticipants: group.GroupBookingParticipant.length,
         pricePerPerson: group.pricePerPerson,
+        games: group.games || [],
         startTime: group.startTime.toISOString(),
         endTime: group.endTime.toISOString(),
         status: group.status,

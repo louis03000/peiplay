@@ -27,6 +27,7 @@ interface GroupBooking {
   maxParticipants: number
   currentParticipants: number
   pricePerPerson: number
+  games?: string[]
   startTime: string
   endTime: string
   status: string
@@ -175,7 +176,7 @@ function GroupBookingContent() {
     }
   }
 
-  const joinGroupBooking = async (groupBookingId: string) => {
+  const joinGroupBooking = async (groupBookingId: string, retryCount = 0) => {
     try {
       setLoading(true)
       const response = await fetch('/api/group-booking/join', {
@@ -188,16 +189,56 @@ function GroupBookingContent() {
         })
       })
 
+      const result = await response.json()
+
       if (response.ok) {
-        alert('成功加入群組預約！')
-        loadGroupBookings()
+        // 成功加入
+        if (result.alreadyJoined) {
+          // 如果已經加入（可能是重複請求），不顯示錯誤
+          console.log('已經在群組中:', result.message)
+          loadGroupBookings() // 重新載入以更新狀態
+        } else {
+          alert('成功加入群組預約！')
+          loadGroupBookings()
+        }
       } else {
-        const error = await response.json()
-        alert(error.error || '加入失敗')
+        // 處理錯誤響應
+        if (result.code === 'ALREADY_JOINED' || response.status === 409) {
+          // 已經加入的情況，不顯示錯誤，重新載入
+          console.log('已經加入群組:', result.details)
+          loadGroupBookings()
+          return
+        }
+
+        // 對於其他錯誤，顯示訊息
+        const errorMessage = result.details 
+          ? `${result.error}\n${result.details}` 
+          : result.error || '加入失敗'
+        
+        // 對於某些錯誤，可以重試
+        if ((response.status === 500 || response.status === 503) && retryCount < 2) {
+          console.warn(`加入失敗，${retryCount + 1}秒後重試...`)
+          setTimeout(() => {
+            joinGroupBooking(groupBookingId, retryCount + 1)
+          }, (retryCount + 1) * 1000)
+          return
+        }
+        
+        alert(errorMessage)
       }
     } catch (error) {
       console.error('加入群組預約失敗:', error)
-      alert('加入失敗')
+      
+      // 網絡錯誤時可以重試
+      if (retryCount < 2) {
+        console.warn(`網絡錯誤，${retryCount + 1}秒後重試...`)
+        setTimeout(() => {
+          joinGroupBooking(groupBookingId, retryCount + 1)
+        }, (retryCount + 1) * 1000)
+        return
+      }
+      
+      alert('加入失敗，請檢查網絡連線後重試')
     } finally {
       setLoading(false)
     }
@@ -323,6 +364,15 @@ function GroupBookingContent() {
                     <h4 className="font-medium text-gray-900">{group.title}</h4>
                     {group.description && (
                       <p className="text-sm text-gray-600 mt-1">{group.description}</p>
+                    )}
+                    {group.games && group.games.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-2">
+                        {group.games.map((game, idx) => (
+                          <span key={idx} className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">
+                            {game}
+                          </span>
+                        ))}
+                      </div>
                     )}
                   </div>
                   

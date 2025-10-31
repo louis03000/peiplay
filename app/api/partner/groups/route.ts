@@ -54,6 +54,7 @@ export async function GET() {
       currentParticipants: group.GroupBookingParticipant.length,
       pricePerPerson: group.pricePerPerson,
       status: group.status,
+      games: group.games || [],
       startTime: group.startTime.toISOString(),
       endTime: group.endTime.toISOString()
     }));
@@ -248,7 +249,8 @@ export async function POST(request: Request) {
           pricePerPerson: parseFloat(data.pricePerPerson),
           status: 'ACTIVE',
           initiatorId: partner.id,
-          initiatorType: 'PARTNER'
+          initiatorType: 'PARTNER',
+          games: Array.isArray(data.games) ? data.games.filter((g: any) => g && typeof g === 'string') : []
         }
       });
       console.log('✅ 群組預約記錄創建成功:', groupBooking.id);
@@ -328,6 +330,7 @@ export async function POST(request: Request) {
         currentParticipants: 1,
         pricePerPerson: groupBooking.pricePerPerson,
         status: groupBooking.status,
+        games: groupBooking.games || [],
         startTime: groupBooking.startTime.toISOString(),
         endTime: groupBooking.endTime.toISOString()
       }

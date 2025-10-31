@@ -191,6 +191,7 @@ model GroupBooking {
   updatedAt               DateTime                  @updatedAt
   initiatorId             String
   initiatorType           String
+  games                   String[]                  @default([])
   discordTextChannelId    String?
   discordVoiceChannelId   String?
   bookings                Booking[]

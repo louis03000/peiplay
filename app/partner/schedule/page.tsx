@@ -38,6 +38,7 @@ export default function PartnerSchedulePage() {
     allowGroupBooking: boolean;
     availableNowSince: string | null;
   } | null>(null);
+  const [partnerGames, setPartnerGames] = useState<string[]>([]);
   const [rankBoosterImages, setRankBoosterImages] = useState<string[]>([]);
   const [uploadingImages, setUploadingImages] = useState<boolean[]>(new Array(5).fill(false));
   
@@ -50,7 +51,8 @@ export default function PartnerSchedulePage() {
     startTime: '',
     endTime: '',
     pricePerPerson: 0,
-    maxParticipants: 4
+    maxParticipants: 4,
+    games: [] as string[]
   });
   const [myGroups, setMyGroups] = useState<any[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -168,6 +170,7 @@ export default function PartnerSchedulePage() {
               availableNowSince: data.partner.availableNowSince
             });
             setRankBoosterImages(data.partner.rankBoosterImages || []);
+            setPartnerGames(data.partner.games || []);
             setSchedules(data.schedules || []);
             setMyGroups(data.groups || []);
           } else {
@@ -204,6 +207,7 @@ export default function PartnerSchedulePage() {
           availableNowSince: data.partner.availableNowSince
         });
         setRankBoosterImages(data.partner.rankBoosterImages || []);
+        setPartnerGames(data.partner.games || []);
         setSchedules(data.schedules || []);
         setMyGroups(data.groups || []);
         
@@ -280,7 +284,8 @@ export default function PartnerSchedulePage() {
           startTime: '',
           endTime: '',
           pricePerPerson: 0,
-          maxParticipants: 4
+          maxParticipants: 4,
+          games: []
         });
         refreshData();
       } else {
@@ -779,6 +784,32 @@ export default function PartnerSchedulePage() {
                             <option key={num} value={num}>{num} 人</option>
                           ))}
                         </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">遊戲 (可選)</label>
+                        <select
+                          multiple
+                          value={groupForm.games}
+                          onChange={(e) => {
+                            const selectedGames = Array.from(e.target.selectedOptions, option => option.value);
+                            setGroupForm({...groupForm, games: selectedGames});
+                          }}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-900"
+                          size={Math.min(partnerGames.length || 1, 5)}
+                        >
+                          {partnerGames.length > 0 ? (
+                            partnerGames.map(game => (
+                              <option key={game} value={game}>{game}</option>
+                            ))
+                          ) : (
+                            <option disabled>請先在個人資料中設定遊戲</option>
+                          )}
+                        </select>
+                        <p className="text-xs text-gray-500 mt-1">
+                          {partnerGames.length === 0 
+                            ? '請先到個人資料頁面設定您要提供的遊戲' 
+                            : '按住 Ctrl (Windows) 或 Cmd (Mac) 可選擇多個遊戲'}
+                        </p>
                       </div>
                     </div>
                     <div className="mt-4">

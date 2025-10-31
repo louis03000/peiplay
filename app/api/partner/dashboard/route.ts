@@ -101,7 +101,8 @@ export async function GET() {
           isRankBooster: partner.isRankBooster,
           allowGroupBooking: partner.allowGroupBooking,
           availableNowSince: partner.availableNowSince,
-          rankBoosterImages: partner.rankBoosterImages
+          rankBoosterImages: partner.rankBoosterImages,
+          games: partner.games || []
         },
         schedules,
         groups
@@ -121,7 +122,8 @@ export async function GET() {
             isRankBooster: false,
             allowGroupBooking: false,
             availableNowSince: null,
-            rankBoosterImages: []
+            rankBoosterImages: [],
+            games: []
           },
           schedules: [],
           groups: [],
