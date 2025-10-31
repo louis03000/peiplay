@@ -83,10 +83,10 @@ export default function PartnerSchedulePage() {
     if (!mounted) return;
 
     // 每2分鐘更新一次狀態（檢查是否被後台自動關閉）
-    const interval = setInterval(refreshData, 2 * 60 * 1000);
+    const interval = setInterval(() => refreshData(), 2 * 60 * 1000);
 
     return () => clearInterval(interval);
-  }, [mounted]);
+  }, [mounted]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleImageUpload = async (index: number, file: File) => {
     if (!file) return;
