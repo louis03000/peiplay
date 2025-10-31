@@ -54,6 +54,7 @@ export default function PartnerSchedulePage() {
     maxParticipants: 4,
     games: [] as string[]
   });
+  const [customGameInput, setCustomGameInput] = useState('');
   const [myGroups, setMyGroups] = useState<any[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
@@ -244,6 +245,17 @@ export default function PartnerSchedulePage() {
     }
   };
 
+  const handleAddCustomGame = () => {
+    const trimmed = customGameInput.trim();
+    if (trimmed && !groupForm.games.includes(trimmed) && trimmed.length <= 50 && groupForm.games.length < 10) {
+      setGroupForm({
+        ...groupForm,
+        games: [...groupForm.games, trimmed]
+      });
+      setCustomGameInput('');
+    }
+  };
+
   const createGroup = async () => {
     if (!groupForm.title || !groupForm.date || !groupForm.startTime || !groupForm.endTime || !groupForm.pricePerPerson) {
       alert('請填寫所有必要欄位');
@@ -287,6 +299,7 @@ export default function PartnerSchedulePage() {
           maxParticipants: 4,
           games: []
         });
+        setCustomGameInput('');
         refreshData();
       } else {
         // 顯示詳細的錯誤訊息
@@ -785,30 +798,92 @@ export default function PartnerSchedulePage() {
                           ))}
                         </select>
                       </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">遊戲 (可選)</label>
-                        <select
-                          multiple
-                          value={groupForm.games}
-                          onChange={(e) => {
-                            const selectedGames = Array.from(e.target.selectedOptions, option => option.value);
-                            setGroupForm({...groupForm, games: selectedGames});
-                          }}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-900"
-                          size={Math.min(partnerGames.length || 1, 5)}
-                        >
-                          {partnerGames.length > 0 ? (
-                            partnerGames.map(game => (
-                              <option key={game} value={game}>{game}</option>
-                            ))
-                          ) : (
-                            <option disabled>請先在個人資料中設定遊戲</option>
-                          )}
-                        </select>
+                      <div className="md:col-span-2">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">遊戲 (可選，最多 10 個)</label>
+                        
+                        {/* 已選遊戲顯示為標籤 */}
+                        {groupForm.games.length > 0 && (
+                          <div className="flex flex-wrap gap-2 mb-3">
+                            {groupForm.games.map((game, idx) => (
+                              <span 
+                                key={idx}
+                                className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-indigo-100 text-indigo-800"
+                              >
+                                {game}
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setGroupForm({
+                                      ...groupForm,
+                                      games: groupForm.games.filter((_, i) => i !== idx)
+                                    });
+                                  }}
+                                  className="ml-2 text-indigo-600 hover:text-indigo-900"
+                                >
+                                  ×
+                                </button>
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        
+                        {/* 從已有遊戲快速選擇 */}
+                        {partnerGames.length > 0 && (
+                          <div className="mb-3">
+                            <p className="text-xs text-gray-500 mb-2">快速選擇：</p>
+                            <div className="flex flex-wrap gap-2">
+                              {partnerGames
+                                .filter(game => !groupForm.games.includes(game))
+                                .map(game => (
+                                  <button
+                                    key={game}
+                                    type="button"
+                                    onClick={() => {
+                                      if (groupForm.games.length < 10) {
+                                        setGroupForm({
+                                          ...groupForm,
+                                          games: [...groupForm.games, game]
+                                        });
+                                      }
+                                    }}
+                                    disabled={groupForm.games.length >= 10}
+                                    className="px-3 py-1 rounded-full text-xs font-medium bg-gray-200 text-gray-700 hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                                  >
+                                    + {game}
+                                  </button>
+                                ))}
+                            </div>
+                          </div>
+                        )}
+                        
+                        {/* 自訂遊戲輸入 */}
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={customGameInput}
+                            onChange={(e) => setCustomGameInput(e.target.value.slice(0, 50))}
+                            onKeyPress={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                handleAddCustomGame();
+                              }
+                            }}
+                            placeholder="輸入遊戲名稱（最多 50 字）"
+                            maxLength={50}
+                            disabled={groupForm.games.length >= 10}
+                            className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-900 disabled:opacity-50"
+                          />
+                          <button
+                            type="button"
+                            onClick={handleAddCustomGame}
+                            disabled={!customGameInput.trim() || groupForm.games.length >= 10}
+                            className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            新增
+                          </button>
+                        </div>
                         <p className="text-xs text-gray-500 mt-1">
-                          {partnerGames.length === 0 
-                            ? '請先到個人資料頁面設定您要提供的遊戲' 
-                            : '按住 Ctrl (Windows) 或 Cmd (Mac) 可選擇多個遊戲'}
+                          {groupForm.games.length}/10 {partnerGames.length > 0 ? '（可從上方快速選擇，或自行輸入）' : '（可直接輸入遊戲名稱）'}
                         </p>
                       </div>
                     </div>
