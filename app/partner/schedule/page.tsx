@@ -246,13 +246,20 @@ export default function PartnerSchedulePage() {
       return;
     }
 
-    if (groupForm.maxParticipants > 9) {
-      alert('最大人數不能超過9人');
+    if (groupForm.maxParticipants > 9 || groupForm.maxParticipants < 2) {
+      alert('最大人數必須在2到9人之間');
+      return;
+    }
+
+    if (groupForm.pricePerPerson <= 0) {
+      alert('每人費用必須大於0');
       return;
     }
 
     try {
       setSaving(true);
+      setError(null);
+      
       const response = await fetch('/api/partner/groups', {
         method: 'POST',
         headers: {
@@ -260,6 +267,8 @@ export default function PartnerSchedulePage() {
         },
         body: JSON.stringify(groupForm)
       });
+
+      const result = await response.json();
 
       if (response.ok) {
         alert('群組創建成功！');
@@ -275,12 +284,16 @@ export default function PartnerSchedulePage() {
         });
         refreshData();
       } else {
-        const error = await response.json();
-        alert(error.error || '創建失敗');
+        // 顯示詳細的錯誤訊息
+        const errorMessage = result.details 
+          ? `${result.error}\n${result.details}` 
+          : result.error || '創建失敗';
+        alert(errorMessage);
+        console.error('創建群組失敗:', result);
       }
     } catch (error) {
       console.error('Error creating group:', error);
-      alert('創建失敗');
+      alert(`創建失敗: ${error instanceof Error ? error.message : '未知錯誤'}`);
     } finally {
       setSaving(false);
     }
