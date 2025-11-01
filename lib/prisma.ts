@@ -21,8 +21,6 @@ export const prisma =
         url: process.env.DATABASE_URL,
       },
     },
-    // 性能優化設定
-    engineType: 'library', // 使用 library 引擎以提高性能
   })
 
 if (process.env.NODE_ENV !== 'production') {
