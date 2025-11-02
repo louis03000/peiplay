@@ -104,7 +104,7 @@ function BookingWizardContent() {
   const [promoCodeResult, setPromoCodeResult] = useState<any>(null)
   const [promoCodeError, setPromoCodeError] = useState('')
   const [isValidatingPromoCode, setIsValidatingPromoCode] = useState(false)
-  const { data: session } = useSession()
+  const { data: session, status: sessionStatus } = useSession()
   // 移除金幣相關狀態
   const [creating, setCreating] = useState(false)
   const [createdBooking, setCreatedBooking] = useState<any>(null)
@@ -167,17 +167,29 @@ function BookingWizardContent() {
   // 獲取用戶的最愛列表
   useEffect(() => {
     const fetchFavorites = async () => {
-      if (!session?.user) return
+      // 等待 session 載入完成
+      if (sessionStatus === 'loading') return
+      
+      // 如果未登入，清空最愛列表
+      if (sessionStatus === 'unauthenticated' || !session?.user) {
+        setFavoritePartnerIds(new Set())
+        return
+      }
       
       setLoadingFavorites(true)
       try {
-        const res = await fetch('/api/favorites')
+        const res = await fetch('/api/favorites', {
+          cache: 'no-store'
+        })
         if (res.ok) {
           const data = await res.json()
           const favoriteIds = new Set<string>(
             (data.favorites || []).map((f: { partnerId: string }) => f.partnerId)
           )
           setFavoritePartnerIds(favoriteIds)
+          console.log('✅ 已載入最愛列表:', Array.from(favoriteIds))
+        } else {
+          console.error('獲取最愛列表失敗:', res.status, await res.text())
         }
       } catch (error) {
         console.error("Failed to fetch favorites:", error)
@@ -187,7 +199,7 @@ function BookingWizardContent() {
     }
 
     fetchFavorites()
-  }, [session])
+  }, [session, sessionStatus])
 
   // 處理切換最愛
   const handleToggleFavorite = async (partnerId: string) => {
@@ -199,16 +211,29 @@ function BookingWizardContent() {
     const isFavorite = favoritePartnerIds.has(partnerId)
     const action = isFavorite ? 'remove' : 'add'
 
+    // 樂觀更新 UI
+    setFavoritePartnerIds(prev => {
+      const newSet = new Set(prev)
+      if (action === 'add') {
+        newSet.add(partnerId)
+      } else {
+        newSet.delete(partnerId)
+      }
+      return newSet
+    })
+
     try {
       const res = await fetch('/api/favorites', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ partnerId, action })
+        body: JSON.stringify({ partnerId, action }),
+        cache: 'no-store'
       })
 
       if (res.ok) {
         const data = await res.json()
-        // 更新本地狀態
+        console.log('✅ 最愛操作成功:', action, partnerId, data)
+        // 確保狀態與伺服器同步
         setFavoritePartnerIds(prev => {
           const newSet = new Set(prev)
           if (data.isFavorite) {
@@ -219,10 +244,31 @@ function BookingWizardContent() {
           return newSet
         })
       } else {
+        // 如果失敗，恢復原狀態
+        setFavoritePartnerIds(prev => {
+          const newSet = new Set(prev)
+          if (action === 'add') {
+            newSet.delete(partnerId)
+          } else {
+            newSet.add(partnerId)
+          }
+          return newSet
+        })
         const errorData = await res.json()
+        console.error('❌ 最愛操作失敗:', errorData)
         alert(errorData.error || '操作失敗')
       }
     } catch (error) {
+      // 如果失敗，恢復原狀態
+      setFavoritePartnerIds(prev => {
+        const newSet = new Set(prev)
+        if (action === 'add') {
+          newSet.delete(partnerId)
+        } else {
+          newSet.add(partnerId)
+        }
+        return newSet
+      })
       console.error("Failed to toggle favorite:", error)
       alert('操作失敗，請重試')
     }

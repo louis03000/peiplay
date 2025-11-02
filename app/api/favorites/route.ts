@@ -39,6 +39,8 @@ export async function GET() {
       orderBy: { createdAt: 'desc' }
     });
 
+    console.log(`✅ 找到 ${favorites.length} 個最愛夥伴 (customerId: ${customer.id})`);
+
     return NextResponse.json({ 
       favorites: favorites.map(f => ({
         id: f.id,
@@ -122,13 +124,15 @@ export async function POST(request: Request) {
       const id = `fav_${randomBytes(16).toString('hex')}`;
 
       // 添加最愛
-      await prisma.favoritePartner.create({
+      const created = await prisma.favoritePartner.create({
         data: {
           id,
           customerId: customer.id,
           partnerId: partnerId
         }
       });
+
+      console.log(`✅ 已添加最愛 (id: ${created.id}, customerId: ${customer.id}, partnerId: ${partnerId})`);
 
       return NextResponse.json({ message: '已添加到最愛', isFavorite: true });
     } else {
