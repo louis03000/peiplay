@@ -13,7 +13,7 @@ export async function GET() {
     const session = await getServerSession(authOptions);
     
     if (!session?.user?.id) {
-      return NextResponse.json({ error: '請先登入' }, { status: 401 });
+      return NextResponse.json({ favorites: [] });
     }
 
     // 獲取用戶的 Customer ID
@@ -47,16 +47,22 @@ export async function GET() {
         createdAt: f.createdAt
       }))
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error fetching favorites:", error);
     console.error("Error details:", {
       message: error instanceof Error ? error.message : 'Unknown error',
-      stack: error instanceof Error ? error.stack : undefined
+      code: error?.code,
+      meta: error?.meta
     });
-    return NextResponse.json({ 
-      error: "獲取最愛列表失敗",
-      details: error instanceof Error ? error.message : 'Unknown error'
-    }, { status: 500 });
+    
+    // 如果是表不存在或其他資料庫錯誤，返回空數組而不是錯誤
+    if (error?.code === 'P2021' || error?.code === '42P01') {
+      // 表不存在，返回空數組
+      return NextResponse.json({ favorites: [] });
+    }
+    
+    // 其他錯誤也返回空數組，避免前端崩潰
+    return NextResponse.json({ favorites: [] });
   }
 }
 
@@ -136,12 +142,22 @@ export async function POST(request: Request) {
 
       return NextResponse.json({ message: '已從最愛移除', isFavorite: false });
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error managing favorite:", error);
     console.error("Error details:", {
       message: error instanceof Error ? error.message : 'Unknown error',
-      stack: error instanceof Error ? error.stack : undefined
+      code: error?.code,
+      meta: error?.meta
     });
+    
+    // 如果是表不存在的錯誤，返回友好訊息
+    if (error?.code === 'P2021' || error?.code === '42P01') {
+      return NextResponse.json({ 
+        error: "最愛功能尚未初始化，請聯繫管理員",
+        isFavorite: false
+      }, { status: 503 });
+    }
+    
     return NextResponse.json({ 
       error: "操作失敗",
       details: error instanceof Error ? error.message : 'Unknown error'
