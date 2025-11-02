@@ -13,57 +13,94 @@ export default function Navigation() {
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const userMenuRef = useRef<HTMLDivElement>(null)
 
-  // 檢查夥伴狀態
+  // 檢查夥伴狀態 - 優化版本：使用緩存避免每次載入
   useEffect(() => {
     if (session?.user?.id && status === 'authenticated') {
-      setPartnerLoading(true)
+      // 先檢查本地緩存
+      const cachedPartnerStatus = typeof window !== 'undefined' 
+        ? sessionStorage.getItem(`partner_status_${session.user.id}`)
+        : null
+      const cachedTimestamp = typeof window !== 'undefined'
+        ? sessionStorage.getItem(`partner_status_timestamp_${session.user.id}`)
+        : null
       
-      const checkPartnerStatus = async (retryCount = 0) => {
-        try {
-          const res = await fetch('/api/partners/self')
-          
-          if (res.ok) {
-            const data = await res.json()
-            if (data && data.partner) {
-              setHasPartner(data.partner.status === 'APPROVED')
-              setIsPartner(true)
-            } else {
-              setHasPartner(false)
-              setIsPartner(false)
-            }
-            setPartnerLoading(false)
-          } else if (res.status === 503 && retryCount < 2) {
-            console.warn(`夥伴狀態檢查失敗 (${res.status})，${retryCount + 1}秒後重試...`)
-            setTimeout(() => {
-              checkPartnerStatus(retryCount + 1)
-            }, (retryCount + 1) * 1000)
-            return
-          } else {
-            console.warn('夥伴狀態檢查失敗:', res.status)
-            setHasPartner(false)
-            setIsPartner(false)
-            setPartnerLoading(false)
-          }
-        } catch (error) {
-          console.error('檢查夥伴狀態失敗:', error)
-          if (retryCount < 2) {
-            console.warn(`${retryCount + 1}秒後重試...`)
-            setTimeout(() => {
-              checkPartnerStatus(retryCount + 1)
-            }, (retryCount + 1) * 1000)
-            return
-          }
-          setHasPartner(false)
-          setIsPartner(false)
+      // 如果緩存存在且未過期（5分鐘內），直接使用
+      if (cachedPartnerStatus && cachedTimestamp) {
+        const cacheAge = Date.now() - parseInt(cachedTimestamp)
+        if (cacheAge < 5 * 60 * 1000) { // 5分鐘內有效
+          const isApproved = cachedPartnerStatus === 'APPROVED'
+          setHasPartner(isApproved)
+          setIsPartner(true)
           setPartnerLoading(false)
+          
+          // 在背景更新，不阻塞 UI
+          checkPartnerStatusBackground()
+          return
         }
       }
       
+      setPartnerLoading(true)
       checkPartnerStatus()
     } else {
       setHasPartner(false)
       setIsPartner(false)
       setPartnerLoading(false)
+    }
+    
+    // 快速檢查夥伴狀態
+    async function checkPartnerStatus() {
+      try {
+        const res = await fetch('/api/partners/self')
+        
+        if (res.ok) {
+          const data = await res.json()
+          const isApproved = data && data.partner && data.partner.status === 'APPROVED'
+          
+          setHasPartner(isApproved)
+          setIsPartner(!!data?.partner)
+          setPartnerLoading(false)
+          
+          // 緩存結果
+          if (data?.partner && typeof window !== 'undefined') {
+            sessionStorage.setItem(`partner_status_${session?.user?.id}`, data.partner.status || '')
+            sessionStorage.setItem(`partner_status_timestamp_${session?.user?.id}`, Date.now().toString())
+          }
+        } else {
+          console.warn('夥伴狀態檢查失敗:', res.status)
+          setHasPartner(false)
+          setIsPartner(false)
+          setPartnerLoading(false)
+        }
+      } catch (error) {
+        console.error('檢查夥伴狀態失敗:', error)
+        // 不重試，直接設置為 false，避免長時間等待
+        setHasPartner(false)
+        setIsPartner(false)
+        setPartnerLoading(false)
+      }
+    }
+    
+    // 背景更新（不影響 UI）
+    async function checkPartnerStatusBackground() {
+      try {
+        const res = await fetch('/api/partners/self')
+        if (res.ok) {
+          const data = await res.json()
+          const isApproved = data && data.partner && data.partner.status === 'APPROVED'
+          
+          setHasPartner(isApproved)
+          setIsPartner(!!data?.partner)
+          
+          // 更新緩存
+          if (data?.partner && session?.user?.id && typeof window !== 'undefined') {
+            sessionStorage.setItem(`partner_status_${session.user.id}`, data.partner.status || '')
+            sessionStorage.setItem(`partner_status_timestamp_${session.user.id}`, Date.now().toString())
+          }
+        }
+      } catch (error) {
+        // 背景更新失敗不影響 UI
+        console.warn('背景更新夥伴狀態失敗:', error)
+      }
     }
   }, [session, status])
 
@@ -138,19 +175,24 @@ export default function Navigation() {
                 </div>
                 
                 {/* 時段管理 - 夥伴功能 */}
-                {partnerLoading ? (
+                {isPartner && (
+                  <div className="px-4 py-3">
+                    <Link 
+                      href="/partner/schedule" 
+                      prefetch={true}
+                      className="flex items-center space-x-3 text-gray-900 hover:text-blue-600 hover:bg-blue-50 transition-colors rounded-lg px-2 py-2"
+                    >
+                      <span className="text-xl">📅</span>
+                      <span className="font-medium">時段管理</span>
+                    </Link>
+                  </div>
+                )}
+                {partnerLoading && !isPartner && (
                   <div className="px-4 py-3">
                     <div className="flex items-center space-x-3 text-gray-500">
                       <span className="text-xl">🔄</span>
                       <span className="text-sm">載入中...</span>
                     </div>
-                  </div>
-                ) : isPartner && (
-                  <div className="px-4 py-3">
-                    <Link href="/partner/schedule" className="flex items-center space-x-3 text-gray-900 hover:text-blue-600 hover:bg-blue-50 transition-colors rounded-lg px-2 py-2">
-                      <span className="text-xl">📅</span>
-                      <span className="font-medium">時段管理</span>
-                    </Link>
                   </div>
                 )}
                 
