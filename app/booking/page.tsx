@@ -174,7 +174,9 @@ function BookingWizardContent() {
         const res = await fetch('/api/favorites')
         if (res.ok) {
           const data = await res.json()
-          const favoriteIds = new Set(data.favorites?.map((f: any) => f.partnerId) || [])
+          const favoriteIds = new Set<string>(
+            (data.favorites || []).map((f: { partnerId: string }) => f.partnerId)
+          )
           setFavoritePartnerIds(favoriteIds)
         }
       } catch (error) {
