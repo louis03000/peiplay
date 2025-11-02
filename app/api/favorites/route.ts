@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
-import cuid from "cuid";
+import { randomBytes } from "crypto";
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -49,7 +49,14 @@ export async function GET() {
     });
   } catch (error) {
     console.error("Error fetching favorites:", error);
-    return NextResponse.json({ error: "獲取最愛列表失敗" }, { status: 500 });
+    console.error("Error details:", {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined
+    });
+    return NextResponse.json({ 
+      error: "獲取最愛列表失敗",
+      details: error instanceof Error ? error.message : 'Unknown error'
+    }, { status: 500 });
   }
 }
 
@@ -105,8 +112,8 @@ export async function POST(request: Request) {
         return NextResponse.json({ message: '已經在最愛列表中', isFavorite: true });
       }
 
-      // 生成唯一 ID
-      const id = cuid();
+      // 生成唯一 ID (使用 crypto.randomBytes 確保在 serverless 環境中可用)
+      const id = `fav_${randomBytes(16).toString('hex')}`;
 
       // 添加最愛
       await prisma.favoritePartner.create({
@@ -131,7 +138,14 @@ export async function POST(request: Request) {
     }
   } catch (error) {
     console.error("Error managing favorite:", error);
-    return NextResponse.json({ error: "操作失敗" }, { status: 500 });
+    console.error("Error details:", {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined
+    });
+    return NextResponse.json({ 
+      error: "操作失敗",
+      details: error instanceof Error ? error.message : 'Unknown error'
+    }, { status: 500 });
   }
 }
 
