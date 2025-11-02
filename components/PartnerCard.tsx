@@ -27,12 +27,15 @@ interface PartnerCardProps {
   showNextStep?: boolean
   flipped?: boolean
   onFlip?: () => void
+  isFavorite?: boolean
+  onToggleFavorite?: (partnerId: string) => void
 }
 
-const PartnerCard = memo(function PartnerCard({ partner, onQuickBook, showNextStep = false, flipped = false, onFlip }: PartnerCardProps) {
+const PartnerCard = memo(function PartnerCard({ partner, onQuickBook, showNextStep = false, flipped = false, onFlip, isFavorite = false, onToggleFavorite }: PartnerCardProps) {
   const [imageError, setImageError] = useState(false)
   const [isHovered, setIsHovered] = useState(false)
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
+  const [isTogglingFavorite, setIsTogglingFavorite] = useState(false)
 
   const handleImageError = () => {
     setImageError(true)
@@ -74,6 +77,18 @@ const PartnerCard = memo(function PartnerCard({ partner, onQuickBook, showNextSt
       onFlip()
     }
   }, [onFlip])
+
+  const handleToggleFavorite = useCallback(async (e: React.MouseEvent) => {
+    e.stopPropagation() // 防止觸發卡片點擊事件
+    if (!onToggleFavorite || isTogglingFavorite) return
+    
+    setIsTogglingFavorite(true)
+    try {
+      onToggleFavorite(partner.id)
+    } finally {
+      setIsTogglingFavorite(false)
+    }
+  }, [onToggleFavorite, partner.id, isTogglingFavorite])
 
   return (
     <div 
@@ -137,11 +152,27 @@ const PartnerCard = memo(function PartnerCard({ partner, onQuickBook, showNextSt
 
             {/* 評分 */}
             {partner.averageRating && partner.averageRating > 0 && (
-              <div className="absolute top-2 right-2 bg-black bg-opacity-70 text-white px-2 py-1 rounded-full text-xs flex items-center gap-1">
+              <div className="absolute top-2 right-12 bg-black bg-opacity-70 text-white px-2 py-1 rounded-full text-xs flex items-center gap-1">
                 <FaStar className="text-yellow-400" />
                 {partner.averageRating.toFixed(1)}
                 {partner.totalReviews && ` (${partner.totalReviews})`}
               </div>
+            )}
+
+            {/* 我的最愛星星 */}
+            {onToggleFavorite && (
+              <button
+                onClick={handleToggleFavorite}
+                disabled={isTogglingFavorite}
+                className={`absolute top-2 right-2 p-2 rounded-full transition-all duration-200 ${
+                  isFavorite 
+                    ? 'bg-yellow-400 text-yellow-900 shadow-lg' 
+                    : 'bg-black bg-opacity-50 text-gray-300 hover:bg-opacity-70 hover:text-yellow-300'
+                } ${isTogglingFavorite ? 'opacity-50 cursor-wait' : 'cursor-pointer'}`}
+                title={isFavorite ? '從最愛移除' : '加入最愛'}
+              >
+                <FaStar className={`text-lg ${isFavorite ? 'fill-current' : ''}`} />
+              </button>
             )}
           </div>
 

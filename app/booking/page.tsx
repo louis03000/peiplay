@@ -108,6 +108,8 @@ function BookingWizardContent() {
   // 移除金幣相關狀態
   const [creating, setCreating] = useState(false)
   const [createdBooking, setCreatedBooking] = useState<any>(null)
+  const [favoritePartnerIds, setFavoritePartnerIds] = useState<Set<string>>(new Set())
+  const [loadingFavorites, setLoadingFavorites] = useState(false)
   
   // 防抖搜尋
   const debouncedSearch = useDebounce(search, 300)
@@ -162,6 +164,68 @@ function BookingWizardContent() {
 
   // 移除無用的金幣餘額獲取
 
+  // 獲取用戶的最愛列表
+  useEffect(() => {
+    const fetchFavorites = async () => {
+      if (!session?.user) return
+      
+      setLoadingFavorites(true)
+      try {
+        const res = await fetch('/api/favorites')
+        if (res.ok) {
+          const data = await res.json()
+          const favoriteIds = new Set(data.favorites?.map((f: any) => f.partnerId) || [])
+          setFavoritePartnerIds(favoriteIds)
+        }
+      } catch (error) {
+        console.error("Failed to fetch favorites:", error)
+      } finally {
+        setLoadingFavorites(false)
+      }
+    }
+
+    fetchFavorites()
+  }, [session])
+
+  // 處理切換最愛
+  const handleToggleFavorite = async (partnerId: string) => {
+    if (!session?.user) {
+      alert('請先登入')
+      return
+    }
+
+    const isFavorite = favoritePartnerIds.has(partnerId)
+    const action = isFavorite ? 'remove' : 'add'
+
+    try {
+      const res = await fetch('/api/favorites', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ partnerId, action })
+      })
+
+      if (res.ok) {
+        const data = await res.json()
+        // 更新本地狀態
+        setFavoritePartnerIds(prev => {
+          const newSet = new Set(prev)
+          if (data.isFavorite) {
+            newSet.add(partnerId)
+          } else {
+            newSet.delete(partnerId)
+          }
+          return newSet
+        })
+      } else {
+        const errorData = await res.json()
+        alert(errorData.error || '操作失敗')
+      }
+    } catch (error) {
+      console.error("Failed to toggle favorite:", error)
+      alert('操作失敗，請重試')
+    }
+  }
+
   // 處理 URL 參數
   useEffect(() => {
     const partnerId = searchParams.get('partnerId')
@@ -215,9 +279,9 @@ function BookingWizardContent() {
     fetchPartners()
   }, [onlyAvailable, onlyRankBooster])
 
-  // 搜尋過濾 - 使用 useMemo 優化，使用防抖搜尋
+  // 搜尋過濾 - 使用 useMemo 優化，使用防抖搜尋，並將收藏的夥伴放在最上面
   const filteredPartners: Partner[] = useMemo(() => {
-    return partners.filter(p => {
+    const filtered = partners.filter(p => {
       const matchSearch = p.name.includes(debouncedSearch) || (p.games && p.games.some(s => s.includes(debouncedSearch)));
       
       if (!matchSearch) return false;
@@ -235,7 +299,17 @@ function BookingWizardContent() {
         return true;
       }
     });
-  }, [partners, debouncedSearch, onlyAvailable, onlyRankBooster, onlyChat]);
+
+    // 將收藏的夥伴放在最上面
+    return filtered.sort((a, b) => {
+      const aIsFavorite = favoritePartnerIds.has(a.id)
+      const bIsFavorite = favoritePartnerIds.has(b.id)
+      
+      if (aIsFavorite && !bIsFavorite) return -1
+      if (!aIsFavorite && bIsFavorite) return 1
+      return 0
+    })
+  }, [partners, debouncedSearch, onlyAvailable, onlyRankBooster, onlyChat, favoritePartnerIds]);
 
   const handleTimeSelect = useCallback((timeId: string) => {
     setSelectedTimes(prev => 
@@ -568,6 +642,8 @@ function BookingWizardContent() {
                         partner={p}
                         flipped={flippedCards.has(p.id)}
                         onFlip={() => handleCardFlip(p.id)}
+                        isFavorite={favoritePartnerIds.has(p.id)}
+                        onToggleFavorite={handleToggleFavorite}
                       />
                     </div>
                   </div>

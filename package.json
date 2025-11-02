@@ -27,6 +27,7 @@
     "@types/nodemailer": "^7.0.1",
     "bcryptjs": "^3.0.2",
     "cloudinary": "^2.7.0",
+    "cuid": "^3.0.0",
     "date-fns": "^2.30.0",
     "exceljs": "^4.4.0",
     "express-rate-limit": "^7.5.0",
