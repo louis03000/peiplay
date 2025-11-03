@@ -125,8 +125,7 @@ export async function GET(request: Request) {
               select: {
                 status: true,
                 id: true
-              },
-              take: 1, // 只需要知道有沒有預約，不需要全部
+              }
             }
           },
         }),
@@ -166,7 +165,11 @@ export async function GET(request: Request) {
         // 過濾掉已預約的時段
         const availableSchedules = schedules.filter(schedule => {
           // 時段已經在查詢時過濾了 isAvailable，這裡只需要檢查預約狀態
-          return !schedule.bookings || schedule.bookings.length === 0;
+          // 如果 bookings 陣列有項目，表示該時段已被預約
+          if (schedule.bookings && Array.isArray(schedule.bookings) && schedule.bookings.length > 0) {
+            return false;
+          }
+          return true;
         });
         
         // 移除 _count 和 userId，保留需要的字段
