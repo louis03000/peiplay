@@ -144,9 +144,9 @@ const PartnerCard = memo(function PartnerCard({ partner, onQuickBook, showNextSt
       {/* 正面 */}
       <div className={`w-full ${flipped ? 'hidden' : 'block'}`}>
         <div className="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow duration-300 flex flex-col">
-          {/* 圖片區域 - 改為直向，確保圖片完整顯示 */}
+          {/* 圖片區域 - 正方形，確保圖片完整等比例顯示 */}
           <div 
-            className="relative w-full aspect-[3/4] bg-gray-100 overflow-hidden"
+            className="relative w-full aspect-square bg-gray-100 overflow-hidden"
             onTouchStart={onTouchStart}
             onTouchMove={onTouchMove}
             onTouchEnd={onTouchEnd}
