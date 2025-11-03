@@ -6,11 +6,10 @@ export const runtime = 'nodejs';
 
 export async function GET(
   request: Request,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
-    // 在 Next.js 15 中，params 是 Promise，需要先 await
-    const { id } = await params;
+    const { id } = params;
     console.log(`✅ partners/${id}/profile GET api triggered`);
 
     const partner = await prisma.partner.findUnique({
