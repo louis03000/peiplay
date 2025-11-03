@@ -12,7 +12,6 @@ export async function GET(request: Request) {
   
   while (retryCount < maxRetries) {
     try {
-      // 移除不必要的連線測試和用戶查詢以加速載入
       const url = new URL(request.url);
       const startDate = url.searchParams.get("startDate");
       const endDate = url.searchParams.get("endDate");
@@ -20,8 +19,7 @@ export async function GET(request: Request) {
       const rankBooster = url.searchParams.get("rankBooster");
       const game = url.searchParams.get("game");
       
-      // 確保資料庫連線
-      await prisma.$connect();
+      // 不需要手動連接，Prisma 會自動管理連接
     
     // 計算今天0點
     const now = new Date();
@@ -164,19 +162,34 @@ export async function GET(request: Request) {
       retryCount++;
       console.error(`Error fetching partners (attempt ${retryCount}/${maxRetries}):`, error);
       
-      // 如果是資料庫連接錯誤且還有重試機會，則重試
-      const isConnectionError = error?.code === 'P1001' || 
-                                error?.code === 'P1017' ||
-                                (error instanceof Error && error.message.includes('connect'));
+      // 檢查是否為可重試的錯誤
+      const isConnectionError = 
+        error?.code === 'P1001' || // Can't reach database server
+        error?.code === 'P1002' || // Connection timeout
+        error?.code === 'P1003' || // Database does not exist
+        error?.code === 'P1017' || // Server has closed the connection
+        error?.code === 'P2002' || // Unique constraint failed (可能是連接問題導致的)
+        error?.code === 'P2024' || // Timed out fetching a new connection from the connection pool
+        error?.code === 'P2034' || // Transaction failed due to a write conflict or a deadlock
+        (error?.message && (
+          error.message.includes('connect') ||
+          error.message.includes('timeout') ||
+          error.message.includes('ECONNREFUSED') ||
+          error.message.includes('ENOTFOUND') ||
+          error.message.includes('connection pool') ||
+          error.message.includes('Connection closed')
+        ));
       
       if (isConnectionError && retryCount < maxRetries) {
-        console.log(`⏳ 資料庫連接錯誤，等待 ${retryCount * 1000}ms 後重試...`);
-        await new Promise(resolve => setTimeout(resolve, retryCount * 1000));
+        const delay = Math.min(retryCount * 1000, 5000); // 最多等待5秒
+        console.log(`⏳ 資料庫連接錯誤，等待 ${delay}ms 後重試... (${retryCount}/${maxRetries})`);
+        await new Promise(resolve => setTimeout(resolve, delay));
         continue; // 重試
       }
       
       // 如果是最後一次重試或非連接錯誤，返回錯誤
       if (isConnectionError) {
+        console.error('❌ 資料庫連接失敗，所有重試已用盡');
         return NextResponse.json({ 
           error: '資料庫連接失敗，請稍後再試',
           partners: [],
@@ -185,21 +198,13 @@ export async function GET(request: Request) {
       }
       
       // 其他錯誤
+      console.error('❌ 獲取夥伴資料失敗:', error);
       return NextResponse.json({ 
         error: "獲取夥伴資料失敗",
         partners: [],
         details: error instanceof Error ? error.message : 'Unknown error',
         retryAttempts: retryCount
       }, { status: 500 });
-    } finally {
-      // 只在最後一次嘗試後斷開連線
-      if (retryCount >= maxRetries || retryCount === 0) {
-        try {
-          await prisma.$disconnect()
-        } catch (disconnectError) {
-          console.error('Database disconnect error:', disconnectError)
-        }
-      }
     }
   }
   
