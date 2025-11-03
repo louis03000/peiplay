@@ -45,87 +45,149 @@ export async function GET(request: Request) {
       where.isAvailableNow = true;
     }
 
-    const partners = await prisma.partner.findMany({
-      where,
-      select: {
-        id: true,
-        name: true,
-        games: true,
-        halfHourlyRate: true,
-        coverImage: true,
-        images: true, // 新增多張圖片
-        isAvailableNow: true,
-        isRankBooster: true,
-        allowGroupBooking: true,
-        rankBoosterNote: true,
-        rankBoosterRank: true,
-        rankBoosterImages: true,
-        customerMessage: true,
-        user: {
-          select: {
-            isSuspended: true,
-            suspensionEndsAt: true
+    // 添加查詢超時和性能優化
+    const queryStartTime = Date.now();
+    
+    // 首先只獲取基本的夥伴資料，減少查詢複雜度
+    const partners = await Promise.race([
+      prisma.partner.findMany({
+        where,
+        select: {
+          id: true,
+          name: true,
+          games: true,
+          halfHourlyRate: true,
+          coverImage: true,
+          images: true,
+          isAvailableNow: true,
+          isRankBooster: true,
+          allowGroupBooking: true,
+          rankBoosterNote: true,
+          rankBoosterRank: true,
+          rankBoosterImages: true,
+          customerMessage: true,
+          userId: true, // 需要這個來查詢 user
+          user: {
+            select: {
+              isSuspended: true,
+              suspensionEndsAt: true
+            }
+          },
+          _count: {
+            select: {
+              schedules: {
+                where: {
+                  date: scheduleDateFilter,
+                  isAvailable: true
+                }
+              }
+            }
           }
         },
-        schedules: {
+        orderBy: { createdAt: 'desc' },
+        take: 100, // 限制返回數量，避免一次載入過多數據
+      }),
+      // 30秒超時
+      new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Query timeout after 30 seconds')), 30000)
+      ) as Promise<never>
+    ]);
+
+    const queryTime = Date.now() - queryStartTime;
+    console.log(`📊 Partners query completed in ${queryTime}ms, found ${partners.length} partners`);
+
+    // 對於有可用時段的夥伴，再單獨查詢時段詳細資料（分批處理，避免 N+1）
+    const partnerIdsWithSchedules = partners
+      .filter(p => p._count.schedules > 0 || p.isAvailableNow)
+      .map(p => p.id);
+
+    // 批量查詢時段資料（只查詢需要的）
+    const schedulesMap = new Map<string, any[]>();
+    if (partnerIdsWithSchedules.length > 0) {
+      const schedules = await Promise.race([
+        prisma.schedule.findMany({
           where: {
+            partnerId: { in: partnerIdsWithSchedules },
             date: scheduleDateFilter,
+            isAvailable: true,
           },
           select: {
             id: true,
+            partnerId: true,
             date: true,
             startTime: true,
             endTime: true,
             isAvailable: true,
             bookings: {
+              where: {
+                status: { notIn: ['CANCELLED', 'REJECTED'] }
+              },
               select: {
                 status: true,
                 id: true
-              }
+              },
+              take: 1, // 只需要知道有沒有預約，不需要全部
             }
           },
-        },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+        }),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Schedules query timeout')), 15000)
+        ) as Promise<never>
+      ]);
 
-    // 過濾掉沒有時段的夥伴，但「現在有空」的夥伴除外
-    let partnersWithSchedules = partners;
-    if (!rankBooster && !availableNow) {
-      // 只有在沒有篩選條件時才過濾掉沒有時段的夥伴，但「現在有空」的夥伴例外
-      partnersWithSchedules = partners.filter(partner => 
-        partner.schedules.length > 0 || partner.isAvailableNow
-      );
+      // 將時段按 partnerId 分組
+      for (const schedule of schedules) {
+        if (!schedulesMap.has(schedule.partnerId)) {
+          schedulesMap.set(schedule.partnerId, []);
+        }
+        schedulesMap.get(schedule.partnerId)!.push(schedule);
+      }
     }
 
-    // 過濾掉已預約的時段，只保留可用的時段，並處理圖片陣列
-    partnersWithSchedules = partnersWithSchedules.map(partner => {
-      // 處理圖片陣列：如果 images 為空但有 coverImage，將 coverImage 加入 images
-      let images = partner.images || [];
-      if (images.length === 0 && partner.coverImage) {
-        images = [partner.coverImage];
-      }
-      // 確保最多3張
-      images = images.slice(0, 3);
-      
-      return {
-        ...partner,
-        images, // 確保有 images 陣列
-        averageRating: 0, // 暫時設為 0
-        totalReviews: 0, // 暫時設為 0
-        schedules: partner.schedules.filter(schedule => {
-          // 如果時段本身不可用，則過濾掉
-          if (!schedule.isAvailable) return false;
-          
-          // 如果有預約記錄且狀態不是 CANCELLED 或 REJECTED，則時段不可用
-          if (schedule.bookings && schedule.bookings.status && !['CANCELLED', 'REJECTED'].includes(schedule.bookings.status)) {
-            return false;
-          }
-          
-          return true;
-        })
-      };
-    }).filter(partner => partner.schedules.length > 0 || partner.isAvailableNow); // 過濾掉沒有可用時段的夥伴，但「現在有空」的夥伴例外
+    // 處理和過濾夥伴資料
+    let partnersWithSchedules = partners
+      .filter(partner => {
+        // 過濾掉沒有時段的夥伴，但「現在有空」的夥伴除外
+        if (!rankBooster && !availableNow) {
+          return partner._count.schedules > 0 || partner.isAvailableNow;
+        }
+        return true;
+      })
+      .map(partner => {
+        // 處理圖片陣列
+        let images = partner.images || [];
+        if (images.length === 0 && partner.coverImage) {
+          images = [partner.coverImage];
+        }
+        images = images.slice(0, 3);
+        
+        // 獲取該夥伴的時段（如果有的話）
+        const schedules = schedulesMap.get(partner.id) || [];
+        // 過濾掉已預約的時段
+        const availableSchedules = schedules.filter(schedule => {
+          // 時段已經在查詢時過濾了 isAvailable，這裡只需要檢查預約狀態
+          return !schedule.bookings || schedule.bookings.length === 0;
+        });
+        
+        // 移除 _count 和 userId，保留需要的字段
+        const { _count, userId, ...partnerData } = partner;
+        
+        return {
+          ...partnerData,
+          images,
+          averageRating: 0,
+          totalReviews: 0,
+          schedules: availableSchedules.map(s => ({
+            id: s.id,
+            date: s.date,
+            startTime: s.startTime,
+            endTime: s.endTime,
+            isAvailable: s.isAvailable,
+            bookings: s.bookings
+          }))
+        };
+      })
+      .filter(partner => partner.schedules.length > 0 || partner.isAvailableNow);
 
     // 過濾掉被停權的夥伴
     partnersWithSchedules = partnersWithSchedules.filter(partner => {

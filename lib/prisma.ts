@@ -16,16 +16,31 @@ function getDatabaseUrlWithPool(): string {
   
   // 如果是 PostgreSQL 且沒有連接池參數，添加連接池配置
   if (dbUrl.startsWith('postgresql://') || dbUrl.startsWith('postgres://')) {
-    const url = new URL(dbUrl)
-    
-    // 只在沒有這些參數時才添加
-    if (!url.searchParams.has('connection_limit') && !url.searchParams.has('pool_timeout')) {
-      url.searchParams.set('connection_limit', '10') // 最大連接數
-      url.searchParams.set('pool_timeout', '10') // 連接池超時（秒）
-      url.searchParams.set('connect_timeout', '10') // 連接超時（秒）
+    try {
+      const url = new URL(dbUrl)
+      
+      // Supabase 免費層級連接限制約為 60，我們設置更保守的值
+      // 如果使用 Supabase，建議使用連接池 URL (pooler)
+      const isSupabase = url.hostname.includes('supabase.co')
+      
+      // 只在沒有這些參數時才添加
+      if (!url.searchParams.has('connection_limit') && !url.searchParams.has('pool_timeout')) {
+        // 針對 Supabase 免費層級優化：使用較小的連接數
+        url.searchParams.set('connection_limit', isSupabase ? '5' : '10')
+        url.searchParams.set('pool_timeout', '20') // 增加到20秒，給查詢更多時間
+        url.searchParams.set('connect_timeout', '10') // 連接超時（秒）
+        
+        // 如果使用 Supabase，提示使用連接池 URL
+        if (isSupabase && !url.hostname.includes('pooler')) {
+          console.warn('⚠️ 建議使用 Supabase 連接池 URL (pooler.supabase.co) 以提高穩定性')
+        }
+      }
+      
+      return url.toString()
+    } catch (error) {
+      console.error('❌ DATABASE_URL 格式錯誤:', error)
+      return dbUrl // 返回原始 URL，讓 Prisma 自己處理錯誤
     }
-    
-    return url.toString()
   }
   
   return dbUrl
