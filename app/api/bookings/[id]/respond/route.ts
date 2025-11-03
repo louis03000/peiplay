@@ -85,7 +85,7 @@ export async function POST(
     const newStatus = action === 'accept' ? 'CONFIRMED' : 'REJECTED';
     
     const updatedBooking = await prisma.booking.update({
-      where: { id: params.id },
+      where: { id: resolvedParams.id },
       data: { status: newStatus },
       include: {
         customer: {
