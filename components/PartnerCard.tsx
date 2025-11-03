@@ -143,10 +143,10 @@ const PartnerCard = memo(function PartnerCard({ partner, onQuickBook, showNextSt
     >
       {/* 正面 */}
       <div className={`w-full ${flipped ? 'hidden' : 'block'}`}>
-        <div className="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow duration-300">
-          {/* 圖片區域 */}
+        <div className="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow duration-300 flex flex-col">
+          {/* 圖片區域 - 改為直向，確保圖片完整顯示 */}
           <div 
-            className="relative h-48 overflow-hidden"
+            className="relative w-full aspect-[3/4] bg-gray-100 overflow-hidden"
             onTouchStart={onTouchStart}
             onTouchMove={onTouchMove}
             onTouchEnd={onTouchEnd}
@@ -156,7 +156,7 @@ const PartnerCard = memo(function PartnerCard({ partner, onQuickBook, showNextSt
                 src={displayImages[currentImageIndex]}
                 alt={partner.name}
                 fill
-                className="object-cover"
+                className="object-contain"
                 onError={handleImageError}
               />
             ) : (
