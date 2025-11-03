@@ -6,15 +6,15 @@ export const runtime = 'nodejs';
 
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    console.log(`✅ partners/${params.id}/profile GET api triggered`);
-    
-    await prisma.$connect();
+    // 在 Next.js 15 中，params 是 Promise，需要先 await
+    const { id } = await params;
+    console.log(`✅ partners/${id}/profile GET api triggered`);
 
     const partner = await prisma.partner.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
         user: {
           select: { name: true }
@@ -23,7 +23,7 @@ export async function GET(
     });
 
     if (!partner) {
-      console.log(`❌ 找不到夥伴: ${params.id}`);
+      console.log(`❌ 找不到夥伴: ${id}`);
       return NextResponse.json({ error: '夥伴不存在' }, { status: 404 });
     }
 
@@ -69,20 +69,24 @@ export async function GET(
     console.log(`📊 找到夥伴資料: ${partner.name}`);
     return NextResponse.json({ partner: formattedPartner });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ 獲取夥伴資料失敗:', error);
-    console.error('❌ 錯誤詳情:', error instanceof Error ? error.message : 'Unknown error');
-    console.error('❌ 錯誤堆疊:', error instanceof Error ? error.stack : 'No stack trace');
+    console.error('❌ 錯誤詳情:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      code: error?.code,
+      meta: error?.meta
+    });
+    
+    // 如果是資料庫連接錯誤
+    if (error?.code === 'P1001') {
+      return NextResponse.json({
+        error: '資料庫連接失敗，請稍後再試'
+      }, { status: 503 });
+    }
     
     return NextResponse.json({
       error: '獲取夥伴資料失敗',
       details: error instanceof Error ? error.message : 'Unknown error'
     }, { status: 500 });
-  } finally {
-    try {
-      await prisma.$disconnect();
-    } catch (disconnectError) {
-      console.error("❌ 斷開連線失敗:", disconnectError);
-    }
   }
 }
