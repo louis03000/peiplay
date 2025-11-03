@@ -56,10 +56,36 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '夥伴不存在' }, { status: 404 });
     }
 
+    // 檢查夥伴是否正在執行訂單
+    const { checkPartnerCurrentlyBusy, checkTimeConflict } = await import('@/lib/time-conflict');
+    const busyCheck = await checkPartnerCurrentlyBusy(partner.id);
+    
+    if (busyCheck.isBusy) {
+      return NextResponse.json({ 
+        error: `夥伴目前正在服務中，預計 ${busyCheck.remainingMinutes} 分鐘後完成。請稍後再試。`,
+        busyUntil: busyCheck.endTime,
+        remainingMinutes: busyCheck.remainingMinutes
+      }, { status: 409 });
+    }
+
     // 計算預約時間
     const now = new Date()
     const startTime = new Date(now.getTime() + 15 * 60 * 1000) // 15分鐘後開始
     const endTime = new Date(startTime.getTime() + duration * 60 * 60 * 1000) // 加上預約時長
+
+    // 檢查時間衝突
+    const conflictCheck = await checkTimeConflict(partner.id, startTime, endTime);
+    
+    if (conflictCheck.hasConflict) {
+      const conflictTimes = conflictCheck.conflicts.map(c => 
+        `${new Date(c.startTime).toLocaleString('zh-TW')} - ${new Date(c.endTime).toLocaleString('zh-TW')}`
+      ).join(', ');
+      
+      return NextResponse.json({ 
+        error: `時間衝突！該夥伴在以下時段已有預約：${conflictTimes}`,
+        conflicts: conflictCheck.conflicts
+      }, { status: 409 });
+    }
 
     // 計算費用
     const originalAmount = duration * partner.halfHourlyRate * 2

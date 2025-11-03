@@ -56,6 +56,22 @@ export async function POST(request: Request) {
           throw new Error(`Schedule ${scheduleId} not found`);
         }
 
+        // 檢查時間衝突
+        const { checkTimeConflict } = await import('@/lib/time-conflict');
+        const conflictCheck = await checkTimeConflict(
+          schedule.partnerId,
+          schedule.startTime,
+          schedule.endTime
+        );
+        
+        if (conflictCheck.hasConflict) {
+          const conflictTimes = conflictCheck.conflicts.map(c => 
+            `${new Date(c.startTime).toLocaleString('zh-TW')} - ${new Date(c.endTime).toLocaleString('zh-TW')}`
+          ).join(', ');
+          
+          throw new Error(`時間衝突！該夥伴在以下時段已有預約：${conflictTimes}`);
+        }
+
         // 計算費用
         const duration = (schedule.endTime.getTime() - schedule.startTime.getTime()) / (1000 * 60 * 60);
         const originalAmount = duration * schedule.partner.halfHourlyRate * 2;
