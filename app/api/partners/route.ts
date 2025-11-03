@@ -7,14 +7,21 @@ export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 export async function GET(request: Request) {
-  try {
-    // 移除不必要的連線測試和用戶查詢以加速載入
-    const url = new URL(request.url);
-    const startDate = url.searchParams.get("startDate");
-    const endDate = url.searchParams.get("endDate");
-    const availableNow = url.searchParams.get("availableNow");
-    const rankBooster = url.searchParams.get("rankBooster");
-    const game = url.searchParams.get("game");
+  let retryCount = 0;
+  const maxRetries = 3;
+  
+  while (retryCount < maxRetries) {
+    try {
+      // 移除不必要的連線測試和用戶查詢以加速載入
+      const url = new URL(request.url);
+      const startDate = url.searchParams.get("startDate");
+      const endDate = url.searchParams.get("endDate");
+      const availableNow = url.searchParams.get("availableNow");
+      const rankBooster = url.searchParams.get("rankBooster");
+      const game = url.searchParams.get("game");
+      
+      // 確保資料庫連線
+      await prisma.$connect();
     
     // 計算今天0點
     const now = new Date();
@@ -152,29 +159,56 @@ export async function GET(request: Request) {
       });
     }
     
-    return NextResponse.json(partnersWithSchedules);
-  } catch (error) {
-    console.error("Error fetching partners:", error);
-    
-    // 如果是資料庫連接錯誤，返回更友好的錯誤信息
-    if (error instanceof Error && error.message.includes('connect')) {
+      return NextResponse.json(partnersWithSchedules);
+    } catch (error: any) {
+      retryCount++;
+      console.error(`Error fetching partners (attempt ${retryCount}/${maxRetries}):`, error);
+      
+      // 如果是資料庫連接錯誤且還有重試機會，則重試
+      const isConnectionError = error?.code === 'P1001' || 
+                                error?.code === 'P1017' ||
+                                (error instanceof Error && error.message.includes('connect'));
+      
+      if (isConnectionError && retryCount < maxRetries) {
+        console.log(`⏳ 資料庫連接錯誤，等待 ${retryCount * 1000}ms 後重試...`);
+        await new Promise(resolve => setTimeout(resolve, retryCount * 1000));
+        continue; // 重試
+      }
+      
+      // 如果是最後一次重試或非連接錯誤，返回錯誤
+      if (isConnectionError) {
+        return NextResponse.json({ 
+          error: '資料庫連接失敗，請稍後再試',
+          partners: [],
+          retryAttempts: retryCount
+        }, { status: 503 });
+      }
+      
+      // 其他錯誤
       return NextResponse.json({ 
-        error: '資料庫連接失敗，請稍後再試',
-        partners: []
-      }, { status: 503 })
-    }
-    
-    return NextResponse.json({ 
-      error: "Error fetching partners",
-      partners: []
-    }, { status: 500 });
-  } finally {
-    try {
-      await prisma.$disconnect()
-    } catch (disconnectError) {
-      console.error('Database disconnect error:', disconnectError)
+        error: "獲取夥伴資料失敗",
+        partners: [],
+        details: error instanceof Error ? error.message : 'Unknown error',
+        retryAttempts: retryCount
+      }, { status: 500 });
+    } finally {
+      // 只在最後一次嘗試後斷開連線
+      if (retryCount >= maxRetries || retryCount === 0) {
+        try {
+          await prisma.$disconnect()
+        } catch (disconnectError) {
+          console.error('Database disconnect error:', disconnectError)
+        }
+      }
     }
   }
+  
+  // 如果所有重試都失敗了（理論上不會到達這裡）
+  return NextResponse.json({ 
+    error: '獲取夥伴資料失敗，請稍後再試',
+    partners: [],
+    retryAttempts: maxRetries
+  }, { status: 503 });
 }
 
 export async function POST(request: Request) {

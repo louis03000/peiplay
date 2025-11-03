@@ -110,6 +110,8 @@ function BookingWizardContent() {
   const [createdBooking, setCreatedBooking] = useState<any>(null)
   const [favoritePartnerIds, setFavoritePartnerIds] = useState<Set<string>>(new Set())
   const [loadingFavorites, setLoadingFavorites] = useState(false)
+  const [partnersError, setPartnersError] = useState<string | null>(null)
+  const [retryCount, setRetryCount] = useState(0)
   
   // 防抖搜尋
   const debouncedSearch = useDebounce(search, 300)
@@ -286,10 +288,14 @@ function BookingWizardContent() {
     }
   }, [searchParams, partners])
 
-  // 優化夥伴資料獲取
+  // 優化夥伴資料獲取，添加錯誤處理和重試機制
   useEffect(() => {
-    const fetchPartners = async () => {
-      setLoading(true)
+    const fetchPartners = async (isRetry: boolean = false) => {
+      if (!isRetry) {
+        setLoading(true)
+        setPartnersError(null)
+      }
+      
       try {
         let url = '/api/partners';
         const params = [];
@@ -304,20 +310,41 @@ function BookingWizardContent() {
         
         if (params.length > 0) url += '?' + params.join('&');
         
-        const res = await fetch(url)
+        const res = await fetch(url, {
+          cache: 'no-store',
+          headers: {
+            'Cache-Control': 'no-cache'
+          }
+        })
+        
+        const data = await res.json()
+        
         if (!res.ok) {
+          // API 返回錯誤
+          const errorMessage = data?.error || `載入失敗 (${res.status})`
+          setPartnersError(errorMessage)
           setPartners([])
+          console.error("API error:", errorMessage, data)
           return
         }
         
-        const data = await res.json()
+        // 成功獲取資料
         if (Array.isArray(data)) {
           setPartners(data)
+          setPartnersError(null) // 清除錯誤
+          setRetryCount(0) // 重置重試計數
+        } else if (data?.partners && Array.isArray(data.partners)) {
+          // 如果返回的是 { partners: [...] } 格式
+          setPartners(data.partners)
+          setPartnersError(null)
+          setRetryCount(0)
         } else {
           setPartners([])
+          setPartnersError(null) // 沒有夥伴不是錯誤
         }
       } catch (error) {
         console.error("Failed to fetch partners:", error)
+        setPartnersError('網路錯誤，請檢查網路連線後重試')
         setPartners([])
       } finally {
         setLoading(false)
@@ -325,7 +352,12 @@ function BookingWizardContent() {
     }
 
     fetchPartners()
-  }, [onlyAvailable, onlyRankBooster])
+  }, [onlyAvailable, onlyRankBooster, retryCount])
+
+  // 手動重試函數
+  const handleRetry = () => {
+    setRetryCount(prev => prev + 1)
+  }
 
   // 搜尋過濾 - 使用 useMemo 優化，使用防抖搜尋，並將收藏的夥伴放在最上面
   const filteredPartners: Partner[] = useMemo(() => {
@@ -666,11 +698,44 @@ function BookingWizardContent() {
                 <p className="text-gray-600 text-sm">載入夥伴資料中...</p>
               </div>
             ) : (
-              /* 夥伴卡片網格 - 增加每行顯示數量，讓卡片更小更緊湊 */
+              {/* 錯誤提示 */}
+              {partnersError && (
+                <div className="col-span-full mb-4">
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <h3 className="text-red-800 font-semibold mb-1">載入夥伴資料失敗</h3>
+                        <p className="text-red-600 text-sm">{partnersError}</p>
+                      </div>
+                      <button
+                        onClick={handleRetry}
+                        className="ml-4 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-medium"
+                      >
+                        重試
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
+              {/* 夥伴卡片網格 - 增加每行顯示數量，讓卡片更小更緊湊 */}
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
-                {filteredPartners.length === 0 && (
+                {!partnersError && filteredPartners.length === 0 && (
                   <div className="col-span-full text-gray-600 text-center py-8">
-                    {search ? '搜尋無結果' : '查無夥伴'}
+                    <div className="mb-4">
+                      <div className="text-6xl mb-2">🔍</div>
+                      {search ? (
+                        <>
+                          <p className="text-lg font-medium mb-2">搜尋無結果</p>
+                          <p className="text-sm text-gray-500">找不到符合「{debouncedSearch}」的夥伴</p>
+                        </>
+                      ) : (
+                        <>
+                          <p className="text-lg font-medium mb-2">目前沒有可用的夥伴</p>
+                          <p className="text-sm text-gray-500">請稍後再試或調整篩選條件</p>
+                        </>
+                      )}
+                    </div>
                   </div>
                 )}
                 {filteredPartners.map(p => (
