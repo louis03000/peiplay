@@ -106,7 +106,23 @@ export async function GET(request: NextRequest) {
         })
 
         const totalWithdrawnAmount = totalWithdrawn._sum.amount || 0
-        const availableBalance = totalEarningsAmount - totalWithdrawnAmount
+        
+        // 獲取夥伴的推薦收入
+        const partnerData = await prisma.partner.findUnique({
+          where: { id: withdrawal.partnerId },
+          select: { referralEarnings: true }
+        });
+        const referralEarnings = partnerData?.referralEarnings || 0;
+
+        // 平台抽成比例
+        const PLATFORM_FEE_PERCENTAGE = 0.15; // 15%
+
+        // 計算可提領餘額：
+        // 1. 夥伴收入 = 總收入 * (1 - 平台抽成15%) = 總收入 * 85%
+        // 2. 加上推薦收入
+        // 3. 減去已提領金額
+        const partnerEarnings = totalEarningsAmount * (1 - PLATFORM_FEE_PERCENTAGE);
+        const availableBalance = partnerEarnings + referralEarnings - totalWithdrawnAmount;
 
         return {
           id: withdrawal.id,
