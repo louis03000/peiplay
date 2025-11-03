@@ -698,28 +698,29 @@ function BookingWizardContent() {
                 <p className="text-gray-600 text-sm">載入夥伴資料中...</p>
               </div>
             ) : (
-              {/* 錯誤提示 */}
-              {partnersError && (
-                <div className="col-span-full mb-4">
-                  <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <h3 className="text-red-800 font-semibold mb-1">載入夥伴資料失敗</h3>
-                        <p className="text-red-600 text-sm">{partnersError}</p>
+              <>
+                {/* 錯誤提示 */}
+                {partnersError && (
+                  <div className="col-span-full mb-4">
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <h3 className="text-red-800 font-semibold mb-1">載入夥伴資料失敗</h3>
+                          <p className="text-red-600 text-sm">{partnersError}</p>
+                        </div>
+                        <button
+                          onClick={handleRetry}
+                          className="ml-4 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-medium"
+                        >
+                          重試
+                        </button>
                       </div>
-                      <button
-                        onClick={handleRetry}
-                        className="ml-4 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-medium"
-                      >
-                        重試
-                      </button>
                     </div>
                   </div>
-                </div>
-              )}
-              
-              {/* 夥伴卡片網格 - 增加每行顯示數量，讓卡片更小更緊湊 */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
+                )}
+                
+                {/* 夥伴卡片網格 - 增加每行顯示數量，讓卡片更小更緊湊 */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
                 {!partnersError && filteredPartners.length === 0 && (
                   <div className="col-span-full text-gray-600 text-center py-8">
                     <div className="mb-4">
@@ -761,7 +762,8 @@ function BookingWizardContent() {
                     </div>
                   </div>
                 ))}
-              </div>
+                </div>
+              </>
             )}
           </div>
         )}
