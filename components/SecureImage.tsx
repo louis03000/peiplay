@@ -43,18 +43,28 @@ export default function SecureImage({
     onError?.()
   }, [onError])
 
-  // 如果是錯誤狀態，顯示預設圖片
-  if (imageError) {
+  // 處理空或無效的 src
+  if (!src || src.trim() === '' || src === '/default-avatar.png') {
     return (
-      <div className={`flex items-center justify-center bg-gray-200 ${className}`}>
-        <div className="text-gray-500 text-sm">圖片無法載入</div>
+      <div className={`flex items-center justify-center bg-gradient-to-br from-purple-400 to-blue-400 ${className}`}>
+        <span className="text-white font-bold text-lg">{alt?.charAt(0)?.toUpperCase() || '?'}</span>
       </div>
     )
   }
 
-  // 檢查是否為夥伴圖片（來自 Cloudinary），如果是則直接使用原始 URL
-  const isPartnerImage = src.includes('res.cloudinary.com')
-  const secureSrc = isPartnerImage ? src : `/api/secure-image?url=${encodeURIComponent(src)}`
+  // 如果是錯誤狀態，顯示預設佔位符
+  if (imageError) {
+    return (
+      <div className={`flex items-center justify-center bg-gradient-to-br from-purple-400 to-blue-400 ${className}`}>
+        <span className="text-white font-bold text-lg">{alt?.charAt(0)?.toUpperCase() || '?'}</span>
+      </div>
+    )
+  }
+
+  // 檢查是否為 Cloudinary 圖片，直接使用（已在 next.config.js 中配置允許的域名）
+  const isCloudinaryImage = src.includes('res.cloudinary.com')
+  // 如果是 Cloudinary 圖片，直接使用；否則通過安全代理
+  const secureSrc = isCloudinaryImage ? src : `/api/secure-image?url=${encodeURIComponent(src)}`
 
   const imageProps = {
     src: secureSrc,

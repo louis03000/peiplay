@@ -21,6 +21,19 @@ const nextConfig = {
   },
   // 圖片優化
   images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'res.cloudinary.com',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'placehold.co',
+        pathname: '/**',
+      },
+    ],
+    // 為了兼容性也保留 domains（某些版本仍需要）
     domains: ['placehold.co', 'res.cloudinary.com'],
     // 加強圖片安全
     dangerouslyAllowSVG: false,
@@ -31,6 +44,8 @@ const nextConfig = {
     minimumCacheTTL: 60,
     deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
+    // 允許未優化的圖片（用於 Cloudinary）
+    unoptimized: false,
   },
   // 壓縮優化
   compress: true,

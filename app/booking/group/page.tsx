@@ -3,6 +3,7 @@
 import { useState, useEffect, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { useSession } from 'next-auth/react'
+import SecureImage from '@/components/SecureImage'
 
 interface Partner {
   id: string
@@ -342,11 +343,14 @@ function GroupBookingContent() {
               {availableGroupBookings.map((group) => (
                 <div key={group.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
                   <div className="flex items-center space-x-3 mb-3">
-                    <img 
-                      src={group.partner.coverImage} 
-                      alt={group.partner.name}
-                      className="w-12 h-12 rounded-full object-cover"
-                    />
+                    <div className="w-12 h-12 rounded-full overflow-hidden relative bg-gradient-to-br from-purple-400 to-blue-400">
+                      <SecureImage
+                        src={group.partner.coverImage}
+                        alt={group.partner.name}
+                        fill
+                        className="object-cover"
+                      />
+                    </div>
                     <div>
                       <h3 className="font-semibold">{group.partner.name}</h3>
                       <p className="text-sm text-gray-600">每半小時 ${group.partner.halfHourlyRate}</p>
@@ -409,11 +413,14 @@ function GroupBookingContent() {
               {partners.map((partner) => (
                 <div key={partner.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
                   <div className="flex items-center space-x-3 mb-3">
-                    <img 
-                      src={partner.coverImage} 
-                      alt={partner.name}
-                      className="w-12 h-12 rounded-full object-cover"
-                    />
+                    <div className="w-12 h-12 rounded-full overflow-hidden relative bg-gradient-to-br from-purple-400 to-blue-400">
+                      <SecureImage
+                        src={partner.coverImage}
+                        alt={partner.name}
+                        fill
+                        className="object-cover"
+                      />
+                    </div>
                     <div>
                       <h3 className="font-semibold">{partner.name}</h3>
                       <p className="text-sm text-gray-600">每半小時 ${partner.halfHourlyRate}</p>

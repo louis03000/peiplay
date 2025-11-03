@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import SecureImage from '@/components/SecureImage'
 
 interface RankingData {
   id: string
@@ -228,11 +229,18 @@ export default function RankingPage() {
 
                     {/* 頭像 */}
                     <div className="flex-shrink-0">
-                      <div className="w-20 h-20 rounded-2xl overflow-hidden bg-gradient-to-br from-#1A73E8 to-#5C7AD6 flex items-center justify-center">
+                      <div className="w-20 h-20 rounded-2xl overflow-hidden bg-gradient-to-br from-purple-400 to-blue-400 relative">
                         {partner.coverImage ? (
-                          <img src={partner.coverImage} alt={partner.name} className="w-full h-full object-cover" />
+                          <SecureImage
+                            src={partner.coverImage}
+                            alt={partner.name}
+                            fill
+                            className="object-cover"
+                          />
                         ) : (
-                          <span className="text-3xl">🎮</span>
+                          <div className="w-full h-full flex items-center justify-center">
+                            <span className="text-3xl">🎮</span>
+                          </div>
                         )}
                       </div>
                     </div>

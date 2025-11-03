@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useParams } from 'next/navigation'
 import { calculateZodiacSign, calculateAge, formatDateChinese } from '@/lib/zodiac'
+import SecureImage from '@/components/SecureImage'
 
 interface PartnerProfile {
   id: string
@@ -115,11 +116,21 @@ export default function PartnerProfilePage() {
             <div className="flex flex-col md:flex-row items-center space-y-4 md:space-y-0 md:space-x-6">
               {/* 頭像 */}
               <div className="relative">
-                <img
-                  src={partner.images[0] || '/default-avatar.png'}
-                  alt={partner.name}
-                  className="w-32 h-32 rounded-full border-4 border-white shadow-lg object-cover"
-                />
+                <div className="w-32 h-32 rounded-full border-4 border-white shadow-lg overflow-hidden">
+                  {partner.images && partner.images.length > 0 ? (
+                    <SecureImage
+                      src={partner.images[0]}
+                      alt={partner.name}
+                      fill
+                      className="object-cover"
+                      priority
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-gradient-to-br from-purple-400 to-blue-400 flex items-center justify-center">
+                      <span className="text-white font-bold text-4xl">{partner.name.charAt(0).toUpperCase()}</span>
+                    </div>
+                  )}
+                </div>
                 <div className="absolute -bottom-2 -right-2 bg-green-500 w-8 h-8 rounded-full border-2 border-white flex items-center justify-center">
                   <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
@@ -230,11 +241,12 @@ export default function PartnerProfilePage() {
                     </h3>
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                       {partner.images.map((image, index) => (
-                        <div key={index} className="relative group">
-                          <img
+                        <div key={index} className="relative group aspect-square">
+                          <SecureImage
                             src={image}
                             alt={`${partner.name} 的照片 ${index + 1}`}
-                            className="w-full h-32 object-cover rounded-lg border border-gray-600"
+                            fill
+                            className="object-cover rounded-lg border border-gray-600"
                           />
                           <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center">
                             <button
