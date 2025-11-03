@@ -1,5 +1,5 @@
 import { NextAuthOptions } from 'next-auth'
-import { prisma } from './prisma'
+import { prisma, ensureConnection } from './prisma'
 import { UserRole } from '@prisma/client'
 import CredentialsProvider from "next-auth/providers/credentials";
 import { compare } from "bcryptjs";
@@ -47,6 +47,9 @@ export const authOptions: NextAuthOptions = {
         const clientIP = 'unknown'; // 在 authorize 中無法直接獲取 IP
         
         try {
+          // 確保 Prisma Client 已連接
+          await ensureConnection();
+          
           const user = await prisma.user.findUnique({ where: { email: credentials.email } });
           if (!user) {
             SecurityLogger.logFailedLogin(credentials.email, clientIP, 'unknown');
@@ -107,6 +110,9 @@ export const authOptions: NextAuthOptions = {
       // 只在沒有 role 時才查 DB
       if (!token.role && token.sub) {
         try {
+          // 確保 Prisma Client 已連接
+          await ensureConnection();
+          
           const dbUser = await prisma.user.findUnique({ where: { id: token.sub as string } });
           if (dbUser) {
             token.role = dbUser.role;
@@ -125,6 +131,9 @@ export const authOptions: NextAuthOptions = {
       let userId = user.id;
       let lineId = account?.provider === 'line' ? profile?.sub : null;
 
+      // 確保 Prisma Client 已連接
+      await ensureConnection();
+      
       // 確保 User 記錄存在
       let dbUser = await prisma.user.findUnique({ where: { id: userId } });
       let isNewUser = false;

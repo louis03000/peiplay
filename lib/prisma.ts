@@ -68,6 +68,23 @@ if (process.env.NODE_ENV !== 'production') {
   globalForPrisma.prisma = prisma
 }
 
+// 確保連接已建立（僅在首次使用時）
+let connectionPromise: Promise<void> | null = null;
+export async function ensureConnection() {
+  if (!connectionPromise) {
+    connectionPromise = prisma.$connect().catch((error) => {
+      // 如果已經連接，Prisma 會拋出錯誤，這是正常的，可以忽略
+      if (error?.message?.includes('already connected')) {
+        return;
+      }
+      // 其他錯誤需要重新拋出
+      connectionPromise = null; // 重置，以便下次重試
+      throw error;
+    });
+  }
+  return connectionPromise;
+}
+
 // 優雅關閉處理
 if (typeof process !== 'undefined') {
   process.on('beforeExit', async () => {
