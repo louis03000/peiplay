@@ -666,10 +666,10 @@ function BookingWizardContent() {
                 <p className="text-gray-600 text-sm">載入夥伴資料中...</p>
               </div>
             ) : (
-              /* 夥伴卡片網格 - 改善手機版佈局 */
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+              /* 夥伴卡片網格 - 增加每行顯示數量，讓卡片更小更緊湊 */
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
                 {filteredPartners.length === 0 && (
-                  <div className="col-span-1 sm:col-span-2 text-gray-600 text-center py-8">
+                  <div className="col-span-full text-gray-600 text-center py-8">
                     {search ? '搜尋無結果' : '查無夥伴'}
                   </div>
                 )}

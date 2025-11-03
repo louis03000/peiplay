@@ -245,73 +245,71 @@ const PartnerCard = memo(function PartnerCard({ partner, onQuickBook, showNextSt
           </div>
 
           {/* 內容區域 */}
-          <div className="p-4">
-            <h3 className="text-lg font-bold text-gray-900 mb-2">{partner.name}</h3>
+          <div className="p-3">
+            <h3 className="text-base font-bold text-gray-900 mb-1.5 line-clamp-1">{partner.name}</h3>
             
             {/* 遊戲標籤 */}
-            <div className="flex flex-wrap gap-1 mb-3">
-              {partner.games.slice(0, 3).map((game, index) => (
+            <div className="flex flex-wrap gap-1 mb-2">
+              {partner.games.slice(0, 2).map((game, index) => (
                 <span
                   key={index}
-                  className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs font-medium"
+                  className="bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded-full text-xs font-medium"
                 >
-                  {getGameIcon(game)} {game}
+                  {getGameIcon(game)} {game.length > 5 ? game.substring(0, 5) + '...' : game}
                 </span>
               ))}
-              {partner.games.length > 3 && (
-                <span className="bg-gray-100 text-gray-600 px-2 py-1 rounded-full text-xs">
-                  +{partner.games.length - 3}
+              {partner.games.length > 2 && (
+                <span className="bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded-full text-xs">
+                  +{partner.games.length - 2}
                 </span>
               )}
             </div>
 
             {/* 價格 */}
-            <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center justify-between mb-2">
               <div className="flex flex-col">
-                <span className="text-2xl font-bold text-green-600">
-                  ${partner.halfHourlyRate}/30分鐘
+                <span className="text-lg font-bold text-green-600">
+                  ${partner.halfHourlyRate}/30分
                 </span>
                 {partner.supportsChatOnly && partner.chatOnlyRate && (
-                  <span className="text-sm text-purple-500 font-medium">
-                    純聊天 ${partner.chatOnlyRate}/小時
+                  <span className="text-xs text-purple-500 font-medium">
+                    純聊天 ${partner.chatOnlyRate}/時
                   </span>
                 )}
               </div>
               {partner.isAvailableNow && (
-                <span className="text-green-600 text-sm font-medium">即時預約</span>
+                <span className="text-green-600 text-xs font-medium">即時</span>
               )}
             </div>
 
-            {/* 客戶留言 */}
+            {/* 客戶留言 - 在較小的卡片中隱藏或縮短 */}
             {partner.customerMessage && (
-              <div className="bg-gray-50 p-3 rounded-lg mb-3">
-                <div className="flex items-start gap-2">
-                  <FaQuoteLeft className="text-gray-400 text-sm mt-1" />
-                  <p className="text-gray-700 text-sm italic">{partner.customerMessage}</p>
-                  <FaQuoteRight className="text-gray-400 text-sm mt-1" />
-                </div>
+              <div className="bg-gray-50 p-2 rounded-lg mb-2 hidden sm:block">
+                <p className="text-gray-700 text-xs italic line-clamp-2">{partner.customerMessage}</p>
               </div>
             )}
 
             {/* 按鈕區域 */}
-            <div className="flex gap-2">
+            <div className="flex gap-1.5">
               {partner.isAvailableNow && onQuickBook && (
                 <button
                   onClick={() => onQuickBook(partner.id)}
-                  className="flex-1 bg-green-500 hover:bg-green-600 text-white py-2 px-4 rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
+                  className="flex-1 bg-green-500 hover:bg-green-600 text-white py-1.5 px-2 rounded-lg text-xs font-medium transition-colors flex items-center justify-center gap-1"
                 >
-                  <FaBolt />
-                  立即預約
+                  <FaBolt className="text-xs" />
+                  <span className="hidden sm:inline">立即預約</span>
+                  <span className="sm:hidden">預約</span>
                 </button>
               )}
               
               {/* 查看詳情按鈕 - 合併了查看內容功能 */}
               <button
                 onClick={() => window.location.href = `/partners/${partner.id}/profile`}
-                className="bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
+                className="bg-blue-500 hover:bg-blue-600 text-white py-1.5 px-2 rounded-lg text-xs font-medium transition-colors flex items-center justify-center gap-1"
               >
-                <FaComments />
-                查看詳情
+                <FaComments className="text-xs" />
+                <span className="hidden sm:inline">查看詳情</span>
+                <span className="sm:hidden">詳情</span>
               </button>
             </div>
           </div>
