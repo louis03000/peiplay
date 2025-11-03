@@ -26,18 +26,24 @@ export async function GET(
       return NextResponse.json({ error: '夥伴不存在' }, { status: 404 });
     }
 
-    // 獲取該夥伴收到的評價
-    const reviewsReceived = await prisma.review.findMany({
-      where: {
-        revieweeId: partner.userId
-      },
-      include: {
-        reviewer: {
-          select: { name: true }
-        }
-      },
-      orderBy: { createdAt: 'desc' }
-    });
+    // 獲取該夥伴收到的評價（如果查詢失敗，返回空數組）
+    let reviewsReceived: any[] = [];
+    try {
+      reviewsReceived = await prisma.review.findMany({
+        where: {
+          revieweeId: partner.userId
+        },
+        include: {
+          reviewer: {
+            select: { name: true }
+          }
+        },
+        orderBy: { createdAt: 'desc' }
+      });
+    } catch (reviewError) {
+      console.warn('⚠️ 獲取評價失敗，繼續返回基本資料:', reviewError);
+      reviewsReceived = [];
+    }
 
     // 格式化數據，確保所有字段都有默認值
     const formattedPartner = {
@@ -54,18 +60,18 @@ export async function GET(
       reviewsReceived: reviewsReceived.map(review => ({
         id: review.id,
         rating: review.rating,
-        comment: review.comment,
+        comment: review.comment || null,
         createdAt: review.createdAt.toISOString(),
         reviewer: {
-          name: review.reviewer.name
+          name: review.reviewer?.name || '匿名'
         }
       })),
       user: {
-        name: partner.user.name
+        name: partner.user?.name || partner.name
       }
     };
 
-    console.log(`📊 找到夥伴資料: ${partner.name}`);
+    console.log(`📊 找到夥伴資料: ${partner.name}, 評價數: ${reviewsReceived.length}`);
     return NextResponse.json({ partner: formattedPartner });
 
   } catch (error: any) {
