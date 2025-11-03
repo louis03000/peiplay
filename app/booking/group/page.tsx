@@ -547,11 +547,14 @@ function GroupBookingContent() {
                   
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-3">
-                      <img 
-                        src={booking.partner.coverImage} 
-                        alt={booking.partner.name}
-                        className="w-8 h-8 rounded-full object-cover"
-                      />
+                      <div className="w-8 h-8 rounded-full overflow-hidden relative bg-gradient-to-br from-purple-400 to-blue-400">
+                        <SecureImage
+                          src={booking.partner.coverImage}
+                          alt={booking.partner.name}
+                          fill
+                          className="object-cover"
+                        />
+                      </div>
                       <span className="text-sm font-medium">{booking.partner.name}</span>
                       <span className="text-sm text-gray-500">每半小時 ${booking.partner.halfHourlyRate}</span>
                     </div>
