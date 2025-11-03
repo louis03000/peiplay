@@ -104,6 +104,43 @@ export async function GET(request: Request) {
     // 批量查詢時段資料（只查詢需要的）
     const schedulesMap = new Map<string, any[]>();
     if (partnerIdsWithSchedules.length > 0) {
+      // 先查詢所有有效預約，用於衝突檢查
+      const activeBookings = await prisma.booking.findMany({
+        where: {
+          schedule: {
+            partnerId: { in: partnerIdsWithSchedules },
+            date: scheduleDateFilter
+          },
+          status: {
+            notIn: ['CANCELLED', 'REJECTED', 'COMPLETED']
+          }
+        },
+        select: {
+          id: true,
+          status: true,
+          schedule: {
+            select: {
+              partnerId: true,
+              startTime: true,
+              endTime: true
+            }
+          }
+        }
+      });
+
+      // 按 partnerId 分組預約，用於快速查找衝突
+      const bookingsByPartner = new Map<string, Array<{ startTime: Date; endTime: Date }>>();
+      for (const booking of activeBookings) {
+        const partnerId = booking.schedule.partnerId;
+        if (!bookingsByPartner.has(partnerId)) {
+          bookingsByPartner.set(partnerId, []);
+        }
+        bookingsByPartner.get(partnerId)!.push({
+          startTime: booking.schedule.startTime,
+          endTime: booking.schedule.endTime
+        });
+      }
+
       const schedules = await Promise.race([
         prisma.schedule.findMany({
           where: {
@@ -118,15 +155,6 @@ export async function GET(request: Request) {
             startTime: true,
             endTime: true,
             isAvailable: true,
-            bookings: {
-              where: {
-                status: { notIn: ['CANCELLED', 'REJECTED'] }
-              },
-              select: {
-                status: true,
-                id: true
-              }
-            }
           },
         }),
         new Promise((_, reject) => 
@@ -134,8 +162,30 @@ export async function GET(request: Request) {
         ) as Promise<never>
       ]);
 
-      // 將時段按 partnerId 分組
-      for (const schedule of schedules) {
+      // 過濾掉與已預約時段重疊的時段
+      const { hasTimeOverlap } = await import('@/lib/time-conflict');
+      const validSchedules = schedules.filter(schedule => {
+        const partnerBookings = bookingsByPartner.get(schedule.partnerId) || [];
+        const scheduleStart = new Date(schedule.startTime);
+        const scheduleEnd = new Date(schedule.endTime);
+        
+        // 檢查是否與任何已預約時段重疊
+        for (const booking of partnerBookings) {
+          if (hasTimeOverlap(
+            scheduleStart,
+            scheduleEnd,
+            new Date(booking.startTime),
+            new Date(booking.endTime)
+          )) {
+            return false; // 有重疊，排除這個時段
+          }
+        }
+        
+        return true; // 沒有重疊，保留這個時段
+      });
+
+      // 將過濾後的時段按 partnerId 分組
+      for (const schedule of validSchedules) {
         if (!schedulesMap.has(schedule.partnerId)) {
           schedulesMap.set(schedule.partnerId, []);
         }
@@ -162,14 +212,28 @@ export async function GET(request: Request) {
         
         // 獲取該夥伴的時段（如果有的話）
         const schedules = schedulesMap.get(partner.id) || [];
-        // 過濾掉已預約的時段
+        // 獲取該夥伴的所有有效預約，用於檢查時間衝突
+        const partnerBookings = bookingsByPartner.get(partner.id) || [];
+        
+        // 過濾掉與已預約時段重疊的時段
+        const { hasTimeOverlap } = await import('@/lib/time-conflict');
         const availableSchedules = schedules.filter(schedule => {
-          // 時段已經在查詢時過濾了 isAvailable，這裡只需要檢查預約狀態
-          // 如果 bookings 陣列有項目，表示該時段已被預約
-          if (schedule.bookings && Array.isArray(schedule.bookings) && schedule.bookings.length > 0) {
-            return false;
+          const scheduleStart = new Date(schedule.startTime);
+          const scheduleEnd = new Date(schedule.endTime);
+          
+          // 檢查是否與任何已預約時段重疊
+          for (const booking of partnerBookings) {
+            if (hasTimeOverlap(
+              scheduleStart,
+              scheduleEnd,
+              new Date(booking.startTime),
+              new Date(booking.endTime)
+            )) {
+              return false; // 有重疊，排除這個時段
+            }
           }
-          return true;
+          
+          return true; // 沒有重疊，保留這個時段
         });
         
         // 移除 _count 和 userId，保留需要的字段

@@ -417,36 +417,77 @@ function BookingWizardContent() {
     }).sort((a, b) => a - b)
   }, [selectedPartner])
 
-  // 優化時段選擇邏輯
+  // 優化時段選擇邏輯 - 過濾掉所有與已預約時段重疊的時段
   const availableTimeSlots = useMemo(() => {
     if (!selectedPartner || !selectedDate) return []
-    const seenTimeSlots = new Set<string>()
+    
+    // 收集所有已預約的時段（排除已取消、已拒絕、已完成的）
+    const bookedTimeSlots: Array<{ startTime: Date; endTime: Date }> = [];
     const now = new Date();
+    
+    // 遍歷所有時段，收集有效預約
+    selectedPartner.schedules.forEach(schedule => {
+      // 只考慮同一天的時段
+      const scheduleDate = new Date(schedule.date);
+      if (!isSameDay(scheduleDate, selectedDate)) return;
+      
+      // 如果有預約且狀態有效，記錄其時間範圍
+      if (schedule.bookings) {
+        const bookingStatus = schedule.bookings.status;
+        if (bookingStatus && 
+            bookingStatus !== 'CANCELLED' && 
+            bookingStatus !== 'REJECTED' && 
+            bookingStatus !== 'COMPLETED') {
+          bookedTimeSlots.push({
+            startTime: new Date(schedule.startTime),
+            endTime: new Date(schedule.endTime)
+          });
+        }
+      }
+    });
+    
+    // 輔助函數：檢查兩個時間段是否有重疊
+    const hasTimeOverlap = (
+      start1: Date,
+      end1: Date,
+      start2: Date,
+      end2: Date
+    ): boolean => {
+      return start1.getTime() < end2.getTime() && start2.getTime() < end1.getTime();
+    };
+    
+    const seenTimeSlots = new Set<string>();
     const uniqueSchedules = selectedPartner.schedules.filter(schedule => {
-      // 檢查時段是否可用（排除已取消的預約）
+      // 基本檢查：時段必須可用
       if (!schedule.isAvailable) return false;
       
-      // 如果有預約記錄且狀態不是 CANCELLED 或 REJECTED，則時段不可用
-      if (schedule.bookings && schedule.bookings.status !== 'CANCELLED' && schedule.bookings.status !== 'REJECTED') return false;
-      
-      const scheduleDate = new Date(schedule.date)
+      const scheduleDate = new Date(schedule.date);
       if (!isSameDay(scheduleDate, selectedDate)) return false;
       if (new Date(schedule.startTime) <= now) return false;
+      
+      // 檢查是否與任何已預約時段重疊
+      const scheduleStart = new Date(schedule.startTime);
+      const scheduleEnd = new Date(schedule.endTime);
+      
+      for (const bookedSlot of bookedTimeSlots) {
+        if (hasTimeOverlap(scheduleStart, scheduleEnd, bookedSlot.startTime, bookedSlot.endTime)) {
+          return false; // 有重疊，排除這個時段
+        }
+      }
       
       // 如果有搜尋時段限制，檢查時段是否與搜尋時段重疊
       if (schedule.searchTimeRestriction) {
         const restriction = schedule.searchTimeRestriction;
-        const scheduleStart = schedule.startTime;
-        const scheduleEnd = schedule.endTime;
-        const searchStart = restriction.startTime;
-        const searchEnd = restriction.endTime;
+        const searchStart = new Date(restriction.startTime);
+        const searchEnd = new Date(restriction.endTime);
         
         // 檢查時段是否與搜尋時段重疊
-        if (scheduleEnd <= searchStart || scheduleStart >= searchEnd) {
-          return false;
+        if (!hasTimeOverlap(scheduleStart, scheduleEnd, searchStart, searchEnd)) {
+          return false; // 與搜尋時段不重疊，排除
         }
       }
       
+      // 去重：避免顯示相同的時段
       const timeSlotIdentifier = `${schedule.startTime}-${schedule.endTime}`
       if (seenTimeSlots.has(timeSlotIdentifier)) {
         return false
@@ -747,8 +788,13 @@ function BookingWizardContent() {
                           ? 'border-transparent ring-4 ring-indigo-400/60 ring-offset-2 shadow-2xl scale-105 bg-[#1e293b]/40' 
                           : 'border-transparent hover:ring-2 hover:ring-indigo-300/40 hover:scale-102'} 
                         cursor-pointer`}
-                      style={{ boxShadow: selectedPartner?.id === p.id ? '0 0 0 4px #818cf8, 0 8px 32px 0 rgba(55,48,163,0.15)' : undefined }}
+                      style={{ 
+                        boxShadow: selectedPartner?.id === p.id ? '0 0 0 4px #818cf8, 0 8px 32px 0 rgba(55,48,163,0.15)' : undefined,
+                        pointerEvents: loading ? 'none' : 'auto',
+                        opacity: loading ? 0.6 : 1 
+                      }}
                       onClick={() => {
+                        if (loading) return; // 載入中時禁止點擊
                         setSelectedPartner(p);
                       }}
                     >
@@ -779,7 +825,9 @@ function BookingWizardContent() {
                     <button
                       key={ts}
                       onClick={() => handleDateSelect(d)}
+                      disabled={loading}
                       className={`px-4 py-2 rounded-lg transition-all duration-200 text-sm font-medium
+                        ${loading ? 'opacity-50 cursor-not-allowed' : ''}
                         ${isSelected 
                           ? 'shadow-lg scale-105' 
                           : 'hover:shadow-md'}`}
@@ -808,7 +856,9 @@ function BookingWizardContent() {
                 <button
                   key={duration}
                   onClick={() => setSelectedDuration(duration)}
+                  disabled={loading}
                   className={`px-4 py-3 border-2 border-black transition-all duration-200 text-sm font-medium
+                    ${loading ? 'opacity-50 cursor-not-allowed' : ''}
                     ${selectedDuration === duration 
                       ? 'bg-black text-white shadow-lg scale-105' 
                       : 'bg-white text-black hover:bg-gray-100'}`}
@@ -844,7 +894,9 @@ function BookingWizardContent() {
                     <button
                       key={schedule.id}
                       onClick={() => handleTimeSelect(schedule.id)}
+                      disabled={loading}
                       className={`px-4 py-2 rounded-lg transition-all duration-200 text-sm font-medium
+                        ${loading ? 'opacity-50 cursor-not-allowed' : ''}
                         ${isSelected 
                           ? 'shadow-lg scale-105' 
                           : 'hover:shadow-md'}`}
