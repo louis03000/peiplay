@@ -16,6 +16,20 @@ export default function Navigation() {
   // 檢查夥伴狀態 - 優化版本：使用緩存避免每次載入
   useEffect(() => {
     if (session?.user?.id && status === 'authenticated') {
+      // 清除可能過時的緩存，強制重新檢查
+      if (typeof window !== 'undefined') {
+        // 檢查緩存是否過期（超過5分鐘）
+        const cachedTimestamp = sessionStorage.getItem(`partner_status_timestamp_${session.user.id}`)
+        if (cachedTimestamp) {
+          const cacheAge = Date.now() - parseInt(cachedTimestamp)
+          if (cacheAge > 5 * 60 * 1000) {
+            // 緩存過期，清除它
+            sessionStorage.removeItem(`partner_status_${session.user.id}`)
+            sessionStorage.removeItem(`partner_status_timestamp_${session.user.id}`)
+          }
+        }
+      }
+
       // 先檢查本地緩存
       const cachedPartnerStatus = typeof window !== 'undefined' 
         ? sessionStorage.getItem(`partner_status_${session.user.id}`)
@@ -25,7 +39,7 @@ export default function Navigation() {
         : null
       
       // 如果緩存存在且未過期（5分鐘內），直接使用
-      if (cachedPartnerStatus && cachedTimestamp) {
+      if (cachedPartnerStatus && cachedTimestamp && cachedPartnerStatus !== 'NONE') {
         const cacheAge = Date.now() - parseInt(cachedTimestamp)
         if (cacheAge < 5 * 60 * 1000) { // 5分鐘內有效
           const isApproved = cachedPartnerStatus === 'APPROVED'
@@ -45,56 +59,92 @@ export default function Navigation() {
       setHasPartner(false)
       setIsPartner(false)
       setPartnerLoading(false)
+      // 清除緩存（用戶登出時）
+      if (typeof window !== 'undefined' && session?.user?.id) {
+        sessionStorage.removeItem(`partner_status_${session.user.id}`)
+        sessionStorage.removeItem(`partner_status_timestamp_${session.user.id}`)
+      }
     }
     
     // 快速檢查夥伴狀態
     async function checkPartnerStatus() {
       try {
-        const res = await fetch('/api/partners/self')
+        const res = await fetch('/api/partners/self', {
+          cache: 'no-store', // 禁用緩存，確保獲取最新數據
+          headers: {
+            'Cache-Control': 'no-cache'
+          }
+        })
         
         if (res.ok) {
           const data = await res.json()
-          const isApproved = data && data.partner && data.partner.status === 'APPROVED'
+          const hasPartner = !!data?.partner
+          const isApproved = data?.partner?.status === 'APPROVED'
           
           setHasPartner(isApproved)
-          setIsPartner(!!data?.partner)
+          setIsPartner(hasPartner)
           setPartnerLoading(false)
           
           // 緩存結果
-          if (data?.partner && typeof window !== 'undefined') {
-            sessionStorage.setItem(`partner_status_${session?.user?.id}`, data.partner.status || '')
-            sessionStorage.setItem(`partner_status_timestamp_${session?.user?.id}`, Date.now().toString())
+          if (typeof window !== 'undefined') {
+            if (hasPartner) {
+              sessionStorage.setItem(`partner_status_${session?.user?.id}`, data.partner.status || '')
+              sessionStorage.setItem(`partner_status_timestamp_${session?.user?.id}`, Date.now().toString())
+            } else {
+              // 如果沒有夥伴，也緩存這個結果（但時間較短，30秒）
+              sessionStorage.setItem(`partner_status_${session?.user?.id}`, 'NONE')
+              sessionStorage.setItem(`partner_status_timestamp_${session?.user?.id}`, Date.now().toString())
+            }
           }
         } else {
           console.warn('夥伴狀態檢查失敗:', res.status)
-          setHasPartner(false)
-          setIsPartner(false)
+          // API 失敗時，不清除緩存，保持當前狀態，避免UI閃爍
+          // 但設置載入完成，避免一直顯示載入中
           setPartnerLoading(false)
+          // 如果沒有緩存，才設置為 false
+          if (!cachedPartnerStatus || cachedPartnerStatus === 'NONE') {
+            setHasPartner(false)
+            setIsPartner(false)
+          }
         }
       } catch (error) {
         console.error('檢查夥伴狀態失敗:', error)
-        // 不重試，直接設置為 false，避免長時間等待
-        setHasPartner(false)
-        setIsPartner(false)
+        // 網絡錯誤時，不清除緩存，保持當前狀態
         setPartnerLoading(false)
+        // 如果沒有緩存，才設置為 false
+        if (!cachedPartnerStatus || cachedPartnerStatus === 'NONE') {
+          setHasPartner(false)
+          setIsPartner(false)
+        }
       }
     }
     
     // 背景更新（不影響 UI）
     async function checkPartnerStatusBackground() {
       try {
-        const res = await fetch('/api/partners/self')
+        const res = await fetch('/api/partners/self', {
+          cache: 'no-store',
+          headers: {
+            'Cache-Control': 'no-cache'
+          }
+        })
         if (res.ok) {
           const data = await res.json()
-          const isApproved = data && data.partner && data.partner.status === 'APPROVED'
+          const hasPartner = !!data?.partner
+          const isApproved = data?.partner?.status === 'APPROVED'
           
           setHasPartner(isApproved)
-          setIsPartner(!!data?.partner)
+          setIsPartner(hasPartner)
           
           // 更新緩存
-          if (data?.partner && session?.user?.id && typeof window !== 'undefined') {
-            sessionStorage.setItem(`partner_status_${session.user.id}`, data.partner.status || '')
-            sessionStorage.setItem(`partner_status_timestamp_${session.user.id}`, Date.now().toString())
+          if (typeof window !== 'undefined' && session?.user?.id) {
+            if (hasPartner) {
+              sessionStorage.setItem(`partner_status_${session.user.id}`, data.partner.status || '')
+              sessionStorage.setItem(`partner_status_timestamp_${session.user.id}`, Date.now().toString())
+            } else {
+              sessionStorage.setItem(`partner_status_${session.user.id}`, 'NONE')
+              sessionStorage.setItem(`partner_status_timestamp_${session.user.id}`, Date.now().toString())
+            }
           }
         }
       } catch (error) {
