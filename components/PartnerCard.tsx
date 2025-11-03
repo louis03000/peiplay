@@ -143,7 +143,11 @@ const PartnerCard = memo(function PartnerCard({ partner, onQuickBook, showNextSt
     >
       {/* 正面 */}
       <div className={`w-full ${flipped ? 'hidden' : 'block'}`}>
-        <div className="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow duration-300 flex flex-col">
+        <div 
+          className="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow duration-300 flex flex-col group"
+          onMouseEnter={() => setIsHovered(true)}
+          onMouseLeave={() => setIsHovered(false)}
+        >
           {/* 圖片區域 - 正方形，確保圖片完整等比例顯示 */}
           <div 
             className="relative w-full aspect-square bg-gray-100 overflow-hidden"
@@ -168,21 +172,35 @@ const PartnerCard = memo(function PartnerCard({ partner, onQuickBook, showNextSt
             {/* 圖片切換按鈕（電腦版） */}
             {displayImages.length > 1 && (
               <>
-                {/* 電腦版：hover 顯示 */}
-                <div className="hidden md:flex absolute inset-0 items-center justify-between p-2 opacity-0 hover:opacity-100 transition-opacity pointer-events-none">
+                {/* 電腦版：當整個卡片被 hover 時顯示 */}
+                <div className={`hidden md:flex absolute inset-0 items-center justify-between p-2 transition-opacity duration-200 pointer-events-none ${
+                  isHovered ? 'opacity-100' : 'opacity-0'
+                }`}>
                   <button
-                    onClick={handlePrevImage}
-                    className="bg-black bg-opacity-50 text-white p-2 rounded-full hover:bg-opacity-70 transition-all pointer-events-auto"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      handlePrevImage()
+                    }}
+                    className="bg-black bg-opacity-60 text-white p-2 rounded-full hover:bg-opacity-80 transition-all pointer-events-auto z-10"
                     aria-label="上一張"
+                    onMouseEnter={(e) => e.stopPropagation()}
                   >
-                    ←
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                    </svg>
                   </button>
                   <button
-                    onClick={handleNextImage}
-                    className="bg-black bg-opacity-50 text-white p-2 rounded-full hover:bg-opacity-70 transition-all pointer-events-auto"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      handleNextImage()
+                    }}
+                    className="bg-black bg-opacity-60 text-white p-2 rounded-full hover:bg-opacity-80 transition-all pointer-events-auto z-10"
                     aria-label="下一張"
+                    onMouseEnter={(e) => e.stopPropagation()}
                   >
-                    →
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
                   </button>
                 </div>
                 
