@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth/next'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { sendBookingNotificationEmail } from '@/lib/email'
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -31,12 +32,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '缺少必要參數' }, { status: 400 })
     }
 
-    // 確保資料庫連線
-    await prisma.$connect();
-
     // 查找客戶資料
     const customer = await prisma.customer.findUnique({
-      where: { userId: session.user.id }
+      where: { userId: session.user.id },
+      include: {
+        user: true
+      }
     });
 
     if (!customer) {
@@ -45,7 +46,10 @@ export async function POST(request: NextRequest) {
 
     // 查找夥伴資料
     const partner = await prisma.partner.findUnique({
-      where: { id: partnerId }
+      where: { id: partnerId },
+      include: {
+        user: true
+      }
     });
 
     if (!partner) {
@@ -72,12 +76,12 @@ export async function POST(request: NextRequest) {
       }
     });
 
-    // 創建即時預約記錄
+    // 創建即時預約記錄 - 狀態設置為等待夥伴確認
     const booking = await prisma.booking.create({
       data: {
         customerId: customer.id,
         scheduleId: schedule.id, // 使用創建的 schedule ID
-        status: 'CONFIRMED',
+        status: 'PAID_WAITING_PARTNER_CONFIRMATION', // 等待夥伴確認，不是直接確認
         originalAmount: originalAmount,
         finalAmount: finalAmount,
         paymentInfo: {
@@ -85,22 +89,51 @@ export async function POST(request: NextRequest) {
         }
       },
       include: {
+        customer: {
+          include: {
+            user: true
+          }
+        },
         schedule: {
           include: {
             partner: {
-              select: { name: true }
+              include: {
+                user: true
+              }
             }
           }
         }
       }
     });
 
-    console.log("✅ 即時預約創建成功:", booking.id);
+    console.log("✅ 即時預約創建成功:", booking.id, "狀態: PAID_WAITING_PARTNER_CONFIRMATION");
+
+    // 發送 email 通知給夥伴
+    try {
+      await sendBookingNotificationEmail(
+        partner.user.email,
+        partner.user.name || partner.name || '夥伴',
+        customer.user.name || '客戶',
+        {
+          bookingId: booking.id,
+          startTime: startTime.toISOString(),
+          endTime: endTime.toISOString(),
+          duration: duration,
+          totalCost: finalAmount,
+          customerName: customer.user.name || '客戶',
+          customerEmail: customer.user.email
+        }
+      );
+      console.log(`✅ Email 通知已發送給夥伴: ${partner.user.email}`);
+    } catch (emailError) {
+      console.error('❌ Email 發送失敗:', emailError);
+      // 不影響預約創建，只記錄錯誤
+    }
 
     // 返回成功回應
     return NextResponse.json({
       id: booking.id,
-      message: '即時預約創建成功',
+      message: '預約創建成功，已通知夥伴確認',
       totalCost: finalAmount,
       booking: {
         id: booking.id,
@@ -120,12 +153,5 @@ export async function POST(request: NextRequest) {
       error: '即時預約創建失敗',
       details: error instanceof Error ? error.message : 'Unknown error'
     }, { status: 500 });
-  } finally {
-    // 確保斷開連線
-    try {
-      await prisma.$disconnect();
-    } catch (disconnectError) {
-      console.error("❌ 斷開連線失敗:", disconnectError);
-    }
   }
 }

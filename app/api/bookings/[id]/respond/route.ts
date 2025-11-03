@@ -10,11 +10,13 @@ export const runtime = 'nodejs';
 // 夥伴接受或拒絕預約
 export async function POST(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> | { id: string } }
 ) {
   try {
     console.log("✅ booking respond POST api triggered");
     
+    // 處理 params（可能是 Promise）
+    const resolvedParams = params instanceof Promise ? await params : params;
     const { action } = await request.json(); // 'accept' 或 'reject'
 
     if (!action || !['accept', 'reject'].includes(action)) {
@@ -27,9 +29,6 @@ export async function POST(
       return NextResponse.json({ error: '請先登入' }, { status: 401 });
     }
 
-    // 確保資料庫連線
-    await prisma.$connect();
-
     // 查找夥伴資料
     const partner = await prisma.partner.findUnique({
       where: { userId: session.user.id }
@@ -41,7 +40,7 @@ export async function POST(
 
     // 查找預約記錄
     const booking = await prisma.booking.findUnique({
-      where: { id: params.id },
+      where: { id: resolvedParams.id },
       include: {
         customer: {
           include: {
@@ -159,11 +158,5 @@ export async function POST(
       error: '預約回應失敗',
       details: error instanceof Error ? error.message : 'Unknown error'
     }, { status: 500 });
-  } finally {
-    try {
-      await prisma.$disconnect();
-    } catch (disconnectError) {
-      console.error("❌ 斷開連線失敗:", disconnectError);
-    }
   }
 }
