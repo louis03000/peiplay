@@ -102,7 +102,13 @@ export default function Navbar() {
           // 但設置載入完成，避免一直顯示載入中
           setPartnerLoading(false)
           // 如果沒有緩存，才設置為 false
-          if (!cachedPartnerStatus || cachedPartnerStatus === 'NONE') {
+          if (typeof window !== 'undefined' && session?.user?.id) {
+            const currentCache = sessionStorage.getItem(`partner_status_${session.user.id}`)
+            if (!currentCache || currentCache === 'NONE') {
+              setHasPartner(false)
+              setIsPartner(false)
+            }
+          } else {
             setHasPartner(false)
             setIsPartner(false)
           }
@@ -112,7 +118,13 @@ export default function Navbar() {
         // 網絡錯誤時，不清除緩存，保持當前狀態
         setPartnerLoading(false)
         // 如果沒有緩存，才設置為 false
-        if (!cachedPartnerStatus || cachedPartnerStatus === 'NONE') {
+        if (typeof window !== 'undefined' && session?.user?.id) {
+          const currentCache = sessionStorage.getItem(`partner_status_${session.user.id}`)
+          if (!currentCache || currentCache === 'NONE') {
+            setHasPartner(false)
+            setIsPartner(false)
+          }
+        } else {
           setHasPartner(false)
           setIsPartner(false)
         }
