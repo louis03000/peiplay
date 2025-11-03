@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, memo, useMemo } from 'react'
+import { useState, useCallback, memo, useMemo, useEffect } from 'react'
 import SecureImage from './SecureImage'
 import { FaBolt, FaCrown, FaMedal, FaTrophy, FaComments, FaHeart, FaStar, FaQuoteLeft, FaQuoteRight } from 'react-icons/fa'
 
@@ -36,6 +36,23 @@ const PartnerCard = memo(function PartnerCard({ partner, onQuickBook, showNextSt
   const [isHovered, setIsHovered] = useState(false)
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
   const [isTogglingFavorite, setIsTogglingFavorite] = useState(false)
+  const [touchStart, setTouchStart] = useState<number | null>(null)
+  const [touchEnd, setTouchEnd] = useState<number | null>(null)
+
+  // 獲取要顯示的圖片陣列：優先使用 images，如果沒有則使用 coverImage
+  const displayImages = useMemo(() => {
+    if (partner.images && partner.images.length > 0) {
+      return partner.images.slice(0, 3) // 最多顯示3張
+    } else if (partner.coverImage) {
+      return [partner.coverImage]
+    }
+    return []
+  }, [partner.images, partner.coverImage])
+
+  // 當圖片陣列改變時，重置索引
+  useEffect(() => {
+    setCurrentImageIndex(0)
+  }, [displayImages.length])
 
   const handleImageError = () => {
     setImageError(true)
@@ -56,16 +73,43 @@ const PartnerCard = memo(function PartnerCard({ partner, onQuickBook, showNextSt
   }
 
   const handlePrevImage = useCallback(() => {
-    if (partner.images && partner.images.length > 1) {
-      setCurrentImageIndex((prev) => (prev - 1 + partner.images!.length) % partner.images!.length)
+    if (displayImages.length > 1) {
+      setCurrentImageIndex((prev) => (prev - 1 + displayImages.length) % displayImages.length)
     }
-  }, [partner.images])
+  }, [displayImages])
 
   const handleNextImage = useCallback(() => {
-    if (partner.images && partner.images.length > 1) {
-      setCurrentImageIndex((prev) => (prev + 1) % partner.images!.length)
+    if (displayImages.length > 1) {
+      setCurrentImageIndex((prev) => (prev + 1) % displayImages.length)
     }
-  }, [partner.images])
+  }, [displayImages])
+
+  // 手機版滑動手勢處理
+  const minSwipeDistance = 50
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    setTouchEnd(null)
+    setTouchStart(e.targetTouches[0].clientX)
+  }
+
+  const onTouchMove = (e: React.TouchEvent) => {
+    setTouchEnd(e.targetTouches[0].clientX)
+  }
+
+  const onTouchEnd = () => {
+    if (!touchStart || !touchEnd) return
+    
+    const distance = touchStart - touchEnd
+    const isLeftSwipe = distance > minSwipeDistance
+    const isRightSwipe = distance < -minSwipeDistance
+
+    if (isLeftSwipe && displayImages.length > 1) {
+      handleNextImage()
+    }
+    if (isRightSwipe && displayImages.length > 1) {
+      handlePrevImage()
+    }
+  }
 
   // 性能優化：使用 useMemo 緩存計算結果
   const availableSchedules = useMemo(() => {
@@ -101,10 +145,15 @@ const PartnerCard = memo(function PartnerCard({ partner, onQuickBook, showNextSt
       <div className={`w-full ${flipped ? 'hidden' : 'block'}`}>
         <div className="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow duration-300">
           {/* 圖片區域 */}
-          <div className="relative h-48 overflow-hidden">
-            {partner.images && partner.images.length > 0 ? (
+          <div 
+            className="relative h-48 overflow-hidden"
+            onTouchStart={onTouchStart}
+            onTouchMove={onTouchMove}
+            onTouchEnd={onTouchEnd}
+          >
+            {displayImages.length > 0 ? (
               <SecureImage
-                src={partner.images[currentImageIndex]}
+                src={displayImages[currentImageIndex]}
                 alt={partner.name}
                 fill
                 className="object-cover"
@@ -116,22 +165,41 @@ const PartnerCard = memo(function PartnerCard({ partner, onQuickBook, showNextSt
               </div>
             )}
             
-            {/* 圖片切換按鈕 */}
-            {partner.images && partner.images.length > 1 && (
-              <div className="absolute inset-0 flex items-center justify-between p-2 opacity-0 hover:opacity-100 transition-opacity">
-                <button
-                  onClick={handlePrevImage}
-                  className="bg-black bg-opacity-50 text-white p-2 rounded-full hover:bg-opacity-70 transition-all"
-                >
-                  ←
-                </button>
-                <button
-                  onClick={handleNextImage}
-                  className="bg-black bg-opacity-50 text-white p-2 rounded-full hover:bg-opacity-70 transition-all"
-                >
-                  →
-                </button>
-              </div>
+            {/* 圖片切換按鈕（電腦版） */}
+            {displayImages.length > 1 && (
+              <>
+                {/* 電腦版：hover 顯示 */}
+                <div className="hidden md:flex absolute inset-0 items-center justify-between p-2 opacity-0 hover:opacity-100 transition-opacity pointer-events-none">
+                  <button
+                    onClick={handlePrevImage}
+                    className="bg-black bg-opacity-50 text-white p-2 rounded-full hover:bg-opacity-70 transition-all pointer-events-auto"
+                    aria-label="上一張"
+                  >
+                    ←
+                  </button>
+                  <button
+                    onClick={handleNextImage}
+                    className="bg-black bg-opacity-50 text-white p-2 rounded-full hover:bg-opacity-70 transition-all pointer-events-auto"
+                    aria-label="下一張"
+                  >
+                    →
+                  </button>
+                </div>
+                
+                {/* 手機版：始終顯示小圓點指示器 */}
+                <div className="md:hidden absolute bottom-2 left-1/2 transform -translate-x-1/2 flex gap-1">
+                  {displayImages.map((_, index) => (
+                    <div
+                      key={index}
+                      className={`w-2 h-2 rounded-full transition-all ${
+                        index === currentImageIndex
+                          ? 'bg-white'
+                          : 'bg-white/50'
+                      }`}
+                    />
+                  ))}
+                </div>
+              </>
             )}
 
             {/* 狀態標籤 */}

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useParams } from 'next/navigation'
 import { calculateZodiacSign, calculateAge, formatDateChinese } from '@/lib/zodiac'
 import SecureImage from '@/components/SecureImage'
@@ -38,6 +38,59 @@ export default function PartnerProfilePage() {
   const [partner, setPartner] = useState<PartnerProfile | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [currentImageIndex, setCurrentImageIndex] = useState(0)
+  const [touchStart, setTouchStart] = useState<number | null>(null)
+  const [touchEnd, setTouchEnd] = useState<number | null>(null)
+
+  // 獲取要顯示的圖片陣列（最多3張）
+  const displayImages = useMemo(() => {
+    if (!partner) return []
+    return partner.images.slice(0, 3)
+  }, [partner])
+
+  // 當圖片陣列改變時，重置索引
+  useEffect(() => {
+    setCurrentImageIndex(0)
+  }, [displayImages.length])
+
+  const handlePrevImage = useCallback(() => {
+    if (displayImages.length > 1) {
+      setCurrentImageIndex((prev) => (prev - 1 + displayImages.length) % displayImages.length)
+    }
+  }, [displayImages])
+
+  const handleNextImage = useCallback(() => {
+    if (displayImages.length > 1) {
+      setCurrentImageIndex((prev) => (prev + 1) % displayImages.length)
+    }
+  }, [displayImages])
+
+  // 手機版滑動手勢處理
+  const minSwipeDistance = 50
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    setTouchEnd(null)
+    setTouchStart(e.targetTouches[0].clientX)
+  }
+
+  const onTouchMove = (e: React.TouchEvent) => {
+    setTouchEnd(e.targetTouches[0].clientX)
+  }
+
+  const onTouchEnd = () => {
+    if (!touchStart || !touchEnd) return
+    
+    const distance = touchStart - touchEnd
+    const isLeftSwipe = distance > minSwipeDistance
+    const isRightSwipe = distance < -minSwipeDistance
+
+    if (isLeftSwipe && displayImages.length > 1) {
+      handleNextImage()
+    }
+    if (isRightSwipe && displayImages.length > 1) {
+      handlePrevImage()
+    }
+  }
 
   useEffect(() => {
     if (partnerId) {
@@ -111,6 +164,71 @@ export default function PartnerProfilePage() {
 
         {/* 主要內容 */}
         <div className="bg-gray-800/90 backdrop-blur rounded-2xl shadow-2xl overflow-hidden">
+          {/* 圖片輪播區（如果有圖片） */}
+          {displayImages.length > 0 && (
+            <div 
+              className="relative w-full h-64 md:h-96 bg-gray-900"
+              onTouchStart={onTouchStart}
+              onTouchMove={onTouchMove}
+              onTouchEnd={onTouchEnd}
+            >
+              <SecureImage
+                src={displayImages[currentImageIndex]}
+                alt={`${partner.name} 的照片 ${currentImageIndex + 1}`}
+                fill
+                className="object-cover"
+                priority
+              />
+              
+              {/* 電腦版：左右箭頭 */}
+              {displayImages.length > 1 && (
+                <>
+                  <div className="hidden md:flex absolute inset-0 items-center justify-between p-4 pointer-events-none">
+                    <button
+                      onClick={handlePrevImage}
+                      className="bg-black bg-opacity-50 text-white p-3 rounded-full hover:bg-opacity-70 transition-all pointer-events-auto"
+                      aria-label="上一張"
+                    >
+                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                      </svg>
+                    </button>
+                    <button
+                      onClick={handleNextImage}
+                      className="bg-black bg-opacity-50 text-white p-3 rounded-full hover:bg-opacity-70 transition-all pointer-events-auto"
+                      aria-label="下一張"
+                    >
+                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </button>
+                  </div>
+                  
+                  {/* 圖片指示器 */}
+                  <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex gap-2">
+                    {displayImages.map((_, index) => (
+                      <button
+                        key={index}
+                        onClick={() => setCurrentImageIndex(index)}
+                        className={`w-2 h-2 rounded-full transition-all ${
+                          index === currentImageIndex
+                            ? 'bg-white w-6'
+                            : 'bg-white/50 hover:bg-white/75'
+                        }`}
+                        aria-label={`查看圖片 ${index + 1}`}
+                      />
+                    ))}
+                  </div>
+                  
+                  {/* 圖片計數器 */}
+                  <div className="absolute top-4 right-4 bg-black bg-opacity-50 text-white px-3 py-1 rounded-full text-sm">
+                    {currentImageIndex + 1} / {displayImages.length}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+          
           {/* 頭部區域 */}
           <div className="relative bg-gradient-to-r from-purple-600 to-blue-600 p-8">
             <div className="flex flex-col md:flex-row items-center space-y-4 md:space-y-0 md:space-x-6">

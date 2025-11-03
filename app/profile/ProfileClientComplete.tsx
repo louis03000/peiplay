@@ -24,7 +24,8 @@ export default function ProfileClientComplete() {
     customerMessage: '',
     games: [] as string[],
     halfHourlyRate: undefined as number | undefined,
-    coverImage: ''
+    coverImage: '',
+    coverImages: [] as string[] // 最多3張封面照
   });
   const [success, setSuccess] = useState('');
   const [error, setError] = useState('');
@@ -63,6 +64,7 @@ export default function ProfileClientComplete() {
             games: data.user.partner?.games || [],
             halfHourlyRate: data.user.partner?.halfHourlyRate,
             coverImage: data.user.partner?.coverImage || '',
+            coverImages: data.user.partner?.images?.slice(0, 3) || (data.user.partner?.coverImage ? [data.user.partner.coverImage] : []),
           });
         }
       } catch (error) {
@@ -101,47 +103,81 @@ export default function ProfileClientComplete() {
     setFormData(prev => ({ ...prev, games: prev.games.filter(g => g !== game) }));
   };
 
-  // 處理封面照上傳
+  // 處理封面照上傳（多張）
   const handleCoverImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
 
-    // 檢查檔案大小（限制為 5MB）
-    if (file.size > 5 * 1024 * 1024) {
-      setError('檔案大小不能超過 5MB');
+    // 檢查是否超過3張限制
+    const currentCount = formData.coverImages.length;
+    if (currentCount + files.length > 3) {
+      setError(`最多只能上傳3張封面照（目前已有 ${currentCount} 張）`);
       return;
     }
 
-    // 檢查檔案類型
-    if (!file.type.startsWith('image/')) {
-      setError('只能上傳圖片檔案');
-      return;
+    // 檢查檔案大小和類型
+    for (const file of files) {
+      if (file.size > 5 * 1024 * 1024) {
+        setError('檔案大小不能超過 5MB');
+        return;
+      }
+      if (!file.type.startsWith('image/')) {
+        setError('只能上傳圖片檔案');
+        return;
+      }
     }
 
     setLoading(true);
     setError('');
 
     try {
-      const formData = new FormData();
-      formData.append('file', file);
+      const uploadedUrls: string[] = [];
+      
+      // 逐一上傳圖片
+      for (const file of files) {
+        const formDataObj = new FormData();
+        formDataObj.append('file', file);
 
-      const res = await fetch('/api/upload', {
-        method: 'POST',
-        body: formData,
-      });
+        const res = await fetch('/api/upload', {
+          method: 'POST',
+          body: formDataObj,
+        });
 
-      if (!res.ok) {
-        throw new Error('上傳失敗');
+        if (!res.ok) {
+          throw new Error('上傳失敗');
+        }
+
+        const data = await res.json();
+        uploadedUrls.push(data.url);
       }
 
-      const data = await res.json();
-      setFormData(prev => ({ ...prev, coverImage: data.url }));
-      setSuccess('封面照上傳成功！');
+      // 更新封面照陣列
+      setFormData(prev => ({ 
+        ...prev, 
+        coverImages: [...prev.coverImages, ...uploadedUrls].slice(0, 3),
+        coverImage: uploadedUrls[0] // 保留第一張作為 coverImage（向後兼容）
+      }));
+      setSuccess(`成功上傳 ${uploadedUrls.length} 張封面照！`);
+      
+      // 重置 input
+      e.target.value = '';
     } catch (err) {
       setError('封面照上傳失敗，請重試');
     } finally {
       setLoading(false);
     }
+  };
+
+  // 刪除封面照
+  const handleRemoveCoverImage = (index: number) => {
+    setFormData(prev => {
+      const newImages = prev.coverImages.filter((_, i) => i !== index);
+      return {
+        ...prev,
+        coverImages: newImages,
+        coverImage: newImages[0] || '' // 更新第一張作為 coverImage
+      };
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -151,10 +187,17 @@ export default function ProfileClientComplete() {
     setError('');
 
     try {
+      // 準備提交數據：包含 coverImages 陣列
+      const submitData = {
+        ...formData,
+        coverImages: formData.coverImages, // 提交多張封面照
+        coverImage: formData.coverImages[0] || formData.coverImage // 第一張作為 coverImage（向後兼容）
+      };
+      
       const res = await fetch('/api/user/profile', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(submitData)
       });
       
       const data = await res.json();
@@ -478,48 +521,69 @@ export default function ProfileClientComplete() {
                 </div>
               )}
               
-              {/* 封面照上傳 */}
+              {/* 封面照上傳（最多3張） */}
               <div className="mt-6">
-                <label className="block text-gray-300 mb-1 font-semibold">封面照</label>
+                <label className="block text-gray-300 mb-1 font-semibold">
+                  封面照（最多3張）
+                </label>
                 <div className="space-y-3">
                   {/* 當前封面照預覽 */}
-                  {formData.coverImage && (
-                    <div className="relative">
-                      <img 
-                        src={formData.coverImage} 
-                        alt="封面照" 
-                        className="w-full h-32 object-cover rounded-lg border border-gray-600"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setFormData(prev => ({ ...prev, coverImage: '' }))}
-                        className="absolute top-2 right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-red-600 transition-colors"
-                      >
-                        ×
-                      </button>
+                  {formData.coverImages.length > 0 && (
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      {formData.coverImages.map((image, index) => (
+                        <div key={index} className="relative group">
+                          <img 
+                            src={image} 
+                            alt={`封面照 ${index + 1}`}
+                            className="w-full h-32 object-cover rounded-lg border border-gray-600"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveCoverImage(index)}
+                            className="absolute top-2 right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-red-600 transition-colors opacity-0 group-hover:opacity-100"
+                          >
+                            ×
+                          </button>
+                          {index === 0 && (
+                            <div className="absolute bottom-2 left-2 bg-blue-500 text-white text-xs px-2 py-1 rounded">
+                              主圖
+                            </div>
+                          )}
+                        </div>
+                      ))}
                     </div>
                   )}
                   
                   {/* 上傳按鈕 */}
-                  <div className="flex items-center gap-3">
-                    <label className="flex-1">
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={handleCoverImageUpload}
-                        className="hidden"
-                        disabled={loading}
-                      />
-                      <div className="w-full px-4 py-3 border-2 border-dashed border-gray-600 rounded-lg text-center cursor-pointer hover:border-indigo-500 transition-colors">
-                        <div className="text-gray-300 text-sm">
-                          {formData.coverImage ? '更換封面照' : '選擇封面照'}
+                  {formData.coverImages.length < 3 && (
+                    <div className="flex items-center gap-3">
+                      <label className="flex-1">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          multiple
+                          onChange={handleCoverImageUpload}
+                          className="hidden"
+                          disabled={loading || formData.coverImages.length >= 3}
+                        />
+                        <div className="w-full px-4 py-3 border-2 border-dashed border-gray-600 rounded-lg text-center cursor-pointer hover:border-indigo-500 transition-colors">
+                          <div className="text-gray-300 text-sm">
+                            {formData.coverImages.length > 0 
+                              ? `上傳更多封面照（${formData.coverImages.length}/3）` 
+                              : '選擇封面照（可選多張）'}
+                          </div>
+                          <div className="text-gray-500 text-xs mt-1">
+                            支援 JPG、PNG 格式，每張檔案大小不超過 5MB，最多3張
+                          </div>
                         </div>
-                        <div className="text-gray-500 text-xs mt-1">
-                          支援 JPG、PNG 格式，檔案大小不超過 5MB
-                        </div>
-                      </div>
-                    </label>
-                  </div>
+                      </label>
+                    </div>
+                  )}
+                  {formData.coverImages.length >= 3 && (
+                    <div className="text-yellow-400 text-sm text-center">
+                      已達上限（3張），如需更換請先刪除現有圖片
+                    </div>
+                  )}
                 </div>
               </div>
               

@@ -45,6 +45,14 @@ export async function GET(
       reviewsReceived = [];
     }
 
+    // 處理圖片陣列：如果 images 為空但有 coverImage，將 coverImage 加入 images
+    let images = partner.images || [];
+    if (images.length === 0 && partner.coverImage) {
+      images = [partner.coverImage];
+    }
+    // 確保最多3張
+    images = images.slice(0, 3);
+    
     // 格式化數據，確保所有字段都有默認值
     const formattedPartner = {
       id: partner.id,
@@ -56,7 +64,7 @@ export async function GET(
       supportsChatOnly: partner.supportsChatOnly || false,
       chatOnlyRate: partner.chatOnlyRate || null,
       halfHourlyRate: partner.halfHourlyRate,
-      images: partner.images || [],
+      images: images,
       reviewsReceived: reviewsReceived.map(review => ({
         id: review.id,
         rating: review.rating,

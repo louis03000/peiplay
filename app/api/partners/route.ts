@@ -93,10 +93,19 @@ export async function GET(request: Request) {
       );
     }
 
-    // 過濾掉已預約的時段，只保留可用的時段
+    // 過濾掉已預約的時段，只保留可用的時段，並處理圖片陣列
     partnersWithSchedules = partnersWithSchedules.map(partner => {
+      // 處理圖片陣列：如果 images 為空但有 coverImage，將 coverImage 加入 images
+      let images = partner.images || [];
+      if (images.length === 0 && partner.coverImage) {
+        images = [partner.coverImage];
+      }
+      // 確保最多3張
+      images = images.slice(0, 3);
+      
       return {
         ...partner,
+        images, // 確保有 images 陣列
         averageRating: 0, // 暫時設為 0
         totalReviews: 0, // 暫時設為 0
         schedules: partner.schedules.filter(schedule => {
