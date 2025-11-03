@@ -204,23 +204,16 @@ const PartnerCard = memo(function PartnerCard({ partner, onQuickBook, showNextSt
                   </button>
                 </div>
                 
-                {/* 電腦版：圖片指示器（小圓點），當卡片被 hover 時顯示 */}
-                <div className={`hidden md:flex absolute bottom-2 left-1/2 transform -translate-x-1/2 gap-1 transition-opacity duration-200 ${
-                  isHovered ? 'opacity-100' : 'opacity-70'
-                }`}>
+                {/* 電腦版：圖片指示器（小圓點），純顯示用，不可點擊 */}
+                <div className="hidden md:flex absolute bottom-2 left-1/2 transform -translate-x-1/2 gap-1.5">
                   {displayImages.map((_, index) => (
-                    <button
+                    <div
                       key={index}
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        setCurrentImageIndex(index)
-                      }}
-                      className={`w-2 h-2 rounded-full transition-all ${
+                      className={`rounded-full transition-all ${
                         index === currentImageIndex
-                          ? 'bg-white w-6'
-                          : 'bg-white/50 hover:bg-white/75'
+                          ? 'bg-white w-2 h-2'
+                          : 'bg-white/50 w-1.5 h-1.5'
                       }`}
-                      aria-label={`查看圖片 ${index + 1}`}
                     />
                   ))}
                 </div>
