@@ -77,15 +77,31 @@ export async function GET() {
       };
     });
 
+    // 先將已過期的群組預約標記為 COMPLETED
+    const now = new Date();
+    await prisma.groupBooking.updateMany({
+      where: {
+        initiatorId: partner.id,
+        initiatorType: 'PARTNER',
+        status: 'ACTIVE',
+        endTime: { lt: now } // 結束時間已過
+      },
+      data: {
+        status: 'COMPLETED'
+      }
+    }).catch(err => console.warn('更新已過期群組預約狀態失敗:', err));
+
     // 使用 select 優化群組查詢
     // 注意：如果資料庫中沒有 games 欄位，會先不查詢它
+    // 只查詢未來的群組預約（endTime > now）
     let groupBookings;
     try {
       groupBookings = await prisma.groupBooking.findMany({
         where: {
           initiatorId: partner.id,
           initiatorType: 'PARTNER',
-          status: 'ACTIVE'
+          status: 'ACTIVE',
+          endTime: { gt: now } // 只顯示未來的群組預約
         },
         select: {
           id: true,
@@ -112,7 +128,8 @@ export async function GET() {
         where: {
           initiatorId: partner.id,
           initiatorType: 'PARTNER',
-          status: 'ACTIVE'
+          status: 'ACTIVE',
+          endTime: { gt: now } // 只顯示未來的群組預約
         },
         select: {
           id: true,
