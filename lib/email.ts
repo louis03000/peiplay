@@ -276,11 +276,11 @@ export async function sendChannelCreatedNotificationToCustomer(
               </tr>
               <tr>
                 <td style="padding: 8px 0; color: #666;"><strong>開始時間：</strong></td>
-                <td style="padding: 8px 0; color: #333;">${new Date(channelDetails.startTime).toLocaleString('zh-TW')}</td>
+                <td style="padding: 8px 0; color: #333;">${formatTaiwanTime(channelDetails.startTime)}</td>
               </tr>
               <tr>
                 <td style="padding: 8px 0; color: #666;"><strong>結束時間：</strong></td>
-                <td style="padding: 8px 0; color: #333;">${new Date(channelDetails.endTime).toLocaleString('zh-TW')}</td>
+                <td style="padding: 8px 0; color: #333;">${formatTaiwanTime(channelDetails.endTime)}</td>
               </tr>
               <tr>
                 <td style="padding: 8px 0; color: #666;"><strong>文字頻道：</strong></td>
