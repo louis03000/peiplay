@@ -1,4 +1,5 @@
 import nodemailer from 'nodemailer';
+import { NotificationType } from './messaging';
 
 // 輔助函數：格式化時間為台灣時區（Asia/Taipei, UTC+8）
 function formatTaiwanTime(dateString: string | Date): string {
@@ -14,7 +15,6 @@ function formatTaiwanTime(dateString: string | Date): string {
     hour12: false
   }).replace(/,/g, ' ').replace(/\//g, '/');
 }
-import { NotificationType } from './messaging';
 
 // 創建 Gmail SMTP 傳輸器
 const createTransporter = () => {

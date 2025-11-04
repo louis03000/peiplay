@@ -88,14 +88,12 @@ export async function checkPartnerCurrentlyBusy(partnerId: string) {
   const activeBooking = await prisma.booking.findFirst({
     where: {
       schedule: {
-        partnerId: partnerId
+        partnerId: partnerId,
+        startTime: { lte: now },
+        endTime: { gte: now }
       },
       status: {
         in: ['CONFIRMED', 'PARTNER_ACCEPTED']
-      },
-      schedule: {
-        startTime: { lte: now },
-        endTime: { gte: now }
       }
     },
     include: {

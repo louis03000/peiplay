@@ -29,6 +29,8 @@ export default function BookingsPage() {
   const [cancellingBooking, setCancellingBooking] = useState<string | null>(null)
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 10;
+  const [hoveredRejectReason, setHoveredRejectReason] = useState<string | null>(null);
+  const [clickedRejectReason, setClickedRejectReason] = useState<string | null>(null);
   
   // 使用 ref 追蹤正在進行的請求，防止重複請求
   const abortControllerRef = useRef<AbortController | null>(null);

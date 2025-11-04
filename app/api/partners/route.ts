@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
+import { hasTimeOverlap } from "@/lib/time-conflict";
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -103,6 +104,9 @@ export async function GET(request: Request) {
 
     // 批量查詢時段資料（只查詢需要的）
     const schedulesMap = new Map<string, any[]>();
+    // 按 partnerId 分組預約，用於快速查找衝突（移到外層作用域）
+    const bookingsByPartner = new Map<string, Array<{ startTime: Date; endTime: Date }>>();
+    
     if (partnerIdsWithSchedules.length > 0) {
       // 先查詢所有有效預約，用於衝突檢查
       const activeBookings = await prisma.booking.findMany({
@@ -127,9 +131,6 @@ export async function GET(request: Request) {
           }
         }
       });
-
-      // 按 partnerId 分組預約，用於快速查找衝突
-      const bookingsByPartner = new Map<string, Array<{ startTime: Date; endTime: Date }>>();
       for (const booking of activeBookings) {
         const partnerId = booking.schedule.partnerId;
         if (!bookingsByPartner.has(partnerId)) {
@@ -163,7 +164,6 @@ export async function GET(request: Request) {
       ]);
 
       // 過濾掉與已預約時段重疊的時段
-      const { hasTimeOverlap } = await import('@/lib/time-conflict');
       const validSchedules = schedules.filter(schedule => {
         const partnerBookings = bookingsByPartner.get(schedule.partnerId) || [];
         const scheduleStart = new Date(schedule.startTime);
@@ -216,7 +216,6 @@ export async function GET(request: Request) {
         const partnerBookings = bookingsByPartner.get(partner.id) || [];
         
         // 過濾掉與已預約時段重疊的時段
-        const { hasTimeOverlap } = await import('@/lib/time-conflict');
         const availableSchedules = schedules.filter(schedule => {
           const scheduleStart = new Date(schedule.startTime);
           const scheduleEnd = new Date(schedule.endTime);
