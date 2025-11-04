@@ -17,10 +17,15 @@ export async function POST(
     
     // 處理 params（可能是 Promise）
     const resolvedParams = params instanceof Promise ? await params : params;
-    const { action } = await request.json(); // 'accept' 或 'reject'
+    const { action, reason } = await request.json(); // 'accept' 或 'reject'
 
     if (!action || !['accept', 'reject'].includes(action)) {
       return NextResponse.json({ error: '無效的操作' }, { status: 400 });
+    }
+
+    // 如果是拒絕操作，必須提供拒絕原因
+    if (action === 'reject' && (!reason || reason.trim() === '')) {
+      return NextResponse.json({ error: '拒絕預約時必須提供拒絕原因' }, { status: 400 });
     }
 
     // 檢查認證
@@ -86,7 +91,10 @@ export async function POST(
     
     const updatedBooking = await prisma.booking.update({
       where: { id: resolvedParams.id },
-      data: { status: newStatus },
+      data: { 
+        status: newStatus,
+        ...(action === 'reject' && reason ? { rejectReason: reason.trim() } : {})
+      },
       include: {
         customer: {
           include: {
@@ -105,40 +113,41 @@ export async function POST(
       }
     });
 
-    // 發送 email 通知給客戶
-    try {
-      const duration = (booking.schedule.endTime.getTime() - booking.schedule.startTime.getTime()) / (1000 * 60 * 60);
-      
-      if (action === 'accept') {
-        await sendBookingConfirmationEmail(
-          booking.customer.user.email,
-          booking.customer.user.name || '客戶',
-          booking.schedule.partner.user.name || '夥伴',
-          {
-            duration: duration,
-            startTime: booking.schedule.startTime.toISOString(),
-            endTime: booking.schedule.endTime.toISOString(),
-            totalCost: booking.finalAmount,
-            bookingId: booking.id
-          }
-        );
-      } else {
-        await sendBookingRejectionEmail(
-          booking.customer.user.email,
-          booking.customer.user.name || '客戶',
-          booking.schedule.partner.user.name || '夥伴',
-          {
-            startTime: booking.schedule.startTime.toISOString(),
-            endTime: booking.schedule.endTime.toISOString(),
-            bookingId: booking.id
-          }
-        );
-      }
-      
-      console.log(`✅ Email 通知已發送給客戶: ${booking.customer.user.email}`);
-    } catch (emailError) {
-      console.error('❌ Email 發送失敗:', emailError);
-      // 不影響預約狀態更新，只記錄錯誤
+    // 發送 email 通知給客戶（非阻塞方式，立即返回響應）
+    const duration = (booking.schedule.endTime.getTime() - booking.schedule.startTime.getTime()) / (1000 * 60 * 60);
+    
+    if (action === 'accept') {
+      sendBookingConfirmationEmail(
+        booking.customer.user.email,
+        booking.customer.user.name || '客戶',
+        booking.schedule.partner.user.name || '夥伴',
+        {
+          duration: duration,
+          startTime: booking.schedule.startTime.toISOString(),
+          endTime: booking.schedule.endTime.toISOString(),
+          totalCost: booking.finalAmount,
+          bookingId: booking.id
+        }
+      ).then(() => {
+        console.log(`✅ Email 通知已發送給客戶: ${booking.customer.user.email}`);
+      }).catch((emailError) => {
+        console.error('❌ Email 發送失敗:', emailError);
+      });
+    } else {
+      sendBookingRejectionEmail(
+        booking.customer.user.email,
+        booking.customer.user.name || '客戶',
+        booking.schedule.partner.user.name || '夥伴',
+        {
+          startTime: booking.schedule.startTime.toISOString(),
+          endTime: booking.schedule.endTime.toISOString(),
+          bookingId: booking.id
+        }
+      ).then(() => {
+        console.log(`✅ Email 通知已發送給客戶: ${booking.customer.user.email}`);
+      }).catch((emailError) => {
+        console.error('❌ Email 發送失敗:', emailError);
+      });
     }
 
     console.log(`✅ 預約 ${action === 'accept' ? '接受' : '拒絕'} 成功:`, booking.id);

@@ -28,15 +28,19 @@ export async function GET() {
       return NextResponse.json({ error: '客戶資料不存在' }, { status: 404 });
     }
 
-    // 查詢當前有效的預約記錄（排除已取消、已拒絕、已完成的預約）
+    // 查詢當前有效的預約記錄（包含被拒絕的，以便客戶查看拒絕原因）
     const bookings = await prisma.booking.findMany({
       where: { 
         customerId: customer.id,
         status: {
-          notIn: ['CANCELLED', 'REJECTED', 'COMPLETED']
+          notIn: ['CANCELLED', 'COMPLETED'] // 保留 REJECTED 狀態，讓客戶能看到拒絕原因
         }
       },
-      include: {
+      select: {
+        id: true,
+        status: true,
+        createdAt: true,
+        rejectReason: true, // 包含拒絕原因
         schedule: {
           include: {
             partner: {

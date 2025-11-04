@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useSession } from 'next-auth/react'
 
 type Booking = {
@@ -29,6 +29,10 @@ export default function BookingsPage() {
   const [cancellingBooking, setCancellingBooking] = useState<string | null>(null)
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 10;
+  
+  // 使用 ref 追蹤正在進行的請求，防止重複請求
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const isLoadingRef = useRef(false);
 
   // 根據身分預設分頁
   useEffect(() => {
@@ -38,41 +42,92 @@ export default function BookingsPage() {
     }
   }, [status, session])
 
-  // 取得資料
+  // 取得資料 - 改善載入邏輯，防止重複請求
   useEffect(() => {
-    if (status === 'authenticated') {
-      setLoading(true)
-      setError(null)
-      // 不要立即清空現有數據，避免閃爍
-      const url = tab === 'me' ? '/api/bookings/me' : '/api/bookings/partner'
-      
-      fetch(url)
-        .then(res => {
-          if (!res.ok) {
-            throw new Error(`HTTP ${res.status}`)
-          }
-          return res.json()
-        })
-        .then(data => {
-          console.log(`✅ ${url} 數據載入完成:`, data)
-          // 確保數據有效才更新
-          if (data && Array.isArray(data.bookings)) {
-            setBookings(data.bookings)
-          } else {
-            setBookings([])
-          }
-          setError(null)
-        })
-        .catch(err => {
-          console.error('載入預約資料失敗:', err)
-          setError('載入失敗')
-          setBookings([]) // 只有在錯誤時才清空
-        })
-        .finally(() => {
-          // 確保載入完成
-          setLoading(false)
-        })
+    if (status !== 'authenticated') {
+      setLoading(false);
+      return;
     }
+
+    // 取消前一個請求
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+
+    // 如果已經在載入，不要重複請求
+    if (isLoadingRef.current) {
+      console.log('⚠️ 已有請求正在進行，跳過重複請求');
+      return;
+    }
+
+    isLoadingRef.current = true;
+    setLoading(true);
+    setError(null);
+    
+    // 創建新的 AbortController
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
+    
+    // 不要立即清空現有數據，避免閃爍
+    const url = tab === 'me' ? '/api/bookings/me' : '/api/bookings/partner'
+    
+    fetch(url, {
+      signal: abortController.signal,
+      cache: 'no-store'
+    })
+      .then(res => {
+        // 如果請求被取消，不處理響應
+        if (abortController.signal.aborted) {
+          return null;
+        }
+        
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}`);
+        }
+        return res.json();
+      })
+      .then(data => {
+        // 如果請求被取消，不更新狀態
+        if (abortController.signal.aborted) {
+          return;
+        }
+        
+        console.log(`✅ ${url} 數據載入完成:`, data);
+        // 確保數據有效才更新
+        if (data && Array.isArray(data.bookings)) {
+          setBookings(data.bookings);
+        } else {
+          setBookings([]);
+        }
+        setError(null);
+      })
+      .catch(err => {
+        // 如果請求被取消（AbortError），不顯示錯誤
+        if (err.name === 'AbortError' || abortController.signal.aborted) {
+          console.log('📋 請求已取消（可能是用戶切換分頁）');
+          return;
+        }
+        
+        console.error('載入預約資料失敗:', err);
+        setError('載入失敗');
+        // 只有在真正的錯誤時才清空，不要清空已有數據
+      })
+      .finally(() => {
+        // 只有在這個請求還有效時才更新載入狀態
+        if (!abortController.signal.aborted) {
+          setLoading(false);
+          isLoadingRef.current = false;
+        }
+      });
+
+    // 清理函數
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+        abortControllerRef.current = null;
+      }
+      isLoadingRef.current = false;
+    };
   }, [status, tab])
 
   // 檢查是否可以取消預約
@@ -367,15 +422,67 @@ export default function BookingsPage() {
                   </td>
                   {tab === 'me' && (
                     <td className="py-4 px-6">
-                      {canCancel(booking) && (
-                        <button
-                          onClick={() => handleCancelBooking(booking.id)}
-                          disabled={cancellingBooking === booking.id}
-                          className="px-3 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          {cancellingBooking === booking.id ? '取消中...' : '取消預約'}
-                        </button>
-                      )}
+                      <div className="flex gap-2 items-center">
+                        {canCancel(booking) && (
+                          <button
+                            onClick={() => handleCancelBooking(booking.id)}
+                            disabled={cancellingBooking === booking.id}
+                            className="px-3 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {cancellingBooking === booking.id ? '取消中...' : '取消預約'}
+                          </button>
+                        )}
+                        {booking.status === 'REJECTED' && booking.rejectReason && (
+                          <div className="relative">
+                            <button
+                              onMouseEnter={() => setHoveredRejectReason(booking.id)}
+                              onMouseLeave={() => setHoveredRejectReason(null)}
+                              onClick={() => {
+                                // 手機版：切換點擊狀態
+                                if (window.innerWidth < 768) {
+                                  setClickedRejectReason(clickedRejectReason === booking.id ? null : booking.id);
+                                }
+                              }}
+                              className="px-3 py-1 bg-orange-600 text-white text-xs rounded hover:bg-orange-700 transition-colors"
+                            >
+                              查看原因
+                            </button>
+                            {/* 懸浮視窗 - 電腦版懸停顯示，手機版點擊顯示 */}
+                            {(hoveredRejectReason === booking.id || clickedRejectReason === booking.id) && (
+                              <div 
+                                className={`absolute z-50 bg-gray-800 text-white text-sm rounded-lg p-3 shadow-lg ${
+                                  window.innerWidth >= 768 
+                                    ? 'bottom-full left-0 mb-2' 
+                                    : 'top-full left-0 mt-2 fixed'
+                                }`}
+                                style={{ 
+                                  whiteSpace: 'pre-wrap',
+                                  wordWrap: 'break-word',
+                                  minWidth: '200px',
+                                  maxWidth: 'min(300px, calc(100vw - 2rem))',
+                                  width: 'auto'
+                                }}
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <div className="font-semibold mb-2 text-orange-400">拒絕原因：</div>
+                                <div className="text-gray-200">{booking.rejectReason}</div>
+                                {/* 手機版：關閉按鈕 */}
+                                {typeof window !== 'undefined' && window.innerWidth < 768 && (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setClickedRejectReason(null);
+                                    }}
+                                    className="mt-2 text-xs text-gray-400 hover:text-white underline"
+                                  >
+                                    關閉
+                                  </button>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     </td>
                   )}
                   {tab === 'partner' && (
@@ -383,9 +490,13 @@ export default function BookingsPage() {
                       {(booking.status === 'PAID_WAITING_PARTNER_CONFIRMATION') && (
                         <div className="flex gap-2">
                           <button
-                            className="px-3 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 transition-colors"
+                            disabled={loading || cancellingBooking === booking.id}
+                            className="px-3 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                             onClick={async () => {
+                              if (loading || cancellingBooking === booking.id) return;
                               if (!confirm('確定要接受這個預約嗎？')) return;
+                              
+                              setCancellingBooking(booking.id);
                               try {
                                 const res = await fetch(`/api/bookings/${booking.id}/respond`, { 
                                   method: 'POST',
@@ -395,51 +506,80 @@ export default function BookingsPage() {
                                 const data = await res.json();
                                 if (res.ok) {
                                   alert('已接受預約！');
-                                  // 重新載入數據
-                                  setLoading(true);
-                                  fetch('/api/bookings/partner')
+                                  // 樂觀更新：立即更新本地狀態，然後在背景重新載入
+                                  setBookings(prev => prev.map(b => 
+                                    b.id === booking.id ? { ...b, status: 'CONFIRMED' } : b
+                                  ));
+                                  // 在背景重新載入數據（不阻塞 UI）
+                                  fetch('/api/bookings/partner', { cache: 'no-store' })
                                     .then(res => res.json())
-                                    .then(data => setBookings(data.bookings || []))
-                                    .catch(err => setError('載入失敗'))
-                                    .finally(() => setLoading(false));
+                                    .then(data => {
+                                      if (data && Array.isArray(data.bookings)) {
+                                        setBookings(data.bookings);
+                                      }
+                                    })
+                                    .catch(err => console.error('背景更新失敗:', err));
                                 } else {
                                   alert(data.error || '接受預約失敗');
                                 }
                               } catch (error) {
                                 console.error('接受預約失敗:', error);
                                 alert('接受預約失敗，請重試');
+                              } finally {
+                                setCancellingBooking(null);
                               }
                             }}
-                          >接受</button>
+                          >
+                            {cancellingBooking === booking.id ? '處理中...' : '接受'}
+                          </button>
                           <button
-                            className="px-3 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700 transition-colors"
+                            disabled={loading || cancellingBooking === booking.id}
+                            className="px-3 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                             onClick={async () => {
+                              if (loading || cancellingBooking === booking.id) return;
                               if (!confirm('確定要拒絕這個預約嗎？')) return;
+                              
+                              // 彈出輸入拒絕原因的對話框
+                              const reason = prompt('請輸入拒絕原因（必填）：');
+                              if (!reason || reason.trim() === '') {
+                                alert('必須輸入拒絕原因才能拒絕預約');
+                                return;
+                              }
+                              
+                              setCancellingBooking(booking.id);
                               try {
                                 const res = await fetch(`/api/bookings/${booking.id}/respond`, { 
                                   method: 'POST',
                                   headers: { 'Content-Type': 'application/json' },
-                                  body: JSON.stringify({ action: 'reject' })
+                                  body: JSON.stringify({ action: 'reject', reason: reason.trim() })
                                 });
                                 const data = await res.json();
                                 if (res.ok) {
                                   alert('已拒絕預約');
-                                  // 重新載入數據
-                                  setLoading(true);
-                                  fetch('/api/bookings/partner')
+                                  // 樂觀更新：立即從列表中移除
+                                  setBookings(prev => prev.filter(b => b.id !== booking.id));
+                                  // 在背景重新載入數據（不阻塞 UI）
+                                  fetch('/api/bookings/partner', { cache: 'no-store' })
                                     .then(res => res.json())
-                                    .then(data => setBookings(data.bookings || []))
-                                    .catch(err => setError('載入失敗'))
-                                    .finally(() => setLoading(false));
+                                    .then(data => {
+                                      if (data && Array.isArray(data.bookings)) {
+                                        setBookings(data.bookings);
+                                      }
+                                    })
+                                    .catch(err => console.error('背景更新失敗:', err));
                                 } else {
                                   alert(data.error || '拒絕預約失敗');
                                 }
                               } catch (error) {
                                 console.error('拒絕預約失敗:', error);
                                 alert('拒絕預約失敗，請重試');
+                              } finally {
+                                setCancellingBooking(null);
                               }
                             }}
-                          >拒絕</button>
+                          >
+                            {cancellingBooking === booking.id ? '處理中...' : '拒絕'}
+                          </button>
                         </div>
                       )}
                     </td>

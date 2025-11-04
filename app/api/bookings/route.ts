@@ -104,27 +104,26 @@ export async function POST(request: Request) {
           }
         });
 
-        // 發送 email 通知給夥伴
-        try {
-          await sendBookingNotificationEmail(
-            schedule.partner.user.email,
-            schedule.partner.user.name || '夥伴',
-            customer.user.name || '客戶',
-            {
-              bookingId: booking.id,
-              startTime: schedule.startTime.toISOString(),
-              endTime: schedule.endTime.toISOString(),
-              duration: duration,
-              totalCost: finalAmount,
-              customerName: customer.user.name || '客戶',
-              customerEmail: customer.user.email
-            }
-          );
+        // 發送 email 通知給夥伴（非阻塞方式，立即返回響應）
+        sendBookingNotificationEmail(
+          schedule.partner.user.email,
+          schedule.partner.user.name || '夥伴',
+          customer.user.name || '客戶',
+          {
+            bookingId: booking.id,
+            startTime: schedule.startTime.toISOString(),
+            endTime: schedule.endTime.toISOString(),
+            duration: duration,
+            totalCost: finalAmount,
+            customerName: customer.user.name || '客戶',
+            customerEmail: customer.user.email
+          }
+        ).then(() => {
           console.log(`✅ Email 通知已發送給夥伴: ${schedule.partner.user.email}`);
-        } catch (emailError) {
+        }).catch((emailError) => {
           console.error('❌ Email 發送失敗:', emailError);
           // 不影響預約創建，只記錄錯誤
-        }
+        });
 
         return booking;
       })
