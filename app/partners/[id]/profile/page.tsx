@@ -99,9 +99,14 @@ export default function PartnerProfilePage() {
   }, [partnerId])
 
   const fetchPartnerProfile = async () => {
+    // 防止重複請求
+    if (loading) return;
+    
     try {
       setLoading(true)
-      const response = await fetch(`/api/partners/${partnerId}/profile`)
+      const response = await fetch(`/api/partners/${partnerId}/profile`, {
+        cache: 'no-store'
+      })
       
       if (!response.ok) {
         throw new Error('無法載入夥伴資料')
