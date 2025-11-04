@@ -42,7 +42,10 @@ export async function GET() {
         createdAt: true,
         rejectReason: true, // 包含拒絕原因
         schedule: {
-          include: {
+          select: {
+            date: true,
+            startTime: true,
+            endTime: true,
             partner: {
               select: { name: true }
             }
