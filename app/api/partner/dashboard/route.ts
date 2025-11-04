@@ -78,39 +78,69 @@ export async function GET() {
     });
 
     // 使用 select 優化群組查詢
-    const groupBookings = await prisma.groupBooking.findMany({
-      where: {
-        initiatorId: partner.id,
-        initiatorType: 'PARTNER',
-        status: 'ACTIVE'
-      },
-      select: {
-        id: true,
-        title: true,
-        description: true,
-        maxParticipants: true,
-        pricePerPerson: true,
-        startTime: true,
-        endTime: true,
-        status: true,
-        games: true,
-        _count: {
-          select: {
-            GroupBookingParticipant: true
+    // 注意：如果資料庫中沒有 games 欄位，會先不查詢它
+    let groupBookings;
+    try {
+      groupBookings = await prisma.groupBooking.findMany({
+        where: {
+          initiatorId: partner.id,
+          initiatorType: 'PARTNER',
+          status: 'ACTIVE'
+        },
+        select: {
+          id: true,
+          title: true,
+          description: true,
+          maxParticipants: true,
+          pricePerPerson: true,
+          startTime: true,
+          endTime: true,
+          status: true,
+          games: true,
+          _count: {
+            select: {
+              GroupBookingParticipant: true
+            }
           }
-        }
-      },
-      orderBy: { startTime: 'asc' }
-    });
+        },
+        orderBy: { startTime: 'asc' }
+      });
+    } catch (error: any) {
+      // 如果查詢 games 欄位失敗，可能是資料庫結構不同步，改用不包含 games 的查詢
+      console.warn('⚠️ 查詢 games 欄位失敗，改用不包含 games 的查詢:', error?.message);
+      groupBookings = await prisma.groupBooking.findMany({
+        where: {
+          initiatorId: partner.id,
+          initiatorType: 'PARTNER',
+          status: 'ACTIVE'
+        },
+        select: {
+          id: true,
+          title: true,
+          description: true,
+          maxParticipants: true,
+          pricePerPerson: true,
+          startTime: true,
+          endTime: true,
+          status: true,
+          _count: {
+            select: {
+              GroupBookingParticipant: true
+            }
+          }
+        },
+        orderBy: { startTime: 'asc' }
+      });
+    }
 
-    const groups = groupBookings.map(group => ({
+    const groups = groupBookings.map((group: any) => ({
       id: group.id,
       title: group.title,
       description: group.description,
       maxParticipants: group.maxParticipants,
       currentParticipants: group._count.GroupBookingParticipant,
       pricePerPerson: group.pricePerPerson,
-      games: group.games || [],
+      games: group.games || [], // 如果沒有 games 欄位，使用空陣列
       startTime: group.startTime instanceof Date ? group.startTime.toISOString() : group.startTime,
       endTime: group.endTime instanceof Date ? group.endTime.toISOString() : group.endTime,
       status: group.status
