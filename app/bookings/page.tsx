@@ -31,10 +31,93 @@ export default function BookingsPage() {
   const pageSize = 10;
   const [hoveredRejectReason, setHoveredRejectReason] = useState<string | null>(null);
   const [clickedRejectReason, setClickedRejectReason] = useState<string | null>(null);
+  const [popupPosition, setPopupPosition] = useState<{ top?: number; left?: number; bottom?: number; right?: number } | null>(null);
+  const buttonRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
   
   // 使用 ref 追蹤正在進行的請求，防止重複請求
   const abortControllerRef = useRef<AbortController | null>(null);
   const isLoadingRef = useRef(false);
+
+  // 計算彈窗位置，確保完整顯示
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    
+    const calculatePosition = () => {
+      if (hoveredRejectReason || clickedRejectReason) {
+        const bookingId = hoveredRejectReason || clickedRejectReason;
+        if (!bookingId) return;
+        
+        const button = buttonRefs.current.get(bookingId);
+        if (!button) return;
+
+        const rect = button.getBoundingClientRect();
+        const isMobile = window.innerWidth < 768;
+        
+        if (isMobile) {
+          // 手機版：居中顯示
+          setPopupPosition({
+            top: window.innerHeight / 2,
+            left: window.innerWidth / 2
+          });
+        } else {
+          // 桌面版：計算位置，確保不超出視窗
+          const popupWidth = 400;
+          const popupHeight = 200;
+          const spaceAbove = rect.top;
+          const spaceBelow = window.innerHeight - rect.bottom;
+          const spaceLeft = rect.left;
+          const spaceRight = window.innerWidth - rect.right;
+          
+          // 優先顯示在按鈕上方
+          if (spaceAbove > popupHeight + 10) {
+            setPopupPosition({
+              bottom: window.innerHeight - rect.top + 10,
+              left: Math.max(10, Math.min(rect.left, window.innerWidth - popupWidth - 10))
+            });
+          } else if (spaceBelow > popupHeight + 10) {
+            // 顯示在下方
+            setPopupPosition({
+              top: rect.bottom + 10,
+              left: Math.max(10, Math.min(rect.left, window.innerWidth - popupWidth - 10))
+            });
+          } else {
+            // 空間都不夠，顯示在按鈕右側
+            if (spaceRight > popupWidth + 10) {
+              setPopupPosition({
+                top: Math.max(10, Math.min(rect.top, window.innerHeight - popupHeight - 10)),
+                left: rect.right + 10
+              });
+            } else if (spaceLeft > popupWidth + 10) {
+              // 顯示在左側
+              setPopupPosition({
+                top: Math.max(10, Math.min(rect.top, window.innerHeight - popupHeight - 10)),
+                right: window.innerWidth - rect.left + 10
+              });
+            } else {
+              // 最後選擇：居中顯示
+              setPopupPosition({
+                top: window.innerHeight / 2,
+                left: window.innerWidth / 2
+              });
+            }
+          }
+        }
+      } else {
+        setPopupPosition(null);
+      }
+    };
+
+    calculatePosition();
+    
+    // 視窗大小改變時重新計算位置
+    window.addEventListener('resize', calculatePosition);
+    window.addEventListener('scroll', calculatePosition, true);
+    
+    return () => {
+      window.removeEventListener('resize', calculatePosition);
+      window.removeEventListener('scroll', calculatePosition, true);
+    };
+  }, [hoveredRejectReason, clickedRejectReason]);
 
   // 根據身分預設分頁
   useEffect(() => {
@@ -437,11 +520,26 @@ export default function BookingsPage() {
                         {booking.status === 'REJECTED' && booking.rejectReason && (
                           <div className="relative">
                             <button
-                              onMouseEnter={() => setHoveredRejectReason(booking.id)}
-                              onMouseLeave={() => setHoveredRejectReason(null)}
+                              ref={(el) => {
+                                if (el) {
+                                  buttonRefs.current.set(booking.id, el);
+                                } else {
+                                  buttonRefs.current.delete(booking.id);
+                                }
+                              }}
+                              onMouseEnter={() => {
+                                if (typeof window !== 'undefined' && window.innerWidth >= 768) {
+                                  setHoveredRejectReason(booking.id);
+                                }
+                              }}
+                              onMouseLeave={() => {
+                                if (typeof window !== 'undefined' && window.innerWidth >= 768) {
+                                  setHoveredRejectReason(null);
+                                }
+                              }}
                               onClick={() => {
                                 // 手機版：切換點擊狀態
-                                if (window.innerWidth < 768) {
+                                if (typeof window !== 'undefined' && window.innerWidth < 768) {
                                   setClickedRejectReason(clickedRejectReason === booking.id ? null : booking.id);
                                 }
                               }}
@@ -450,24 +548,51 @@ export default function BookingsPage() {
                               查看原因
                             </button>
                             {/* 懸浮視窗 - 電腦版懸停顯示，手機版點擊顯示 */}
-                            {(hoveredRejectReason === booking.id || clickedRejectReason === booking.id) && (
+                            {(hoveredRejectReason === booking.id || clickedRejectReason === booking.id) && popupPosition && (
                               <div 
-                                className={`absolute z-50 bg-gray-800 text-white text-sm rounded-lg p-3 shadow-lg ${
-                                  window.innerWidth >= 768 
-                                    ? 'bottom-full left-0 mb-2' 
-                                    : 'top-full left-0 mt-2 fixed'
-                                }`}
+                                className="fixed z-[9999] bg-gray-800 text-white text-sm rounded-lg p-4 shadow-2xl border border-gray-700"
                                 style={{ 
                                   whiteSpace: 'pre-wrap',
                                   wordWrap: 'break-word',
-                                  minWidth: '200px',
-                                  maxWidth: 'min(300px, calc(100vw - 2rem))',
-                                  width: 'auto'
+                                  minWidth: '250px',
+                                  maxWidth: typeof window !== 'undefined' && window.innerWidth < 768 
+                                    ? 'calc(100vw - 2rem)' 
+                                    : '400px',
+                                  width: 'max-content',
+                                  maxHeight: typeof window !== 'undefined' && window.innerWidth < 768 
+                                    ? '80vh' 
+                                    : '70vh',
+                                  overflowY: 'auto',
+                                  ...(typeof window !== 'undefined' && window.innerWidth < 768 
+                                    ? {
+                                        top: `${popupPosition.top}px`,
+                                        left: `${popupPosition.left}px`,
+                                        transform: 'translate(-50%, -50%)'
+                                      }
+                                    : {
+                                        ...(popupPosition.top !== undefined ? { top: `${popupPosition.top}px` } : {}),
+                                        ...(popupPosition.bottom !== undefined ? { bottom: `${popupPosition.bottom}px` } : {}),
+                                        ...(popupPosition.left !== undefined ? { left: `${popupPosition.left}px` } : {}),
+                                        ...(popupPosition.right !== undefined ? { right: `${popupPosition.right}px` } : {})
+                                      }
+                                  )
                                 }}
                                 onClick={(e) => e.stopPropagation()}
+                                onMouseEnter={() => {
+                                  // 桌面版：保持懸停時顯示
+                                  if (typeof window !== 'undefined' && window.innerWidth >= 768) {
+                                    setHoveredRejectReason(booking.id);
+                                  }
+                                }}
+                                onMouseLeave={() => {
+                                  // 桌面版：離開視窗時隱藏
+                                  if (typeof window !== 'undefined' && window.innerWidth >= 768) {
+                                    setHoveredRejectReason(null);
+                                  }
+                                }}
                               >
                                 <div className="font-semibold mb-2 text-orange-400">拒絕原因：</div>
-                                <div className="text-gray-200">{booking.rejectReason}</div>
+                                <div className="text-gray-200 break-words">{booking.rejectReason}</div>
                                 {/* 手機版：關閉按鈕 */}
                                 {typeof window !== 'undefined' && window.innerWidth < 768 && (
                                   <button
@@ -475,7 +600,7 @@ export default function BookingsPage() {
                                       e.stopPropagation();
                                       setClickedRejectReason(null);
                                     }}
-                                    className="mt-2 text-xs text-gray-400 hover:text-white underline"
+                                    className="mt-3 w-full text-center text-xs text-gray-400 hover:text-white underline"
                                   >
                                     關閉
                                   </button>
