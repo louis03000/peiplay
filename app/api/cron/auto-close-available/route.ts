@@ -6,10 +6,12 @@ export const runtime = 'nodejs';
 
 /**
  * 自動關閉「現在有空」開關的 Cron Job
- * 每30分鐘自動關閉開啟超過30分鐘的「現在有空」狀態
+ * 每天凌晨1點自動關閉開啟超過30分鐘的「現在有空」狀態
  * 
- * 在 Vercel 中，這個 endpoint 需要通過 vercel.json 配置 cron 任務
- * 或者在 Vercel Dashboard 中設置 cron job
+ * ⚠️ 注意：Vercel Hobby 計劃的 Cron Jobs 每天只能執行一次
+ * 如果需要更頻繁的檢查，請升級到 Pro 計劃或使用其他方式實現
+ * 
+ * 在 Vercel 中，這個 endpoint 通過 vercel.json 配置 cron 任務
  */
 export async function GET(request: Request) {
   // 驗證 cron secret（如果設置了）
