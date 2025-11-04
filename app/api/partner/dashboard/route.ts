@@ -57,15 +57,22 @@ export async function GET() {
     }
 
     // 處理時段數據 - 簡化 booked 邏輯
-    const schedules = partner.schedules.map(schedule => ({
-      id: schedule.id,
-      date: schedule.date,
-      startTime: schedule.startTime,
-      endTime: schedule.endTime,
-      isAvailable: schedule.isAvailable,
-      booked: schedule.bookings?.status && 
-               !['CANCELLED', 'REJECTED'].includes(schedule.bookings.status)
-    }));
+    const schedules = partner.schedules.map(schedule => {
+      // bookings 可能是 null 或單一物件
+      const booking = schedule.bookings;
+      const isBooked = booking && 
+                       booking.status && 
+                       !['CANCELLED', 'REJECTED'].includes(booking.status);
+      
+      return {
+        id: schedule.id,
+        date: schedule.date,
+        startTime: schedule.startTime,
+        endTime: schedule.endTime,
+        isAvailable: schedule.isAvailable,
+        booked: !!isBooked
+      };
+    });
 
     // 使用 select 優化群組查詢
     const groupBookings = await prisma.groupBooking.findMany({
