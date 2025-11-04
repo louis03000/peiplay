@@ -273,13 +273,22 @@ export default function PartnerSchedulePage() {
               }
             }
             
-            setPartnerStatus({
+            // 確保從 API 正確讀取狀態（使用 !! 確保是 boolean）
+            const partnerStatusData = {
               id: data.partner.id,
               isAvailableNow: isAvailableNow,
-              isRankBooster: !!data.partner.isRankBooster, // 從數據庫恢復狀態
-              allowGroupBooking: !!data.partner.allowGroupBooking, // 從數據庫恢復狀態
+              isRankBooster: !!data.partner.isRankBooster, // 從數據庫恢復狀態，確保是 boolean
+              allowGroupBooking: !!data.partner.allowGroupBooking, // 從數據庫恢復狀態，確保是 boolean
               availableNowSince: availableNowSince
+            };
+            
+            console.log('📥 從數據庫載入狀態:', {
+              isAvailableNow: partnerStatusData.isAvailableNow,
+              isRankBooster: partnerStatusData.isRankBooster,
+              allowGroupBooking: partnerStatusData.allowGroupBooking
             });
+            
+            setPartnerStatus(partnerStatusData);
             setRankBoosterImages(data.partner.rankBoosterImages || []);
             setPartnerGames(data.partner.games || []);
             setSchedules(data.schedules || []);
@@ -310,44 +319,38 @@ export default function PartnerSchedulePage() {
       
       // 無論 API 是否成功，都嘗試處理數據
       if (data && data.partner) {
-        // 只更新狀態，不要重置（保持「我是上分高手」和「允許群組預約」的狀態）
-        setPartnerStatus(prev => {
-          if (!prev) {
-            // 如果沒有之前的狀態，使用 API 返回的狀態
-            return {
-              id: data.partner.id,
-              isAvailableNow: !!data.partner.isAvailableNow,
-              isRankBooster: !!data.partner.isRankBooster,
-              allowGroupBooking: !!data.partner.allowGroupBooking,
-              availableNowSince: data.partner.availableNowSince
-            };
+        // 直接使用 API 返回的狀態（數據庫中的真實狀態）
+        let isAvailableNow = !!data.partner.isAvailableNow;
+        let availableNowSince = data.partner.availableNowSince;
+        
+        // 如果「現在有空」是開啟的，檢查是否超過30分鐘
+        if (isAvailableNow && availableNowSince) {
+          const openedAt = new Date(availableNowSince);
+          const now = new Date();
+          const elapsed = now.getTime() - openedAt.getTime();
+          if (elapsed > 30 * 60 * 1000) {
+            // 超過30分鐘，自動關閉
+            isAvailableNow = false;
+            availableNowSince = null;
           }
-          // 如果有之前的狀態，只更新必要的欄位
-          // 對於「我是上分高手」和「允許群組預約」，優先使用 API 返回的狀態（因為這是數據庫中的真實狀態）
-          // 對於「現在有空」，需要檢查是否超過30分鐘，如果超過則自動關閉
-          let isAvailableNow = !!data.partner.isAvailableNow;
-          let availableNowSince = data.partner.availableNowSince;
-          
-          // 如果「現在有空」是開啟的，檢查是否超過30分鐘
-          if (isAvailableNow && availableNowSince) {
-            const openedAt = new Date(availableNowSince);
-            const now = new Date();
-            const elapsed = now.getTime() - openedAt.getTime();
-            if (elapsed > 30 * 60 * 1000) {
-              // 超過30分鐘，自動關閉
-              isAvailableNow = false;
-              availableNowSince = null;
-            }
-          }
-          
-          return {
-            id: data.partner.id,
-            isAvailableNow: isAvailableNow,
-            isRankBooster: !!data.partner.isRankBooster, // 使用 API 返回的狀態（數據庫中的真實狀態）
-            allowGroupBooking: !!data.partner.allowGroupBooking, // 使用 API 返回的狀態（數據庫中的真實狀態）
-            availableNowSince: availableNowSince
-          };
+        }
+        
+        // 使用 API 返回的狀態（數據庫中的真實狀態）
+        const newStatus = {
+          id: data.partner.id,
+          isAvailableNow: isAvailableNow,
+          isRankBooster: !!data.partner.isRankBooster, // 使用 API 返回的狀態（數據庫中的真實狀態）
+          allowGroupBooking: !!data.partner.allowGroupBooking, // 使用 API 返回的狀態（數據庫中的真實狀態）
+          availableNowSince: availableNowSince
+        };
+        
+        console.log('🔄 refreshData 更新狀態:', {
+          isAvailableNow: newStatus.isAvailableNow,
+          isRankBooster: newStatus.isRankBooster,
+          allowGroupBooking: newStatus.allowGroupBooking
         });
+        
+        setPartnerStatus(newStatus);
         setRankBoosterImages(data.partner.rankBoosterImages || []);
         setPartnerGames(data.partner.games || []);
         setSchedules(data.schedules || []);
@@ -642,6 +645,9 @@ export default function PartnerSchedulePage() {
   };
 
   const handleToggle = async (field: 'isAvailableNow' | 'isRankBooster' | 'allowGroupBooking', value: boolean) => {
+    // 保存舊狀態，以便在 API 失敗時回滾
+    const oldStatus = partnerStatus;
+    
     const updateData: any = { [field]: value };
     
     // 如果是開啟「現在有空」，記錄開啟時間
@@ -653,13 +659,42 @@ export default function PartnerSchedulePage() {
       updateData.availableNowSince = null;
     }
     
+    // 先更新本地狀態（樂觀更新）
     setPartnerStatus(prev => prev ? { ...prev, [field]: value, availableNowSince: updateData.availableNowSince } : prev);
     
-    await fetch('/api/partners/self', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(updateData)
-    });
+    try {
+      const response = await fetch('/api/partners/self', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updateData)
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || '更新失敗');
+      }
+      
+      const result = await response.json();
+      // API 成功後，使用 API 返回的狀態確保同步
+      if (result.partner) {
+        setPartnerStatus({
+          id: result.partner.id,
+          isAvailableNow: !!result.partner.isAvailableNow,
+          isRankBooster: !!result.partner.isRankBooster,
+          allowGroupBooking: !!result.partner.allowGroupBooking,
+          availableNowSince: result.partner.availableNowSince
+        });
+      }
+      
+      console.log(`✅ ${field} 已更新為 ${value}`);
+    } catch (error) {
+      console.error(`❌ 更新 ${field} 失敗:`, error);
+      // API 失敗時，回滾到舊狀態
+      if (oldStatus) {
+        setPartnerStatus(oldStatus);
+      }
+      alert(`更新失敗，請重試: ${error instanceof Error ? error.message : '未知錯誤'}`);
+    }
   };
 
   const getCellStyle = (state: CellState) => {

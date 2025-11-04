@@ -112,38 +112,39 @@ export async function GET() {
       groupsCount: groups.length
     });
 
-    return NextResponse.json({
+    // 確保返回正確的狀態值（可能是 boolean 或 null）
+    const result = {
       partner: {
         id: partner.id,
-        isAvailableNow: partner.isAvailableNow,
-        isRankBooster: partner.isRankBooster,
-        allowGroupBooking: partner.allowGroupBooking,
+        isAvailableNow: !!partner.isAvailableNow, // 確保是 boolean
+        isRankBooster: !!partner.isRankBooster, // 確保是 boolean
+        allowGroupBooking: !!partner.allowGroupBooking, // 確保是 boolean
         availableNowSince: partner.availableNowSince,
-        rankBoosterImages: partner.rankBoosterImages,
+        rankBoosterImages: partner.rankBoosterImages || [],
         games: partner.games || []
       },
       schedules,
       groups
+    };
+    
+    console.log('📊 返回夥伴狀態:', {
+      isAvailableNow: result.partner.isAvailableNow,
+      isRankBooster: result.partner.isRankBooster,
+      allowGroupBooking: result.partner.allowGroupBooking
     });
+    
+    return NextResponse.json(result);
 
   } catch (error) {
     console.error('❌ 獲取夥伴儀表板失敗:', error);
     
-    // 直接返回空數據，不要重試（避免長時間等待）
+    // 返回錯誤，讓前端處理（不要返回 false 狀態，避免誤導）
     return NextResponse.json({
-      partner: {
-        id: '',
-        isAvailableNow: false,
-        isRankBooster: false,
-        allowGroupBooking: false,
-        availableNowSince: null,
-        rankBoosterImages: [],
-        games: []
-      },
-      schedules: [],
-      groups: [],
       error: '獲取夥伴儀表板失敗',
-      details: error instanceof Error ? error.message : 'Unknown error'
-    });
+      details: error instanceof Error ? error.message : 'Unknown error',
+      partner: null, // 明確標記為 null，讓前端知道這是錯誤情況
+      schedules: [],
+      groups: []
+    }, { status: 500 });
   }
 }
