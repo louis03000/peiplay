@@ -1,4 +1,19 @@
 import nodemailer from 'nodemailer';
+
+// 輔助函數：格式化時間為台灣時區（Asia/Taipei, UTC+8）
+function formatTaiwanTime(dateString: string | Date): string {
+  const date = typeof dateString === 'string' ? new Date(dateString) : dateString;
+  return date.toLocaleString('zh-TW', {
+    timeZone: 'Asia/Taipei',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false
+  }).replace(/,/g, ' ').replace(/\//g, '/');
+}
 import { NotificationType } from './messaging';
 
 // 創建 Gmail SMTP 傳輸器
@@ -56,11 +71,11 @@ export async function sendBookingConfirmationEmail(
               </tr>
               <tr>
                 <td style="padding: 8px 0; color: #666;"><strong>開始時間：</strong></td>
-                <td style="padding: 8px 0; color: #333;">${new Date(bookingDetails.startTime).toLocaleString('zh-TW')}</td>
+                <td style="padding: 8px 0; color: #333;">${formatTaiwanTime(bookingDetails.startTime)}</td>
               </tr>
               <tr>
                 <td style="padding: 8px 0; color: #666;"><strong>結束時間：</strong></td>
-                <td style="padding: 8px 0; color: #333;">${new Date(bookingDetails.endTime).toLocaleString('zh-TW')}</td>
+                <td style="padding: 8px 0; color: #333;">${formatTaiwanTime(bookingDetails.endTime)}</td>
               </tr>
               <tr>
                 <td style="padding: 8px 0; color: #666;"><strong>時長：</strong></td>
@@ -162,11 +177,11 @@ export async function sendBookingNotificationToPartner(
               </tr>
               <tr>
                 <td style="padding: 8px 0; color: #666;"><strong>開始時間：</strong></td>
-                <td style="padding: 8px 0; color: #333;">${new Date(bookingDetails.startTime).toLocaleString('zh-TW')}</td>
+                <td style="padding: 8px 0; color: #333;">${formatTaiwanTime(bookingDetails.startTime)}</td>
               </tr>
               <tr>
                 <td style="padding: 8px 0; color: #666;"><strong>結束時間：</strong></td>
-                <td style="padding: 8px 0; color: #333;">${new Date(bookingDetails.endTime).toLocaleString('zh-TW')}</td>
+                <td style="padding: 8px 0; color: #333;">${formatTaiwanTime(bookingDetails.endTime)}</td>
               </tr>
               <tr>
                 <td style="padding: 8px 0; color: #666;"><strong>時長：</strong></td>
@@ -352,11 +367,11 @@ export async function sendBookingCancellationNotification(
               </tr>
               <tr>
                 <td style="padding: 8px 0; color: #666;"><strong>開始時間：</strong></td>
-                <td style="padding: 8px 0; color: #333;">${new Date(bookingDetails.startTime).toLocaleString('zh-TW')}</td>
+                <td style="padding: 8px 0; color: #333;">${formatTaiwanTime(bookingDetails.startTime)}</td>
               </tr>
               <tr>
                 <td style="padding: 8px 0; color: #666;"><strong>結束時間：</strong></td>
-                <td style="padding: 8px 0; color: #333;">${new Date(bookingDetails.endTime).toLocaleString('zh-TW')}</td>
+                <td style="padding: 8px 0; color: #333;">${formatTaiwanTime(bookingDetails.endTime)}</td>
               </tr>
               ${bookingDetails.reason ? `
               <tr>
@@ -456,7 +471,7 @@ export async function sendNotificationToEmail(
               </tr>
               <tr>
                 <td style="padding: 8px 0; color: #666;"><strong>時間：</strong></td>
-                <td style="padding: 8px 0; color: #333;">${new Date(notificationData.createdAt).toLocaleString('zh-TW')}</td>
+                <td style="padding: 8px 0; color: #333;">${formatTaiwanTime(notificationData.createdAt)}</td>
               </tr>
             </table>
             
@@ -681,11 +696,11 @@ export async function sendBookingNotificationEmail(
               </tr>
               <tr>
                 <td style="padding: 8px 0; color: #666;"><strong>預約時間：</strong></td>
-                <td style="padding: 8px 0; color: #333;">${new Date(bookingDetails.startTime).toLocaleString('zh-TW')}</td>
+                <td style="padding: 8px 0; color: #333;">${formatTaiwanTime(bookingDetails.startTime)}</td>
               </tr>
               <tr>
                 <td style="padding: 8px 0; color: #666;"><strong>結束時間：</strong></td>
-                <td style="padding: 8px 0; color: #333;">${new Date(bookingDetails.endTime).toLocaleString('zh-TW')}</td>
+                <td style="padding: 8px 0; color: #333;">${formatTaiwanTime(bookingDetails.endTime)}</td>
               </tr>
               <tr>
                 <td style="padding: 8px 0; color: #666;"><strong>時長：</strong></td>
@@ -781,11 +796,11 @@ export async function sendBookingRejectionEmail(
               </tr>
               <tr>
                 <td style="padding: 8px 0; color: #666;"><strong>預約時間：</strong></td>
-                <td style="padding: 8px 0; color: #333;">${new Date(bookingDetails.startTime).toLocaleString('zh-TW')}</td>
+                <td style="padding: 8px 0; color: #333;">${formatTaiwanTime(bookingDetails.startTime)}</td>
               </tr>
               <tr>
                 <td style="padding: 8px 0; color: #666;"><strong>結束時間：</strong></td>
-                <td style="padding: 8px 0; color: #333;">${new Date(bookingDetails.endTime).toLocaleString('zh-TW')}</td>
+                <td style="padding: 8px 0; color: #333;">${formatTaiwanTime(bookingDetails.endTime)}</td>
               </tr>
               <tr>
                 <td style="padding: 8px 0; color: #666;"><strong>預約 ID：</strong></td>
