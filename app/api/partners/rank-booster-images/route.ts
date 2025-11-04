@@ -39,15 +39,35 @@ export async function POST(request: NextRequest) {
     }
 
     // 檢查是否為夥伴
-    const partner = await prisma.partner.findUnique({
-      where: { userId: session.user.id }
-    })
+    let partner;
+    try {
+      partner = await prisma.partner.findUnique({
+        where: { userId: session.user.id }
+      })
+    } catch (dbError) {
+      console.error('查詢夥伴資料時發生錯誤:', dbError)
+      return NextResponse.json({ 
+        error: '查詢夥伴資料失敗',
+        details: dbError instanceof Error ? dbError.message : 'Unknown error'
+      }, { status: 500 })
+    }
 
     if (!partner) {
       return NextResponse.json({ error: '您不是夥伴' }, { status: 403 })
     }
 
-    const { images } = await request.json()
+    let requestBody;
+    try {
+      requestBody = await request.json()
+    } catch (parseError) {
+      console.error('解析請求內容時發生錯誤:', parseError)
+      return NextResponse.json({ 
+        error: '請求格式錯誤',
+        details: parseError instanceof Error ? parseError.message : 'Unknown error'
+      }, { status: 400 })
+    }
+
+    const { images } = requestBody
 
     if (!images || !Array.isArray(images)) {
       return NextResponse.json({ error: '請提供有效的圖片陣列' }, { status: 400 })
@@ -61,17 +81,30 @@ export async function POST(request: NextRequest) {
     const imageUrlPattern = /^https?:\/\/.+/i
     for (const image of images) {
       if (typeof image !== 'string' || !imageUrlPattern.test(image)) {
-        return NextResponse.json({ error: '請提供有效的圖片URL' }, { status: 400 })
+        return NextResponse.json({ 
+          error: '請提供有效的圖片URL',
+          details: `無效的圖片URL: ${image}`
+        }, { status: 400 })
       }
     }
 
     // 更新夥伴的段位證明圖片
-    const updatedPartner = await prisma.partner.update({
-      where: { id: partner.id },
-      data: {
-        rankBoosterImages: images
-      }
-    })
+    let updatedPartner;
+    try {
+      updatedPartner = await prisma.partner.update({
+        where: { id: partner.id },
+        data: {
+          rankBoosterImages: images
+        }
+      })
+    } catch (updateError) {
+      console.error('更新夥伴資料時發生錯誤:', updateError)
+      return NextResponse.json({ 
+        error: '更新段位證明圖片失敗',
+        details: updateError instanceof Error ? updateError.message : 'Unknown error',
+        stack: updateError instanceof Error ? updateError.stack : undefined
+      }, { status: 500 })
+    }
 
     return NextResponse.json({
       success: true,
@@ -80,7 +113,11 @@ export async function POST(request: NextRequest) {
     })
 
   } catch (error) {
-    console.error('更新段位證明圖片時發生錯誤:', error)
-    return NextResponse.json({ error: '更新段位證明圖片失敗' }, { status: 500 })
+    console.error('更新段位證明圖片時發生未預期的錯誤:', error)
+    return NextResponse.json({ 
+      error: '更新段位證明圖片失敗',
+      details: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined
+    }, { status: 500 })
   }
 }

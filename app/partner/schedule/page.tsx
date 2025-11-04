@@ -204,12 +204,15 @@ export default function PartnerSchedulePage() {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || '保存圖片失敗');
+        const errorData = await response.json().catch(() => ({}));
+        const errorMessage = errorData.error || errorData.details || '保存圖片失敗';
+        console.error('保存圖片失敗:', errorData);
+        throw new Error(errorMessage);
       }
 
+      const result = await response.json();
       // 成功提示
-      console.log('圖片上傳成功');
+      console.log('圖片上傳成功:', result);
 
     } catch (error) {
       console.error('上傳圖片失敗:', error);
