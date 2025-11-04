@@ -214,8 +214,8 @@ export async function GET(request: Request) {
           images = [...images, ...partner.rankBoosterImages];
         }
         
-        // 最多顯示3張（封面照優先，段位證明圖片在後面）
-        images = images.slice(0, 3);
+        // 最多顯示8張（封面照優先，段位證明圖片在後面）
+        images = images.slice(0, 8);
         
         // 獲取該夥伴的時段（如果有的話）
         const schedules = schedulesMap.get(partner.id) || [];

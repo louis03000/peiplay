@@ -40,9 +40,10 @@ const PartnerCard = memo(function PartnerCard({ partner, onQuickBook, showNextSt
   const [touchEnd, setTouchEnd] = useState<number | null>(null)
 
   // 獲取要顯示的圖片陣列：優先使用 images，如果沒有則使用 coverImage
+  // 顯示順序：封面照 → 段位證明圖片，最多8張
   const displayImages = useMemo(() => {
     if (partner.images && partner.images.length > 0) {
-      return partner.images.slice(0, 3) // 最多顯示3張
+      return partner.images.slice(0, 8) // 最多顯示8張（封面照 + 段位證明圖片）
     } else if (partner.coverImage) {
       return [partner.coverImage]
     }

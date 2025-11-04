@@ -248,12 +248,37 @@ export default function PartnerSchedulePage() {
             setHasPartner(true);
             setLoading(false);
             setError(null);
+            // 從數據庫獲取真實狀態（確保「我是上分高手」和「允許群組預約」的狀態正確恢復）
+            let isAvailableNow = !!data.partner.isAvailableNow;
+            let availableNowSince = data.partner.availableNowSince;
+            
+            // 如果「現在有空」是開啟的，檢查是否超過30分鐘
+            if (isAvailableNow && availableNowSince) {
+              const openedAt = new Date(availableNowSince);
+              const now = new Date();
+              const elapsed = now.getTime() - openedAt.getTime();
+              if (elapsed > 30 * 60 * 1000) {
+                // 超過30分鐘，自動關閉
+                isAvailableNow = false;
+                availableNowSince = null;
+                // 更新數據庫中的狀態
+                fetch('/api/partners/self', {
+                  method: 'PATCH',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ 
+                    isAvailableNow: false, 
+                    availableNowSince: null 
+                  })
+                }).catch(err => console.error('自動關閉失敗:', err));
+              }
+            }
+            
             setPartnerStatus({
               id: data.partner.id,
-              isAvailableNow: !!data.partner.isAvailableNow,
-              isRankBooster: !!data.partner.isRankBooster,
-              allowGroupBooking: !!data.partner.allowGroupBooking,
-              availableNowSince: data.partner.availableNowSince
+              isAvailableNow: isAvailableNow,
+              isRankBooster: !!data.partner.isRankBooster, // 從數據庫恢復狀態
+              allowGroupBooking: !!data.partner.allowGroupBooking, // 從數據庫恢復狀態
+              availableNowSince: availableNowSince
             });
             setRankBoosterImages(data.partner.rankBoosterImages || []);
             setPartnerGames(data.partner.games || []);
@@ -276,7 +301,7 @@ export default function PartnerSchedulePage() {
           }
         });
     }
-  }, [mounted, status, session, router]);
+  }, [mounted, status, session, router, retryCount]);
 
   const refreshData = async () => {
     try {
@@ -285,12 +310,43 @@ export default function PartnerSchedulePage() {
       
       // 無論 API 是否成功，都嘗試處理數據
       if (data && data.partner) {
-        setPartnerStatus({
-          id: data.partner.id,
-          isAvailableNow: !!data.partner.isAvailableNow,
-          isRankBooster: !!data.partner.isRankBooster,
-          allowGroupBooking: !!data.partner.allowGroupBooking,
-          availableNowSince: data.partner.availableNowSince
+        // 只更新狀態，不要重置（保持「我是上分高手」和「允許群組預約」的狀態）
+        setPartnerStatus(prev => {
+          if (!prev) {
+            // 如果沒有之前的狀態，使用 API 返回的狀態
+            return {
+              id: data.partner.id,
+              isAvailableNow: !!data.partner.isAvailableNow,
+              isRankBooster: !!data.partner.isRankBooster,
+              allowGroupBooking: !!data.partner.allowGroupBooking,
+              availableNowSince: data.partner.availableNowSince
+            };
+          }
+          // 如果有之前的狀態，只更新必要的欄位
+          // 對於「我是上分高手」和「允許群組預約」，優先使用 API 返回的狀態（因為這是數據庫中的真實狀態）
+          // 對於「現在有空」，需要檢查是否超過30分鐘，如果超過則自動關閉
+          let isAvailableNow = !!data.partner.isAvailableNow;
+          let availableNowSince = data.partner.availableNowSince;
+          
+          // 如果「現在有空」是開啟的，檢查是否超過30分鐘
+          if (isAvailableNow && availableNowSince) {
+            const openedAt = new Date(availableNowSince);
+            const now = new Date();
+            const elapsed = now.getTime() - openedAt.getTime();
+            if (elapsed > 30 * 60 * 1000) {
+              // 超過30分鐘，自動關閉
+              isAvailableNow = false;
+              availableNowSince = null;
+            }
+          }
+          
+          return {
+            id: data.partner.id,
+            isAvailableNow: isAvailableNow,
+            isRankBooster: !!data.partner.isRankBooster, // 使用 API 返回的狀態（數據庫中的真實狀態）
+            allowGroupBooking: !!data.partner.allowGroupBooking, // 使用 API 返回的狀態（數據庫中的真實狀態）
+            availableNowSince: availableNowSince
+          };
         });
         setRankBoosterImages(data.partner.rankBoosterImages || []);
         setPartnerGames(data.partner.games || []);
@@ -302,31 +358,42 @@ export default function PartnerSchedulePage() {
           console.warn('API 警告:', data.error);
         }
       } else {
-        // 如果沒有數據，設置默認值
-        setPartnerStatus({
-          id: '',
-          isAvailableNow: false,
-          isRankBooster: false,
-          allowGroupBooking: false,
-          availableNowSince: null
+        // 如果沒有數據，只有在初始化時才設置默認值（不重置已有狀態）
+        setPartnerStatus(prev => {
+          if (!prev) {
+            return {
+              id: '',
+              isAvailableNow: false,
+              isRankBooster: false,
+              allowGroupBooking: false,
+              availableNowSince: null
+            };
+          }
+          // 如果已有狀態，保持不變
+          return prev;
         });
-        setRankBoosterImages([]);
-        setSchedules([]);
-        setMyGroups([]);
+        // 其他數據只有在沒有數據時才重置
+        if (!data || !data.partner) {
+          // 只有在真正沒有數據時才重置（避免覆蓋已存在的狀態）
+          // 這裡不重置，因為可能是臨時錯誤
+        }
       }
     } catch (error) {
       console.error('Error refreshing data:', error);
-      // 設置默認值，避免頁面崩潰
-      setPartnerStatus({
-        id: '',
-        isAvailableNow: false,
-        isRankBooster: false,
-        allowGroupBooking: false,
-        availableNowSince: null
+      // 錯誤時不重置狀態，保持當前狀態（避免網絡問題導致狀態丟失）
+      // 只有在初始化時才設置默認值
+      setPartnerStatus(prev => {
+        if (!prev) {
+          return {
+            id: '',
+            isAvailableNow: false,
+            isRankBooster: false,
+            allowGroupBooking: false,
+            availableNowSince: null
+          };
+        }
+        return prev;
       });
-      setRankBoosterImages([]);
-      setSchedules([]);
-      setMyGroups([]);
     }
   };
 
