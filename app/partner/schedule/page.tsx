@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { Switch } from '@headlessui/react';
@@ -58,6 +58,7 @@ export default function PartnerSchedulePage() {
   const [myGroups, setMyGroups] = useState<any[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
+  const autoCloseTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -78,11 +79,68 @@ export default function PartnerSchedulePage() {
     document.head.appendChild(style);
   }, []);
 
-  // 定期更新夥伴狀態（包括自動關閉檢查）
+  // 設置30分鐘自動關閉定時器
+  useEffect(() => {
+    // 清除之前的定時器
+    if (autoCloseTimerRef.current) {
+      clearTimeout(autoCloseTimerRef.current);
+      autoCloseTimerRef.current = null;
+    }
+
+    // 如果「現在有空」是開啟的，設置30分鐘後自動關閉
+    if (partnerStatus?.isAvailableNow && partnerStatus?.availableNowSince) {
+      const openedAt = new Date(partnerStatus.availableNowSince);
+      const now = new Date();
+      const elapsed = now.getTime() - openedAt.getTime();
+      const remaining = 30 * 60 * 1000 - elapsed; // 30分鐘的毫秒數
+
+      if (remaining > 0) {
+        // 如果還沒超過30分鐘，設置剩餘時間的定時器
+        autoCloseTimerRef.current = setTimeout(async () => {
+          // 30分鐘後自動關閉
+          const updateData = { 
+            isAvailableNow: false, 
+            availableNowSince: null 
+          };
+          setPartnerStatus(prev => prev ? { ...prev, isAvailableNow: false, availableNowSince: null } : prev);
+          await fetch('/api/partners/self', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(updateData)
+          });
+          console.log('⏰ 「現在有空」已自動關閉（30分鐘後）');
+        }, remaining);
+        console.log(`⏰ 設置「現在有空」自動關閉定時器，剩餘時間: ${Math.round(remaining / 1000 / 60)} 分鐘`);
+      } else {
+        // 如果已經超過30分鐘，立即關閉
+        console.log('⏰ 「現在有空」已開啟超過30分鐘，立即關閉');
+        const updateData = { 
+          isAvailableNow: false, 
+          availableNowSince: null 
+        };
+        setPartnerStatus(prev => prev ? { ...prev, isAvailableNow: false, availableNowSince: null } : prev);
+        fetch('/api/partners/self', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(updateData)
+        }).catch(err => console.error('自動關閉失敗:', err));
+      }
+    }
+
+    // 清理函數：組件卸載時清除定時器
+    return () => {
+      if (autoCloseTimerRef.current) {
+        clearTimeout(autoCloseTimerRef.current);
+        autoCloseTimerRef.current = null;
+      }
+    };
+  }, [partnerStatus?.isAvailableNow, partnerStatus?.availableNowSince]);
+
+  // 定期更新夥伴狀態（同步後端狀態，不自動關閉）
   useEffect(() => {
     if (!mounted) return;
 
-    // 每2分鐘更新一次狀態（檢查是否被後台自動關閉）
+    // 每2分鐘更新一次狀態（檢查是否被後台自動關閉或手動修改）
     const interval = setInterval(() => refreshData(), 2 * 60 * 1000);
 
     return () => clearInterval(interval);
