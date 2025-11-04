@@ -20,16 +20,14 @@ export async function GET() {
     }
 
     // Prisma 會自動管理連接池
+    // 只查詢必要的欄位，減少查詢時間
     const partner = await prisma.partner.findUnique({
       where: { userId: session.user.id },
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true
-          }
-        }
+      select: {
+        id: true,
+        name: true,
+        status: true,
+        // 只返回必要的欄位，不包含 user 關係（導航欄只需要 status）
       }
     });
 

@@ -38,22 +38,38 @@ export default function Navigation() {
         ? sessionStorage.getItem(`partner_status_timestamp_${session.user.id}`)
         : null
       
-      // 如果緩存存在且未過期（5分鐘內），直接使用
-      if (cachedPartnerStatus && cachedTimestamp && cachedPartnerStatus !== 'NONE') {
+      // 如果緩存存在且未過期，直接使用
+      if (cachedPartnerStatus && cachedTimestamp) {
         const cacheAge = Date.now() - parseInt(cachedTimestamp)
-        if (cacheAge < 5 * 60 * 1000) { // 5分鐘內有效
+        // 有夥伴的緩存時間：10分鐘；沒有夥伴的緩存時間：2分鐘
+        const cacheTimeout = cachedPartnerStatus === 'NONE' ? 2 * 60 * 1000 : 10 * 60 * 1000
+        
+        if (cacheAge < cacheTimeout) {
           const isApproved = cachedPartnerStatus === 'APPROVED'
           setHasPartner(isApproved)
-          setIsPartner(true)
+          setIsPartner(cachedPartnerStatus !== 'NONE')
           setPartnerLoading(false)
           
-          // 在背景更新，不阻塞 UI
-          checkPartnerStatusBackground()
+          // 在背景更新，不阻塞 UI（只在緩存快過期時才更新）
+          if (cacheAge > cacheTimeout * 0.8) {
+            checkPartnerStatusBackground()
+          }
           return
         }
       }
       
-      setPartnerLoading(true)
+      // 如果有過期緩存，先使用它（樂觀更新），然後在背景更新
+      if (cachedPartnerStatus && cachedPartnerStatus !== 'NONE') {
+        const isApproved = cachedPartnerStatus === 'APPROVED'
+        setHasPartner(isApproved)
+        setIsPartner(true)
+        setPartnerLoading(false) // 不顯示載入中，直接使用緩存
+      } else {
+        // 沒有緩存時，才顯示載入中
+        setPartnerLoading(true)
+      }
+      
+      // 在背景更新，不阻塞 UI
       checkPartnerStatus()
     } else {
       setHasPartner(false)
@@ -69,12 +85,19 @@ export default function Navigation() {
     // 快速檢查夥伴狀態
     async function checkPartnerStatus() {
       try {
+        // 使用 AbortController 設置超時（5秒）
+        const controller = new AbortController()
+        const timeoutId = setTimeout(() => controller.abort(), 5000)
+        
         const res = await fetch('/api/partners/self', {
           cache: 'no-store', // 禁用緩存，確保獲取最新數據
+          signal: controller.signal,
           headers: {
             'Cache-Control': 'no-cache'
           }
         })
+        
+        clearTimeout(timeoutId)
         
         if (res.ok) {
           const data = await res.json()
@@ -91,7 +114,7 @@ export default function Navigation() {
               sessionStorage.setItem(`partner_status_${session?.user?.id}`, data.partner.status || '')
               sessionStorage.setItem(`partner_status_timestamp_${session?.user?.id}`, Date.now().toString())
             } else {
-              // 如果沒有夥伴，也緩存這個結果（但時間較短，30秒）
+              // 如果沒有夥伴，也緩存這個結果（2分鐘）
               sessionStorage.setItem(`partner_status_${session?.user?.id}`, 'NONE')
               sessionStorage.setItem(`partner_status_timestamp_${session?.user?.id}`, Date.now().toString())
             }
@@ -113,8 +136,14 @@ export default function Navigation() {
             setIsPartner(false)
           }
         }
-      } catch (error) {
-        console.error('檢查夥伴狀態失敗:', error)
+      } catch (error: any) {
+        // 如果是超時錯誤，不記錄錯誤，只使用緩存
+        if (error?.name === 'AbortError') {
+          console.warn('夥伴狀態檢查超時，使用緩存')
+        } else {
+          console.error('檢查夥伴狀態失敗:', error)
+        }
+        
         // 網絡錯誤時，不清除緩存，保持當前狀態
         setPartnerLoading(false)
         // 如果沒有緩存，才設置為 false
@@ -134,12 +163,19 @@ export default function Navigation() {
     // 背景更新（不影響 UI）
     async function checkPartnerStatusBackground() {
       try {
+        // 背景更新也設置超時（5秒）
+        const controller = new AbortController()
+        const timeoutId = setTimeout(() => controller.abort(), 5000)
+        
         const res = await fetch('/api/partners/self', {
           cache: 'no-store',
+          signal: controller.signal,
           headers: {
             'Cache-Control': 'no-cache'
           }
         })
+        
+        clearTimeout(timeoutId)
         if (res.ok) {
           const data = await res.json()
           const hasPartner = !!data?.partner
