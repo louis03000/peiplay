@@ -285,7 +285,7 @@ export default function Navigation() {
                 {/* 登出 */}
                 <div className="border-t border-gray-200 mt-2 pt-2">
                   <button 
-                    onClick={() => signOut()} 
+                    onClick={() => signOut({ callbackUrl: '/auth/login' })} 
                     className="w-full flex items-center space-x-3 text-red-500 hover:text-red-700 hover:bg-red-50 transition-colors rounded-lg px-4 py-3"
                   >
                     <span className="text-xl">🚪</span>

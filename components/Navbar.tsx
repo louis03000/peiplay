@@ -342,7 +342,7 @@ export default function Navbar() {
                 {/* 登出 */}
                 <div className="border-t border-gray-200 mt-1 pt-1">
                   <button 
-                    onClick={() => signOut()} 
+                    onClick={() => signOut({ callbackUrl: '/auth/login' })} 
                     className="w-full flex items-center justify-center space-x-2 text-red-500 hover:text-red-700 hover:bg-red-50 transition-colors rounded-lg px-3 py-2"
                   >
                     <span className="text-lg">🚪</span>
