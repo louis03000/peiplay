@@ -60,17 +60,20 @@ export async function GET() {
     const schedules = partner.schedules.map(schedule => {
       // bookings 可能是 null 或單一物件
       const booking = schedule.bookings;
-      const isBooked = booking && 
-                       booking.status && 
-                       !['CANCELLED', 'REJECTED'].includes(booking.status);
+      let isBooked = false;
+      
+      if (booking && booking.status) {
+        const status = String(booking.status);
+        isBooked = !['CANCELLED', 'REJECTED'].includes(status);
+      }
       
       return {
         id: schedule.id,
-        date: schedule.date,
-        startTime: schedule.startTime,
-        endTime: schedule.endTime,
+        date: schedule.date instanceof Date ? schedule.date.toISOString() : schedule.date,
+        startTime: schedule.startTime instanceof Date ? schedule.startTime.toISOString() : schedule.startTime,
+        endTime: schedule.endTime instanceof Date ? schedule.endTime.toISOString() : schedule.endTime,
         isAvailable: schedule.isAvailable,
-        booked: !!isBooked
+        booked: isBooked
       };
     });
 
@@ -108,8 +111,8 @@ export async function GET() {
       currentParticipants: group._count.GroupBookingParticipant,
       pricePerPerson: group.pricePerPerson,
       games: group.games || [],
-      startTime: group.startTime,
-      endTime: group.endTime,
+      startTime: group.startTime instanceof Date ? group.startTime.toISOString() : group.startTime,
+      endTime: group.endTime instanceof Date ? group.endTime.toISOString() : group.endTime,
       status: group.status
     }));
 
@@ -126,7 +129,7 @@ export async function GET() {
         isAvailableNow: !!partner.isAvailableNow, // 確保是 boolean
         isRankBooster: !!partner.isRankBooster, // 確保是 boolean
         allowGroupBooking: !!partner.allowGroupBooking, // 確保是 boolean
-        availableNowSince: partner.availableNowSince,
+        availableNowSince: partner.availableNowSince instanceof Date ? partner.availableNowSince.toISOString() : partner.availableNowSince,
         rankBoosterImages: partner.rankBoosterImages || [],
         games: partner.games || []
       },
@@ -142,13 +145,20 @@ export async function GET() {
     
     return NextResponse.json(result);
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ 獲取夥伴儀表板失敗:', error);
+    console.error('❌ 錯誤詳情:', {
+      message: error?.message,
+      code: error?.code,
+      stack: error?.stack,
+      name: error?.name
+    });
     
     // 返回錯誤，讓前端處理（不要返回 false 狀態，避免誤導）
     return NextResponse.json({
       error: '獲取夥伴儀表板失敗',
       details: error instanceof Error ? error.message : 'Unknown error',
+      errorCode: error?.code || 'UNKNOWN',
       partner: null, // 明確標記為 null，讓前端知道這是錯誤情況
       schedules: [],
       groups: []
