@@ -203,11 +203,18 @@ export async function GET(request: Request) {
         return true;
       })
       .map(partner => {
-        // 處理圖片陣列
+        // 處理圖片陣列：先添加封面照（images），然後添加段位證明圖片（rankBoosterImages）
         let images = partner.images || [];
         if (images.length === 0 && partner.coverImage) {
           images = [partner.coverImage];
         }
+        
+        // 如果是上分高手，將段位證明圖片添加到封面照後面
+        if (partner.isRankBooster && partner.rankBoosterImages && partner.rankBoosterImages.length > 0) {
+          images = [...images, ...partner.rankBoosterImages];
+        }
+        
+        // 最多顯示3張（封面照優先，段位證明圖片在後面）
         images = images.slice(0, 3);
         
         // 獲取該夥伴的時段（如果有的話）
