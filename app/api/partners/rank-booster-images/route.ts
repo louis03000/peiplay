@@ -57,10 +57,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '最多只能上傳5張圖片' }, { status: 400 })
     }
 
-    // 驗證圖片URL格式
-    const imageUrlPattern = /^https?:\/\/.+\.(jpg|jpeg|png|gif|webp)$/i
+    // 驗證圖片URL格式（支援 Cloudinary 和其他圖片服務）
+    const imageUrlPattern = /^https?:\/\/.+/i
     for (const image of images) {
-      if (!imageUrlPattern.test(image)) {
+      if (typeof image !== 'string' || !imageUrlPattern.test(image)) {
         return NextResponse.json({ error: '請提供有效的圖片URL' }, { status: 400 })
       }
     }

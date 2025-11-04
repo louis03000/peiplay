@@ -110,13 +110,28 @@ export default function PartnerSchedulePage() {
     });
 
     try {
-      // 這裡應該上傳到圖片存儲服務（如 Cloudinary, AWS S3 等）
-      // 為了演示，我們使用一個模擬的URL
-      const mockImageUrl = `https://via.placeholder.com/300x300/4F46E5/FFFFFF?text=段位證明${index + 1}`;
-      
+      // 上傳圖片到 Cloudinary
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const uploadResponse = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!uploadResponse.ok) {
+        const errorData = await uploadResponse.json();
+        throw new Error(errorData.error || '上傳圖片失敗');
+      }
+
+      const uploadData = await uploadResponse.json();
+      if (!uploadData.url) {
+        throw new Error('上傳後未收到圖片URL');
+      }
+
       // 更新圖片陣列
       const newImages = [...rankBoosterImages];
-      newImages[index] = mockImageUrl;
+      newImages[index] = uploadData.url;
       setRankBoosterImages(newImages);
 
       // 保存到後端
@@ -131,12 +146,21 @@ export default function PartnerSchedulePage() {
       });
 
       if (!response.ok) {
-        throw new Error('保存圖片失敗');
+        const errorData = await response.json();
+        throw new Error(errorData.error || '保存圖片失敗');
       }
+
+      // 成功提示
+      console.log('圖片上傳成功');
 
     } catch (error) {
       console.error('上傳圖片失敗:', error);
-      alert('上傳圖片失敗，請重試');
+      const errorMessage = error instanceof Error ? error.message : '上傳圖片失敗，請重試';
+      alert(errorMessage);
+      // 恢復原來的圖片
+      const newImages = [...rankBoosterImages];
+      newImages[index] = rankBoosterImages[index] || '';
+      setRankBoosterImages(newImages);
     } finally {
       setUploadingImages(prev => {
         const newState = [...prev];
