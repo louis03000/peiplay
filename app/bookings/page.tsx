@@ -366,7 +366,7 @@ export default function BookingsPage() {
       }
       maxWidth="6xl"
     >
-      <div className="bg-white rounded-2xl shadow-lg p-4 sm:p-8">
+      <InfoCard className="p-4 sm:p-8">
 
       {/* Tab 切換按鈕 */}
       <div className="flex justify-center gap-4 sm:gap-6 mb-6 sm:mb-8">
@@ -416,12 +416,13 @@ export default function BookingsPage() {
         </InfoCard>
 
         {/* 資料表格 */}
-      <div className="overflow-x-auto relative shadow-md sm:rounded-lg">
-        {loading ? (
-          <div className="text-center p-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto mb-4"></div>
-            <p className="text-white">正在載入{tab === 'me' ? '預約' : '訂單'}資料...</p>
-          </div>
+        <InfoCard className="overflow-hidden">
+          <div className="overflow-x-auto">
+          {loading ? (
+            <div className="text-center p-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#6C63FF] mx-auto mb-4"></div>
+              <p className="text-gray-600">正在載入{tab === 'me' ? '預約' : '訂單'}資料...</p>
+            </div>
         ) : error ? (
           <div className="text-center p-8">
             <p className="text-red-400">{error}</p>
@@ -749,15 +750,14 @@ export default function BookingsPage() {
           )}
           </div>
         )}
-      </div>
-
-        {/* 統計資訊 */}
-        {bookings.length > 0 && (
-          <div className="mt-6 text-center text-gray-600 text-sm">
-            共找到 {bookings.length} 筆{tab === 'me' ? '預約' : '訂單'}記錄
-          </div>
-        )}
-      </div>
+          {/* 統計資訊 */}
+          {bookings.length > 0 && (
+            <div className="mt-6 text-center text-gray-600 text-sm">
+              共找到 {bookings.length} 筆{tab === 'me' ? '預約' : '訂單'}記錄
+            </div>
+          )}
+        </div>
+      </InfoCard>
     </PartnerPageLayout>
   )
 } 
