@@ -3,6 +3,10 @@
 import { useState, useEffect } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
+import PartnerPageLayout from '@/components/partner/PartnerPageLayout'
+import InfoCard from '@/components/partner/InfoCard'
+import SectionTitle from '@/components/partner/SectionTitle'
+import StatBox from '@/components/partner/StatBox'
 
 interface OrderHistoryItem {
   id: string
@@ -164,99 +168,88 @@ export default function OrderHistoryPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* 頁面標題 */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">接單紀錄</h1>
-          <p className="mt-2 text-gray-600">查看您的所有接單記錄和收入統計</p>
+    <PartnerPageLayout
+      title="接單紀錄"
+      subtitle="查看您的所有接單記錄和收入統計"
+      maxWidth="7xl"
+    >
+      {/* 統計卡片 */}
+      {stats && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+          <StatBox
+            label="總收入"
+            value={`NT$ ${stats.totalEarnings.toLocaleString()}`}
+            iconBgColor="green"
+            icon={
+              <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+              </svg>
+            }
+          />
+          <StatBox
+            label="總接單數"
+            value={`${stats.totalOrders} 筆`}
+            iconBgColor="blue"
+            icon={
+              <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+              </svg>
+            }
+          />
         </div>
+      )}
 
-        {/* 統計卡片 */}
-        {stats && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-            <div className="bg-white rounded-lg shadow p-6">
-              <div className="flex items-center">
-                <div className="p-2 bg-green-100 rounded-lg">
-                  <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
-                  </svg>
-                </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">總收入</p>
-                  <p className="text-2xl font-bold text-gray-900">NT$ {stats.totalEarnings.toLocaleString()}</p>
-                </div>
-              </div>
-            </div>
-            <div className="bg-white rounded-lg shadow p-6">
-              <div className="flex items-center">
-                <div className="p-2 bg-blue-100 rounded-lg">
-                  <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                  </svg>
-                </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">總接單數</p>
-                  <p className="text-2xl font-bold text-gray-900">{stats.totalOrders} 筆</p>
-                </div>
-              </div>
-            </div>
+      {/* 篩選器 */}
+      <InfoCard className="mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">狀態篩選</label>
+            <select
+              value={statusFilter}
+              onChange={(e) => handleStatusFilterChange(e.target.value)}
+              className="w-full px-4 py-2.5 border border-gray-300 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#6C63FF] focus:border-[#6C63FF]"
+            >
+              <option value="ALL">全部狀態</option>
+              <option value="PENDING">待確認</option>
+              <option value="CONFIRMED">已確認</option>
+              <option value="PARTNER_ACCEPTED">夥伴已接受</option>
+              <option value="COMPLETED">已完成</option>
+              <option value="CANCELLED">已取消</option>
+              <option value="REJECTED">已拒絕</option>
+            </select>
           </div>
-        )}
-
-        {/* 篩選器 */}
-        <div className="bg-white rounded-lg shadow mb-6 p-6">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">狀態篩選</label>
-              <select
-                value={statusFilter}
-                onChange={(e) => handleStatusFilterChange(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="ALL">全部狀態</option>
-                <option value="PENDING">待確認</option>
-                <option value="CONFIRMED">已確認</option>
-                <option value="PARTNER_ACCEPTED">夥伴已接受</option>
-                <option value="COMPLETED">已完成</option>
-                <option value="CANCELLED">已取消</option>
-                <option value="REJECTED">已拒絕</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">開始日期</label>
-              <input
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">結束日期</label>
-              <input
-                type="date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-            <div className="flex items-end">
-              <button
-                onClick={clearFilters}
-                className="w-full px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-500"
-              >
-                清除篩選
-              </button>
-            </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">開始日期</label>
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="w-full px-4 py-2.5 border border-gray-300 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#6C63FF] focus:border-[#6C63FF]"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">結束日期</label>
+            <input
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              className="w-full px-4 py-2.5 border border-gray-300 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#6C63FF] focus:border-[#6C63FF]"
+            />
+          </div>
+          <div className="flex items-end">
+            <button
+              onClick={clearFilters}
+              className="w-full px-4 py-2.5 bg-gray-500 text-white rounded-2xl hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-500 font-medium transition-colors"
+            >
+              清除篩選
+            </button>
           </div>
         </div>
+      </InfoCard>
 
-        {/* 接單紀錄表格 */}
-        <div className="bg-white rounded-lg shadow overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-lg font-medium text-gray-900">接單紀錄</h2>
-          </div>
+      {/* 接單紀錄表格 */}
+      <InfoCard className="overflow-hidden">
+        <SectionTitle title="接單紀錄" />
           
           {bookings.length === 0 ? (
             <div className="text-center py-12">
@@ -377,7 +370,7 @@ export default function OrderHistoryPage() {
                               onClick={() => handlePageChange(pageNum)}
                               className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
                                 pageNum === currentPage
-                                  ? 'z-10 bg-blue-50 border-blue-500 text-blue-600'
+                                  ? 'z-10 bg-[#6C63FF] border-[#6C63FF] text-white'
                                   : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
                               }`}
                             >
@@ -403,8 +396,7 @@ export default function OrderHistoryPage() {
               )}
             </>
           )}
-        </div>
-      </div>
-    </div>
+      </InfoCard>
+    </PartnerPageLayout>
   )
 }

@@ -2,6 +2,10 @@
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import PartnerPageLayout from '@/components/partner/PartnerPageLayout'
+import InfoCard from '@/components/partner/InfoCard'
+import SectionTitle from '@/components/partner/SectionTitle'
+import StatBox from '@/components/partner/StatBox'
 
 interface ReferralStats {
   partner: {
@@ -114,136 +118,116 @@ export default function ReferralPage() {
   }
 
   return (
-    <div className="min-h-screen bg-white">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* 頁面標題 */}
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">推薦系統</h1>
-          <p className="text-gray-600">邀請好友成為夥伴，獲得推薦獎勵</p>
-        </div>
+    <PartnerPageLayout
+      title="推薦系統"
+      subtitle="邀請好友成為夥伴，獲得推薦獎勵"
+      maxWidth="6xl"
+    >
+      {/* 統計卡片 */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <StatBox
+          label="總推薦數"
+          value={stats?.stats.totalReferrals || 0}
+          iconBgColor="blue"
+          icon={
+            <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+            </svg>
+          }
+        />
+        <StatBox
+          label="累計推薦收入"
+          value={`NT$ ${(stats?.stats.totalEarnings || 0).toLocaleString()}`}
+          iconBgColor="green"
+          icon={
+            <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+            </svg>
+          }
+        />
+        <StatBox
+          label="可提領推薦收入"
+          value={`NT$ ${(stats?.stats.currentEarnings || 0).toLocaleString()}`}
+          iconBgColor="purple"
+          icon={
+            <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          }
+        />
+        <StatBox
+          label="推薦獎勵比例"
+          value={
+            stats?.partner?.referralCount !== undefined ? (
+              stats.partner.referralCount <= 3 ? '2%' : 
+              stats.partner.referralCount <= 10 ? '3%' : '4%'
+            ) : '0%'
+          }
+          iconBgColor="yellow"
+          icon={
+            <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+          }
+        />
+      </div>
 
-        {/* 統計卡片 */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white rounded-lg shadow-lg p-6">
-            <div className="flex items-center">
-              <div className="p-3 rounded-full bg-blue-100 text-blue-600">
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                </svg>
+      {/* 邀請碼區域 */}
+      <InfoCard className="mb-8">
+        <SectionTitle title="我的邀請碼" />
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
+          {stats?.partner.inviteCode ? (
+            <>
+              <div className="flex-1">
+                <input
+                  type="text"
+                  value={stats.partner.inviteCode}
+                  readOnly
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-2xl bg-gray-50 text-gray-900 font-mono text-base sm:text-lg"
+                />
               </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-700">總推薦數</p>
-                <p className="text-2xl font-bold text-gray-900">{stats?.stats.totalReferrals || 0}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg shadow-lg p-6">
-            <div className="flex items-center">
-              <div className="p-3 rounded-full bg-green-100 text-green-600">
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
-                </svg>
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-700">累計推薦收入</p>
-                <p className="text-2xl font-bold text-gray-900">NT$ {(stats?.stats.totalEarnings || 0).toLocaleString()}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg shadow-lg p-6">
-            <div className="flex items-center">
-              <div className="p-3 rounded-full bg-purple-100 text-purple-600">
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-500">可提領推薦收入</p>
-                <p className="text-2xl font-bold text-gray-900">NT$ {(stats?.stats.currentEarnings || 0).toLocaleString()}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg shadow-lg p-6">
-            <div className="flex items-center">
-              <div className="p-3 rounded-full bg-yellow-100 text-yellow-600">
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                </svg>
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-500">推薦獎勵比例</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {stats?.partner?.referralCount !== undefined ? (
-                    stats.partner.referralCount <= 3 ? '2%' : 
-                    stats.partner.referralCount <= 10 ? '3%' : '4%'
-                  ) : '0%'}
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* 邀請碼區域 */}
-        <div className="bg-gray-50 rounded-lg shadow-lg p-6 mb-8">
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">我的邀請碼</h2>
-          <div className="flex items-center space-x-4">
-            {stats?.partner.inviteCode ? (
-              <>
-                <div className="flex-1">
-                  <input
-                    type="text"
-                    value={stats.partner.inviteCode}
-                    readOnly
-                    className="w-full px-4 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-900 font-mono text-lg"
-                  />
-                </div>
-                <button
-                  onClick={copyInviteCode}
-                  className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-                >
-                  複製邀請碼
-                </button>
-              </>
-            ) : (
               <button
-                onClick={generateInviteCode}
-                disabled={generating}
-                className="px-6 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors disabled:opacity-50"
+                onClick={copyInviteCode}
+                className="px-6 py-2.5 bg-[#6C63FF] text-white rounded-2xl hover:bg-[#5a52e6] transition-colors font-medium"
               >
-                {generating ? '生成中...' : '生成邀請碼'}
+                複製邀請碼
               </button>
-            )}
-          </div>
-          <p className="text-sm text-gray-600 mt-2">
-            分享您的邀請碼給朋友，當他們使用您的邀請碼申請成為夥伴時，您將根據推薦人數獲得階梯式推薦獎勵！
-          </p>
+            </>
+          ) : (
+            <button
+              onClick={generateInviteCode}
+              disabled={generating}
+              className="px-6 py-2.5 bg-green-600 text-white rounded-2xl hover:bg-green-700 transition-colors disabled:opacity-50 font-medium"
+            >
+              {generating ? '生成中...' : '生成邀請碼'}
+            </button>
+          )}
         </div>
+        <p className="text-sm text-gray-600 mt-4">
+          分享您的邀請碼給朋友，當他們使用您的邀請碼申請成為夥伴時，您將根據推薦人數獲得階梯式推薦獎勵！
+        </p>
+      </InfoCard>
 
-        {/* 推薦說明 */}
-        <div className="bg-gray-50 border border-gray-200 rounded-lg p-6 mb-8">
-          <h3 className="text-lg font-semibold text-gray-900 mb-3">推薦系統說明</h3>
-          <ul className="space-y-2 text-gray-700">
-            <li>• 使用您的邀請碼申請成為夥伴的朋友，平台抽成依然是 15%，但您將獲得推薦獎勵</li>
-            <li>• 推薦獎勵採用階梯式制度，從平台抽成中分配給您：
-              <ul className="ml-4 mt-1 space-y-1 text-sm">
-                <li>📈 推薦 1-3 人：獲得 2% 推薦獎勵</li>
-                <li>📈 推薦 4-10 人：獲得 3% 推薦獎勵</li>
-                <li>📈 推薦 10 人以上：獲得 4% 推薦獎勵</li>
-              </ul>
-            </li>
-            <li>• 推薦獎勵會自動計算並加入您的可提領餘額</li>
-            <li>• 推薦獎勵無上限，推薦越多，收入越多！</li>
-          </ul>
-        </div>
+      {/* 推薦說明 */}
+      <InfoCard className="mb-8" bgColor="gray">
+        <SectionTitle title="推薦系統說明" />
+        <ul className="space-y-2 text-gray-700">
+          <li>• 使用您的邀請碼申請成為夥伴的朋友，平台抽成依然是 15%，但您將獲得推薦獎勵</li>
+          <li>• 推薦獎勵採用階梯式制度，從平台抽成中分配給您：
+            <ul className="ml-4 mt-1 space-y-1 text-sm">
+              <li>📈 推薦 1-3 人：獲得 2% 推薦獎勵</li>
+              <li>📈 推薦 4-10 人：獲得 3% 推薦獎勵</li>
+              <li>📈 推薦 10 人以上：獲得 4% 推薦獎勵</li>
+            </ul>
+          </li>
+          <li>• 推薦獎勵會自動計算並加入您的可提領餘額</li>
+          <li>• 推薦獎勵無上限，推薦越多，收入越多！</li>
+        </ul>
+      </InfoCard>
 
-        {/* 推薦列表 */}
-        <div className="bg-gray-50 rounded-lg shadow-lg overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-xl font-bold text-gray-900">推薦列表</h2>
-          </div>
+      {/* 推薦列表 */}
+      <InfoCard className="overflow-hidden">
+        <SectionTitle title="推薦列表" />
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
@@ -286,9 +270,8 @@ export default function ReferralPage() {
               </tbody>
             </table>
           </div>
-        </div>
-      </div>
-    </div>
+      </InfoCard>
+    </PartnerPageLayout>
   );
 }
 
