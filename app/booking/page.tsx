@@ -1,6 +1,7 @@
 'use client'
 export const dynamic = 'force-dynamic'
 
+import React from 'react'
 import { useState, useEffect, useMemo, useCallback, Suspense, useRef } from 'react'
 import Image from 'next/image'
 import DatePicker from 'react-datepicker'
