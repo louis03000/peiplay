@@ -624,13 +624,12 @@ function BookingWizardContent() {
   }, [step, selectedPartner, selectedDate, selectedTimes, selectedDuration, onlyAvailable])
 
   return (
-    <div className="min-h-screen w-full overflow-x-hidden bg-[#F8F9FB]">
-      <PartnerPageLayout
-        title="預約陪玩服務"
-        subtitle="選擇專業夥伴，享受優質的遊戲陪玩體驗"
-        maxWidth="6xl"
-      >
-        <InfoCard className="p-4 sm:p-8">
+    <PartnerPageLayout
+      title="預約陪玩服務"
+      subtitle="選擇專業夥伴，享受優質的遊戲陪玩體驗"
+      maxWidth="6xl"
+    >
+      <InfoCard className="p-4 sm:p-8">
           {/* 步驟指示器 */}
           <div className="mb-16">
             <div className="flex items-center justify-between relative">
@@ -1095,7 +1094,6 @@ function BookingWizardContent() {
           </div>
         </InfoCard>
       </PartnerPageLayout>
-    </div>
   )
 }
 
