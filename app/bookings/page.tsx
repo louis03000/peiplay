@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useSession } from 'next-auth/react'
+import PartnerPageLayout from '@/components/partner/PartnerPageLayout'
+import InfoCard from '@/components/partner/InfoCard'
 
 type Booking = {
   id: string;
@@ -338,32 +340,41 @@ export default function BookingsPage() {
   const totalPages = Math.ceil(mergeBookings(filteredBookings).length / pageSize);
 
   if (status === 'loading') {
-    return <div className="text-center p-8 text-white">載入中...</div>
+    return (
+      <div className="min-h-screen bg-[#F8F9FB] flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#6C63FF] mx-auto"></div>
+          <p className="mt-4 text-gray-600">載入中...</p>
+        </div>
+      </div>
+    )
   }
   if (!session) {
-    return <div className="text-center p-8 text-white">請先登入以查詢預約。</div>
+    return (
+      <div className="min-h-screen bg-[#F8F9FB] flex items-center justify-center">
+        <div className="text-center text-gray-600">請先登入以查詢預約。</div>
+      </div>
+    )
   }
 
   return (
-    <div className="max-w-6xl mx-auto mt-16 pt-16 sm:pt-32 bg-palette-800/90 rounded-xl p-4 sm:p-8 shadow-lg backdrop-blur">
-      {/* 頁面標題和說明 */}
-      <div className="text-center mb-6 sm:mb-8">
-        <h1 className="text-2xl sm:text-3xl font-bold text-white mb-4">預約管理</h1>
-        <p className="text-gray-200 text-base sm:text-lg">
-          {session?.user?.role === 'PARTNER' 
-            ? '管理您的預約服務和客戶訂單' 
-            : '查看您當前有效的預約訂單和服務記錄'
-          }
-        </p>
-      </div>
+    <PartnerPageLayout
+      title="預約管理"
+      subtitle={session?.user?.role === 'PARTNER' 
+        ? '管理您的預約服務和客戶訂單' 
+        : '查看您當前有效的預約訂單和服務記錄'
+      }
+      maxWidth="6xl"
+    >
+      <div className="bg-white rounded-2xl shadow-lg p-4 sm:p-8">
 
       {/* Tab 切換按鈕 */}
       <div className="flex justify-center gap-4 sm:gap-6 mb-6 sm:mb-8">
         <button
-          className={`px-6 sm:px-10 py-4 rounded-xl font-bold transition-all duration-300 border-2 ${
+          className={`px-6 sm:px-10 py-4 rounded-2xl font-bold transition-all duration-300 border-2 ${
             tab === 'me' 
-              ? 'bg-blue-600 text-white border-blue-400 shadow-lg shadow-blue-500/30 hover:bg-blue-700' 
-              : 'bg-gray-700/50 text-gray-200 border-gray-500 hover:bg-gray-600/50 hover:border-gray-400 hover:text-white'
+              ? 'bg-[#6C63FF] text-white border-[#6C63FF] shadow-lg shadow-[#6C63FF]/30 hover:bg-[#5a52e6]' 
+              : 'bg-gray-200 text-gray-700 border-gray-300 hover:bg-gray-300 hover:border-gray-400'
           }`}
           onClick={() => setTab('me')}
         >
@@ -373,10 +384,10 @@ export default function BookingsPage() {
           </div>
         </button>
         <button
-          className={`px-6 sm:px-10 py-4 rounded-xl font-bold transition-all duration-300 border-2 ${
+          className={`px-6 sm:px-10 py-4 rounded-2xl font-bold transition-all duration-300 border-2 ${
             tab === 'partner' 
-              ? 'bg-blue-600 text-white border-blue-400 shadow-lg shadow-blue-500/30 hover:bg-blue-700' 
-              : 'bg-gray-700/50 text-gray-200 border-gray-500 hover:bg-gray-600/50 hover:border-gray-400 hover:text-white'
+              ? 'bg-[#6C63FF] text-white border-[#6C63FF] shadow-lg shadow-[#6C63FF]/30 hover:bg-[#5a52e6]' 
+              : 'bg-gray-200 text-gray-700 border-gray-300 hover:bg-gray-300 hover:border-gray-400'
           }`}
           onClick={() => setTab('partner')}
         >
@@ -387,11 +398,11 @@ export default function BookingsPage() {
         </button>
       </div>
 
-      {/* 功能說明 */}
-      <div className="bg-blue-900/20 border border-blue-500/30 rounded-lg p-4 mb-6">
-        <div className="flex items-start space-x-3">
-          <div className="text-blue-400 text-xl">ℹ️</div>
-          <div className="text-blue-100">
+        {/* 功能說明 */}
+        <InfoCard className="mb-6 bg-blue-50 border-blue-200">
+          <div className="flex items-start space-x-3">
+            <div className="text-blue-600 text-xl">ℹ️</div>
+            <div className="text-blue-900">
             <div className="font-semibold mb-1">
               {tab === 'me' ? '我的預約' : '我的訂單'} 說明：
             </div>
@@ -402,10 +413,9 @@ export default function BookingsPage() {
                    }
                  </div>
           </div>
-        </div>
-      </div>
+        </InfoCard>
 
-      {/* 資料表格 */}
+        {/* 資料表格 */}
       <div className="overflow-x-auto relative shadow-md sm:rounded-lg">
         {loading ? (
           <div className="text-center p-8">
@@ -741,12 +751,13 @@ export default function BookingsPage() {
         )}
       </div>
 
-      {/* 統計資訊 */}
-      {bookings.length > 0 && (
-        <div className="mt-6 text-center text-gray-400 text-sm">
-          共找到 {bookings.length} 筆{tab === 'me' ? '預約' : '訂單'}記錄
-        </div>
-      )}
-    </div>
+        {/* 統計資訊 */}
+        {bookings.length > 0 && (
+          <div className="mt-6 text-center text-gray-600 text-sm">
+            共找到 {bookings.length} 筆{tab === 'me' ? '預約' : '訂單'}記錄
+          </div>
+        )}
+      </div>
+    </PartnerPageLayout>
   )
 } 

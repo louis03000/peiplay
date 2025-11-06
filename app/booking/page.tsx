@@ -9,6 +9,8 @@ import PartnerCard from '@/components/PartnerCard'
 import { useSearchParams } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import Link from 'next/link'
+import PartnerPageLayout from '@/components/partner/PartnerPageLayout'
+import InfoCard from '@/components/partner/InfoCard'
 
 // 防抖 Hook
 function useDebounce<T>(value: T, delay: number): T {
@@ -622,24 +624,13 @@ function BookingWizardContent() {
   }, [step, selectedPartner, selectedDate, selectedTimes, selectedDuration, onlyAvailable])
 
   return (
-    <div className="min-h-screen w-full overflow-x-hidden" style={{backgroundColor: '#E4E7EB'}}>
-
-      {/* Hero Section */}
-      <div className="relative py-16 px-6 overflow-hidden" style={{backgroundColor: '#E4E7EB'}}>
-        <div className="relative z-10 max-w-6xl mx-auto text-center">
-          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold mb-6 text-gray-800">
-            預約陪玩服務
-          </h1>
-          <div className="w-24 h-1 mx-auto mb-6 bg-blue-600"></div>
-          <p className="text-xl max-w-3xl mx-auto text-gray-700">
-            選擇專業夥伴，享受優質的遊戲陪玩體驗
-          </p>
-        </div>
-      </div>
-
-      <div className="py-8 px-6 w-full">
-        <div className="max-w-6xl mx-auto w-full">
-          <div className="rounded-3xl p-8" style={{backgroundColor: 'white', boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)'}}>
+    <div className="min-h-screen w-full overflow-x-hidden bg-[#F8F9FB]">
+      <PartnerPageLayout
+        title="預約陪玩服務"
+        subtitle="選擇專業夥伴，享受優質的遊戲陪玩體驗"
+        maxWidth="6xl"
+      >
+        <InfoCard className="p-4 sm:p-8">
           {/* 步驟指示器 */}
           <div className="mb-16">
             <div className="flex items-center justify-between relative">
@@ -653,15 +644,15 @@ function BookingWizardContent() {
                       i === step ? 'shadow-xl scale-110' :
                       ''}`}
                     style={{
-                      background: i <= step ? 'linear-gradient(135deg, #1A73E8 0%, #5C7AD6 100%)' : 'white',
-                      borderColor: i <= step ? '#1A73E8' : '#E4E7EB',
+                      background: i <= step ? 'linear-gradient(135deg, #6C63FF 0%, #5a52e6 100%)' : 'white',
+                      borderColor: i <= step ? '#6C63FF' : '#E4E7EB',
                       color: i <= step ? 'white' : '#333140'
                     }}
                   >
                     {i+1}
                   </div>
                   <div className={`mt-4 text-lg text-center font-medium ${i === step ? 'font-bold' : ''}`} style={{
-                    color: i === step ? '#1A73E8' : '#333140',
+                    color: i === step ? '#6C63FF' : '#333140',
                     opacity: i === step ? 1 : 0.7
                   }}>
                     {s}
@@ -685,7 +676,7 @@ function BookingWizardContent() {
                     type="checkbox"
                     checked={onlyAvailable}
                     onChange={e => setOnlyAvailable(e.target.checked)}
-                    className="accent-indigo-500 w-4 h-4 sm:w-5 sm:h-5"
+                    className="accent-[#6C63FF] w-4 h-4 sm:w-5 sm:h-5"
                   />
                   <span className="text-xs sm:text-sm text-gray-900 font-bold">只看現在有空</span>
                 </label>
@@ -695,7 +686,7 @@ function BookingWizardContent() {
                     type="checkbox"
                     checked={onlyRankBooster}
                     onChange={e => setOnlyRankBooster(e.target.checked)}
-                    className="accent-purple-500 w-4 h-4 sm:w-5 sm:h-5"
+                    className="accent-[#6C63FF] w-4 h-4 sm:w-5 sm:h-5"
                   />
                   <span className="text-xs sm:text-sm text-gray-900 font-bold">只看上分高手</span>
                 </label>
@@ -713,7 +704,7 @@ function BookingWizardContent() {
               
               {/* 搜尋框 - 手機上獨占一行 */}
               <input
-                className="w-full sm:flex-1 px-3 sm:px-4 py-2 rounded-full bg-palette-400 text-palette-900 border border-palette-600 focus:outline-none focus:ring-2 focus:ring-palette-700 focus:border-transparent placeholder-palette-600 text-sm sm:text-base shadow-sm"
+                className="w-full sm:flex-1 px-4 py-2.5 rounded-2xl bg-white text-gray-900 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#6C63FF] focus:border-[#6C63FF] placeholder-gray-500 text-sm sm:text-base shadow-sm"
                 placeholder="搜尋夥伴姓名或專長..."
                 value={search}
                 onChange={e => setSearch(e.target.value)}
@@ -724,7 +715,7 @@ function BookingWizardContent() {
             <div className="mb-6 text-center">
               <a
                 href="/booking/group"
-                className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-full hover:from-green-600 hover:to-emerald-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
+                className="inline-flex items-center gap-2 px-6 py-3 bg-[#6C63FF] text-white rounded-2xl hover:bg-[#5a52e6] transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 font-medium"
               >
                 <span className="text-lg">🎮</span>
                 <span className="font-medium">群組預約</span>
@@ -735,7 +726,7 @@ function BookingWizardContent() {
             {/* 載入狀態 */}
             {loading ? (
               <div className="flex flex-col items-center justify-center py-12">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500 mb-4"></div>
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#6C63FF] mb-4"></div>
                 <p className="text-gray-600 text-sm">載入夥伴資料中...</p>
               </div>
             ) : (
@@ -785,8 +776,8 @@ function BookingWizardContent() {
                     <div
                       className={`transition-all duration-200 rounded-2xl border-2 
                         ${selectedPartner?.id === p.id 
-                          ? 'border-transparent ring-4 ring-indigo-400/60 ring-offset-2 shadow-2xl scale-105 bg-[#1e293b]/40' 
-                          : 'border-transparent hover:ring-2 hover:ring-indigo-300/40 hover:scale-102'} 
+                          ? 'border-transparent ring-4 ring-[#6C63FF]/60 ring-offset-2 shadow-2xl scale-105 bg-[#1e293b]/40' 
+                          : 'border-transparent hover:ring-2 hover:ring-[#6C63FF]/40 hover:scale-102'} 
                         cursor-pointer`}
                       style={{ 
                         boxShadow: selectedPartner?.id === p.id ? '0 0 0 4px #818cf8, 0 8px 32px 0 rgba(55,48,163,0.15)' : undefined,
@@ -971,7 +962,7 @@ function BookingWizardContent() {
                       value={promoCode}
                       onChange={(e) => setPromoCode(e.target.value)}
                       placeholder="輸入優惠碼"
-                      className="flex-1 px-3 py-2 bg-gray-700 text-white rounded border border-gray-600 focus:border-indigo-500 focus:outline-none"
+                      className="flex-1 px-4 py-2.5 bg-gray-700 text-white rounded-2xl border border-gray-600 focus:border-[#6C63FF] focus:outline-none focus:ring-2 focus:ring-[#6C63FF]"
                     />
                     <button
                       onClick={validatePromoCode}
@@ -1092,9 +1083,9 @@ function BookingWizardContent() {
                 disabled={!canProceed}
                 className="px-10 py-4 rounded-2xl font-semibold transition-all duration-300 hover:shadow-xl hover:scale-105 transform disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
                 style={{
-                  background: 'linear-gradient(135deg, #1A73E8 0%, #5C7AD6 100%)',
+                  background: 'linear-gradient(135deg, #6C63FF 0%, #5a52e6 100%)',
                   color: 'white',
-                  boxShadow: '0 8px 32px rgba(26, 115, 232, 0.3)'
+                  boxShadow: '0 8px 32px rgba(108, 99, 255, 0.3)'
                 }}
               >
                 下一步
@@ -1102,8 +1093,8 @@ function BookingWizardContent() {
             </div>
           )}
           </div>
-        </div>
-      </div>
+        </InfoCard>
+      </PartnerPageLayout>
     </div>
   )
 }
@@ -1112,7 +1103,7 @@ export default function BookingWizard() {
   return (
     <Suspense fallback={
       <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#6C63FF]"></div>
       </div>
     }>
       <BookingWizardContent />

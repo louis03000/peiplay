@@ -3,6 +3,9 @@ import { useSession, signOut } from 'next-auth/react'
 import { useState, useEffect } from 'react'
 import MyBookings from '@/app/components/MyBookings'
 import OrderHistory from '@/app/components/OrderHistory'
+import PartnerPageLayout from '@/components/partner/PartnerPageLayout'
+import InfoCard from '@/components/partner/InfoCard'
+import SectionTitle from '@/components/partner/SectionTitle'
 
 const ALL_GAMES = [
   'LOL', 'APEX', '傳說對決', 'PUBG', 'CS:GO', 'VALORANT', '爐石戰記', 'DOTA2', '其他'
@@ -277,49 +280,40 @@ export default function ProfileClientComplete() {
   const isPartner = !!userData.partner;
 
   return (
-    <div className="container mx-auto px-4 py-8 pt-32">
-      {/* 頁面標題 */}
-      <div className="text-center mb-8">
-        <h1 className="text-3xl font-bold text-white mb-2">會員中心</h1>
-        <p className="text-gray-300">
-          {isPartner 
-            ? '管理您的個人資料、預約服務和客戶訂單' 
-            : '管理您的個人資料、預約記錄和消費紀錄'
-          }
-        </p>
-      </div>
-
+    <PartnerPageLayout
+      title="會員中心"
+      subtitle={isPartner 
+        ? '管理您的個人資料、預約服務和客戶訂單' 
+        : '管理您的個人資料、預約記錄和消費紀錄'
+      }
+      maxWidth="6xl"
+    >
       {/* 個人資料區塊 */}
-      <div className="max-w-6xl mx-auto mb-12">
-        <div className="bg-gradient-to-r from-blue-900/20 to-purple-900/20 border border-blue-500/30 rounded-lg p-8 mb-6">
-          <h2 className="text-xl font-bold text-white mb-2 flex items-center">
-            <span className="mr-2">👤</span>
-            個人資料
-          </h2>
-          <p className="text-gray-200 text-sm mb-4">
-            管理您的個人基本資料，這些資訊會用於服務聯繫和身份驗證
-          </p>
+      <InfoCard className="mb-6">
+        <SectionTitle 
+          title="個人資料"
+          subtitle="管理您的個人基本資料，這些資訊會用於服務聯繫和身份驗證"
+        />
           
-          {!editMode ? (
-            <div className="bg-gray-800/60 p-8 rounded-lg">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div className="p-4 bg-gray-700/40 rounded-lg">
-                  <span className="block text-gray-200 mb-2 text-sm font-medium">姓名</span>
-                  <span className="text-white font-semibold text-lg">{userData.name}</span>
-                </div>
-                <div className="p-4 bg-gray-700/40 rounded-lg">
-                  <span className="block text-gray-200 mb-2 text-sm font-medium">電話</span>
-                  <span className="text-white font-semibold text-lg">{userData.phone || '-'}</span>
-                </div>
-                <div className="p-4 bg-gray-700/40 rounded-lg">
-                  <span className="block text-gray-200 mb-2 text-sm font-medium">生日</span>
-                  <span className="text-white font-semibold text-lg">{userData.birthday ? userData.birthday.slice(0, 10) : '-'}</span>
-                </div>
-                <div className="p-4 bg-gray-700/40 rounded-lg">
-                  <span className="block text-gray-200 mb-2 text-sm font-medium">Discord 名稱</span>
-                  <span className="text-white font-semibold text-lg">{userData.discord || '-'}</span>
-                </div>
-              </div>
+        {!editMode ? (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="p-4 bg-gray-50 rounded-2xl">
+              <span className="block text-gray-600 mb-2 text-sm font-medium">姓名</span>
+              <span className="text-gray-900 font-semibold text-lg">{userData.name}</span>
+            </div>
+            <div className="p-4 bg-gray-50 rounded-2xl">
+              <span className="block text-gray-600 mb-2 text-sm font-medium">電話</span>
+              <span className="text-gray-900 font-semibold text-lg">{userData.phone || '-'}</span>
+            </div>
+            <div className="p-4 bg-gray-50 rounded-2xl">
+              <span className="block text-gray-600 mb-2 text-sm font-medium">生日</span>
+              <span className="text-gray-900 font-semibold text-lg">{userData.birthday ? userData.birthday.slice(0, 10) : '-'}</span>
+            </div>
+            <div className="p-4 bg-gray-50 rounded-2xl">
+              <span className="block text-gray-600 mb-2 text-sm font-medium">Discord 名稱</span>
+              <span className="text-gray-900 font-semibold text-lg">{userData.discord || '-'}</span>
+            </div>
+          </div>
               
                              {isPartner && userData.partner?.halfHourlyRate && (
                  <div className="mt-8 p-4 bg-indigo-600/20 rounded-lg border border-indigo-500/30">
@@ -647,7 +641,7 @@ export default function ProfileClientComplete() {
             </section>
           </div>
         </div>
-      </div>
-    </div>
+      </InfoCard>
+    </PartnerPageLayout>
   )
 } 
