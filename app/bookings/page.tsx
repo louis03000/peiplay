@@ -369,7 +369,7 @@ export default function BookingsPage() {
     >
       <InfoCard className="p-4 sm:p-8">
         {/* Tab 切換按鈕 */}
-      <div className="flex justify-center gap-4 sm:gap-6 mb-6 sm:mb-8">
+        <div className="flex justify-center gap-4 sm:gap-6 mb-6 sm:mb-8">
         <button
           className={`px-6 sm:px-10 py-4 rounded-2xl font-bold transition-all duration-300 border-2 ${
             tab === 'me' 
@@ -396,7 +396,7 @@ export default function BookingsPage() {
             <div className="text-xs opacity-90 hidden sm:block mt-1">預約我的顧客</div>
           </div>
         </button>
-      </div>
+        </div>
 
         {/* 功能說明 */}
         <InfoCard className="mb-6 bg-blue-50 border-blue-200">
