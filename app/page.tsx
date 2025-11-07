@@ -154,9 +154,9 @@ export default function HomePage() {
   ].filter(action => action.show);
 
   return (
-    <div className="min-h-screen bg-[#F8F9FB]">
-      {/* Hero Section - 提升視覺張力與大氣感 */}
-      <div className="relative bg-gradient-to-br from-[#6C63FF] via-[#5a52e6] to-[#4a42d6] overflow-hidden">
+    <div className="min-h-screen bg-[#F8F9FB] snap-y snap-mandatory overflow-y-scroll h-screen">
+      {/* Hero Section - 第 1 屏 */}
+      <div className="relative bg-gradient-to-br from-[#6C63FF] via-[#5a52e6] to-[#4a42d6] overflow-hidden min-h-screen flex items-center snap-start snap-always">
         {/* 背景裝飾 - 增強層次感 */}
         <div className="absolute inset-0 opacity-10">
           <div className="absolute top-0 left-0 w-96 h-96 bg-white rounded-full blur-3xl transform -translate-x-1/2 -translate-y-1/2 animate-pulse"></div>
@@ -170,7 +170,7 @@ export default function HomePage() {
           <div className="absolute bottom-20 left-20 w-24 h-24 border-4 border-white rounded-full"></div>
         </div>
 
-        <div className="relative container mx-auto px-4 sm:px-6 lg:px-8 py-20 sm:py-28 lg:py-36">
+        <div className="relative container mx-auto px-4 sm:px-6 lg:px-8 w-full">
           <div className="max-w-5xl mx-auto text-center">
             <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-white mb-8 leading-tight tracking-tight">
               {status === 'authenticated' && isPartner 
@@ -221,29 +221,9 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* 平台亮點數據 - 僅顯示平台層級的數據，不顯示個人管理數據 */}
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16 -mt-12 relative z-10">
-        <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-3 gap-6 lg:gap-8 max-w-4xl mx-auto">
-          <InfoCard className="text-center transform hover:scale-105 transition-all duration-300 hover:shadow-2xl" padding="lg">
-            <div className="text-[#6C63FF] text-5xl lg:text-6xl font-bold mb-3">{platformStats.totalPartners || 150}+</div>
-            <div className="text-gray-600 text-base font-medium tracking-wide">專業夥伴</div>
-            <p className="text-sm text-gray-500 mt-2">經驗豐富的陪玩高手</p>
-          </InfoCard>
-          <InfoCard className="text-center transform hover:scale-105 transition-all duration-300 hover:shadow-2xl" padding="lg">
-            <div className="text-green-600 text-5xl lg:text-6xl font-bold mb-3">{platformStats.totalBookings || 2500}+</div>
-            <div className="text-gray-600 text-base font-medium tracking-wide">成功配對</div>
-            <p className="text-sm text-gray-500 mt-2">累計服務次數</p>
-          </InfoCard>
-          <InfoCard className="text-center transform hover:scale-105 transition-all duration-300 hover:shadow-2xl" padding="lg">
-            <div className="text-orange-600 text-5xl lg:text-6xl font-bold mb-3">4.9</div>
-            <div className="text-gray-600 text-base font-medium tracking-wide">平均評分</div>
-            <p className="text-sm text-gray-500 mt-2">用戶滿意度保證</p>
-          </InfoCard>
-        </div>
-      </div>
-
-      {/* 探索入口 - 功能導向的卡片 */}
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-20 lg:py-24">
+      {/* 探索入口 - 第 2 屏 */}
+      <div className="min-h-screen flex items-center snap-start snap-always bg-[#F8F9FB]">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-16 w-full">
         <div className="text-center mb-16">
           <h2 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-gray-900 mb-4 tracking-tight">
             {status === 'authenticated' 
@@ -260,28 +240,29 @@ export default function HomePage() {
               : '無論是尋找陪玩，還是成為陪玩者，這裡都是您的最佳選擇'}
           </p>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8 max-w-6xl mx-auto">
-          {quickActions.map((action, index) => (
-            <button
-              key={index}
-              onClick={() => router.push(action.href)}
-              className="group text-left transform hover:scale-105 transition-all duration-300"
-            >
-              <InfoCard className="h-full hover:shadow-2xl transition-shadow duration-300" padding="lg">
-                <div className={`w-20 h-20 rounded-2xl bg-gradient-to-br ${action.color} flex items-center justify-center mb-6 text-white group-hover:scale-110 group-hover:rotate-3 transition-all duration-300 shadow-lg`}>
-                  {action.icon}
-                </div>
-                <h3 className="text-2xl font-bold text-gray-900 mb-3 group-hover:text-[#6C63FF] transition-colors duration-300">{action.title}</h3>
-                <p className="text-gray-600 leading-relaxed">{action.description}</p>
-              </InfoCard>
-            </button>
-          ))}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8 max-w-6xl mx-auto">
+            {quickActions.map((action, index) => (
+              <button
+                key={index}
+                onClick={() => router.push(action.href)}
+                className="group text-left transform hover:scale-105 transition-all duration-300"
+              >
+                <InfoCard className="h-full hover:shadow-2xl transition-shadow duration-300" padding="lg">
+                  <div className={`w-20 h-20 rounded-2xl bg-gradient-to-br ${action.color} flex items-center justify-center mb-6 text-white group-hover:scale-110 group-hover:rotate-3 transition-all duration-300 shadow-lg`}>
+                    {action.icon}
+                  </div>
+                  <h3 className="text-2xl font-bold text-gray-900 mb-3 group-hover:text-[#6C63FF] transition-colors duration-300">{action.title}</h3>
+                  <p className="text-gray-600 leading-relaxed">{action.description}</p>
+                </InfoCard>
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
-      {/* 服務亮點 - 提升視覺層次與間距 */}
-      <div className="bg-white py-20 sm:py-24 lg:py-32">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+      {/* 服務亮點 - 第 3 屏 */}
+      <div className="bg-white min-h-screen flex items-center snap-start snap-always">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-20 w-full">
           <div className="text-center mb-20">
             <h2 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-gray-900 mb-6 tracking-tight">
               為什麼選擇 PeiPlay
@@ -322,8 +303,9 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* 平台動態與故事 - 展現溫度與活力 */}
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-20 lg:py-24">
+      {/* 平台動態 - 第 4 屏 */}
+      <div className="min-h-screen flex items-center snap-start snap-always bg-[#F8F9FB]">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-16 w-full">
         <div className="text-center mb-16">
           <h2 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-gray-900 mb-4 tracking-tight">
             平台動態
@@ -332,64 +314,65 @@ export default function HomePage() {
             探索社群最新活動，感受平台的熱情與活力
           </p>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8 max-w-6xl mx-auto">
-          <InfoCard className="hover:shadow-2xl transition-all duration-300 transform hover:scale-105" padding="lg">
-            <div className="flex items-start space-x-5">
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center flex-shrink-0 shadow-lg">
-                <FaRocket className="text-white text-2xl" />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8 max-w-6xl mx-auto">
+            <InfoCard className="hover:shadow-2xl transition-all duration-300 transform hover:scale-105" padding="lg">
+              <div className="flex items-start space-x-5">
+                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center flex-shrink-0 shadow-lg">
+                  <FaRocket className="text-white text-2xl" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-xl font-bold text-gray-900 mb-3">新功能上線</h3>
+                  <p className="text-gray-600 leading-relaxed mb-3">
+                    群組預約功能正式推出，邀請好友一起玩更有趣！
+                  </p>
+                  <span className="text-sm text-gray-500 font-medium">2天前</span>
+                </div>
               </div>
-              <div className="flex-1">
-                <h3 className="text-xl font-bold text-gray-900 mb-3">新功能上線</h3>
-                <p className="text-gray-600 leading-relaxed mb-3">
-                  群組預約功能正式推出，邀請好友一起玩更有趣！
-                </p>
-                <span className="text-sm text-gray-500 font-medium">2天前</span>
-              </div>
-            </div>
-          </InfoCard>
+            </InfoCard>
 
-          <InfoCard className="hover:shadow-2xl transition-all duration-300 transform hover:scale-105" padding="lg">
-            <div className="flex items-start space-x-5">
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center flex-shrink-0 shadow-lg">
-                <FaCrown className="text-white text-2xl" />
+            <InfoCard className="hover:shadow-2xl transition-all duration-300 transform hover:scale-105" padding="lg">
+              <div className="flex items-start space-x-5">
+                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center flex-shrink-0 shadow-lg">
+                  <FaCrown className="text-white text-2xl" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-xl font-bold text-gray-900 mb-3">本月之星</h3>
+                  <p className="text-gray-600 leading-relaxed mb-3">
+                    恭喜優秀夥伴們獲得「五星好評」榮譽徽章！
+                  </p>
+                  <span className="text-sm text-gray-500 font-medium">5天前</span>
+                </div>
               </div>
-              <div className="flex-1">
-                <h3 className="text-xl font-bold text-gray-900 mb-3">本月之星</h3>
-                <p className="text-gray-600 leading-relaxed mb-3">
-                  恭喜優秀夥伴們獲得「五星好評」榮譽徽章！
-                </p>
-                <span className="text-sm text-gray-500 font-medium">5天前</span>
-              </div>
-            </div>
-          </InfoCard>
+            </InfoCard>
 
-          <InfoCard className="hover:shadow-2xl transition-all duration-300 transform hover:scale-105" padding="lg">
-            <div className="flex items-start space-x-5">
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center flex-shrink-0 shadow-lg">
-                <FaGift className="text-white text-2xl" />
+            <InfoCard className="hover:shadow-2xl transition-all duration-300 transform hover:scale-105" padding="lg">
+              <div className="flex items-start space-x-5">
+                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center flex-shrink-0 shadow-lg">
+                  <FaGift className="text-white text-2xl" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-xl font-bold text-gray-900 mb-3">推薦計畫</h3>
+                  <p className="text-gray-600 leading-relaxed mb-3">
+                    邀請好友一起加入，共享平台成長紅利！
+                  </p>
+                  <span className="text-sm text-gray-500 font-medium">1週前</span>
+                </div>
               </div>
-              <div className="flex-1">
-                <h3 className="text-xl font-bold text-gray-900 mb-3">推薦計畫</h3>
-                <p className="text-gray-600 leading-relaxed mb-3">
-                  邀請好友一起加入，共享平台成長紅利！
-                </p>
-                <span className="text-sm text-gray-500 font-medium">1週前</span>
-              </div>
-            </div>
-          </InfoCard>
+            </InfoCard>
+          </div>
         </div>
       </div>
 
-      {/* CTA Section - 增強視覺吸引力 */}
+      {/* CTA Section - 第 5 屏（僅未登入用戶顯示）*/}
       {status !== 'authenticated' && (
-        <div className="relative bg-gradient-to-br from-[#6C63FF] via-[#5a52e6] to-[#4a42d6] py-20 sm:py-28 lg:py-36 overflow-hidden">
+        <div className="relative bg-gradient-to-br from-[#6C63FF] via-[#5a52e6] to-[#4a42d6] overflow-hidden min-h-screen flex items-center snap-start snap-always">
           {/* 背景裝飾 */}
           <div className="absolute inset-0 opacity-10">
             <div className="absolute top-0 right-0 w-96 h-96 bg-white rounded-full blur-3xl"></div>
             <div className="absolute bottom-0 left-0 w-96 h-96 bg-white rounded-full blur-3xl"></div>
           </div>
 
-          <div className="relative container mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <div className="relative container mx-auto px-4 sm:px-6 lg:px-8 text-center w-full">
             <h2 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white mb-8 tracking-tight leading-tight">
               準備開始你的遊戲之旅？
             </h2>
@@ -406,8 +389,8 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* Footer - 提升視覺層次 */}
-      <footer className="bg-gray-900 text-white py-16 sm:py-20">
+      {/* Footer - 不需全屏，自然高度 */}
+      <footer className="bg-gray-900 text-white py-16 sm:py-20 snap-start">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-10 lg:gap-12 mb-12">
             <div>
