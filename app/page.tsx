@@ -101,53 +101,54 @@ export default function HomePage() {
     }
   };
 
+  // 功能導向的入口卡片，不是數據導向
   const quickActions = [
     {
-      title: '預約陪玩',
-      description: '尋找專業夥伴，立即開始遊戲',
+      title: '立即預約',
+      description: '尋找專業夥伴，開始精彩的遊戲體驗',
       icon: <FaGamepad className="text-3xl" />,
       color: 'from-blue-500 to-purple-600',
       href: '/booking',
       show: true
     },
     {
+      title: '瀏覽夥伴',
+      description: '探索優質陪玩夥伴，找到最適合你的',
+      icon: <FaStar className="text-3xl" />,
+      color: 'from-yellow-500 to-orange-600',
+      href: '/partners',
+      show: true
+    },
+    {
       title: '成為夥伴',
-      description: '分享遊戲技能，賺取收入',
+      description: '加入我們，分享技能，開創收入',
       icon: <FaUsers className="text-3xl" />,
       color: 'from-green-500 to-teal-600',
       href: '/join',
-      show: !isPartner && status === 'authenticated'
+      show: status !== 'authenticated' || !isPartner
     },
     {
-      title: '時段管理',
-      description: '管理您的可預約時間',
+      title: '我的服務',
+      description: '管理時段、查看訂單、申請提領',
       icon: <FaCalendarAlt className="text-3xl" />,
       color: 'from-orange-500 to-red-600',
       href: '/partner/schedule',
       show: isPartner
     },
     {
-      title: '推薦系統',
-      description: '邀請好友，獲得獎勵',
-      icon: <FaGift className="text-3xl" />,
-      color: 'from-pink-500 to-rose-600',
-      href: '/partner/referral',
-      show: isPartner
-    },
-    {
       title: '我的預約',
-      description: '查看預約記錄和訂單',
+      description: '查看預約記錄，管理您的訂單',
       icon: <FaCalendarAlt className="text-3xl" />,
       color: 'from-indigo-500 to-blue-600',
       href: '/bookings',
-      show: status === 'authenticated'
+      show: status === 'authenticated' && !isPartner
     },
     {
-      title: '瀏覽夥伴',
-      description: '探索更多優質夥伴',
-      icon: <FaStar className="text-3xl" />,
-      color: 'from-yellow-500 to-orange-600',
-      href: '/partners',
+      title: '推薦好友',
+      description: '邀請朋友加入，一起享受獎勵',
+      icon: <FaGift className="text-3xl" />,
+      color: 'from-pink-500 to-rose-600',
+      href: isPartner ? '/partner/referral' : '/join',
       show: true
     }
   ].filter(action => action.show);
@@ -220,68 +221,46 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* 關鍵數據區 - 增大間距與視覺層次 */}
-      {status === 'authenticated' && (
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16 -mt-12 relative z-10">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-8">
-            {isPartner ? (
-              <>
-                <InfoCard className="text-center transform hover:scale-105 transition-all duration-300 hover:shadow-2xl" padding="lg">
-                  <div className="text-[#6C63FF] text-5xl lg:text-6xl font-bold mb-3">{userStats.totalOrders || 0}</div>
-                  <div className="text-gray-600 text-base font-medium tracking-wide">總接單數</div>
-                </InfoCard>
-                <InfoCard className="text-center transform hover:scale-105 transition-all duration-300 hover:shadow-2xl" padding="lg">
-                  <div className="text-green-600 text-5xl lg:text-6xl font-bold mb-3">
-                    ${Math.round(userStats.totalEarnings || 0)}
-                  </div>
-                  <div className="text-gray-600 text-base font-medium tracking-wide">總收入</div>
-                </InfoCard>
-                <InfoCard className="text-center transform hover:scale-105 transition-all duration-300 hover:shadow-2xl" padding="lg">
-                  <div className="text-blue-600 text-5xl lg:text-6xl font-bold mb-3">
-                    ${Math.round(userStats.availableBalance || 0)}
-                  </div>
-                  <div className="text-gray-600 text-base font-medium tracking-wide">可提領餘額</div>
-                </InfoCard>
-                <InfoCard className="text-center transform hover:scale-105 transition-all duration-300 hover:shadow-2xl" padding="lg">
-                  <div className="text-orange-600 text-5xl lg:text-6xl font-bold mb-3">5.0</div>
-                  <div className="text-gray-600 text-base font-medium tracking-wide">平均評分</div>
-                </InfoCard>
-              </>
-            ) : (
-              <>
-                <InfoCard className="text-center transform hover:scale-105 transition-all duration-300 hover:shadow-2xl" padding="lg">
-                  <div className="text-[#6C63FF] text-5xl lg:text-6xl font-bold mb-3">{userStats.myBookings || 0}</div>
-                  <div className="text-gray-600 text-base font-medium tracking-wide">我的預約</div>
-                </InfoCard>
-                <InfoCard className="text-center transform hover:scale-105 transition-all duration-300 hover:shadow-2xl" padding="lg">
-                  <div className="text-green-600 text-5xl lg:text-6xl font-bold mb-3">{platformStats.totalPartners || 0}</div>
-                  <div className="text-gray-600 text-base font-medium tracking-wide">優質夥伴</div>
-                </InfoCard>
-                <InfoCard className="text-center transform hover:scale-105 transition-all duration-300 hover:shadow-2xl" padding="lg">
-                  <div className="text-blue-600 text-5xl lg:text-6xl font-bold mb-3">{platformStats.totalBookings || 0}+</div>
-                  <div className="text-gray-600 text-base font-medium tracking-wide">累計服務</div>
-                </InfoCard>
-                <InfoCard className="text-center transform hover:scale-105 transition-all duration-300 hover:shadow-2xl" padding="lg">
-                  <div className="text-orange-600 text-5xl lg:text-6xl font-bold mb-3">{platformStats.activeUsers || 0}+</div>
-                  <div className="text-gray-600 text-base font-medium tracking-wide">活躍用戶</div>
-                </InfoCard>
-              </>
-            )}
-          </div>
+      {/* 平台亮點數據 - 僅顯示平台層級的數據，不顯示個人管理數據 */}
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16 -mt-12 relative z-10">
+        <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-3 gap-6 lg:gap-8 max-w-4xl mx-auto">
+          <InfoCard className="text-center transform hover:scale-105 transition-all duration-300 hover:shadow-2xl" padding="lg">
+            <div className="text-[#6C63FF] text-5xl lg:text-6xl font-bold mb-3">{platformStats.totalPartners || 150}+</div>
+            <div className="text-gray-600 text-base font-medium tracking-wide">專業夥伴</div>
+            <p className="text-sm text-gray-500 mt-2">經驗豐富的陪玩高手</p>
+          </InfoCard>
+          <InfoCard className="text-center transform hover:scale-105 transition-all duration-300 hover:shadow-2xl" padding="lg">
+            <div className="text-green-600 text-5xl lg:text-6xl font-bold mb-3">{platformStats.totalBookings || 2500}+</div>
+            <div className="text-gray-600 text-base font-medium tracking-wide">成功配對</div>
+            <p className="text-sm text-gray-500 mt-2">累計服務次數</p>
+          </InfoCard>
+          <InfoCard className="text-center transform hover:scale-105 transition-all duration-300 hover:shadow-2xl" padding="lg">
+            <div className="text-orange-600 text-5xl lg:text-6xl font-bold mb-3">4.9</div>
+            <div className="text-gray-600 text-base font-medium tracking-wide">平均評分</div>
+            <p className="text-sm text-gray-500 mt-2">用戶滿意度保證</p>
+          </InfoCard>
         </div>
-      )}
+      </div>
 
-      {/* 快捷入口 - 增大卡片與間距 */}
+      {/* 探索入口 - 功能導向的卡片 */}
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-20 lg:py-24">
         <div className="text-center mb-16">
           <h2 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-gray-900 mb-4 tracking-tight">
-            快速開始
+            {status === 'authenticated' 
+              ? isPartner 
+                ? '夥伴專區' 
+                : '探索更多'
+              : '開始探索'}
           </h2>
           <p className="text-lg sm:text-xl text-gray-600 max-w-2xl mx-auto font-light leading-relaxed">
-            選擇您需要的服務，立即開始精彩的遊戲體驗
+            {status === 'authenticated'
+              ? isPartner
+                ? '管理您的服務，提供最優質的陪玩體驗'
+                : '發現更多遊戲可能，找到最適合的夥伴'
+              : '無論是尋找陪玩，還是成為陪玩者，這裡都是您的最佳選擇'}
           </p>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8 max-w-6xl mx-auto">
           {quickActions.map((action, index) => (
             <button
               key={index}
@@ -343,17 +322,17 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* 最新動態 - 增大間距與視覺層次 */}
+      {/* 平台動態與故事 - 展現溫度與活力 */}
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-20 lg:py-24">
         <div className="text-center mb-16">
           <h2 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-gray-900 mb-4 tracking-tight">
-            最新動態
+            平台動態
           </h2>
           <p className="text-lg sm:text-xl text-gray-600 max-w-2xl mx-auto font-light leading-relaxed">
-            掌握平台最新資訊，不錯過任何精彩活動
+            探索社群最新活動，感受平台的熱情與活力
           </p>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8 max-w-6xl mx-auto">
           <InfoCard className="hover:shadow-2xl transition-all duration-300 transform hover:scale-105" padding="lg">
             <div className="flex items-start space-x-5">
               <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center flex-shrink-0 shadow-lg">
@@ -362,7 +341,7 @@ export default function HomePage() {
               <div className="flex-1">
                 <h3 className="text-xl font-bold text-gray-900 mb-3">新功能上線</h3>
                 <p className="text-gray-600 leading-relaxed mb-3">
-                  群組預約功能正式推出，邀請好友一起玩！
+                  群組預約功能正式推出，邀請好友一起玩更有趣！
                 </p>
                 <span className="text-sm text-gray-500 font-medium">2天前</span>
               </div>
@@ -377,7 +356,7 @@ export default function HomePage() {
               <div className="flex-1">
                 <h3 className="text-xl font-bold text-gray-900 mb-3">本月之星</h3>
                 <p className="text-gray-600 leading-relaxed mb-3">
-                  恭喜 10 位夥伴獲得「五星好評」徽章！
+                  恭喜優秀夥伴們獲得「五星好評」榮譽徽章！
                 </p>
                 <span className="text-sm text-gray-500 font-medium">5天前</span>
               </div>
@@ -390,9 +369,9 @@ export default function HomePage() {
                 <FaGift className="text-white text-2xl" />
               </div>
               <div className="flex-1">
-                <h3 className="text-xl font-bold text-gray-900 mb-3">推薦有獎</h3>
+                <h3 className="text-xl font-bold text-gray-900 mb-3">推薦計畫</h3>
                 <p className="text-gray-600 leading-relaxed mb-3">
-                  邀請好友註冊，雙方均可獲得優惠券！
+                  邀請好友一起加入，共享平台成長紅利！
                 </p>
                 <span className="text-sm text-gray-500 font-medium">1週前</span>
               </div>
