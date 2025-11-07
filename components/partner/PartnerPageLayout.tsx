@@ -1,5 +1,3 @@
-'use client'
-
 import React from 'react'
 
 interface PartnerPageLayoutProps {
@@ -9,12 +7,12 @@ interface PartnerPageLayoutProps {
   maxWidth?: '4xl' | '5xl' | '6xl' | '7xl'
 }
 
-export default function PartnerPageLayout({
+const PartnerPageLayout: React.FC<PartnerPageLayoutProps> = ({
   title,
   subtitle,
   children,
   maxWidth = '6xl'
-}: PartnerPageLayoutProps) {
+}) => {
   const maxWidthClass = {
     '4xl': 'max-w-4xl',
     '5xl': 'max-w-5xl',
@@ -45,4 +43,6 @@ export default function PartnerPageLayout({
     </div>
   )
 }
+
+export default PartnerPageLayout
 

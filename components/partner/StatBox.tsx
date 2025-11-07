@@ -1,5 +1,3 @@
-'use client'
-
 import React from 'react'
 
 interface StatBoxProps {
@@ -11,14 +9,14 @@ interface StatBoxProps {
   className?: string
 }
 
-export default function StatBox({
+const StatBox: React.FC<StatBoxProps> = ({
   label,
   value,
   icon,
   iconBgColor = 'blue',
   subtitle,
   className = ''
-}: StatBoxProps) {
+}) => {
   const iconBgColorClass = {
     green: 'bg-green-100 text-green-600',
     blue: 'bg-blue-100 text-blue-600',
@@ -48,4 +46,6 @@ export default function StatBox({
     </div>
   )
 }
+
+export default StatBox
 

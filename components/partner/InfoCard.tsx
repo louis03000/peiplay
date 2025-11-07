@@ -1,5 +1,3 @@
-'use client'
-
 import React from 'react'
 
 interface InfoCardProps {
@@ -10,13 +8,13 @@ interface InfoCardProps {
   bgColor?: 'white' | 'gray'
 }
 
-export default function InfoCard({
+const InfoCard: React.FC<InfoCardProps> = ({
   children,
   className = '',
   padding = 'md',
   noShadow = false,
   bgColor = 'white'
-}: InfoCardProps) {
+}) => {
   const paddingClass = {
     sm: 'p-3 sm:p-4',
     md: 'p-4 sm:p-6',
@@ -41,4 +39,6 @@ export default function InfoCard({
     </div>
   )
 }
+
+export default InfoCard
 

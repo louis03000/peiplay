@@ -1,5 +1,3 @@
-'use client'
-
 import React from 'react'
 
 interface SectionTitleProps {
@@ -8,11 +6,11 @@ interface SectionTitleProps {
   className?: string
 }
 
-export default function SectionTitle({
+const SectionTitle: React.FC<SectionTitleProps> = ({
   title,
   subtitle,
   className = ''
-}: SectionTitleProps) {
+}) => {
   return (
     <div className={`mb-4 sm:mb-6 ${className}`}>
       <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-1">
@@ -26,4 +24,6 @@ export default function SectionTitle({
     </div>
   )
 }
+
+export default SectionTitle
 
