@@ -614,31 +614,25 @@ export default function ProfileClientComplete() {
               </div>
             </form>
           )}
-        </div>
-      </div>
+      </InfoCard>
 
       {/* 預約和訂單管理區塊 */}
-      <div className="max-w-6xl mx-auto">
-        <div className="bg-gradient-to-r from-green-900/20 to-blue-900/20 border border-green-500/30 rounded-lg p-6 mb-8">
-          <h2 className="text-xl font-bold text-white mb-2 flex items-center">
-            <span className="mr-2">📋</span>
-            預約與訂單管理
-          </h2>
-          <p className="text-gray-300 text-sm mb-6">
-            {isPartner 
-              ? '管理您的服務預約和客戶訂單，查看服務記錄和收入統計'
-              : '查看您的預約記錄和消費紀錄，管理服務評價'
-            }
-          </p>
+      <InfoCard className="mt-6">
+        <SectionTitle 
+          title="📋 預約與訂單管理"
+          subtitle={isPartner 
+            ? '管理您的服務預約和客戶訂單，查看服務記錄和收入統計'
+            : '查看您的預約記錄和消費紀錄，管理服務評價'
+          }
+        />
           
-          <div className="space-y-8">
-            <section>
-              <MyBookings showCompletedOnly />
-            </section>
-            <section>
-              <OrderHistory />
-            </section>
-          </div>
+        <div className="space-y-8">
+          <section>
+            <MyBookings showCompletedOnly />
+          </section>
+          <section>
+            <OrderHistory />
+          </section>
         </div>
       </InfoCard>
     </PartnerPageLayout>

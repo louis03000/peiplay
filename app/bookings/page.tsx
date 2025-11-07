@@ -404,15 +404,16 @@ export default function BookingsPage() {
           <div className="flex items-start space-x-3">
             <div className="text-blue-600 text-xl">ℹ️</div>
             <div className="text-blue-900">
-            <div className="font-semibold mb-1">
-              {tab === 'me' ? '我的預約' : '我的訂單'} 說明：
+              <div className="font-semibold mb-1">
+                {tab === 'me' ? '我的預約' : '我的訂單'} 說明：
+              </div>
+              <div className="text-sm">
+                {tab === 'me' 
+                  ? '顯示您當前有效的預約訂單（未取消、未拒絕、未完成）。您可以查看預約狀態、時間安排等資訊。距離預約時間 2 小時前可以取消預約。'
+                  : '顯示您作為夥伴，被哪些顧客預約了服務時段。您可以查看客戶資訊、預約狀態等詳細資料。'
+                }
+              </div>
             </div>
-                 <div className="text-sm">
-                   {tab === 'me' 
-                     ? '顯示您當前有效的預約訂單（未取消、未拒絕、未完成）。您可以查看預約狀態、時間安排等資訊。距離預約時間 2 小時前可以取消預約。'
-                     : '顯示您作為夥伴，被哪些顧客預約了服務時段。您可以查看客戶資訊、預約狀態等詳細資料。'
-                   }
-                 </div>
           </div>
         </InfoCard>
 

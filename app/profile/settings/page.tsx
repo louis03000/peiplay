@@ -213,8 +213,6 @@ export default function ProfileSettingsPage() {
         </InfoCard>
       </div>
 
-      </div>
-
       {/* 儲存按鈕 */}
       <div className="mt-8 flex justify-end">
         <button

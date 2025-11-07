@@ -1092,7 +1092,6 @@ function BookingWizardContent() {
               </button>
             </div>
           )}
-          </div>
         </InfoCard>
       </PartnerPageLayout>
   )
