@@ -9,12 +9,12 @@ interface PartnerPageLayoutProps {
   maxWidth?: '4xl' | '5xl' | '6xl' | '7xl'
 }
 
-const PartnerPageLayout: React.FC<PartnerPageLayoutProps> = ({
+export default function PartnerPageLayout({
   title,
   subtitle,
   children,
   maxWidth = '6xl'
-}) => {
+}: PartnerPageLayoutProps) {
   const maxWidthClass = {
     '4xl': 'max-w-4xl',
     '5xl': 'max-w-5xl',
@@ -45,6 +45,4 @@ const PartnerPageLayout: React.FC<PartnerPageLayoutProps> = ({
     </div>
   )
 }
-
-export default PartnerPageLayout
 

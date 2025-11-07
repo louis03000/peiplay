@@ -11,14 +11,14 @@ interface StatBoxProps {
   className?: string
 }
 
-const StatBox: React.FC<StatBoxProps> = ({
+export default function StatBox({
   label,
   value,
   icon,
   iconBgColor = 'blue',
   subtitle,
   className = ''
-}) => {
+}: StatBoxProps) {
   const iconBgColorClass = {
     green: 'bg-green-100 text-green-600',
     blue: 'bg-blue-100 text-blue-600',
@@ -48,6 +48,4 @@ const StatBox: React.FC<StatBoxProps> = ({
     </div>
   )
 }
-
-export default StatBox
 

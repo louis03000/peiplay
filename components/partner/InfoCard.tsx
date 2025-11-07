@@ -10,13 +10,13 @@ interface InfoCardProps {
   bgColor?: 'white' | 'gray'
 }
 
-const InfoCard: React.FC<InfoCardProps> = ({
+export default function InfoCard({
   children,
   className = '',
   padding = 'md',
   noShadow = false,
   bgColor = 'white'
-}) => {
+}: InfoCardProps) {
   const paddingClass = {
     sm: 'p-3 sm:p-4',
     md: 'p-4 sm:p-6',
@@ -41,6 +41,4 @@ const InfoCard: React.FC<InfoCardProps> = ({
     </div>
   )
 }
-
-export default InfoCard
 
