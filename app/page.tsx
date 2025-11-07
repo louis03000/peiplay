@@ -262,7 +262,7 @@ export default function HomePage() {
 
       {/* 服務亮點 - 第 3 屏 */}
       <div className="bg-white min-h-screen flex items-center snap-start snap-always">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-20 w-full">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 w-full">
           <div className="text-center mb-20">
             <h2 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-gray-900 mb-6 tracking-tight">
               為什麼選擇 PeiPlay
