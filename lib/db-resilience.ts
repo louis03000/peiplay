@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client'
+import { PrismaClient, Prisma } from '@prisma/client'
 import { prisma } from './prisma'
 
 /**
@@ -207,14 +207,20 @@ export const db = {
    * 執行事務操作（自動重試）
    */
   async transaction<T>(
-    operations: ((prisma: PrismaClient) => Promise<T>)[],
+    operations: ((prisma: Prisma.TransactionClient) => Promise<T>)[],
     operationName?: string
   ): Promise<T[]> {
     return executeWithRetry(
       async () => {
-        return prisma.$transaction(
-          operations.map(op => op(prisma))
-        )
+        return prisma.$transaction(async (tx) => {
+          const results: T[] = []
+
+          for (const operation of operations) {
+            results.push(await operation(tx))
+          }
+
+          return results
+        })
       },
       operationName || 'Transaction'
     )
