@@ -153,10 +153,21 @@ export default function HomePage() {
     }
   ].filter(action => action.show);
 
+  const heroBackgroundStyle = {
+    backgroundImage:
+      "linear-gradient(135deg, rgba(108, 99, 255, 0.85) 0%, rgba(90, 82, 230, 0.9) 50%, rgba(74, 66, 214, 0.92) 100%), url('/images/hero-gaming.jpg.png')",
+    backgroundSize: 'cover',
+    backgroundPosition: 'center',
+    backgroundRepeat: 'no-repeat'
+  } as const;
+
   return (
     <div className="min-h-screen bg-[#F8F9FB] snap-y snap-mandatory overflow-y-scroll h-screen">
       {/* Hero Section - 第 1 屏 */}
-      <div className="relative bg-gradient-to-br from-[#6C63FF] via-[#5a52e6] to-[#4a42d6] overflow-hidden min-h-screen flex items-center snap-start snap-always">
+      <div
+        className="relative overflow-hidden min-h-screen flex items-center snap-start snap-always"
+        style={heroBackgroundStyle}
+      >
         {/* 背景裝飾 - 增強層次感 */}
         <div className="absolute inset-0 opacity-10">
           <div className="absolute top-0 left-0 w-96 h-96 bg-white rounded-full blur-3xl transform -translate-x-1/2 -translate-y-1/2 animate-pulse"></div>
