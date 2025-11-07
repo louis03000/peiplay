@@ -2,14 +2,7 @@
 export const dynamic = "force-dynamic";
 
 import React from "react";
-import {
-  useState,
-  useEffect,
-  useMemo,
-  useCallback,
-  Suspense,
-  useRef,
-} from "react";
+import { useState, useEffect, useMemo, useCallback, Suspense, useRef } from "react";
 import Image from "next/image";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
@@ -19,23 +12,6 @@ import { useSession } from "next-auth/react";
 import Link from "next/link";
 import PartnerPageLayout from "@/components/partner/PartnerPageLayout";
 import InfoCard from "@/components/partner/InfoCard";
-
-// 防抖 Hook
-function useDebounce<T>(value: T, delay: number): T {
-  const [debouncedValue, setDebouncedValue] = useState<T>(value);
-
-  useEffect(() => {
-    const handler = setTimeout(() => {
-      setDebouncedValue(value);
-    }, delay);
-
-    return () => {
-      clearTimeout(handler);
-    };
-  }, [value, delay]);
-
-  return debouncedValue;
-}
 
 // 動態步驟顯示
 const getSteps = (onlyAvailable: boolean) => {
@@ -88,7 +64,6 @@ function isSameDay(d1: Date, d2: Date) {
 function BookingWizardContent() {
   const searchParams = useSearchParams();
   const [step, setStep] = useState(0);
-  const [search, setSearch] = useState("");
   const [partners, setPartners] = useState<Partner[]>([]);
   const [selectedPartner, setSelectedPartner] = useState<Partner | null>(null);
   const [onlyAvailable, setOnlyAvailable] = useState(false);
@@ -115,9 +90,6 @@ function BookingWizardContent() {
   const [loadingFavorites, setLoadingFavorites] = useState(false);
   const [partnersError, setPartnersError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
-
-  // 防抖搜尋
-  const debouncedSearch = useDebounce(search, 300);
 
   // 處理翻面功能
   const handleCardFlip = (partnerId: string) => {
@@ -370,12 +342,6 @@ function BookingWizardContent() {
   // 搜尋過濾 - 使用 useMemo 優化，使用防抖搜尋，並將收藏的夥伴放在最上面
   const filteredPartners: Partner[] = useMemo(() => {
     const filtered = partners.filter((p) => {
-      const matchSearch =
-        p.name.includes(debouncedSearch) ||
-        (p.games && p.games.some((s) => s.includes(debouncedSearch)));
-
-      if (!matchSearch) return false;
-
       // 純聊天篩選
       if (onlyChat && !p.supportsChatOnly) return false;
 
@@ -385,9 +351,9 @@ function BookingWizardContent() {
         return p.isAvailableNow;
       } else if (onlyRankBooster) {
         return p.isRankBooster;
-      } else {
-        return true;
       }
+
+      return true;
     });
 
     // 將收藏的夥伴放在最上面
@@ -399,14 +365,7 @@ function BookingWizardContent() {
       if (!aIsFavorite && bIsFavorite) return 1;
       return 0;
     });
-  }, [
-    partners,
-    debouncedSearch,
-    onlyAvailable,
-    onlyRankBooster,
-    onlyChat,
-    favoritePartnerIds,
-  ]);
+  }, [partners, onlyAvailable, onlyRankBooster, onlyChat, favoritePartnerIds]);
 
   const handleTimeSelect = useCallback((timeId: string) => {
     setSelectedTimes((prev) =>
@@ -730,11 +689,10 @@ function BookingWizardContent() {
         <div className="min-h-[400px] transition-all duration-300">
           {step === 0 && (
             <div className="px-4 sm:px-10 pb-10">
-              {/* 篩選器和搜尋 - 改為響應式橫向排列 */}
-              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 mb-6">
-                {/* 篩選器 - 手機上橫向排列 */}
-                <div className="flex gap-3 sm:gap-4 w-full sm:w-auto">
-                  <label className="flex items-center gap-2 text-white text-sm select-none cursor-pointer">
+              {/* 篩選器 - 等距排列 */}
+              <div className="mb-6">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-6 w-full">
+                  <label className="flex w-full items-center justify-center gap-2 rounded-2xl border border-transparent bg-white/80 px-4 py-2 text-gray-900 text-sm select-none cursor-pointer transition-colors hover:border-[#6C63FF]/40">
                     <input
                       id="only-available"
                       type="checkbox"
@@ -742,11 +700,9 @@ function BookingWizardContent() {
                       onChange={(e) => setOnlyAvailable(e.target.checked)}
                       className="accent-[#6C63FF] w-4 h-4 sm:w-5 sm:h-5"
                     />
-                    <span className="text-xs sm:text-sm text-gray-900 font-bold">
-                      只看現在有空
-                    </span>
+                    <span className="text-xs sm:text-sm font-bold">只看現在有空</span>
                   </label>
-                  <label className="flex items-center gap-2 text-gray-900 text-sm select-none cursor-pointer">
+                  <label className="flex w-full items-center justify-center gap-2 rounded-2xl border border-transparent bg-white/80 px-4 py-2 text-gray-900 text-sm select-none cursor-pointer transition-colors hover:border-[#6C63FF]/40">
                     <input
                       id="only-rank-booster"
                       type="checkbox"
@@ -754,11 +710,9 @@ function BookingWizardContent() {
                       onChange={(e) => setOnlyRankBooster(e.target.checked)}
                       className="accent-[#6C63FF] w-4 h-4 sm:w-5 sm:h-5"
                     />
-                    <span className="text-xs sm:text-sm text-gray-900 font-bold">
-                      只看上分高手
-                    </span>
+                    <span className="text-xs sm:text-sm font-bold">只看上分高手</span>
                   </label>
-                  <label className="flex items-center gap-2 text-gray-900 text-sm select-none cursor-pointer">
+                  <label className="flex w-full items-center justify-center gap-2 rounded-2xl border border-transparent bg-white/80 px-4 py-2 text-gray-900 text-sm select-none cursor-pointer transition-colors hover:border-[#6C63FF]/40">
                     <input
                       id="only-chat"
                       type="checkbox"
@@ -766,19 +720,9 @@ function BookingWizardContent() {
                       onChange={(e) => setOnlyChat(e.target.checked)}
                       className="accent-green-500 w-4 h-4 sm:w-5 sm:h-5"
                     />
-                    <span className="text-xs sm:text-sm text-gray-900 font-bold">
-                      純聊天
-                    </span>
+                    <span className="text-xs sm:text-sm font-bold">純聊天</span>
                   </label>
                 </div>
-
-                {/* 搜尋框 - 手機上獨占一行 */}
-                <input
-                  className="w-full sm:flex-1 px-4 py-2.5 rounded-2xl bg-white text-gray-900 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#6C63FF] focus:border-[#6C63FF] placeholder-gray-500 text-sm sm:text-base shadow-sm"
-                  placeholder="搜尋夥伴姓名或專長..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                />
               </div>
 
               {/* 群組預約按鈕 */}
@@ -831,25 +775,8 @@ function BookingWizardContent() {
                       <div className="col-span-full text-gray-600 text-center py-8">
                         <div className="mb-4">
                           <div className="text-6xl mb-2">🔍</div>
-                          {search ? (
-                            <>
-                              <p className="text-lg font-medium mb-2">
-                                搜尋無結果
-                              </p>
-                              <p className="text-sm text-gray-500">
-                                找不到符合「{debouncedSearch}」的夥伴
-                              </p>
-                            </>
-                          ) : (
-                            <>
-                              <p className="text-lg font-medium mb-2">
-                                目前沒有可用的夥伴
-                              </p>
-                              <p className="text-sm text-gray-500">
-                                請稍後再試或調整篩選條件
-                              </p>
-                            </>
-                          )}
+                          <p className="text-lg font-medium mb-2">目前沒有可用的夥伴</p>
+                          <p className="text-sm text-gray-500">請稍後再試或調整篩選條件</p>
                         </div>
                       </div>
                     )}
