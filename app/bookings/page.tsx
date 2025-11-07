@@ -368,8 +368,7 @@ export default function BookingsPage() {
       maxWidth="6xl"
     >
       <InfoCard className="p-4 sm:p-8">
-
-      {/* Tab 切換按鈕 */}
+        {/* Tab 切換按鈕 */}
       <div className="flex justify-center gap-4 sm:gap-6 mb-6 sm:mb-8">
         <button
           className={`px-6 sm:px-10 py-4 rounded-2xl font-bold transition-all duration-300 border-2 ${
