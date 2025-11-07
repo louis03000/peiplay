@@ -174,14 +174,14 @@ export default function HomePage() {
           <div className="max-w-5xl mx-auto text-center">
             <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-white mb-8 leading-tight tracking-tight">
               {status === 'authenticated' && isPartner 
-                ? '歡迎回來，夥伴！' 
+                ? `歡迎回來，${session?.user?.name || '夥伴'}` 
                 : status === 'authenticated'
                 ? '準備好開始遊戲了嗎？'
                 : '找到你的遊戲夥伴'}
             </h1>
             <p className="text-lg sm:text-xl md:text-2xl text-white/90 mb-12 max-w-3xl mx-auto leading-relaxed font-light">
               {status === 'authenticated' && isPartner
-                ? '管理您的時段、查看收入，提供最專業的遊戲陪玩服務'
+                ? '隨心安排你的時間，陪玩也能成為一種享受'
                 : '專業的遊戲陪練平台，讓遊戲更有趣，技能更精進'}
             </p>
             <div className="flex flex-col sm:flex-row gap-5 justify-center items-center">
