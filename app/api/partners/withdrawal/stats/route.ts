@@ -48,9 +48,6 @@ export async function GET(request: NextRequest) {
         },
         status: {
           in: ['COMPLETED', 'CONFIRMED']
-        },
-        finalAmount: {
-          not: null // 確保 finalAmount 不是 null
         }
       },
       _sum: {
