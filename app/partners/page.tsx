@@ -213,12 +213,11 @@ export default function PartnersPage() {
   }, [router])
 
   return (
-    <div className="min-h-screen bg-[#F8F9FB]">
-      <PartnerPageLayout
-        title="尋找遊戲夥伴"
-        subtitle="從專業的遊戲陪玩夥伴中選擇最適合您的一位"
-        maxWidth="7xl"
-      >
+    <PartnerPageLayout
+      title="尋找遊戲夥伴"
+      subtitle="從專業的遊戲陪玩夥伴中選擇最適合您的一位"
+      maxWidth="7xl"
+    >
         {/* 搜尋欄 */}
         <div className="mb-8">
           <div className="relative group">
@@ -341,7 +340,6 @@ export default function PartnersPage() {
             </div>
           </>
         )}
-      </PartnerPageLayout>
-    </div>
+    </PartnerPageLayout>
   )
 }
