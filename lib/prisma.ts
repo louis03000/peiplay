@@ -19,20 +19,29 @@ function getDatabaseUrlWithPool(): string {
     try {
       const url = new URL(dbUrl)
       
-      // Supabase 免費層級連接限制約為 60，我們設置更保守的值
-      // 如果使用 Supabase，建議使用連接池 URL (pooler)
+      // 檢測環境和資料庫類型
       const isSupabase = url.hostname.includes('supabase.co')
+      const isVercel = process.env.VERCEL === '1'
       
       // 只在沒有這些參數時才添加
       if (!url.searchParams.has('connection_limit') && !url.searchParams.has('pool_timeout')) {
-        // 針對 Supabase 免費層級優化：使用較小的連接數
-        url.searchParams.set('connection_limit', isSupabase ? '5' : '10')
-        url.searchParams.set('pool_timeout', '20') // 增加到20秒，給查詢更多時間
-        url.searchParams.set('connect_timeout', '10') // 連接超時（秒）
+        // Vercel serverless 環境優化
+        if (isVercel) {
+          // Vercel 每個 function 最多保持 1-2 個連接
+          url.searchParams.set('connection_limit', isSupabase ? '3' : '5')
+          url.searchParams.set('pool_timeout', '30') // 增加超時時間
+          url.searchParams.set('connect_timeout', '15') // 增加連接超時
+        } else {
+          // 一般環境配置
+          url.searchParams.set('connection_limit', isSupabase ? '5' : '10')
+          url.searchParams.set('pool_timeout', '20')
+          url.searchParams.set('connect_timeout', '10')
+        }
         
         // 如果使用 Supabase，提示使用連接池 URL
         if (isSupabase && !url.hostname.includes('pooler')) {
-          console.warn('⚠️ 建議使用 Supabase 連接池 URL (pooler.supabase.co) 以提高穩定性')
+          console.warn('⚠️ 建議使用 Supabase Pooler URL (*.pooler.supabase.co) 以提高穩定性')
+          console.warn('   您可以在 Supabase Dashboard > Settings > Database > Connection Pooling 找到')
         }
       }
       
