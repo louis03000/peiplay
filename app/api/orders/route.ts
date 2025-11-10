@@ -1,120 +1,109 @@
 export const dynamic = 'force-dynamic';
-import { NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { prisma } from '@/lib/prisma'
-import { authOptions } from '@/lib/auth'
-import ExcelJS from 'exceljs';
+export const runtime = 'nodejs';
 
-export async function GET(req: Request) {
+import { NextRequest, NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
+import { withDatabaseQuery, createErrorResponse } from '@/lib/api-helpers';
+
+export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(req.url);
-    if (searchParams.get('export') === 'excel') {
-      try {
-        const session = await getServerSession(authOptions)
-        if (!session?.user?.email || session?.user?.role !== 'ADMIN') {
-          return NextResponse.json({ error: 'Forbidden: Only admin can export' }, { status: 403 })
-        }
-        const customer = await prisma.customer.findFirst({
-          where: { user: { email: session.user.email } }
-        })
-        if (!customer) {
-          return NextResponse.json({ error: 'Customer not found' }, { status: 404 })
-        }
-        const orders = await prisma.order.findMany({
-          where: { customerId: customer.id },
-          include: {
-            booking: {
-              include: {
-                schedule: { include: { partner: true } }
-              }
-            }
-          },
-          orderBy: { createdAt: 'desc' }
-        })
-        // 準備 Excel
-        const workbook = new ExcelJS.Workbook();
-        const sheet = workbook.addWorksheet('消費紀錄');
-        sheet.columns = [
-          { header: '預約日期', key: 'date', width: 15 },
-          { header: '開始時間', key: 'start', width: 10 },
-          { header: '結束時間', key: 'end', width: 10 },
-          { header: '夥伴姓名', key: 'partner', width: 15 },
-          { header: '總時長(分鐘)', key: 'duration', width: 15 },
-          { header: '每半小時收費', key: 'rate', width: 15 },
-          { header: '總收費金額', key: 'total', width: 15 },
-        ];
-        for (const order of orders) {
-          const s = order.booking?.schedule;
-          const partner = s?.partner as any;
-          if (!s || !partner) continue;
-          const start = new Date(s.startTime);
-          const end = new Date(s.endTime);
-          const duration = Math.round((end.getTime() - start.getTime()) / 60000); // 分鐘
-          const halfHourlyRate = partner.halfHourlyRate || 0;
-          const total = Math.round(duration / 30 * halfHourlyRate);
-          sheet.addRow({
-            date: start.toLocaleDateString('zh-TW'),
-            start: start.toTimeString().slice(0,5),
-            end: end.toTimeString().slice(0,5),
-            partner: partner.name,
-            duration,
-            rate: halfHourlyRate,
-            total
-          });
-        }
-        const buffer = await workbook.xlsx.writeBuffer();
-        return new NextResponse(buffer, {
-          status: 200,
-          headers: {
-            'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            'Content-Disposition': `attachment; filename="orders-${Date.now()}.xlsx"`,
-          },
-        });
-      } catch (error) {
-        return NextResponse.json({ error: 'Excel 匯出失敗', detail: error instanceof Error ? error.message : String(error) }, { status: 500 })
-      }
-    }
-    const session = await getServerSession(authOptions)
-    
+    const session = await getServerSession(authOptions);
+
     if (!session?.user?.email) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const customer = await prisma.customer.findFirst({
-      where: {
-        user: {
-          email: session.user.email
-        }
-      }
-    })
+    const { searchParams } = request.nextUrl;
+    const isExportExcel = searchParams.get('export') === 'excel';
 
-    if (!customer) {
-      return NextResponse.json({ error: 'Customer not found' }, { status: 404 })
+    const result = await withDatabaseQuery(async (tx) => {
+      const customer = await tx.customer.findFirst({
+        where: { user: { email: session.user.email } },
+      });
+
+      if (!customer) {
+        return null;
+      }
+
+      const orders = await tx.order.findMany({
+        where: { customerId: customer.id },
+        include: {
+          booking: {
+            include: {
+              schedule: {
+                include: {
+                  partner: true,
+                },
+              },
+            },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      return { customer, orders };
+    }, isExportExcel ? 'orders:export' : 'orders:list');
+
+    if (!result) {
+      return NextResponse.json({ error: 'Customer not found' }, { status: 404 });
     }
 
-    const orders = await prisma.order.findMany({
-      where: {
-        customerId: customer.id
-      },
-      include: {
-        booking: {
-          include: {
-            schedule: {
-              include: {
-                partner: true
-              }
-            }
-          }
-        }
-      },
-      orderBy: {
-        createdAt: 'desc'
-      }
-    })
+    const { orders } = result;
 
-    return NextResponse.json({ orders })
-  } catch (err) {
-    console.error('GET /api/orders error:', err);
-    return NextResponse.json({ error: (err instanceof Error ? err.message : 'Internal Server Error') }, { status: 500 });
+    if (isExportExcel) {
+      const ExcelJS = await import('exceljs');
+      const workbook = new ExcelJS.Workbook();
+      const sheet = workbook.addWorksheet('消費紀錄');
+
+      sheet.columns = [
+        { header: '預約日期', key: 'date', width: 15 },
+        { header: '開始時間', key: 'start', width: 12 },
+        { header: '結束時間', key: 'end', width: 12 },
+        { header: '夥伴姓名', key: 'partner', width: 18 },
+        { header: '總時長(分鐘)', key: 'duration', width: 16 },
+        { header: '每半小時收費', key: 'rate', width: 18 },
+        { header: '總收費金額', key: 'total', width: 16 },
+      ];
+
+      for (const order of orders) {
+        const schedule = order.booking?.schedule;
+        const partner = schedule?.partner;
+
+        if (!schedule || !partner) {
+          continue;
+        }
+
+        const start = new Date(schedule.startTime);
+        const end = new Date(schedule.endTime);
+        const durationMinutes = Math.round((end.getTime() - start.getTime()) / 60000);
+        const halfHourlyRate = partner.halfHourlyRate || 0;
+        const totalAmount = Math.round((durationMinutes / 30) * halfHourlyRate);
+
+        sheet.addRow({
+          date: start.toLocaleDateString('zh-TW'),
+          start: start.toTimeString().slice(0, 5),
+          end: end.toTimeString().slice(0, 5),
+          partner: partner.name,
+          duration: durationMinutes,
+          rate: halfHourlyRate,
+          total: totalAmount,
+        });
+      }
+
+      const buffer = await workbook.xlsx.writeBuffer();
+
+      return new NextResponse(buffer, {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+          'Content-Disposition': `attachment; filename="orders-${Date.now()}.xlsx"`,
+        },
+      });
+    }
+
+    return NextResponse.json({ orders });
+  } catch (error) {
+    return createErrorResponse(error, 'orders');
   }
 } 

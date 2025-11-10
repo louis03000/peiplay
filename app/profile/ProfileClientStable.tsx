@@ -247,18 +247,18 @@ export default function ProfileClientStable() {
               
               {isPartner && (
                 <div className="mt-6">
-                  <label className="block text-gray-300 mb-1 font-semibold">留言板（顧客預約時會看到，限 50 字）</label>
+                  <label className="block text-gray-300 mb-1 font-semibold">留言板（顧客預約時會看到，限 500 字，含空格）</label>
                   <textarea
                     name="customerMessage"
                     value={formData.customerMessage}
                     onChange={e => {
-                      if (e.target.value.length <= 50) handleInputChange(e)
+                      if (e.target.value.length <= 500) handleInputChange(e)
                     }}
-                    maxLength={50}
+                    maxLength={500}
                     className="w-full rounded bg-gray-900 text-white border border-gray-700 focus:border-indigo-500 focus:outline-none p-3 min-h-[40px] text-sm"
-                    placeholder="請輸入想對顧客說的話...（限 50 字）"
+                    placeholder="請輸入想對顧客說的話...（限 500 字，含空格）"
                   />
-                  <div className="text-right text-xs text-gray-400 mt-1">{formData.customerMessage.length}/50</div>
+                  <div className="text-right text-xs text-gray-400 mt-1">{formData.customerMessage.length}/500</div>
                 </div>
               )}
               

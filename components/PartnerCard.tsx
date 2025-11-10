@@ -315,13 +315,6 @@ const PartnerCard = memo(function PartnerCard({ partner, onQuickBook, showNextSt
               )}
             </div>
 
-            {/* 客戶留言 - 在較小的卡片中隱藏或縮短 */}
-            {partner.customerMessage && (
-              <div className="bg-gray-50 p-2 rounded-lg mb-2 hidden sm:block">
-                <p className="text-gray-700 text-xs italic line-clamp-2">{partner.customerMessage}</p>
-              </div>
-            )}
-
             {/* 按鈕區域 */}
             <div className="flex gap-1.5">
               {partner.isAvailableNow && onQuickBook && (

@@ -13,8 +13,9 @@ interface PartnerProfile {
   interests: string[]
   games: string[]
   supportsChatOnly: boolean
-  chatOnlyRate?: number
+  chatOnlyRate?: number | null
   halfHourlyRate: number
+  customerMessage: string | null
   images: string[]
   reviewsReceived: Review[]
   user: {
@@ -99,9 +100,6 @@ export default function PartnerProfilePage() {
   }, [partnerId])
 
   const fetchPartnerProfile = async () => {
-    // 防止重複請求
-    if (loading) return;
-    
     try {
       setLoading(true)
       const response = await fetch(`/api/partners/${partnerId}/profile`, {
@@ -350,6 +348,21 @@ export default function PartnerProfilePage() {
                       <p className="text-lg font-medium">NT$ {partner.chatOnlyRate}/小時</p>
                       <p className="text-sm text-gray-400 mt-1">提供純聊天陪聊服務</p>
                     </div>
+                  </div>
+                )}
+
+                {/* 留言板 */}
+                {partner.customerMessage && (
+                  <div className="bg-gray-700/50 rounded-xl p-6">
+                    <h3 className="text-xl font-semibold text-white mb-4 flex items-center">
+                      <svg className="w-6 h-6 mr-2 text-indigo-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                      </svg>
+                      留言板
+                    </h3>
+                    <p className="text-gray-200 leading-relaxed whitespace-pre-wrap break-words">
+                      {partner.customerMessage}
+                    </p>
                   </div>
                 )}
 
