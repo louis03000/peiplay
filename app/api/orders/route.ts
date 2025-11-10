@@ -4,7 +4,8 @@ export const runtime = 'nodejs';
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { withDatabaseQuery, createErrorResponse } from '@/lib/api-helpers';
+import { createErrorResponse } from '@/lib/api-helpers';
+import { db } from '@/lib/db-resilience';
 
 export async function GET(request: NextRequest) {
   try {
@@ -17,7 +18,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = request.nextUrl;
     const isExportExcel = searchParams.get('export') === 'excel';
 
-    const result = await withDatabaseQuery(async (tx) => {
+    const result = await db.query(async (tx) => {
       const customer = await tx.customer.findFirst({
         where: { user: { email: session.user.email } },
       });
