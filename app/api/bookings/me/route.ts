@@ -11,6 +11,7 @@ export const runtime = 'nodejs';
 const ACTIVE_STATUSES: BookingStatus[] = [
   BookingStatus.PENDING,
   BookingStatus.CONFIRMED,
+  BookingStatus.PAID_WAITING_PARTNER_CONFIRMATION,
   BookingStatus.REJECTED,
 ];
 
