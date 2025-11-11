@@ -3,11 +3,16 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { db } from '@/lib/db-resilience';
 import { createErrorResponse } from '@/lib/api-helpers';
+import { BookingStatus } from '@prisma/client';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
-const ACTIVE_STATUSES = ['PENDING', 'CONFIRMED', 'REJECTED'];
+const ACTIVE_STATUSES: BookingStatus[] = [
+  BookingStatus.PENDING,
+  BookingStatus.CONFIRMED,
+  BookingStatus.REJECTED,
+];
 
 export async function GET() {
   try {
