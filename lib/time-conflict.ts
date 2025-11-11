@@ -1,5 +1,14 @@
-import type { PrismaClient } from '@prisma/client'
+import type { Prisma, PrismaClient } from '@prisma/client'
 import { prisma as defaultPrisma } from '@/lib/prisma'
+
+function isClient(client?: PrismaClient | Prisma.TransactionClient): client is Prisma.TransactionClient {
+  return !!client && typeof (client as Prisma.TransactionClient).$transaction === 'function'
+}
+
+const resolveClient = (client?: PrismaClient | Prisma.TransactionClient): PrismaClient | Prisma.TransactionClient => {
+  if (!client) return defaultPrisma
+  return client
+}
 
 /**
  * 時間衝突檢查工具函數
@@ -35,9 +44,11 @@ export async function checkTimeConflict(
   startTime: Date,
   endTime: Date,
   excludeBookingId?: string,
-  client: PrismaClient = defaultPrisma
+  client?: PrismaClient | Prisma.TransactionClient
 ) {
-  const existingBookings = await client.booking.findMany({
+  const dbClient = resolveClient(client)
+
+  const existingBookings = await dbClient.booking.findMany({
     where: {
       schedule: {
         partnerId: partnerId
@@ -83,12 +94,13 @@ export async function checkTimeConflict(
  */
 export async function checkPartnerCurrentlyBusy(
   partnerId: string,
-  client: PrismaClient = defaultPrisma
+  client?: PrismaClient | Prisma.TransactionClient
 ) {
+  const dbClient = resolveClient(client)
   const now = new Date();
   
   // 查詢當前時間在進行中的預約
-  const activeBooking = await client.booking.findFirst({
+  const activeBooking = await dbClient.booking.findFirst({
     where: {
       schedule: {
         partnerId: partnerId,
