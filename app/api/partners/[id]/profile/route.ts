@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { withDatabaseQuery, createErrorResponse } from '@/lib/api-helpers';
+import { createErrorResponse } from '@/lib/api-helpers';
+import { db } from '@/lib/db-resilience';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -11,7 +12,7 @@ export async function GET(
   const { id } = params;
 
   try {
-    const result = await withDatabaseQuery(async (tx) => {
+    const result = await db.query(async (tx) => {
       const partner = await tx.partner.findUnique({
         where: { id },
         include: {
