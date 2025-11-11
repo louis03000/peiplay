@@ -1,14 +1,9 @@
-import type { Prisma, PrismaClient } from '@prisma/client'
+import type { PrismaClient } from '@prisma/client'
 import { prisma as defaultPrisma } from '@/lib/prisma'
 
-function isClient(client?: PrismaClient | Prisma.TransactionClient): client is Prisma.TransactionClient {
-  return !!client && typeof (client as Prisma.TransactionClient).$transaction === 'function'
-}
+type PrismaClientLike = Pick<PrismaClient, 'booking'>
 
-const resolveClient = (client?: PrismaClient | Prisma.TransactionClient): PrismaClient | Prisma.TransactionClient => {
-  if (!client) return defaultPrisma
-  return client
-}
+const resolveClient = (client?: PrismaClientLike): PrismaClientLike => client ?? defaultPrisma
 
 /**
  * 時間衝突檢查工具函數
@@ -44,7 +39,7 @@ export async function checkTimeConflict(
   startTime: Date,
   endTime: Date,
   excludeBookingId?: string,
-  client?: PrismaClient | Prisma.TransactionClient
+  client?: PrismaClientLike
 ) {
   const dbClient = resolveClient(client)
 
@@ -94,7 +89,7 @@ export async function checkTimeConflict(
  */
 export async function checkPartnerCurrentlyBusy(
   partnerId: string,
-  client?: PrismaClient | Prisma.TransactionClient
+  client?: PrismaClientLike
 ) {
   const dbClient = resolveClient(client)
   const now = new Date();
