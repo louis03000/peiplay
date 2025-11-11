@@ -1,3 +1,6 @@
+import type { PrismaClient } from '@prisma/client'
+import { prisma as defaultPrisma } from '@/lib/prisma'
+
 /**
  * 時間衝突檢查工具函數
  */
@@ -31,12 +34,10 @@ export async function checkTimeConflict(
   partnerId: string,
   startTime: Date,
   endTime: Date,
-  excludeBookingId?: string
+  excludeBookingId?: string,
+  client: PrismaClient = defaultPrisma
 ) {
-  const { prisma } = await import('@/lib/prisma');
-  
-  // 查詢該夥伴的所有有效預約（排除已取消、已拒絕、已完成的）
-  const existingBookings = await prisma.booking.findMany({
+  const existingBookings = await client.booking.findMany({
     where: {
       schedule: {
         partnerId: partnerId
@@ -80,12 +81,14 @@ export async function checkTimeConflict(
  * @param partnerId 夥伴ID
  * @returns 正在執行的訂單信息，如果沒有則返回 null
  */
-export async function checkPartnerCurrentlyBusy(partnerId: string) {
-  const { prisma } = await import('@/lib/prisma');
+export async function checkPartnerCurrentlyBusy(
+  partnerId: string,
+  client: PrismaClient = defaultPrisma
+) {
   const now = new Date();
   
   // 查詢當前時間在進行中的預約
-  const activeBooking = await prisma.booking.findFirst({
+  const activeBooking = await client.booking.findFirst({
     where: {
       schedule: {
         partnerId: partnerId,
