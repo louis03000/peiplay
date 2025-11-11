@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db-resilience'
 import { createErrorResponse } from '@/lib/api-helpers'
-import { sendBookingConfirmationEmail } from '@/lib/email'
 import { BookingStatus } from '@prisma/client'
 import { sendBookingConfirmationEmail } from '@/lib/email'
 
