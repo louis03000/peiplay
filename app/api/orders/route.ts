@@ -8,7 +8,7 @@ import { createErrorResponse } from '@/lib/api-helpers';
 import { db } from '@/lib/db-resilience';
 
 export async function GET(request: NextRequest) {
-  try {
+      try {
     const session = await getServerSession(authOptions);
 
     if (!session?.user?.email) {
@@ -23,15 +23,15 @@ export async function GET(request: NextRequest) {
         where: { user: { email: session.user.email } },
       });
 
-      if (!customer) {
+        if (!customer) {
         return null;
-      }
+        }
 
       const orders = await tx.order.findMany({
-        where: { customerId: customer.id },
-        include: {
-          booking: {
-            include: {
+          where: { customerId: customer.id },
+          include: {
+            booking: {
+              include: {
               schedule: {
                 include: {
                   partner: true,
@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
               },
             },
           },
-        },
+          },
         orderBy: { createdAt: 'desc' },
       });
 
@@ -54,20 +54,20 @@ export async function GET(request: NextRequest) {
 
     if (isExportExcel) {
       const ExcelJS = await import('exceljs');
-      const workbook = new ExcelJS.Workbook();
-      const sheet = workbook.addWorksheet('消費紀錄');
+        const workbook = new ExcelJS.Workbook();
+        const sheet = workbook.addWorksheet('消費紀錄');
 
-      sheet.columns = [
-        { header: '預約日期', key: 'date', width: 15 },
+        sheet.columns = [
+          { header: '預約日期', key: 'date', width: 15 },
         { header: '開始時間', key: 'start', width: 12 },
         { header: '結束時間', key: 'end', width: 12 },
         { header: '夥伴姓名', key: 'partner', width: 18 },
         { header: '總時長(分鐘)', key: 'duration', width: 16 },
         { header: '每半小時收費', key: 'rate', width: 18 },
         { header: '總收費金額', key: 'total', width: 16 },
-      ];
+        ];
 
-      for (const order of orders) {
+        for (const order of orders) {
         const schedule = order.booking?.schedule;
         const partner = schedule?.partner;
 
@@ -78,29 +78,29 @@ export async function GET(request: NextRequest) {
         const start = new Date(schedule.startTime);
         const end = new Date(schedule.endTime);
         const durationMinutes = Math.round((end.getTime() - start.getTime()) / 60000);
-        const halfHourlyRate = partner.halfHourlyRate || 0;
+          const halfHourlyRate = partner.halfHourlyRate || 0;
         const totalAmount = Math.round((durationMinutes / 30) * halfHourlyRate);
 
-        sheet.addRow({
-          date: start.toLocaleDateString('zh-TW'),
+          sheet.addRow({
+            date: start.toLocaleDateString('zh-TW'),
           start: start.toTimeString().slice(0, 5),
           end: end.toTimeString().slice(0, 5),
-          partner: partner.name,
+            partner: partner.name,
           duration: durationMinutes,
-          rate: halfHourlyRate,
+            rate: halfHourlyRate,
           total: totalAmount,
+          });
+        }
+
+        const buffer = await workbook.xlsx.writeBuffer();
+
+        return new NextResponse(buffer, {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'Content-Disposition': `attachment; filename="orders-${Date.now()}.xlsx"`,
+          },
         });
-      }
-
-      const buffer = await workbook.xlsx.writeBuffer();
-
-      return new NextResponse(buffer, {
-        status: 200,
-        headers: {
-          'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-          'Content-Disposition': `attachment; filename="orders-${Date.now()}.xlsx"`,
-        },
-      });
     }
 
     return NextResponse.json({ orders });

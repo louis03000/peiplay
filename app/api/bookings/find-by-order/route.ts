@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
-
+import { db } from '@/lib/db-resilience'
+import { createErrorResponse } from '@/lib/api-helpers'
 
 export const dynamic = 'force-dynamic';
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
@@ -15,19 +16,18 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // 查找對應的預約
-    const booking = await prisma.booking.findFirst({
-      where: {
-        orderNumber: orderNumber
-      },
-      include: {
-        schedule: {
-          include: {
-            partner: true
-          }
-        }
-      }
-    })
+    const booking = await db.query(async (client) => {
+      return client.booking.findFirst({
+        where: { orderNumber },
+        include: {
+          schedule: {
+            include: {
+              partner: true,
+            },
+          },
+        },
+      })
+    }, 'bookings:find-by-order')
 
     if (!booking) {
       return NextResponse.json(
@@ -37,12 +37,7 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json(booking)
-
   } catch (error) {
-    console.error('Error finding booking by order number:', error)
-    return NextResponse.json(
-      { error: '查找預約失敗' },
-      { status: 500 }
-    )
+    return createErrorResponse(error, 'bookings:find-by-order')
   }
 } 
