@@ -1,26 +1,17 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
-
+import { db } from "@/lib/db-resilience";
+import { createErrorResponse } from "@/lib/api-helpers";
 
 export const dynamic = 'force-dynamic';
+
 export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions);
-    
+
     if (!session?.user?.id) {
       return NextResponse.json({ error: '請先登入' }, { status: 401 });
-    }
-
-    // 檢查是否為管理員
-    const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
-      select: { role: true }
-    });
-
-    if (!user || user.role !== "ADMIN") {
-      return NextResponse.json({ error: '權限不足' }, { status: 403 });
     }
 
     const { id, isActive } = await request.json();
@@ -29,15 +20,30 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: '缺少優惠碼ID' }, { status: 400 });
     }
 
-    // 更新優惠碼狀態
-    const promoCode = await prisma.promoCode.update({
-      where: { id },
-      data: { isActive }
-    });
+    const result = await db.query(async (client) => {
+      const user = await client.user.findUnique({
+        where: { id: session.user.id },
+        select: { role: true },
+      });
 
-    return NextResponse.json(promoCode);
+      if (!user || user.role !== 'ADMIN') {
+        return { type: 'NOT_ADMIN' } as const;
+      }
+
+      const promoCode = await client.promoCode.update({
+        where: { id },
+        data: { isActive },
+      });
+
+      return { type: 'SUCCESS', promoCode } as const;
+    }, 'admin:promo-codes:toggle');
+
+    if (result.type === 'NOT_ADMIN') {
+      return NextResponse.json({ error: '權限不足' }, { status: 403 });
+    }
+
+    return NextResponse.json(result.promoCode);
   } catch (error) {
-    console.error("Error toggling promo code:", error);
-    return NextResponse.json({ error: "Error toggling promo code" }, { status: 500 });
+    return createErrorResponse(error, 'admin:promo-codes:toggle');
   }
 } 
