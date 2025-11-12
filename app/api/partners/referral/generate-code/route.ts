@@ -1,55 +1,66 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
+import { NextRequest, NextResponse } from 'next/server'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
+import { db } from '@/lib/db-resilience'
+import { createErrorResponse } from '@/lib/api-helpers'
 
-export const dynamic = 'force-dynamic';
+export const dynamic = 'force-dynamic'
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    
+    const session = await getServerSession(authOptions)
+
     if (!session?.user?.id) {
-      return NextResponse.json({ error: '請先登入' }, { status: 401 });
+      return NextResponse.json({ error: '請先登入' }, { status: 401 })
     }
 
-    // 檢查是否為夥伴
-    const partner = await prisma.partner.findUnique({
-      where: { userId: session.user.id },
-      include: { user: true }
-    });
+    const result = await db.query(async (client) => {
+      const partner = await client.partner.findUnique({
+        where: { userId: session.user.id },
+        include: { user: true },
+      })
 
-    if (!partner) {
-      return NextResponse.json({ error: '您不是夥伴' }, { status: 403 });
-    }
-
-    if (partner.status !== 'APPROVED') {
-      return NextResponse.json({ error: '只有已核准的夥伴才能生成邀請碼' }, { status: 403 });
-    }
-
-    // 生成邀請碼（使用夥伴ID的前8位 + 隨機4位數字）
-    const partnerIdPrefix = partner.id.substring(0, 8).toUpperCase();
-    const randomSuffix = Math.floor(1000 + Math.random() * 9000);
-    const inviteCode = `${partnerIdPrefix}${randomSuffix}`;
-
-    // 更新夥伴的邀請碼
-    const updatedPartner = await prisma.partner.update({
-      where: { id: partner.id },
-      data: { inviteCode },
-      include: { user: true }
-    });
-
-    return NextResponse.json({
-      inviteCode,
-      partner: {
-        id: updatedPartner.id,
-        name: updatedPartner.name,
-        inviteCode: updatedPartner.inviteCode
+      if (!partner) {
+        return { type: 'NOT_PARTNER' } as const
       }
-    });
+
+      if (partner.status !== 'APPROVED') {
+        return { type: 'NOT_APPROVED' } as const
+      }
+
+      const partnerIdPrefix = partner.id.substring(0, 8).toUpperCase()
+      const randomSuffix = Math.floor(1000 + Math.random() * 9000)
+      const inviteCode = `${partnerIdPrefix}${randomSuffix}`
+
+      const updatedPartner = await client.partner.update({
+        where: { id: partner.id },
+        data: { inviteCode },
+        include: { user: true },
+      })
+
+      return {
+        type: 'SUCCESS',
+        inviteCode,
+        partner: {
+          id: updatedPartner.id,
+          name: updatedPartner.name,
+          inviteCode: updatedPartner.inviteCode,
+        },
+      } as const
+    }, 'partners:referral:generate-code')
+
+    switch (result.type) {
+      case 'NOT_PARTNER':
+        return NextResponse.json({ error: '您不是夥伴' }, { status: 403 })
+      case 'NOT_APPROVED':
+        return NextResponse.json({ error: '只有已核准的夥伴才能生成邀請碼' }, { status: 403 })
+      case 'SUCCESS':
+        return NextResponse.json({ inviteCode: result.inviteCode, partner: result.partner })
+      default:
+        return NextResponse.json({ error: '未知錯誤' }, { status: 500 })
+    }
   } catch (error) {
-    console.error('生成邀請碼失敗:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    return createErrorResponse(error, 'partners:referral:generate-code')
   }
 }
 

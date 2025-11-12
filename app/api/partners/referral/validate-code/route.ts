@@ -1,54 +1,66 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
+import { NextRequest, NextResponse } from 'next/server'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
+import { db } from '@/lib/db-resilience'
+import { createErrorResponse } from '@/lib/api-helpers'
 
-export const dynamic = 'force-dynamic';
+export const dynamic = 'force-dynamic'
 
 export async function POST(request: NextRequest) {
   try {
-    const { inviteCode } = await request.json();
-    
+    const { inviteCode } = await request.json()
+
     if (!inviteCode) {
-      return NextResponse.json({ error: '請輸入邀請碼' }, { status: 400 });
+      return NextResponse.json({ error: '請輸入邀請碼' }, { status: 400 })
     }
 
-    // 查找邀請碼對應的夥伴
-    const inviter = await prisma.partner.findFirst({
-      where: { 
-        inviteCode,
-        status: 'APPROVED'
-      },
-      include: { user: true }
-    });
+    const result = await db.query(async (client) => {
+      const inviter = await client.partner.findFirst({
+        where: {
+          inviteCode,
+          status: 'APPROVED',
+        },
+        include: { user: true },
+      })
 
-    if (!inviter) {
-      return NextResponse.json({ error: '無效的邀請碼' }, { status: 404 });
-    }
-
-    // 檢查是否為自己邀請自己
-    const session = await getServerSession(authOptions);
-    if (session?.user?.id) {
-      const currentPartner = await prisma.partner.findUnique({
-        where: { userId: session.user.id }
-      });
-      
-      if (currentPartner && currentPartner.id === inviter.id) {
-        return NextResponse.json({ error: '不能使用自己的邀請碼' }, { status: 400 });
+      if (!inviter) {
+        return { type: 'INVALID_CODE' } as const
       }
-    }
 
-    return NextResponse.json({
-      valid: true,
-      inviter: {
-        id: inviter.id,
-        name: inviter.name,
-        inviteCode: inviter.inviteCode
+      const session = await getServerSession(authOptions)
+
+      if (session?.user?.id) {
+        const currentPartner = await client.partner.findUnique({
+          where: { userId: session.user.id },
+        })
+
+        if (currentPartner && currentPartner.id === inviter.id) {
+          return { type: 'SELF_INVITE' } as const
+        }
       }
-    });
+
+      return {
+        type: 'SUCCESS',
+        inviter: {
+          id: inviter.id,
+          name: inviter.name,
+          inviteCode: inviter.inviteCode,
+        },
+      } as const
+    }, 'partners:referral:validate-code')
+
+    switch (result.type) {
+      case 'INVALID_CODE':
+        return NextResponse.json({ error: '無效的邀請碼' }, { status: 404 })
+      case 'SELF_INVITE':
+        return NextResponse.json({ error: '不能使用自己的邀請碼' }, { status: 400 })
+      case 'SUCCESS':
+        return NextResponse.json({ valid: true, inviter: result.inviter })
+      default:
+        return NextResponse.json({ error: '未知錯誤' }, { status: 500 })
+    }
   } catch (error) {
-    console.error('驗證邀請碼失敗:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    return createErrorResponse(error, 'partners:referral:validate-code')
   }
 }
 
