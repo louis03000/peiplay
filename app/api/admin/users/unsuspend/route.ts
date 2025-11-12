@@ -1,56 +1,63 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
-
+import { db } from "@/lib/db-resilience";
+import { createErrorResponse } from "@/lib/api-helpers";
 
 export const dynamic = 'force-dynamic';
+
 export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions);
-    
+
     if (!session?.user?.id) {
       return NextResponse.json({ error: '請先登入' }, { status: 401 });
-    }
-
-    // 檢查是否為管理員
-    const admin = await prisma.user.findUnique({
-      where: { id: session.user.id },
-      select: { role: true }
-    });
-
-    if (!admin || admin.role !== "ADMIN") {
-      return NextResponse.json({ error: '權限不足' }, { status: 403 });
     }
 
     const { userId } = await request.json();
 
     if (!userId) {
-      return NextResponse.json({ error: '缺少用戶ID' }, { status: 400 });
+      return NextResponse.json({ error: '缺少必要參數' }, { status: 400 });
     }
 
-    // 檢查用戶是否存在
-    const user = await prisma.user.findUnique({
-      where: { id: userId }
-    });
+    const result = await db.query(async (client) => {
+      const admin = await client.user.findUnique({
+        where: { id: session.user.id },
+        select: { role: true },
+      });
 
-    if (!user) {
-      return NextResponse.json({ error: '用戶不存在' }, { status: 404 });
-    }
-
-    // 解除停權
-    await prisma.user.update({
-      where: { id: userId },
-      data: {
-        isSuspended: false,
-        suspensionReason: null,
-        suspensionEndsAt: null
+      if (!admin || admin.role !== 'ADMIN') {
+        return { type: 'NOT_ADMIN' } as const;
       }
-    });
 
-    return NextResponse.json({ message: '用戶停權已解除' });
+      const user = await client.user.findUnique({ where: { id: userId } });
+      if (!user) {
+        return { type: 'NOT_FOUND' } as const;
+      }
+
+      await client.user.update({
+        where: { id: userId },
+        data: {
+          isSuspended: false,
+          suspensionReason: null,
+          suspensionEndsAt: null,
+        },
+      });
+
+      return { type: 'SUCCESS' } as const;
+    }, 'admin:users:unsuspend');
+
+    switch (result.type) {
+      case 'NOT_ADMIN':
+        return NextResponse.json({ error: '權限不足' }, { status: 403 });
+      case 'NOT_FOUND':
+        return NextResponse.json({ error: '用戶不存在' }, { status: 404 });
+      case 'SUCCESS':
+        return NextResponse.json({ message: '用戶停權已解除' });
+      default:
+        return NextResponse.json({ error: '未知錯誤' }, { status: 500 });
+    }
   } catch (error) {
-    console.error("Error unsuspending user:", error);
-    return NextResponse.json({ error: "Error unsuspending user" }, { status: 500 });
+    return createErrorResponse(error, 'admin:users:unsuspend');
   }
 } 
