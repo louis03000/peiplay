@@ -207,10 +207,17 @@ export async function POST(request: Request) {
     }
 
     data = await request.json()
+    if (!data || typeof data !== 'object') {
+      return NextResponse.json(
+        { error: 'Invalid request body' },
+        { status: 400 }
+      )
+    }
+    const body = data as Record<string, unknown>
     // 驗證必填欄位（移除 userId）
     const requiredFields = ['name', 'birthday', 'phone', 'halfHourlyRate', 'games', 'coverImage', 'bankCode', 'bankAccountNumber', 'contractFile']
     for (const field of requiredFields) {
-      if (!data[field]) {
+      if (!body[field]) {
         return NextResponse.json(
           { error: `Missing required field: ${field}` },
           { status: 400 }
@@ -218,11 +225,23 @@ export async function POST(request: Request) {
       }
     }
     // 驗證生日不能是未來日期
-    if (new Date(data.birthday) > new Date()) {
+    if (new Date(body.birthday as string) > new Date()) {
       return NextResponse.json(
         { error: '生日不能是未來日期' },
         { status: 400 }
       )
+    }
+    const payload = body as {
+      name: string
+      birthday: string
+      phone: string
+      halfHourlyRate: number
+      games: string[]
+      coverImage: string
+      contractFile: string
+      bankCode: string
+      bankAccountNumber: string
+      inviteCode?: string
     }
     const result = await db.query(async (client) => {
       const exist = await client.partner.findUnique({ where: { userId: session.user!.id } });
@@ -231,10 +250,10 @@ export async function POST(request: Request) {
       }
 
       let inviterId: string | null = null;
-      if (data.inviteCode) {
+      if (payload.inviteCode) {
         const inviter = await client.partner.findFirst({
           where: {
-            inviteCode: data.inviteCode,
+            inviteCode: payload.inviteCode,
             status: 'APPROVED',
           },
         })
@@ -249,15 +268,15 @@ export async function POST(request: Request) {
       const partner = await client.partner.create({
         data: {
           userId: session.user.id,
-          name: data.name,
-          birthday: new Date(data.birthday),
-          phone: data.phone,
-          halfHourlyRate: data.halfHourlyRate,
-          games: data.games,
-          coverImage: data.coverImage,
-          contractFile: data.contractFile,
-          bankCode: data.bankCode,
-          bankAccountNumber: data.bankAccountNumber,
+          name: payload.name,
+          birthday: new Date(payload.birthday),
+          phone: payload.phone,
+          halfHourlyRate: payload.halfHourlyRate,
+          games: payload.games,
+          coverImage: payload.coverImage,
+          contractFile: payload.contractFile,
+          bankCode: payload.bankCode,
+          bankAccountNumber: payload.bankAccountNumber,
           invitedBy: inviterId,
         },
       })
@@ -267,7 +286,7 @@ export async function POST(request: Request) {
           data: {
             inviterId,
             inviteeId: partner.id,
-            inviteCode: data.inviteCode,
+            inviteCode: payload.inviteCode!,
           },
         })
 
