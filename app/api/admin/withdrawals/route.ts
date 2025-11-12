@@ -1,38 +1,36 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
+import { NextResponse } from 'next/server'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
+import { db } from '@/lib/db-resilience'
+import { createErrorResponse } from '@/lib/api-helpers'
 
-export const dynamic = 'force-dynamic';
+export const dynamic = 'force-dynamic'
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
-    const session = await getServerSession(authOptions);
-    
-    if (!session || session.user.role !== 'ADMIN') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const session = await getServerSession(authOptions)
+    if (!session?.user?.id || session.user.role !== 'ADMIN') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const withdrawals = await prisma.withdrawalRequest.findMany({
-      include: {
-        partner: {
-          include: {
-            user: {
-              select: {
-                email: true,
+    const withdrawals = await db.query(async (client) => {
+      return client.withdrawalRequest.findMany({
+        include: {
+          partner: {
+            include: {
+              user: {
+                select: { email: true },
               },
             },
           },
         },
-      },
-      orderBy: {
-        requestedAt: 'desc',
-      },
-    });
+        orderBy: { requestedAt: 'desc' },
+      })
+    }, 'admin:withdrawals:get')
 
-    return NextResponse.json(withdrawals);
+    return NextResponse.json(withdrawals)
   } catch (error) {
-    console.error('獲取提領申請失敗:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    return createErrorResponse(error, 'admin:withdrawals:get')
   }
 }
+
