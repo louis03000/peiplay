@@ -1,185 +1,223 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth/next'
 import { authOptions } from '@/lib/auth'
-import { prisma } from '@/lib/prisma'
+import { db } from '@/lib/db-resilience'
+import { createErrorResponse } from '@/lib/api-helpers'
 
+export const dynamic = 'force-dynamic'
 
-export const dynamic = 'force-dynamic';
 export async function POST(request: Request) {
-  const session = await getServerSession(authOptions)
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: '未登入' }, { status: 401 })
-  }
-  
-  const body = await request.json()
-  
-  // 檢查是否為批量請求
-  if (Array.isArray(body)) {
-    return handleBatchCreate(body, session.user.id)
-  } else {
-    return handleSingleCreate(body, session.user.id)
-  }
-}
-
-async function handleSingleCreate(data: any, userId: string) {
-  const { date, startTime, endTime } = data
-  
-  // 取得 partnerId
-  const partner = await prisma.partner.findUnique({ where: { userId } })
-  if (!partner) return NextResponse.json({ error: '不是夥伴' }, { status: 403 })
-
-  // 檢查時段是否已存在
-  const existingSchedule = await prisma.schedule.findFirst({
-    where: {
-      partnerId: partner.id,
-      date: new Date(date),
-      startTime: new Date(startTime),
-      endTime: new Date(endTime),
-    },
-  });
-
-  if (existingSchedule) {
-    return NextResponse.json({ error: '該時段已存在，不可重複新增' }, { status: 409 }); // 409 Conflict
-  }
-
-  const schedule = await prisma.schedule.create({
-    data: {
-      partnerId: partner.id,
-      date: new Date(date),
-      startTime: new Date(startTime),
-      endTime: new Date(endTime),
-      isAvailable: true,
-    }
-  })
-  return NextResponse.json(schedule)
-}
-
-async function handleBatchCreate(schedules: any[], userId: string) {
-  const partner = await prisma.partner.findUnique({ where: { userId } })
-  if (!partner) return NextResponse.json({ error: '不是夥伴' }, { status: 403 })
-
-  // 過濾有效時段
-  const validSchedules = schedules.filter(schedule => schedule.date && schedule.startTime && schedule.endTime)
-  if (validSchedules.length === 0) {
-    return NextResponse.json({ error: '沒有有效的時段數據' }, { status: 400 })
-  }
-
-  // 檢查重複
-  const existing = await prisma.schedule.findMany({
-    where: {
-      partnerId: partner.id,
-      OR: validSchedules.map(s => ({
-        date: new Date(s.date),
-        startTime: new Date(s.startTime),
-        endTime: new Date(s.endTime),
-      })),
-    }
-  })
-  if (existing.length > 0) {
-    return NextResponse.json({ error: '有重複的時段', details: existing }, { status: 409 })
-  }
-
-  // 批量插入
-  try {
-    const result = await prisma.schedule.createMany({
-      data: validSchedules.map(s => ({
-        partnerId: partner.id,
-        date: new Date(s.date),
-        startTime: new Date(s.startTime),
-        endTime: new Date(s.endTime),
-        isAvailable: true,
-      })),
-      skipDuplicates: true,
-    })
-    return NextResponse.json({ success: true, count: result.count })
-  } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : '批量創建時段失敗' }, { status: 500 })
-  }
-}
-
-export async function GET(request: Request) {
   try {
     const session = await getServerSession(authOptions)
     if (!session?.user?.id) {
       return NextResponse.json({ error: '未登入' }, { status: 401 })
     }
-    
-    // 優化：使用單一查詢獲取partner和schedules
-    const partner = await prisma.partner.findUnique({ 
-      where: { userId: session.user.id },
-      select: {
-        id: true,
-        schedules: {
-          select: {
-            id: true,
-            date: true,
-            startTime: true,
-            endTime: true,
-            isAvailable: true,
-            bookings: {
-              select: {
-                status: true
-              }
-            }
-          },
-          orderBy: { date: 'asc' }
-        }
+
+    const payload = await request.json()
+
+    const result = await db.query(async (client) => {
+      const partner = await client.partner.findUnique({ where: { userId: session.user.id } })
+      if (!partner) {
+        return { type: 'NOT_PARTNER' } as const
       }
-    })
-    
-    if (!partner) return NextResponse.json({ error: '不是夥伴' }, { status: 403 })
-    
-    // 處理結果，判斷是否已預約
-    const result = partner.schedules.map(s => ({
-      ...s,
-      booked: s.bookings && s.bookings.status && !['CANCELLED', 'REJECTED'].includes(s.bookings.status)
-    }))
-    
-    console.log('[GET /api/partner/schedule]', {
-      userId: session.user.id,
-      partnerId: partner.id,
-      schedulesLength: result.length
-    })
-    
-    return NextResponse.json(result)
-  } catch (err) {
-    console.error('GET /api/partner/schedule error:', err);
-    
-    return NextResponse.json({ 
-      error: (err instanceof Error ? err.message : 'Internal Server Error'),
-      schedules: []
-    }, { status: 500 });
+
+      if (Array.isArray(payload)) {
+        const schedules = payload.filter((s) => s?.date && s?.startTime && s?.endTime)
+        if (schedules.length === 0) {
+          return { type: 'INVALID_BODY' } as const
+        }
+
+        const existing = await client.schedule.findMany({
+          where: {
+            partnerId: partner.id,
+            OR: schedules.map((s) => ({
+              date: new Date(s.date),
+              startTime: new Date(s.startTime),
+              endTime: new Date(s.endTime),
+            })),
+          },
+        })
+
+        if (existing.length > 0) {
+          return { type: 'DUPLICATED', details: existing } as const
+        }
+
+        const created = await client.schedule.createMany({
+          data: schedules.map((s) => ({
+            partnerId: partner.id,
+            date: new Date(s.date),
+            startTime: new Date(s.startTime),
+            endTime: new Date(s.endTime),
+            isAvailable: true,
+          })),
+          skipDuplicates: true,
+        })
+
+        return { type: 'BATCH_SUCCESS', count: created.count } as const
+      }
+
+      const { date, startTime, endTime } = payload
+      if (!date || !startTime || !endTime) {
+        return { type: 'INVALID_BODY' } as const
+      }
+
+      const existingSchedule = await client.schedule.findFirst({
+        where: {
+          partnerId: partner.id,
+          date: new Date(date),
+          startTime: new Date(startTime),
+          endTime: new Date(endTime),
+        },
+      })
+
+      if (existingSchedule) {
+        return { type: 'DUPLICATED' } as const
+      }
+
+      const schedule = await client.schedule.create({
+        data: {
+          partnerId: partner.id,
+          date: new Date(date),
+          startTime: new Date(startTime),
+          endTime: new Date(endTime),
+          isAvailable: true,
+        },
+      })
+
+      return { type: 'SINGLE_SUCCESS', schedule } as const
+    }, 'partner:schedule:create')
+
+    switch (result.type) {
+      case 'NOT_PARTNER':
+        return NextResponse.json({ error: '不是夥伴' }, { status: 403 })
+      case 'INVALID_BODY':
+        return NextResponse.json({ error: '沒有有效的時段數據' }, { status: 400 })
+      case 'DUPLICATED':
+        return NextResponse.json({ error: '該時段已存在，不可重複新增', details: result.details }, { status: 409 })
+      case 'BATCH_SUCCESS':
+        return NextResponse.json({ success: true, count: result.count })
+      case 'SINGLE_SUCCESS':
+        return NextResponse.json(result.schedule)
+      default:
+        return NextResponse.json({ error: '未知狀態' }, { status: 500 })
+    }
+  } catch (error) {
+    return createErrorResponse(error, 'partner:schedule:create')
+  }
+}
+
+export async function GET() {
+  try {
+    const session = await getServerSession(authOptions)
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: '未登入' }, { status: 401 })
+    }
+
+    const result = await db.query(async (client) => {
+      const partner = await client.partner.findUnique({
+        where: { userId: session.user.id },
+        select: {
+          id: true,
+          schedules: {
+            select: {
+              id: true,
+              date: true,
+              startTime: true,
+              endTime: true,
+              isAvailable: true,
+              bookings: {
+                select: { status: true },
+              },
+            },
+            orderBy: { date: 'asc' },
+          },
+        },
+      })
+
+      if (!partner) {
+        return { type: 'NOT_PARTNER' } as const
+      }
+
+      const schedules = partner.schedules.map((s) => ({
+        id: s.id,
+        date: s.date,
+        startTime: s.startTime,
+        endTime: s.endTime,
+        isAvailable: s.isAvailable,
+        booked: Boolean(s.bookings?.status && !['CANCELLED', 'REJECTED'].includes(s.bookings.status as string)),
+      }))
+
+      return { type: 'SUCCESS', schedules } as const
+    }, 'partner:schedule:get')
+
+    if (result.type === 'NOT_PARTNER') {
+      return NextResponse.json({ error: '不是夥伴' }, { status: 403 })
+    }
+
+    return NextResponse.json(result.schedules)
+  } catch (error) {
+    return createErrorResponse(error, 'partner:schedule:get')
   }
 }
 
 export async function DELETE(request: Request) {
-  const session = await getServerSession(authOptions)
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: '未登入' }, { status: 401 })
+  try {
+    const session = await getServerSession(authOptions)
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: '未登入' }, { status: 401 })
+    }
+
+    const payload = await request.json()
+
+    const result = await db.query(async (client) => {
+      const partner = await client.partner.findUnique({ where: { userId: session.user.id } })
+      if (!partner) {
+        return { type: 'NOT_PARTNER' } as const
+      }
+
+      if (!Array.isArray(payload) || payload.length === 0) {
+        return { type: 'INVALID_BODY' } as const
+      }
+
+      const schedules = await client.schedule.findMany({
+        where: {
+          partnerId: partner.id,
+          OR: payload.map((s) => ({
+            date: new Date(s.date),
+            startTime: new Date(s.startTime),
+            endTime: new Date(s.endTime),
+          })),
+        },
+        include: { bookings: true },
+      })
+
+      const deletable = schedules.filter(
+        (s) => !s.bookings || !['CONFIRMED', 'PENDING'].includes(String(s.bookings.status))
+      )
+
+      if (deletable.length === 0) {
+        return { type: 'NO_DELETABLE' } as const
+      }
+
+      const ids = deletable.map((s) => s.id)
+      const deleted = await client.schedule.deleteMany({ where: { id: { in: ids } } })
+
+      return { type: 'SUCCESS', count: deleted.count }
+    }, 'partner:schedule:delete')
+
+    switch (result.type) {
+      case 'NOT_PARTNER':
+        return NextResponse.json({ error: '不是夥伴' }, { status: 403 })
+      case 'INVALID_BODY':
+        return NextResponse.json({ error: '請傳入要刪除的時段陣列' }, { status: 400 })
+      case 'NO_DELETABLE':
+        return NextResponse.json({ error: '沒有可刪除的時段（可能已被預約）' }, { status: 409 })
+      case 'SUCCESS':
+        return NextResponse.json({ success: true, count: result.count })
+      default:
+        return NextResponse.json({ error: '未知狀態' }, { status: 500 })
+    }
+  } catch (error) {
+    return createErrorResponse(error, 'partner:schedule:delete')
   }
-  const partner = await prisma.partner.findUnique({ where: { userId: session.user.id } })
-  if (!partner) return NextResponse.json({ error: '不是夥伴' }, { status: 403 })
-  const body = await request.json()
-  if (!Array.isArray(body) || body.length === 0) {
-    return NextResponse.json({ error: '請傳入要刪除的時段陣列' }, { status: 400 })
-  }
-  // 只允許刪除未被預約的時段
-  const schedules = await prisma.schedule.findMany({
-    where: {
-      partnerId: partner.id,
-      OR: body.map(s => ({
-        date: new Date(s.date),
-        startTime: new Date(s.startTime),
-        endTime: new Date(s.endTime),
-      })),
-    },
-    include: { bookings: true },
-  })
-  const deletable = schedules.filter(s => !s.bookings || (s.bookings.status !== 'CONFIRMED' && s.bookings.status !== 'PENDING'))
-  const ids = deletable.map(s => s.id)
-  if (ids.length === 0) {
-    return NextResponse.json({ error: '沒有可刪除的時段（可能已被預約）' }, { status: 409 })
-  }
-  await prisma.schedule.deleteMany({ where: { id: { in: ids } } })
-  return NextResponse.json({ success: true, count: ids.length })
 } 
