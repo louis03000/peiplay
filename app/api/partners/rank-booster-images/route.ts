@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { prisma } from '@/lib/prisma'
+import { db } from '@/lib/db-resilience'
+import { createErrorResponse } from '@/lib/api-helpers'
 
+export const dynamic = 'force-dynamic'
 
-export const dynamic = 'force-dynamic';
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
@@ -12,22 +13,22 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: '請先登入' }, { status: 401 })
     }
 
-    // 檢查是否為夥伴
-    const partner = await prisma.partner.findUnique({
-      where: { userId: session.user.id }
-    })
+    const result = await db.query(async (client) => {
+      const partner = await client.partner.findUnique({ where: { userId: session.user.id } })
+      if (!partner) {
+        return { type: 'NOT_PARTNER' } as const
+      }
 
-    if (!partner) {
+      return { type: 'SUCCESS', images: partner.rankBoosterImages || [] } as const
+    }, 'partners:rank-booster-images:get')
+
+    if (result.type === 'NOT_PARTNER') {
       return NextResponse.json({ error: '您不是夥伴' }, { status: 403 })
     }
 
-    return NextResponse.json({
-      rankBoosterImages: partner.rankBoosterImages || []
-    })
-
+    return NextResponse.json({ rankBoosterImages: result.images })
   } catch (error) {
-    console.error('獲取段位證明圖片時發生錯誤:', error)
-    return NextResponse.json({ error: '獲取段位證明圖片失敗' }, { status: 500 })
+    return createErrorResponse(error, 'partners:rank-booster-images:get')
   }
 }
 
@@ -38,36 +39,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '請先登入' }, { status: 401 })
     }
 
-    // 檢查是否為夥伴
-    let partner;
-    try {
-      partner = await prisma.partner.findUnique({
-        where: { userId: session.user.id }
-      })
-    } catch (dbError) {
-      console.error('查詢夥伴資料時發生錯誤:', dbError)
-      return NextResponse.json({ 
-        error: '查詢夥伴資料失敗',
-        details: dbError instanceof Error ? dbError.message : 'Unknown error'
-      }, { status: 500 })
-    }
-
-    if (!partner) {
-      return NextResponse.json({ error: '您不是夥伴' }, { status: 403 })
-    }
-
-    let requestBody;
-    try {
-      requestBody = await request.json()
-    } catch (parseError) {
-      console.error('解析請求內容時發生錯誤:', parseError)
-      return NextResponse.json({ 
-        error: '請求格式錯誤',
-        details: parseError instanceof Error ? parseError.message : 'Unknown error'
-      }, { status: 400 })
-    }
-
-    const { images } = requestBody
+    const body = await request.json()
+    const { images } = body
 
     if (!images || !Array.isArray(images)) {
       return NextResponse.json({ error: '請提供有效的圖片陣列' }, { status: 400 })
@@ -77,47 +50,40 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '最多只能上傳5張圖片' }, { status: 400 })
     }
 
-    // 驗證圖片URL格式（支援 Cloudinary 和其他圖片服務）
     const imageUrlPattern = /^https?:\/\/.+/i
     for (const image of images) {
       if (typeof image !== 'string' || !imageUrlPattern.test(image)) {
-        return NextResponse.json({ 
+        return NextResponse.json({
           error: '請提供有效的圖片URL',
-          details: `無效的圖片URL: ${image}`
+          details: `無效的圖片URL: ${image}`,
         }, { status: 400 })
       }
     }
 
-    // 更新夥伴的段位證明圖片
-    let updatedPartner;
-    try {
-      updatedPartner = await prisma.partner.update({
+    const result = await db.query(async (client) => {
+      const partner = await client.partner.findUnique({ where: { userId: session.user.id } })
+      if (!partner) {
+        return { type: 'NOT_PARTNER' } as const
+      }
+
+      const updatedPartner = await client.partner.update({
         where: { id: partner.id },
-        data: {
-          rankBoosterImages: images
-        }
+        data: { rankBoosterImages: images },
       })
-    } catch (updateError) {
-      console.error('更新夥伴資料時發生錯誤:', updateError)
-      return NextResponse.json({ 
-        error: '更新段位證明圖片失敗',
-        details: updateError instanceof Error ? updateError.message : 'Unknown error',
-        stack: updateError instanceof Error ? updateError.stack : undefined
-      }, { status: 500 })
+
+      return { type: 'SUCCESS', images: updatedPartner.rankBoosterImages } as const
+    }, 'partners:rank-booster-images:update')
+
+    if (result.type === 'NOT_PARTNER') {
+      return NextResponse.json({ error: '您不是夥伴' }, { status: 403 })
     }
 
     return NextResponse.json({
       success: true,
-      rankBoosterImages: updatedPartner.rankBoosterImages,
-      message: '段位證明圖片已更新'
+      rankBoosterImages: result.images || [],
+      message: '段位證明圖片已更新',
     })
-
   } catch (error) {
-    console.error('更新段位證明圖片時發生未預期的錯誤:', error)
-    return NextResponse.json({ 
-      error: '更新段位證明圖片失敗',
-      details: error instanceof Error ? error.message : 'Unknown error',
-      stack: error instanceof Error ? error.stack : undefined
-    }, { status: 500 })
+    return createErrorResponse(error, 'partners:rank-booster-images:update')
   }
 }
