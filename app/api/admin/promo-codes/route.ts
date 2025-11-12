@@ -1,91 +1,106 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
-
+import { db } from "@/lib/db-resilience";
+import { createErrorResponse } from "@/lib/api-helpers";
 
 export const dynamic = 'force-dynamic';
+
 export async function GET(request: Request) {
   try {
     const session = await getServerSession(authOptions);
-    
+
     if (!session?.user?.id) {
       return NextResponse.json({ error: '請先登入' }, { status: 401 });
     }
 
-    // 檢查是否為管理員
-    const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
-      select: { role: true }
-    });
+    const promoCodes = await db.query(async (client) => {
+      const user = await client.user.findUnique({
+        where: { id: session.user.id },
+        select: { role: true },
+      });
 
-    if (!user || user.role !== "ADMIN") {
+      if (!user || user.role !== 'ADMIN') {
+        return { type: 'NOT_ADMIN' } as const;
+      }
+
+      const codes = await client.promoCode.findMany({
+        orderBy: { createdAt: 'desc' },
+      });
+
+      return { type: 'SUCCESS', codes } as const;
+    }, 'admin:promo-codes:get');
+
+    if (promoCodes.type === 'NOT_ADMIN') {
       return NextResponse.json({ error: '權限不足' }, { status: 403 });
     }
 
-    // 獲取所有優惠碼
-    const promoCodes = await prisma.promoCode.findMany({
-      orderBy: { createdAt: 'desc' }
-    });
-
-    return NextResponse.json(promoCodes);
+    return NextResponse.json(promoCodes.codes);
   } catch (error) {
-    console.error("Error fetching promo codes:", error);
-    return NextResponse.json({ error: "Error fetching promo codes" }, { status: 500 });
+    return createErrorResponse(error, 'admin:promo-codes:get');
   }
 }
 
 export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions);
-    
+
     if (!session?.user?.id) {
       return NextResponse.json({ error: '請先登入' }, { status: 401 });
-    }
-
-    // 檢查是否為管理員
-    const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
-      select: { role: true }
-    });
-
-    if (!user || user.role !== "ADMIN") {
-      return NextResponse.json({ error: '權限不足' }, { status: 403 });
     }
 
     const data = await request.json();
     const { code, type, value, maxUses, validFrom, validUntil, description, isActive } = data;
 
-    if (!code || !type || !value) {
+    if (!code || !type || value === undefined) {
       return NextResponse.json({ error: '缺少必要參數' }, { status: 400 });
     }
 
-    // 檢查優惠碼是否已存在
-    const existingCode = await prisma.promoCode.findUnique({
-      where: { code: code.toUpperCase() }
-    });
+    const promoCode = await db.query(async (client) => {
+      const user = await client.user.findUnique({
+        where: { id: session.user.id },
+        select: { role: true },
+      });
 
-    if (existingCode) {
-      return NextResponse.json({ error: '優惠碼已存在' }, { status: 400 });
-    }
-
-    // 創建優惠碼
-    const promoCode = await prisma.promoCode.create({
-      data: {
-        code: code.toUpperCase(),
-        type,
-        value: parseFloat(value),
-        maxUses: parseInt(maxUses) || -1,
-        validFrom: new Date(validFrom),
-        validUntil: validUntil ? new Date(validUntil) : null,
-        description,
-        isActive
+      if (!user || user.role !== 'ADMIN') {
+        return { type: 'NOT_ADMIN' } as const;
       }
-    });
 
-    return NextResponse.json(promoCode);
+      const existingCode = await client.promoCode.findUnique({
+        where: { code: code.toUpperCase() },
+      });
+
+      if (existingCode) {
+        return { type: 'DUPLICATE' } as const;
+      }
+
+      const created = await client.promoCode.create({
+        data: {
+          code: code.toUpperCase(),
+          type,
+          value: parseFloat(value),
+          maxUses: maxUses !== undefined ? parseInt(maxUses, 10) || -1 : -1,
+          validFrom: validFrom ? new Date(validFrom) : new Date(),
+          validUntil: validUntil ? new Date(validUntil) : null,
+          description,
+          isActive,
+        },
+      });
+
+      return { type: 'SUCCESS', promoCode: created } as const;
+    }, 'admin:promo-codes:create');
+
+    switch (promoCode.type) {
+      case 'NOT_ADMIN':
+        return NextResponse.json({ error: '權限不足' }, { status: 403 });
+      case 'DUPLICATE':
+        return NextResponse.json({ error: '優惠碼已存在' }, { status: 400 });
+      case 'SUCCESS':
+        return NextResponse.json(promoCode.promoCode);
+      default:
+        return NextResponse.json({ error: '未知錯誤' }, { status: 500 });
+    }
   } catch (error) {
-    console.error("Error creating promo code:", error);
-    return NextResponse.json({ error: "Error creating promo code" }, { status: 500 });
+    return createErrorResponse(error, 'admin:promo-codes:create');
   }
 } 
