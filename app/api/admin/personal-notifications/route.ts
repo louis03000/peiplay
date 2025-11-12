@@ -49,10 +49,32 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: '未登入' }, { status: 401 })
     }
 
-    const { title, message, userId } = await request.json()
+    const { title, message, content, userId, type = 'INFO', priority = 'MEDIUM', isImportant = false, expiresAt } = await request.json()
 
-    if (!title || !message || !userId) {
+    const notificationContent = content ?? message
+
+    if (!title || !notificationContent || !userId) {
       return NextResponse.json({ error: '缺少必要參數' }, { status: 400 })
+    }
+
+    const validTypes = ['WARNING', 'VIOLATION', 'REMINDER', 'INFO', 'SYSTEM']
+    const validPriorities = ['LOW', 'MEDIUM', 'HIGH', 'URGENT']
+
+    if (!validTypes.includes(type)) {
+      return NextResponse.json({ error: '無效的通知類型' }, { status: 400 })
+    }
+
+    if (!validPriorities.includes(priority)) {
+      return NextResponse.json({ error: '無效的通知優先級' }, { status: 400 })
+    }
+
+    let expiresDate: Date | undefined
+    if (expiresAt) {
+      const parsed = new Date(expiresAt)
+      if (Number.isNaN(parsed.getTime())) {
+        return NextResponse.json({ error: '無效的到期時間格式' }, { status: 400 })
+      }
+      expiresDate = parsed
     }
 
     const result = await db.query(async (client) => {
@@ -68,8 +90,13 @@ export async function POST(request: Request) {
       const notification = await client.personalNotification.create({
         data: {
           title,
-          message,
+          content: notificationContent,
           userId,
+          senderId: session.user.id,
+          type,
+          priority,
+          isImportant,
+          expiresAt: expiresDate,
         },
       })
 
