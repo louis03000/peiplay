@@ -199,16 +199,13 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: Request) {
-  let data = null;
+  let data: Record<string, any> | null = null;
   try {
-    console.log('收到 POST /api/partners 請求');
     const session = await getServerSession(authOptions);
-    console.log('session.user.id', session?.user?.id);
-    const user = session?.user?.id ? await prisma.user.findUnique({ where: { id: session.user.id } }) : null;
-    console.log('user 查詢結果', user);
     if (!session?.user?.id) {
       return NextResponse.json({ error: '請先登入' }, { status: 401 });
     }
+
     data = await request.json()
     // 驗證必填欄位（移除 userId）
     const requiredFields = ['name', 'birthday', 'phone', 'halfHourlyRate', 'games', 'coverImage', 'bankCode', 'bankAccountNumber', 'contractFile']
@@ -227,78 +224,78 @@ export async function POST(request: Request) {
         { status: 400 }
       )
     }
-    // 檢查是否已經申請過
-    const exist = await prisma.partner.findUnique({ where: { userId: session.user.id } });
-    if (exist) {
-      return NextResponse.json(
-        { error: '你已經申請過，不可重複申請' },
-        { status: 400 }
-      );
-    }
-
-    // 處理邀請碼
-    let inviterId = null;
-    if (data.inviteCode) {
-      const inviter = await prisma.partner.findFirst({
-        where: { 
-          inviteCode: data.inviteCode,
-          status: 'APPROVED'
-        }
-      });
-      
-      if (inviter) {
-        inviterId = inviter.id;
-      } else {
-        return NextResponse.json(
-          { error: '無效的邀請碼' },
-          { status: 400 }
-        );
+    const result = await db.query(async (client) => {
+      const exist = await client.partner.findUnique({ where: { userId: session.user!.id } });
+      if (exist) {
+        return { type: 'ALREADY_EXISTS' } as const;
       }
-    }
 
-    // 建立新夥伴
-    const partner = await prisma.partner.create({
-      data: {
-        userId: session.user.id,
-        name: data.name,
-        birthday: new Date(data.birthday),
-        phone: data.phone,
-        halfHourlyRate: data.halfHourlyRate,
-        games: data.games,
-        coverImage: data.coverImage,
-        contractFile: data.contractFile,
-        bankCode: data.bankCode,
-        bankAccountNumber: data.bankAccountNumber,
-        invitedBy: inviterId,
-      },
-    });
+      let inviterId: string | null = null;
+      if (data.inviteCode) {
+        const inviter = await client.partner.findFirst({
+          where: {
+            inviteCode: data.inviteCode,
+            status: 'APPROVED',
+          },
+        })
 
-    // 如果有邀請人，建立推薦記錄
-    if (inviterId) {
-      await prisma.referralRecord.create({
-        data: {
-          inviterId,
-          inviteeId: partner.id,
-          inviteCode: data.inviteCode,
+        if (!inviter) {
+          return { type: 'INVALID_INVITE' } as const
         }
-      });
 
-      // 更新邀請人的推薦數量
-      await prisma.partner.update({
-        where: { id: inviterId },
+        inviterId = inviter.id
+      }
+
+      const partner = await client.partner.create({
         data: {
-          referralCount: {
-            increment: 1
-          }
-        }
-      });
+          userId: session.user.id,
+          name: data.name,
+          birthday: new Date(data.birthday),
+          phone: data.phone,
+          halfHourlyRate: data.halfHourlyRate,
+          games: data.games,
+          coverImage: data.coverImage,
+          contractFile: data.contractFile,
+          bankCode: data.bankCode,
+          bankAccountNumber: data.bankAccountNumber,
+          invitedBy: inviterId,
+        },
+      })
+
+      if (inviterId) {
+        await client.referralRecord.create({
+          data: {
+            inviterId,
+            inviteeId: partner.id,
+            inviteCode: data.inviteCode,
+          },
+        })
+
+        await client.partner.update({
+          where: { id: inviterId },
+          data: {
+            referralCount: {
+              increment: 1,
+            },
+          },
+        })
+      }
+
+      return { type: 'SUCCESS', partner } as const
+    }, 'partners:create')
+
+    switch (result.type) {
+      case 'ALREADY_EXISTS':
+        return NextResponse.json({ error: '你已經申請過，不可重複申請' }, { status: 400 })
+      case 'INVALID_INVITE':
+        return NextResponse.json({ error: '無效的邀請碼' }, { status: 400 })
+      case 'SUCCESS':
+        return NextResponse.json(result.partner)
+      default:
+        return NextResponse.json({ error: '未知錯誤' }, { status: 500 })
     }
-    return NextResponse.json(partner)
   } catch (error) {
-    console.error('Error creating partner:', error, error instanceof Error ? error.stack : '', JSON.stringify(data))
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Failed to create partner' },
-      { status: 500 }
-    )
+    console.error('Error creating partner:', error, error instanceof Error ? error.stack : '', data ? JSON.stringify(data) : '')
+    return createErrorResponse(error, 'partners:create')
   }
 }
