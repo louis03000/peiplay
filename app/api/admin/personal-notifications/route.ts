@@ -1,176 +1,87 @@
-import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
-import { sendEmail } from '@/lib/email';
+import { NextResponse } from 'next/server'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
+import { db } from '@/lib/db-resilience'
+import { createErrorResponse } from '@/lib/api-helpers'
 
-export const dynamic = 'force-dynamic';
-export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic'
 
-// 獲取所有個人通知
 export async function GET() {
   try {
-    const session = await getServerSession(authOptions);
-    
-    if (!session?.user || session.user.role !== 'ADMIN') {
-      return NextResponse.json({ error: '權限不足' }, { status: 403 });
+    const session = await getServerSession(authOptions)
+
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: '未登入' }, { status: 401 })
     }
 
-    await prisma.$connect();
+    const notifications = await db.query(async (client) => {
+      const user = await client.user.findUnique({
+        where: { id: session.user.id },
+        select: { role: true },
+      })
 
-    const notifications = await prisma.personalNotification.findMany({
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          }
-        },
-        sender: {
-          select: {
-            id: true,
-            name: true,
-          }
-        }
-      },
-      orderBy: {
-        createdAt: 'desc'
+      if (!user || user.role !== 'ADMIN') {
+        return { type: 'NOT_ADMIN' } as const
       }
-    });
 
-    return NextResponse.json({ notifications });
+      const records = await client.personalNotification.findMany({
+        orderBy: { createdAt: 'desc' },
+      })
 
-  } catch (error) {
-    console.error('❌ 獲取個人通知失敗:', error);
-    return NextResponse.json({
-      error: '獲取個人通知失敗',
-      details: error instanceof Error ? error.message : 'Unknown error'
-    }, { status: 500 });
-  } finally {
-    try {
-      await prisma.$disconnect();
-    } catch (disconnectError) {
-      console.error("❌ 斷開連線失敗:", disconnectError);
+      return { type: 'SUCCESS', records } as const
+    }, 'admin:personal-notifications:get')
+
+    if (notifications.type === 'NOT_ADMIN') {
+      return NextResponse.json({ error: '權限不足' }, { status: 403 })
     }
+
+    return NextResponse.json(notifications.records)
+  } catch (error) {
+    return createErrorResponse(error, 'admin:personal-notifications:get')
   }
 }
 
-// 發送個人通知
 export async function POST(request: Request) {
   try {
-    const session = await getServerSession(authOptions);
-    
-    if (!session?.user || session.user.role !== 'ADMIN') {
-      return NextResponse.json({ error: '權限不足' }, { status: 403 });
+    const session = await getServerSession(authOptions)
+
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: '未登入' }, { status: 401 })
     }
 
-    const body = await request.json();
-    const { 
-      userId, 
-      title, 
-      content, 
-      type = 'INFO', 
-      priority = 'MEDIUM',
-      isImportant = false,
-      expiresAt,
-      sendEmail: shouldSendEmail = false
-    } = body;
+    const { title, message, userId } = await request.json()
 
-    if (!userId || !title || !content) {
-      return NextResponse.json({ error: '缺少必要參數' }, { status: 400 });
+    if (!title || !message || !userId) {
+      return NextResponse.json({ error: '缺少必要參數' }, { status: 400 })
     }
 
-    await prisma.$connect();
+    const result = await db.query(async (client) => {
+      const user = await client.user.findUnique({
+        where: { id: session.user.id },
+        select: { role: true },
+      })
 
-    // 檢查用戶是否存在
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { id: true, name: true, email: true }
-    });
+      if (!user || user.role !== 'ADMIN') {
+        return { type: 'NOT_ADMIN' } as const
+      }
 
-    if (!user) {
-      return NextResponse.json({ error: '用戶不存在' }, { status: 404 });
-    }
-
-    // 創建個人通知
-    const notification = await prisma.personalNotification.create({
-      data: {
-        userId,
-        senderId: session.user.id,
-        title,
-        content,
-        type,
-        priority,
-        isImportant,
-        expiresAt: expiresAt ? new Date(expiresAt) : null,
-      },
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          }
+      const notification = await client.personalNotification.create({
+        data: {
+          title,
+          message,
+          userId,
         },
-        sender: {
-          select: {
-            id: true,
-            name: true,
-          }
-        }
-      }
-    });
+      })
 
-    // 如果需要發送 Email
-    if (shouldSendEmail && user.email) {
-      try {
-        await sendEmail({
-          to: user.email,
-          subject: `[PeiPlay] ${title}`,
-          html: `
-            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-              <h2 style="color: #3B82F6;">PeiPlay 個人通知</h2>
-              <div style="background-color: #F3F4F6; padding: 20px; border-radius: 8px; margin: 20px 0;">
-                <h3 style="color: #1F2937; margin-top: 0;">${title}</h3>
-                <p style="color: #374151; line-height: 1.6;">${content}</p>
-                <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #D1D5DB;">
-                  <p style="color: #6B7280; font-size: 14px;">
-                    通知類型: ${type} | 優先級: ${priority}
-                  </p>
-                  ${expiresAt ? `<p style="color: #6B7280; font-size: 14px;">過期時間: ${new Date(expiresAt).toLocaleString('zh-TW')}</p>` : ''}
-                </div>
-              </div>
-              <p style="color: #6B7280; font-size: 14px;">
-                此為系統自動發送的通知，請勿回覆此郵件。
-              </p>
-            </div>
-          `
-        });
-        console.log(`📧 已發送 Email 通知給 ${user.email}`);
-      } catch (emailError) {
-        console.error('❌ 發送 Email 失敗:', emailError);
-        // Email 發送失敗不影響通知創建
-      }
+      return { type: 'SUCCESS', notification } as const
+    }, 'admin:personal-notifications:create')
+
+    if (result.type === 'NOT_ADMIN') {
+      return NextResponse.json({ error: '權限不足' }, { status: 403 })
     }
 
-    console.log(`✅ 已發送個人通知給用戶 ${user.name} (${user.email})`);
-    return NextResponse.json({ 
-      notification,
-      message: '個人通知發送成功'
-    });
-
+    return NextResponse.json(result.notification)
   } catch (error) {
-    console.error('❌ 發送個人通知失敗:', error);
-    return NextResponse.json({
-      error: '發送個人通知失敗',
-      details: error instanceof Error ? error.message : 'Unknown error'
-    }, { status: 500 });
-  } finally {
-    try {
-      await prisma.$disconnect();
-    } catch (disconnectError) {
-      console.error("❌ 斷開連線失敗:", disconnectError);
-    }
+    return createErrorResponse(error, 'admin:personal-notifications:create')
   }
 }

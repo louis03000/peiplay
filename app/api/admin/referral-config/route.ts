@@ -1,43 +1,52 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
+import { NextRequest, NextResponse } from 'next/server'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
+import { db } from '@/lib/db-resilience'
+import { createErrorResponse } from '@/lib/api-helpers'
 
-export const dynamic = 'force-dynamic';
+export const dynamic = 'force-dynamic'
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    
-    if (!session || session.user.role !== 'ADMIN') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const session = await getServerSession(authOptions)
+
+    if (!session?.user?.id || session.user.role !== 'ADMIN') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { searchParams } = new URL(request.url);
-    const partnerId = searchParams.get('partnerId');
+    const { searchParams } = new URL(request.url)
+    const partnerId = searchParams.get('partnerId')
 
     if (partnerId) {
-      // 獲取特定夥伴的推薦配置
-      const partner = await prisma.partner.findUnique({
-        where: { id: partnerId },
-        select: {
-          id: true,
-          name: true,
-          referralPlatformFee: true,
-          referralBonusPercentage: true,
-          referralCount: true,
-          totalReferralEarnings: true
-        }
-      });
+      const result = await db.query(async (client) => {
+        const partner = await client.partner.findUnique({
+          where: { id: partnerId },
+          select: {
+            id: true,
+            name: true,
+            referralPlatformFee: true,
+            referralBonusPercentage: true,
+            referralCount: true,
+            totalReferralEarnings: true,
+          },
+        })
 
-      if (!partner) {
-        return NextResponse.json({ error: '夥伴不存在' }, { status: 404 });
+        if (!partner) {
+          return { type: 'NOT_FOUND' } as const
+        }
+
+        return { type: 'SUCCESS', partner } as const
+      }, 'admin:referral-config:get-one')
+
+      if (result.type === 'NOT_FOUND') {
+        return NextResponse.json({ error: '夥伴不存在' }, { status: 404 })
       }
 
-      return NextResponse.json(partner);
-    } else {
-      // 獲取所有夥伴的推薦配置
-      const partners = await prisma.partner.findMany({
+      return NextResponse.json(result.partner)
+    }
+
+    const partners = await db.query(async (client) => {
+      return client.partner.findMany({
         where: { status: 'APPROVED' },
         select: {
           id: true,
@@ -45,64 +54,65 @@ export async function GET(request: NextRequest) {
           referralPlatformFee: true,
           referralBonusPercentage: true,
           referralCount: true,
-          totalReferralEarnings: true
+          totalReferralEarnings: true,
         },
-        orderBy: { name: 'asc' }
-      });
+        orderBy: { name: 'asc' },
+      })
+    }, 'admin:referral-config:get-all')
 
-      return NextResponse.json(partners);
-    }
+    return NextResponse.json(partners)
   } catch (error) {
-    console.error('獲取推薦配置失敗:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    return createErrorResponse(error, 'admin:referral-config:get')
   }
 }
 
 export async function PATCH(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    
-    if (!session || session.user.role !== 'ADMIN') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const session = await getServerSession(authOptions)
+
+    if (!session?.user?.id || session.user.role !== 'ADMIN') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { partnerId, referralPlatformFee, referralBonusPercentage } = await request.json();
+    const { partnerId, referralPlatformFee, referralBonusPercentage } = await request.json()
 
     if (!partnerId || referralPlatformFee === undefined || referralBonusPercentage === undefined) {
-      return NextResponse.json({ error: '缺少必要參數' }, { status: 400 });
+      return NextResponse.json({ error: '缺少必要參數' }, { status: 400 })
     }
 
-    // 驗證數值範圍
     if (referralPlatformFee < 0 || referralPlatformFee > 100) {
-      return NextResponse.json({ error: '平台抽成比例必須在 0-100% 之間' }, { status: 400 });
+      return NextResponse.json({ error: '平台抽成比例必須在 0-100% 之間' }, { status: 400 })
     }
 
     if (referralBonusPercentage < 0 || referralBonusPercentage > 100) {
-      return NextResponse.json({ error: '推薦獎勵比例必須在 0-100% 之間' }, { status: 400 });
+      return NextResponse.json({ error: '推薦獎勵比例必須在 0-100% 之間' }, { status: 400 })
     }
 
     if (referralPlatformFee + referralBonusPercentage > 100) {
-      return NextResponse.json({ error: '平台抽成 + 推薦獎勵不能超過 100%' }, { status: 400 });
+      return NextResponse.json({ error: '平台抽成 + 推薦獎勵不能超過 100%' }, { status: 400 })
     }
 
-    const updatedPartner = await prisma.partner.update({
-      where: { id: partnerId },
-      data: {
-        referralPlatformFee,
-        referralBonusPercentage
-      },
-      select: {
-        id: true,
-        name: true,
-        referralPlatformFee: true,
-        referralBonusPercentage: true
-      }
-    });
+    const result = await db.query(async (client) => {
+      const updatedPartner = await client.partner.update({
+        where: { id: partnerId },
+        data: {
+          referralPlatformFee,
+          referralBonusPercentage,
+        },
+        select: {
+          id: true,
+          name: true,
+          referralPlatformFee: true,
+          referralBonusPercentage: true,
+        },
+      })
 
-    return NextResponse.json(updatedPartner);
+      return updatedPartner
+    }, 'admin:referral-config:update')
+
+    return NextResponse.json(result)
   } catch (error) {
-    console.error('更新推薦配置失敗:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    return createErrorResponse(error, 'admin:referral-config:update')
   }
 }
 
