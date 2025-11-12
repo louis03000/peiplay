@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
+import { db } from '@/lib/db-resilience';
+import { createErrorResponse } from '@/lib/api-helpers';
 import * as ExcelJS from 'exceljs';
 import { NextRequest } from 'next/server';
 
@@ -14,53 +15,52 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
     }
 
-    // 取得所有已完成的預約（消費紀錄），按夥伴分組
-    const bookings = await prisma.booking.findMany({
-      where: {
-        status: {
-          in: ['CONFIRMED', 'COMPLETED']
-        }
-      },
-      include: {
-        customer: { 
-          select: { 
-            name: true, 
-            phone: true,
-            user: {
-              select: {
-                email: true
-              }
-            }
-          } 
+    const bookings = await db.query(async (client) => {
+      return client.booking.findMany({
+        where: {
+          status: {
+            in: ['CONFIRMED', 'COMPLETED'],
+          },
         },
-        schedule: {
-          include: { 
-            partner: { 
-              select: { 
-                name: true, 
-                phone: true,
-                halfHourlyRate: true,
-                user: {
-                  select: {
-                    email: true,
-                    discord: true
-                  }
-                }
-              } 
-            } 
-          }
-        }
-      },
-      orderBy: [
-        { schedule: { partner: { name: 'asc' } } },
-        { createdAt: 'desc' }
-      ]
-    });
+        include: {
+          customer: {
+            select: {
+              name: true,
+              phone: true,
+              user: {
+                select: {
+                  email: true,
+                },
+              },
+            },
+          },
+          schedule: {
+            include: {
+              partner: {
+                select: {
+                  name: true,
+                  phone: true,
+                  halfHourlyRate: true,
+                  user: {
+                    select: {
+                      email: true,
+                      discord: true,
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+        orderBy: [
+          { schedule: { partner: { name: 'asc' } } },
+          { createdAt: 'desc' },
+        ],
+      });
+    }, 'orders:export:get-bookings');
 
-    // 建立 Excel 檔案
     const workbook = new ExcelJS.Workbook();
-    
-    // 1. 總覽工作表（包含所有單筆接單記錄）
+
     const overviewSheet = workbook.addWorksheet('消費紀錄總覽');
     overviewSheet.columns = [
       { header: '訂單編號', key: 'orderNumber', width: 25 },
@@ -81,7 +81,6 @@ export async function GET(request: NextRequest) {
       { header: '備註', key: 'notes', width: 30 },
     ];
 
-    // 2. 夥伴收入結算工作表（重點工作表）
     const settlementSheet = workbook.addWorksheet('夥伴收入結算');
     settlementSheet.columns = [
       { header: '夥伴姓名', key: 'partnerName', width: 20 },
@@ -99,33 +98,32 @@ export async function GET(request: NextRequest) {
       { header: '備註', key: 'notes', width: 30 },
     ];
 
-    // 按夥伴分組統計
-    const partnerStats = new Map();
-    
+    const partnerStats = new Map<string, any>();
+
     for (const booking of bookings) {
       const partner = booking.schedule?.partner;
       if (!partner) continue;
-      
-      const partnerId = partner.name; // 使用夥伴姓名作為分組鍵
+
+      const partnerId = partner.name;
       const schedule = booking.schedule;
       const start = schedule?.startTime ? new Date(schedule.startTime) : null;
       const end = schedule?.endTime ? new Date(schedule.endTime) : null;
       const duration = start && end ? Math.round((end.getTime() - start.getTime()) / 60000) : 0;
-      
-              if (!partnerStats.has(partnerId)) {
-          partnerStats.set(partnerId, {
-            partnerName: partner.name,
-            partnerEmail: partner.user?.email || '',
-            partnerPhone: partner.phone,
-            partnerDiscord: partner.user?.discord || '',
-            halfHourlyRate: partner.halfHourlyRate,
-            totalOrders: 0,
-            totalDuration: 0,
-            totalIncome: 0,
-            orders: []
-          });
-        }
-      
+
+      if (!partnerStats.has(partnerId)) {
+        partnerStats.set(partnerId, {
+          partnerName: partner.name,
+          partnerEmail: partner.user?.email || '',
+          partnerPhone: partner.phone,
+          partnerDiscord: partner.user?.discord || '',
+          halfHourlyRate: partner.halfHourlyRate,
+          totalOrders: 0,
+          totalDuration: 0,
+          totalIncome: 0,
+          orders: [],
+        });
+      }
+
       const stats = partnerStats.get(partnerId);
       stats.totalOrders++;
       stats.totalDuration += duration;
@@ -133,29 +131,27 @@ export async function GET(request: NextRequest) {
       stats.orders.push(booking);
     }
 
-    // 添加總覽資料（所有單筆接單記錄）
     for (const booking of bookings) {
       const partner = booking.schedule?.partner;
       if (!partner) continue;
-      
+
       const schedule = booking.schedule;
       const start = schedule?.startTime ? new Date(schedule.startTime) : null;
       const end = schedule?.endTime ? new Date(schedule.endTime) : null;
       const duration = start && end ? Math.round((end.getTime() - start.getTime()) / 60000) : 0;
-      
-      // 格式化服務時段
+
       let timeSlot = '';
       if (start && end) {
         const startTime = start.toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit', hour12: true });
         const endTime = end.toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit', hour12: true });
         timeSlot = `${startTime} - ${endTime}`;
       }
-      
+
       overviewSheet.addRow({
         orderNumber: booking.orderNumber || '',
         customerName: booking.customer?.name || '',
         date: start ? start.toLocaleDateString('zh-TW') : '',
-        timeSlot: timeSlot,
+        timeSlot,
         duration: `${duration} 分鐘`,
         amount: `NT$ ${booking.finalAmount}`,
         created: booking.createdAt ? new Date(booking.createdAt).toLocaleDateString('zh-TW') : '',
@@ -167,24 +163,22 @@ export async function GET(request: NextRequest) {
         customerEmail: booking.customer?.user?.email || '',
         customerPhone: booking.customer?.phone || '',
         bookingId: booking.id,
-        notes: booking.rejectReason || ''
+        notes: booking.rejectReason || '',
       });
     }
 
-    // 添加夥伴收入結算資料（重點工作表）
     let grandTotalOrders = 0;
     let grandTotalDuration = 0;
     let grandTotalIncome = 0;
-    
-    for (const [partnerId, stats] of Array.from(partnerStats)) {
-      const totalHours = Math.round((stats.totalDuration / 60) * 100) / 100; // 轉換為小時，保留兩位小數
+
+    for (const [, stats] of Array.from(partnerStats)) {
+      const totalHours = Math.round((stats.totalDuration / 60) * 100) / 100;
       const avgHourlyIncome = totalHours > 0 ? Math.round(stats.totalIncome / totalHours) : 0;
-      
-      // 累計總計
+
       grandTotalOrders += stats.totalOrders;
       grandTotalDuration += stats.totalDuration;
       grandTotalIncome += stats.totalIncome;
-      
+
       settlementSheet.addRow({
         partnerName: stats.partnerName,
         partnerEmail: stats.partnerEmail,
@@ -193,16 +187,15 @@ export async function GET(request: NextRequest) {
         halfHourlyRate: stats.halfHourlyRate,
         totalOrders: stats.totalOrders,
         totalDuration: stats.totalDuration,
-        totalHours: totalHours,
+        totalHours,
         totalIncome: stats.totalIncome,
         avgIncome: stats.totalOrders > 0 ? Math.round(stats.totalIncome / stats.totalOrders) : 0,
-        avgHourlyIncome: avgHourlyIncome,
-        settlementAmount: stats.totalIncome, // 應得金額（假設100%給夥伴，可根據實際分潤比例調整）
-        notes: `共${stats.totalOrders}單，總時長${totalHours}小時`
+        avgHourlyIncome,
+        settlementAmount: stats.totalIncome,
+        notes: `共${stats.totalOrders}單，總時長${totalHours}小時`,
       });
     }
 
-    // 添加總計行
     const grandTotalHours = Math.round((grandTotalDuration / 60) * 100) / 100;
     settlementSheet.addRow({
       partnerName: '=== 總計 ===',
@@ -217,125 +210,114 @@ export async function GET(request: NextRequest) {
       avgIncome: grandTotalOrders > 0 ? Math.round(grandTotalIncome / grandTotalOrders) : 0,
       avgHourlyIncome: grandTotalHours > 0 ? Math.round(grandTotalIncome / grandTotalHours) : 0,
       settlementAmount: grandTotalIncome,
-      notes: `全體夥伴總計：${grandTotalOrders}單，總時長${grandTotalHours}小時，總收入${grandTotalIncome}元`
+      notes: `全體夥伴總計：${grandTotalOrders}單，總時長${grandTotalHours}小時，總收入${grandTotalIncome}元`,
     });
 
-            // 2. 詳細消費紀錄工作表（按夥伴分組）
-        const detailSheet = workbook.addWorksheet('詳細消費紀錄');
-        detailSheet.columns = [
-          { header: '夥伴姓名', key: 'partnerName', width: 20 },
-          { header: '預約ID', key: 'bookingId', width: 15 },
-          { header: '訂單編號', key: 'orderNumber', width: 20 },
+    const detailSheet = workbook.addWorksheet('詳細消費紀錄');
+    detailSheet.columns = [
+      { header: '夥伴姓名', key: 'partnerName', width: 20 },
+      { header: '預約ID', key: 'bookingId', width: 15 },
+      { header: '訂單編號', key: 'orderNumber', width: 20 },
       { header: '預約日期', key: 'date', width: 15 },
       { header: '開始時間', key: 'start', width: 12 },
       { header: '結束時間', key: 'end', width: 12 },
       { header: '總時長(分鐘)', key: 'duration', width: 15 },
       { header: '每半小時收費', key: 'rate', width: 15 },
-          { header: '收費金額', key: 'amount', width: 15 },
-          { header: '預約狀態', key: 'bookingStatus', width: 15 },
-          { header: '顧客姓名', key: 'customerName', width: 15 },
-          { header: '顧客Email', key: 'customerEmail', width: 25 },
-          { header: '顧客電話', key: 'customerPhone', width: 15 },
+      { header: '收費金額', key: 'amount', width: 15 },
+      { header: '預約狀態', key: 'bookingStatus', width: 15 },
+      { header: '顧客姓名', key: 'customerName', width: 15 },
+      { header: '顧客Email', key: 'customerEmail', width: 25 },
+      { header: '顧客電話', key: 'customerPhone', width: 15 },
       { header: '建立時間', key: 'created', width: 20 },
-          { header: '備註', key: 'notes', width: 30 },
-        ];
+      { header: '備註', key: 'notes', width: 30 },
+    ];
 
-    // 按夥伴分組添加詳細資料
-    for (const [partnerId, stats] of Array.from(partnerStats)) {
-              // 添加夥伴標題行
-        detailSheet.addRow({
-          partnerName: `=== ${stats.partnerName} 的接單紀錄 (共${stats.totalOrders}單，總收入${stats.totalIncome}元) ===`,
-          bookingId: '',
-          orderNumber: '',
-          date: '',
-          start: '',
-          end: '',
-          duration: '',
-          rate: '',
-          amount: '',
-          bookingStatus: '',
-          customerName: '',
-          customerEmail: '',
-          customerPhone: '',
-          created: '',
-          notes: ''
-        });
+    for (const [, stats] of Array.from(partnerStats)) {
+      detailSheet.addRow({
+        partnerName: `=== ${stats.partnerName} 的接單紀錄 (共${stats.totalOrders}單，總收入${stats.totalIncome}元) ===`,
+        bookingId: '',
+        orderNumber: '',
+        date: '',
+        start: '',
+        end: '',
+        duration: '',
+        rate: '',
+        amount: '',
+        bookingStatus: '',
+        customerName: '',
+        customerEmail: '',
+        customerPhone: '',
+        created: '',
+        notes: '',
+      });
 
-      // 設置標題行樣式
       const titleRow = detailSheet.lastRow;
       if (titleRow) {
-        titleRow.font = { bold: true, color: { argb: 'FF0000FF' } }; // 藍色粗體
+        titleRow.font = { bold: true, color: { argb: 'FF0000FF' } };
         titleRow.fill = {
           type: 'pattern',
           pattern: 'solid',
-          fgColor: { argb: 'FFF0F0F0' } // 淺灰色背景
+          fgColor: { argb: 'FFF0F0F0' },
         };
       }
 
-              // 添加該夥伴的所有預約
-        for (const booking of stats.orders) {
-          const schedule = booking.schedule;
-          const start = schedule?.startTime ? new Date(schedule.startTime) : null;
-          const end = schedule?.endTime ? new Date(schedule.endTime) : null;
-          const duration = start && end ? Math.round((end.getTime() - start.getTime()) / 60000) : 0;
-          const partner = schedule?.partner;
-          
-          detailSheet.addRow({
-            partnerName: partner?.name || '',
-            bookingId: booking.id || '',
-            orderNumber: booking.orderNumber || '',
-            date: start ? start.toLocaleDateString('zh-TW') : '',
-            start: start ? start.toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit', hour12: false }) : '',
-            end: end ? end.toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit', hour12: false }) : '',
-            duration: duration,
-            rate: partner?.halfHourlyRate || '',
-            amount: booking.finalAmount,
-            bookingStatus: booking.status || '未知',
-            customerName: booking.customer?.name || '',
-            customerEmail: booking.customer?.user?.email || '',
-            customerPhone: booking.customer?.phone || '',
-            created: booking.createdAt ? new Date(booking.createdAt).toLocaleString('zh-TW') : '',
-            notes: booking.rejectReason || ''
-          });
-        }
+      for (const booking of stats.orders) {
+        const schedule = booking.schedule;
+        const start = schedule?.startTime ? new Date(schedule.startTime) : null;
+        const end = schedule?.endTime ? new Date(schedule.endTime) : null;
+        const duration = start && end ? Math.round((end.getTime() - start.getTime()) / 60000) : 0;
+        const partner = schedule?.partner;
 
-              // 添加該夥伴的統計行
         detailSheet.addRow({
-          partnerName: `小計：${stats.partnerName}`,
-          bookingId: '',
-          orderNumber: '',
-          date: '',
-          start: '',
-          end: '',
-          duration: stats.totalDuration,
-          rate: '',
-          amount: stats.totalIncome,
-          bookingStatus: '',
-          customerName: '',
-          customerEmail: '',
-          customerPhone: '',
-          created: '',
-          notes: `接單數：${stats.totalOrders}，平均每單：${stats.totalOrders > 0 ? Math.round(stats.totalIncome / stats.totalOrders) : 0}元`
+          partnerName: partner?.name || '',
+          bookingId: booking.id || '',
+          orderNumber: booking.orderNumber || '',
+          date: start ? start.toLocaleDateString('zh-TW') : '',
+          start: start ? start.toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit', hour12: false }) : '',
+          end: end ? end.toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit', hour12: false }) : '',
+          duration,
+          rate: partner?.halfHourlyRate || '',
+          amount: booking.finalAmount,
+          bookingStatus: booking.status || '未知',
+          customerName: booking.customer?.name || '',
+          customerEmail: booking.customer?.user?.email || '',
+          customerPhone: booking.customer?.phone || '',
+          created: booking.createdAt ? new Date(booking.createdAt).toLocaleString('zh-TW') : '',
+          notes: booking.rejectReason || '',
         });
+      }
 
-      // 設置統計行樣式
+      detailSheet.addRow({
+        partnerName: `小計：${stats.partnerName}`,
+        bookingId: '',
+        orderNumber: '',
+        date: '',
+        start: '',
+        end: '',
+        duration: stats.totalDuration,
+        rate: '',
+        amount: stats.totalIncome,
+        bookingStatus: '',
+        customerName: '',
+        customerEmail: '',
+        customerPhone: '',
+        created: '',
+        notes: `接單數：${stats.totalOrders}，平均每單：${stats.totalOrders > 0 ? Math.round(stats.totalIncome / stats.totalOrders) : 0}元`,
+      });
+
       const summaryRow = detailSheet.lastRow;
       if (summaryRow) {
-        summaryRow.font = { bold: true, color: { argb: 'FF008000' } }; // 綠色粗體
+        summaryRow.font = { bold: true, color: { argb: 'FF008000' } };
         summaryRow.fill = {
           type: 'pattern',
           pattern: 'solid',
-          fgColor: { argb: 'FFF0FFF0' } // 淺綠色背景
+          fgColor: { argb: 'FFF0FFF0' },
         };
       }
 
-      // 添加空行分隔
       detailSheet.addRow({});
     }
 
-
-
-    // 4. 時間統計工作表
     const timeSheet = workbook.addWorksheet('時間統計');
     timeSheet.columns = [
       { header: '月份', key: 'month', width: 15 },
@@ -346,74 +328,69 @@ export async function GET(request: NextRequest) {
       { header: '平均每小時收入', key: 'avgHourlyIncome', width: 18 },
     ];
 
-    // 按月份和夥伴分組統計
-    const monthlyStats = new Map();
+    const monthlyStats = new Map<string, any>();
 
     for (const booking of bookings) {
       const schedule = booking.schedule;
       const partner = schedule?.partner;
       if (!partner) continue;
-      
+
       const start = schedule?.startTime ? new Date(schedule.startTime) : null;
       if (!start) continue;
-      
+
       const month = `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')}`;
       const monthKey = `${month}-${partner.name}`;
-      
+
       const end = schedule?.endTime ? new Date(schedule.endTime) : null;
-      const duration = start && end ? (end.getTime() - start.getTime()) / (1000 * 60 * 60) : 0; // 小時
-      
+      const duration = start && end ? (end.getTime() - start.getTime()) / (1000 * 60 * 60) : 0;
+
       if (!monthlyStats.has(monthKey)) {
         monthlyStats.set(monthKey, {
-          month: month,
+          month,
           partnerName: partner.name,
           orderCount: 0,
           totalHours: 0,
-          totalIncome: 0
+          totalIncome: 0,
         });
       }
-      
+
       const stats = monthlyStats.get(monthKey);
       stats.orderCount++;
       stats.totalHours += duration;
       stats.totalIncome += booking.finalAmount;
     }
 
-    // 添加時間統計資料
-    for (const [monthKey, stats] of Array.from(monthlyStats)) {
+    for (const [, stats] of Array.from(monthlyStats)) {
       timeSheet.addRow({
         month: stats.month,
         partnerName: stats.partnerName,
         orderCount: stats.orderCount,
         totalHours: Math.round(stats.totalHours * 100) / 100,
         totalIncome: stats.totalIncome,
-        avgHourlyIncome: stats.totalHours > 0 ? Math.round(stats.totalIncome / stats.totalHours) : 0
+        avgHourlyIncome: stats.totalHours > 0 ? Math.round(stats.totalIncome / stats.totalHours) : 0,
       });
     }
 
-    // 設置樣式
-    [overviewSheet, detailSheet, settlementSheet, timeSheet].forEach(sheet => {
-      // 設置標題行樣式
+    [overviewSheet, detailSheet, settlementSheet, timeSheet].forEach((sheet) => {
       if (sheet.rowCount > 0) {
         const headerRow = sheet.getRow(1);
         headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
         headerRow.fill = {
           type: 'pattern',
           pattern: 'solid',
-          fgColor: { argb: 'FF366092' } // 深藍色背景
+          fgColor: { argb: 'FF366092' },
         };
         headerRow.alignment = { vertical: 'middle', horizontal: 'center' };
       }
     });
 
-    // 為夥伴收入結算工作表的總計行添加特殊樣式
     if (settlementSheet.rowCount > 0) {
       const totalRow = settlementSheet.getRow(settlementSheet.rowCount);
-      totalRow.font = { bold: true, color: { argb: 'FFFFFFFF' } }; // 白色粗體
+      totalRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
       totalRow.fill = {
         type: 'pattern',
         pattern: 'solid',
-        fgColor: { argb: 'FF8B0000' } // 深紅色背景
+        fgColor: { argb: 'FF8B0000' },
       };
       totalRow.alignment = { vertical: 'middle', horizontal: 'center' };
     }
@@ -423,11 +400,10 @@ export async function GET(request: NextRequest) {
       status: 200,
       headers: {
         'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        'Content-Disposition': `attachment; filename="peiplay_consumption_records_${new Date().toISOString().split('T')[0]}.xlsx"`
-      }
+        'Content-Disposition': `attachment; filename="peiplay_consumption_records_${new Date().toISOString().split('T')[0]}.xlsx"`,
+      },
     });
-  } catch (error: any) {
-    console.error('Export orders excel error:', error);
-    return NextResponse.json({ error: error?.message || String(error) }, { status: 500 });
+  } catch (error) {
+    return createErrorResponse(error, 'orders:export');
   }
 } 
