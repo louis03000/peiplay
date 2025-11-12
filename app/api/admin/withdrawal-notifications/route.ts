@@ -109,9 +109,11 @@ export async function GET() {
       return NextResponse.json({ error: '權限不足' }, { status: 403 })
     }
 
+    const withdrawalsWithStats = result.withdrawalsWithStats ?? []
+
     return NextResponse.json({
-      pendingWithdrawals: result.withdrawalsWithStats,
-      total: result.withdrawalsWithStats.length,
+      pendingWithdrawals: withdrawalsWithStats,
+      total: withdrawalsWithStats.length,
     })
   } catch (error) {
     return createErrorResponse(error, 'admin:withdrawal-notifications:get')
