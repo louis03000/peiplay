@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { db } from '@/lib/db-resilience'
 
 
 export const dynamic = 'force-dynamic';
@@ -12,31 +12,34 @@ export async function GET() {
       return NextResponse.json({ error: 'DATABASE_URL not configured' }, { status: 500 })
     }
 
-    // 簡單測試：獲取所有夥伴
-    const allPartners = await prisma.partner.findMany({
-      select: {
-        id: true,
-        name: true,
-        status: true,
-        isAvailableNow: true,
-        isRankBooster: true
-      }
-    })
+    // 簡單測試：獲取所有夥伴和預約
+    const { allPartners, allBookings } = await db.query(async (client) => {
+      const partners = await client.partner.findMany({
+        select: {
+          id: true,
+          name: true,
+          status: true,
+          isAvailableNow: true,
+          isRankBooster: true
+        }
+      });
+
+      const bookings = await client.booking.findMany({
+        select: {
+          id: true,
+          status: true,
+          scheduleId: true
+        }
+      });
+
+      return { allPartners: partners, allBookings: bookings };
+    });
 
     console.log(`Found ${allPartners.length} total partners`)
 
     // 獲取已批准的夥伴
     const approvedPartners = allPartners.filter(p => p.status === 'APPROVED')
     console.log(`Found ${approvedPartners.length} approved partners`)
-
-    // 獲取所有預約
-    const allBookings = await prisma.booking.findMany({
-      select: {
-        id: true,
-        status: true,
-        scheduleId: true
-      }
-    })
 
     console.log(`Found ${allBookings.length} total bookings`)
 

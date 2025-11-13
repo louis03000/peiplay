@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { db } from '@/lib/db-resilience'
 import bcrypt from 'bcryptjs'
 
 
@@ -131,75 +131,79 @@ export async function POST() {
 
     for (const partnerData of testPartners) {
       try {
-        // 檢查是否已存在
-        const existingUser = await prisma.user.findUnique({
-          where: { email: partnerData.email }
-        })
+        // 檢查是否已存在並創建夥伴
+        const partner = await db.query(async (client) => {
+          // 檢查是否已存在
+          const existingUser = await client.user.findUnique({
+            where: { email: partnerData.email }
+          });
 
-        if (existingUser) {
-          console.log(`用戶 ${partnerData.email} 已存在，跳過`)
-          continue
-        }
+          if (existingUser) {
+            throw new Error('USER_EXISTS');
+          }
 
-        // 創建用戶
-        const password = await bcrypt.hash('test123', 10)
-        const user = await prisma.user.create({
-          data: {
-            email: partnerData.email,
-            password: password,
-            name: partnerData.name,
-            role: 'PARTNER',
-            phone: partnerData.phone,
-            birthday: new Date(partnerData.birthday),
-          },
-        })
-
-        // 創建夥伴資料
-        const partner = await prisma.partner.create({
-          data: {
-            userId: user.id,
-            name: partnerData.name,
-            birthday: new Date(partnerData.birthday),
-            phone: partnerData.phone,
-            coverImage: partnerData.coverImage,
-            images: [partnerData.coverImage],
-            games: partnerData.games,
-            halfHourlyRate: partnerData.halfHourlyRate,
-            isAvailableNow: Math.random() > 0.3, // 70% 機率現在有空
-            isRankBooster: partnerData.isRankBooster,
-            status: 'APPROVED',
-            customerMessage: partnerData.customerMessage,
-          },
-        })
-
-        // 為夥伴創建一些排程
-        const today = new Date()
-        for (let i = 0; i < 3; i++) {
-          const date = new Date(today)
-          date.setDate(today.getDate() + i)
-          
-          // 創建上午時段
-          await prisma.schedule.create({
+          // 創建用戶
+          const password = await bcrypt.hash('test123', 10)
+          const user = await client.user.create({
             data: {
-              partnerId: partner.id,
-              date: date,
-              startTime: new Date(date.getFullYear(), date.getMonth(), date.getDate(), 9, 0, 0),
-              endTime: new Date(date.getFullYear(), date.getMonth(), date.getDate(), 12, 0, 0),
-              isAvailable: true,
+              email: partnerData.email,
+              password: password,
+              name: partnerData.name,
+              role: 'PARTNER',
+              phone: partnerData.phone,
+              birthday: new Date(partnerData.birthday),
             },
-          })
+          });
 
-          // 創建下午時段
-          await prisma.schedule.create({
+          // 創建夥伴資料
+          const partnerDataCreated = await client.partner.create({
             data: {
-              partnerId: partner.id,
-              date: date,
-              startTime: new Date(date.getFullYear(), date.getMonth(), date.getDate(), 14, 0, 0),
-              endTime: new Date(date.getFullYear(), date.getMonth(), date.getDate(), 17, 0, 0),
-              isAvailable: true,
+              userId: user.id,
+              name: partnerData.name,
+              birthday: new Date(partnerData.birthday),
+              phone: partnerData.phone,
+              coverImage: partnerData.coverImage,
+              images: [partnerData.coverImage],
+              games: partnerData.games,
+              halfHourlyRate: partnerData.halfHourlyRate,
+              isAvailableNow: Math.random() > 0.3, // 70% 機率現在有空
+              isRankBooster: partnerData.isRankBooster,
+              status: 'APPROVED',
+              customerMessage: partnerData.customerMessage,
             },
-          })
-        }
+          });
+
+          // 為夥伴創建一些排程
+          const today = new Date()
+          for (let i = 0; i < 3; i++) {
+            const date = new Date(today)
+            date.setDate(today.getDate() + i)
+            
+            // 創建上午時段
+            await client.schedule.create({
+              data: {
+                partnerId: partnerDataCreated.id,
+                date: date,
+                startTime: new Date(date.getFullYear(), date.getMonth(), date.getDate(), 9, 0, 0),
+                endTime: new Date(date.getFullYear(), date.getMonth(), date.getDate(), 12, 0, 0),
+                isAvailable: true,
+              },
+            });
+
+            // 創建下午時段
+            await client.schedule.create({
+              data: {
+                partnerId: partnerDataCreated.id,
+                date: date,
+                startTime: new Date(date.getFullYear(), date.getMonth(), date.getDate(), 14, 0, 0),
+                endTime: new Date(date.getFullYear(), date.getMonth(), date.getDate(), 17, 0, 0),
+                isAvailable: true,
+              },
+            });
+          }
+
+          return partnerDataCreated;
+        });
 
         createdPartners.push({
           name: partner.name,
@@ -209,12 +213,16 @@ export async function POST() {
           halfHourlyRate: partner.halfHourlyRate,
           isAvailableNow: partner.isAvailableNow,
           isRankBooster: partner.isRankBooster
-        })
+        });
 
-        console.log(`成功創建夥伴: ${partner.name}`)
+        console.log(`成功創建夥伴: ${partner.name}`);
 
       } catch (error) {
-        console.error(`創建夥伴 ${partnerData.name} 失敗:`, error)
+        if (error instanceof Error && error.message === 'USER_EXISTS') {
+          console.log(`用戶 ${partnerData.email} 已存在，跳過`);
+          continue;
+        }
+        console.error(`創建夥伴 ${partnerData.name} 失敗:`, error);
         // 繼續創建其他夥伴
       }
     }

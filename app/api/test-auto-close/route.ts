@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { db } from '@/lib/db-resilience'
 
 
 export const dynamic = 'force-dynamic';
@@ -9,20 +9,42 @@ export async function POST() {
     
     const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000)
     
-    // 找到所有開啟「現在有空」超過30分鐘的夥伴
-    const expiredPartners = await prisma.partner.findMany({
-      where: {
-        isAvailableNow: true,
-        availableNowSince: {
-          lt: thirtyMinutesAgo
+    // 找到所有開啟「現在有空」超過30分鐘的夥伴並批量關閉
+    const { expiredPartners, result } = await db.query(async (client) => {
+      const expired = await client.partner.findMany({
+        where: {
+          isAvailableNow: true,
+          availableNowSince: {
+            lt: thirtyMinutesAgo
+          }
+        },
+        select: {
+          id: true,
+          name: true,
+          availableNowSince: true
         }
-      },
-      select: {
-        id: true,
-        name: true,
-        availableNowSince: true
+      });
+
+      if (expired.length === 0) {
+        return { expiredPartners: [], result: { count: 0 } };
       }
-    })
+
+      // 批量關閉過期的「現在有空」狀態
+      const updateResult = await client.partner.updateMany({
+        where: {
+          isAvailableNow: true,
+          availableNowSince: {
+            lt: thirtyMinutesAgo
+          }
+        },
+        data: {
+          isAvailableNow: false,
+          availableNowSince: null
+        }
+      });
+
+      return { expiredPartners: expired, result: updateResult };
+    });
 
     if (expiredPartners.length === 0) {
       return NextResponse.json({ 
@@ -32,20 +54,6 @@ export async function POST() {
         thirtyMinutesAgo: thirtyMinutesAgo.toISOString()
       })
     }
-
-    // 批量關閉過期的「現在有空」狀態
-    const result = await prisma.partner.updateMany({
-      where: {
-        isAvailableNow: true,
-        availableNowSince: {
-          lt: thirtyMinutesAgo
-        }
-      },
-      data: {
-        isAvailableNow: false,
-        availableNowSince: null
-      }
-    })
 
     console.log(`✅ 測試：自動關閉了 ${result.count} 個夥伴的「現在有空」狀態`)
 

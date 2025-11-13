@@ -221,12 +221,12 @@ async function checkEnvironmentVariables() {
 
 async function testDatabaseConnection() {
   try {
-    const { prisma } = await import('@/lib/prisma')
+    const { db } = await import('@/lib/db-resilience')
     const startTime = performance.now()
     
-    await prisma.$connect()
-    await prisma.$queryRaw`SELECT 1`
-    await prisma.$disconnect()
+    await db.query(async (client) => {
+      await client.$queryRaw`SELECT 1`
+    })
     
     const connectionTime = performance.now() - startTime
     

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { db } from '@/lib/db-resilience'
 
 
 export const dynamic = 'force-dynamic';
@@ -7,29 +7,63 @@ export async function GET() {
   try {
     console.log('🔍 開始檢查防重複預約機制...')
 
-    // 1. 檢查所有「現在有空」的夥伴
-    const availableNowPartners = await prisma.partner.findMany({
-      where: {
-        isAvailableNow: true
-      },
-      include: {
-        user: true,
-        schedules: {
-          where: {
-            isAvailable: true
-          },
-          include: {
-            bookings: {
-              where: {
-                status: {
-                  notIn: ['CANCELLED', 'REJECTED']
+    // 1. 檢查所有「現在有空」的夥伴和所有預約
+    const { availableNowPartners, allBookings } = await db.query(async (client) => {
+      const partners = await client.partner.findMany({
+        where: {
+          isAvailableNow: true
+        },
+        include: {
+          user: true,
+          schedules: {
+            where: {
+              isAvailable: true
+            },
+            include: {
+              bookings: {
+                where: {
+                  status: {
+                    notIn: ['CANCELLED', 'REJECTED']
+                  }
                 }
               }
             }
           }
         }
-      }
-    })
+      });
+
+      // 3. 檢查所有預約的時間衝突
+      const bookings = await client.booking.findMany({
+        where: {
+          status: {
+            in: ['PENDING', 'CONFIRMED', 'PARTNER_ACCEPTED', 'PAID_WAITING_PARTNER_CONFIRMATION']
+          }
+        },
+        include: {
+          schedule: {
+            include: {
+              partner: {
+                include: {
+                  user: true
+                }
+              }
+            }
+          },
+          customer: {
+            include: {
+              user: true
+            }
+          }
+        },
+        orderBy: {
+          schedule: {
+            startTime: 'asc'
+          }
+        }
+      });
+
+      return { availableNowPartners: partners, allBookings: bookings };
+    });
 
     console.log(`找到 ${availableNowPartners.length} 個「現在有空」的夥伴`)
 
@@ -51,36 +85,6 @@ export async function GET() {
         })
       }
     }
-
-    // 3. 檢查所有預約的時間衝突
-    const allBookings = await prisma.booking.findMany({
-      where: {
-        status: {
-          in: ['PENDING', 'CONFIRMED', 'PARTNER_ACCEPTED', 'PAID_WAITING_PARTNER_CONFIRMATION']
-        }
-      },
-      include: {
-        schedule: {
-          include: {
-            partner: {
-              include: {
-                user: true
-              }
-            }
-          }
-        },
-        customer: {
-          include: {
-            user: true
-          }
-        }
-      },
-      orderBy: {
-        schedule: {
-          startTime: 'asc'
-        }
-      }
-    })
 
     // 按夥伴分組並檢查時間衝突
     const partnerBookings = new Map()

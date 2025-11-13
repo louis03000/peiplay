@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { db } from '@/lib/db-resilience'
 import { checkDatabaseHealth } from '@/lib/db-connection'
 
 export const dynamic = 'force-dynamic'
@@ -48,19 +48,14 @@ export async function GET() {
     let connectionTest = false
     let connectionError: Error | null = null
     try {
-      await prisma.$connect()
-      await prisma.$queryRaw`SELECT 1 as test`
+      await db.query(async (client) => {
+        await client.$queryRaw`SELECT 1 as test`
+      })
       connectionTest = true
       console.log("✅ 基本連接測試成功")
     } catch (error) {
       connectionError = error instanceof Error ? error : new Error(String(error))
       console.error("❌ 基本連接測試失敗:", error)
-    } finally {
-      try {
-        await prisma.$disconnect()
-      } catch (e) {
-        console.error("❌ 斷開連接失敗:", e)
-      }
     }
     
     results.connection = {
@@ -72,69 +67,91 @@ export async function GET() {
     // 3. 如果連接成功，測試 schema
     if (connectionTest) {
       try {
-        await prisma.$connect()
-        
-        // 測試各個表的查詢
-        const tableTests = {
-          users: await prisma.user.count(),
-          partners: await prisma.partner.count(),
-          customers: await prisma.customer.count(),
-          schedules: await prisma.schedule.count(),
-          bookings: await prisma.booking.count()
-        }
-        
+        const { tableTests, testDataResult } = await db.query(async (client) => {
+          // 測試各個表的查詢
+          const [users, partners, customers, schedules, bookings] = await Promise.all([
+            client.user.count(),
+            client.partner.count(),
+            client.customer.count(),
+            client.schedule.count(),
+            client.booking.count()
+          ]);
+
+          const tableTests = {
+            users,
+            partners,
+            customers,
+            schedules,
+            bookings
+          };
+
+          // 4. 嘗試創建測試數據
+          let testDataResult: any = null;
+          try {
+            const testUser = await client.user.create({
+              data: {
+                email: `test-${Date.now()}@example.com`,
+                password: 'test-password',
+                name: 'Test User'
+              }
+            });
+
+            // 清理測試數據
+            await client.user.delete({
+              where: { id: testUser.id }
+            });
+
+            testDataResult = {
+              created: true,
+              cleaned: true,
+              userId: testUser.id
+            };
+          } catch (testError) {
+            testDataResult = {
+              created: false,
+              cleaned: false,
+              error: testError instanceof Error ? testError.message : String(testError)
+            };
+          }
+
+          return { tableTests, testDataResult };
+        });
+
         results.schema = {
           success: true,
           tableCounts: tableTests
-        }
-        
-        console.log("✅ Schema 測試成功:", tableTests)
-        
-        // 4. 嘗試創建測試數據
-        try {
-          const testUser = await prisma.user.create({
-            data: {
-              email: `test-${Date.now()}@example.com`,
-              password: 'test-password',
-              name: 'Test User'
-            }
-          })
-          
+        };
+
+        console.log("✅ Schema 測試成功:", tableTests);
+
+        if (testDataResult.created) {
           results.fixes.push({
             type: 'test_data_created',
             success: true,
             message: '測試用戶創建成功',
-            userId: testUser.id
-          })
-          
-          // 清理測試數據
-          await prisma.user.delete({
-            where: { id: testUser.id }
-          })
-          
+            userId: testDataResult.userId
+          });
+
           results.fixes.push({
             type: 'test_data_cleaned',
             success: true,
             message: '測試數據清理成功'
-          })
-          
-        } catch (testError) {
+          });
+        } else {
           results.fixes.push({
             type: 'test_data_creation',
             success: false,
             message: '測試數據創建失敗',
-            error: testError instanceof Error ? testError.message : String(testError)
-          })
+            error: testDataResult.error
+          });
         }
-        
-        await prisma.$disconnect()
-        
+
       } catch (schemaError) {
         results.schema = {
           success: false,
           error: schemaError instanceof Error ? schemaError.message : String(schemaError)
-        }
-        console.error("❌ Schema 測試失敗:", schemaError)
+        };
+        console.error("❌ Schema 測試失敗:", schemaError);
       }
     }
     

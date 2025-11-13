@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { db } from '@/lib/db-resilience'
 import { DatabaseManager } from '@/lib/db-utils'
 import bcrypt from 'bcryptjs'
 
@@ -26,133 +26,148 @@ export async function POST() {
       }, { status: 400 })
     }
 
-    // 清空現有資料
-    await prisma.booking.deleteMany()
-    await prisma.schedule.deleteMany()
-    await prisma.customer.deleteMany()
-    await prisma.partner.deleteMany()
-    await prisma.user.deleteMany()
+    // 清空現有資料並創建測試資料
+    const { admin, user1, user2, partnerUser, partner, customer1, customer2 } = await db.query(async (client) => {
+      // 清空現有資料
+      await Promise.all([
+        client.booking.deleteMany(),
+        client.schedule.deleteMany(),
+        client.customer.deleteMany(),
+        client.partner.deleteMany(),
+        client.user.deleteMany()
+      ]);
 
-    // 創建管理員
-    const adminPassword = await bcrypt.hash('admin123', 10)
-    const admin = await prisma.user.create({
-      data: {
-        email: 'admin@peiplay.com',
-        password: adminPassword,
-        name: '管理員',
-        role: 'ADMIN',
-        phone: '0900000000',
-        birthday: new Date('1990-01-01'),
-      },
-    })
-
-    // 創建測試用戶1
-    const user1Password = await bcrypt.hash('user123', 10)
-    const user1 = await prisma.user.create({
-      data: {
-        email: 'user1@example.com',
-        password: user1Password,
-        name: '測試用戶1',
-        role: 'CUSTOMER',
-        phone: '0912345678',
-        birthday: new Date('1995-01-01'),
-      },
-    })
-
-    // 創建測試用戶2
-    const user2Password = await bcrypt.hash('user123', 10)
-    const user2 = await prisma.user.create({
-      data: {
-        email: 'user2@example.com',
-        password: user2Password,
-        name: '測試用戶2',
-        role: 'CUSTOMER',
-        phone: '0923456789',
-        birthday: new Date('1998-01-01'),
-      },
-    })
-
-    // 創建夥伴
-    const partnerPassword = await bcrypt.hash('partner123', 10)
-    const partnerUser = await prisma.user.create({
-      data: {
-        email: 'partner@example.com',
-        password: partnerPassword,
-        name: '專業遊戲夥伴',
-        role: 'PARTNER',
-        phone: '0934567890',
-        birthday: new Date('1992-01-01'),
-      },
-    })
-
-    // 創建夥伴資料
-    const partner = await prisma.partner.create({
-      data: {
-        userId: partnerUser.id,
-        name: '專業遊戲夥伴',
-        birthday: new Date('1992-01-01'),
-        phone: '0934567890',
-        coverImage: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=400&fit=crop',
-        images: [
-          'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=400&fit=crop',
-          'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=400&fit=crop'
-        ],
-        games: ['英雄聯盟', '傳說對決'],
-        halfHourlyRate: 500,
-        isAvailableNow: true,
-        isRankBooster: true,
-        status: 'APPROVED',
-        customerMessage: '專業遊戲夥伴，讓您享受遊戲樂趣！',
-      },
-    })
-
-    // 為夥伴創建一些排程
-    const today = new Date()
-    for (let i = 0; i < 7; i++) {
-      const date = new Date(today)
-      date.setDate(today.getDate() + i)
-      
-      // 創建上午時段
-      await prisma.schedule.create({
+      // 創建管理員
+      const adminPassword = await bcrypt.hash('admin123', 10)
+      const adminData = await client.user.create({
         data: {
-          partnerId: partner.id,
-          date: date,
-          startTime: new Date(date.getFullYear(), date.getMonth(), date.getDate(), 9, 0, 0),
-          endTime: new Date(date.getFullYear(), date.getMonth(), date.getDate(), 12, 0, 0),
-          isAvailable: true,
+          email: 'admin@peiplay.com',
+          password: adminPassword,
+          name: '管理員',
+          role: 'ADMIN',
+          phone: '0900000000',
+          birthday: new Date('1990-01-01'),
         },
-      })
+      });
 
-      // 創建下午時段
-      await prisma.schedule.create({
+      // 創建測試用戶1
+      const user1Password = await bcrypt.hash('user123', 10)
+      const user1Data = await client.user.create({
         data: {
-          partnerId: partner.id,
-          date: date,
-          startTime: new Date(date.getFullYear(), date.getMonth(), date.getDate(), 14, 0, 0),
-          endTime: new Date(date.getFullYear(), date.getMonth(), date.getDate(), 17, 0, 0),
-          isAvailable: true,
+          email: 'user1@example.com',
+          password: user1Password,
+          name: '測試用戶1',
+          role: 'CUSTOMER',
+          phone: '0912345678',
+          birthday: new Date('1995-01-01'),
         },
-      })
-    }
+      });
 
-    // 創建客戶資料
-    const customer1 = await prisma.customer.create({
-      data: {
-        userId: user1.id,
-        name: '測試用戶1',
-        birthday: new Date('1995-01-01'),
-        phone: '0912345678',
-      },
-    })
+      // 創建測試用戶2
+      const user2Password = await bcrypt.hash('user123', 10)
+      const user2Data = await client.user.create({
+        data: {
+          email: 'user2@example.com',
+          password: user2Password,
+          name: '測試用戶2',
+          role: 'CUSTOMER',
+          phone: '0923456789',
+          birthday: new Date('1998-01-01'),
+        },
+      });
 
-    const customer2 = await prisma.customer.create({
-      data: {
-        userId: user2.id,
-        name: '測試用戶2',
-        birthday: new Date('1998-01-01'),
-        phone: '0923456789',
-      },
-    })
+      // 創建夥伴
+      const partnerPassword = await bcrypt.hash('partner123', 10)
+      const partnerUserData = await client.user.create({
+        data: {
+          email: 'partner@example.com',
+          password: partnerPassword,
+          name: '專業遊戲夥伴',
+          role: 'PARTNER',
+          phone: '0934567890',
+          birthday: new Date('1992-01-01'),
+        },
+      });
+
+      // 創建夥伴資料
+      const partnerData = await client.partner.create({
+        data: {
+          userId: partnerUserData.id,
+          name: '專業遊戲夥伴',
+          birthday: new Date('1992-01-01'),
+          phone: '0934567890',
+          coverImage: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=400&fit=crop',
+          images: [
+            'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=400&fit=crop',
+            'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=400&fit=crop'
+          ],
+          games: ['英雄聯盟', '傳說對決'],
+          halfHourlyRate: 500,
+          isAvailableNow: true,
+          isRankBooster: true,
+          status: 'APPROVED',
+          customerMessage: '專業遊戲夥伴，讓您享受遊戲樂趣！',
+        },
+      });
+
+      // 為夥伴創建一些排程
+      const today = new Date()
+      for (let i = 0; i < 7; i++) {
+        const date = new Date(today)
+        date.setDate(today.getDate() + i)
+        
+        // 創建上午時段
+        await client.schedule.create({
+          data: {
+            partnerId: partnerData.id,
+            date: date,
+            startTime: new Date(date.getFullYear(), date.getMonth(), date.getDate(), 9, 0, 0),
+            endTime: new Date(date.getFullYear(), date.getMonth(), date.getDate(), 12, 0, 0),
+            isAvailable: true,
+          },
+        });
+
+        // 創建下午時段
+        await client.schedule.create({
+          data: {
+            partnerId: partnerData.id,
+            date: date,
+            startTime: new Date(date.getFullYear(), date.getMonth(), date.getDate(), 14, 0, 0),
+            endTime: new Date(date.getFullYear(), date.getMonth(), date.getDate(), 17, 0, 0),
+            isAvailable: true,
+          },
+        });
+      }
+
+      // 創建客戶資料
+      const customer1Data = await client.customer.create({
+        data: {
+          userId: user1Data.id,
+          name: '測試用戶1',
+          birthday: new Date('1995-01-01'),
+          phone: '0912345678',
+        },
+      });
+
+      const customer2Data = await client.customer.create({
+        data: {
+          userId: user2Data.id,
+          name: '測試用戶2',
+          birthday: new Date('1998-01-01'),
+          phone: '0923456789',
+        },
+      });
+
+      return {
+        admin: adminData,
+        user1: user1Data,
+        user2: user2Data,
+        partnerUser: partnerUserData,
+        partner: partnerData,
+        customer1: customer1Data,
+        customer2: customer2Data
+      };
+    });
 
     // 獲取最終統計
     const finalStats = await DatabaseManager.getStatistics()

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { db } from '@/lib/db-resilience'
 import { checkDatabaseHealth } from '@/lib/db-connection'
 
 export const dynamic = 'force-dynamic'
@@ -13,40 +13,31 @@ export async function GET() {
     const hasDatabaseUrl = !!process.env.DATABASE_URL
     console.log("📊 DATABASE_URL 存在:", hasDatabaseUrl)
     
-    // 2. 檢查 Prisma 連接
+    // 2. 檢查 Prisma 連接和查詢
     let prismaTest = false
     let prismaError: Error | null = null
+    let queryTest = false
+    let queryError: Error | null = null
+    
     try {
-      await prisma.$connect()
-      await prisma.$queryRaw`SELECT 1`
-      prismaTest = true
-      console.log("✅ Prisma 連接成功")
+      await db.query(async (client) => {
+        await client.$queryRaw`SELECT 1`
+        prismaTest = true
+        console.log("✅ Prisma 連接成功")
+        
+        const result = await client.user.count()
+        queryTest = true
+        console.log("✅ 查詢測試成功，用戶數量:", result)
+      })
     } catch (error) {
       prismaError = error instanceof Error ? error : new Error(String(error))
-      console.error("❌ Prisma 連接失敗:", error)
-    } finally {
-      try {
-        await prisma.$disconnect()
-      } catch (disconnectError) {
-        console.error("❌ Prisma 斷開連接失敗:", disconnectError)
-      }
+      queryError = error instanceof Error ? error : new Error(String(error))
+      console.error("❌ Prisma 連接或查詢失敗:", error)
     }
     
     // 3. 檢查連接管理器
     const healthCheck = await checkDatabaseHealth()
     console.log("📊 連接管理器狀態:", healthCheck)
-    
-    // 4. 嘗試簡單查詢
-    let queryTest = false
-    let queryError: Error | null = null
-    try {
-      const result = await prisma.user.count()
-      queryTest = true
-      console.log("✅ 查詢測試成功，用戶數量:", result)
-    } catch (error) {
-      queryError = error instanceof Error ? error : new Error(String(error))
-      console.error("❌ 查詢測試失敗:", error)
-    }
     
     return NextResponse.json({
       success: true,
