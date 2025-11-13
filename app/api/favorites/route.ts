@@ -17,17 +17,23 @@ export async function GET() {
     }
 
     const favorites = await db.query(async (client) => {
+      // 優化：直接使用 userId 查詢，減少一次查詢
       const customer = await client.customer.findUnique({
         where: { userId: session.user.id },
+        select: { id: true },
       });
 
       if (!customer) {
         return [];
       }
 
+      // 使用索引優化的查詢
       const rows = await client.favoritePartner.findMany({
         where: { customerId: customer.id },
-        include: {
+        select: {
+          id: true,
+          partnerId: true,
+          createdAt: true,
           Partner: {
             select: {
               id: true,
@@ -36,6 +42,7 @@ export async function GET() {
           },
         },
         orderBy: { createdAt: 'desc' },
+        take: 100, // 限制結果數量
       });
 
       return rows.map((f) => ({

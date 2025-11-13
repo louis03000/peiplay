@@ -16,6 +16,8 @@ export async function GET() {
     }
 
     const result = await db.query(async (client) => {
+      const now = new Date()
+      
       const partner = await client.partner.findUnique({
         where: { userId: session.user.id },
         select: {
@@ -27,6 +29,12 @@ export async function GET() {
           rankBoosterImages: true,
           games: true,
           schedules: {
+            where: {
+              // 只載入未來的時段或今天的時段
+              OR: [
+                { date: { gte: new Date(now.getFullYear(), now.getMonth(), now.getDate()) } },
+              ],
+            },
             select: {
               id: true,
               date: true,
@@ -40,7 +48,8 @@ export async function GET() {
                 },
               },
             },
-            orderBy: { startTime: 'asc' },
+            orderBy: [{ date: 'asc' }, { startTime: 'asc' }],
+            take: 200, // 限制載入的時段數量
           },
         },
       })
@@ -48,8 +57,6 @@ export async function GET() {
       if (!partner) {
         return { type: 'NOT_FOUND' } as const
       }
-
-      const now = new Date()
 
       const schedules = partner.schedules.map((schedule) => {
         const booking = schedule.bookings

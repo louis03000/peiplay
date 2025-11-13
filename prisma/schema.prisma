@@ -8,45 +8,45 @@ datasource db {
 }
 
 model User {
-  id                       String        @id @default(cuid())
-  email                    String        @unique
-  password                 String
-  name                     String?
-  birthday                 DateTime?
-  phone                    String?
-  role                     UserRole      @default(CUSTOMER)
-  createdAt                DateTime      @default(now())
-  updatedAt                DateTime      @updatedAt
-  isTwoFactorEnabled       Boolean       @default(false)
-  lockUntil                DateTime?
-  loginAttempts            Int           @default(0)
-  twoFactorSecret          String?
-  discord                  String?
-  isSuspended              Boolean       @default(false)
-  suspensionEndsAt         DateTime?
-  suspensionReason         String?
-  emailVerified            Boolean       @default(false)
-  emailVerificationCode    String?
-  emailVerificationExpires DateTime?
-  emailNotifications       Boolean       @default(true)
-  messageNotifications     Boolean       @default(true)
-  bookingNotifications     Boolean       @default(true)
-  twoFactorEnabled         Boolean       @default(false)
-  loginAlerts              Boolean       @default(true)
-  securityAlerts           Boolean       @default(true)
-  customer                 Customer?
-  partner                  Partner?
-  reviewsReceived          Review[]      @relation("Reviewee")
-  reviewsGiven             Review[]      @relation("Reviewer")
-  securityLogs             SecurityLog[]
-  messagesSent             Message[]     @relation("MessageSender")
-  messagesReceived         Message[]     @relation("MessageReceiver")
-  notifications            Notification[]
-  announcements            Announcement[] @relation("AnnouncementCreator")
+  id                            String                 @id @default(cuid())
+  email                         String                 @unique
+  password                      String
+  name                          String?
+  birthday                      DateTime?
+  phone                         String?
+  role                          UserRole               @default(CUSTOMER)
+  createdAt                     DateTime               @default(now())
+  updatedAt                     DateTime               @updatedAt
+  isTwoFactorEnabled            Boolean                @default(false)
+  lockUntil                     DateTime?
+  loginAttempts                 Int                    @default(0)
+  twoFactorSecret               String?
+  discord                       String?
+  isSuspended                   Boolean                @default(false)
+  suspensionEndsAt              DateTime?
+  suspensionReason              String?
+  emailVerified                 Boolean                @default(false)
+  emailVerificationCode         String?
+  emailVerificationExpires      DateTime?
+  emailNotifications            Boolean                @default(true)
+  messageNotifications          Boolean                @default(true)
+  bookingNotifications          Boolean                @default(true)
+  twoFactorEnabled              Boolean                @default(false)
+  loginAlerts                   Boolean                @default(true)
+  securityAlerts                Boolean                @default(true)
+  customer                      Customer?
+  partner                       Partner?
+  reviewsReceived               Review[]               @relation("Reviewee")
+  reviewsGiven                  Review[]               @relation("Reviewer")
+  securityLogs                  SecurityLog[]
+  messagesSent                  Message[]              @relation("MessageSender")
+  messagesReceived              Message[]              @relation("MessageReceiver")
+  notifications                 Notification[]
+  announcements                 Announcement[]         @relation("AnnouncementCreator")
   personalNotificationsReceived PersonalNotification[] @relation("PersonalNotificationReceiver")
   personalNotificationsSent     PersonalNotification[] @relation("PersonalNotificationSender")
-  adminMessagesReceived         AdminMessage[] @relation("AdminMessageReceiver")
-  adminMessagesSent             AdminMessage[] @relation("AdminMessageSender")
+  adminMessagesReceived         AdminMessage[]         @relation("AdminMessageReceiver")
+  adminMessagesSent             AdminMessage[]         @relation("AdminMessageSender")
 }
 
 model Partner {
@@ -84,12 +84,12 @@ model Partner {
   lastNoResponseReset     DateTime?
   allowGroupBooking       Boolean                   @default(false)
   // 新增欄位
-  interests               String[]                  @default([])  // 興趣
-  gender                  String?                   // 性別
-  idVerificationPhoto     String?                   // 身分證自拍
+  interests               String[]                  @default([]) // 興趣
+  gender                  String? // 性別
+  idVerificationPhoto     String? // 身分證自拍
   idVerificationStatus    IdVerificationStatus      @default(PENDING) // 身分驗證狀態
   supportsChatOnly        Boolean                   @default(false) // 是否支援純聊天
-  chatOnlyRate            Float?                    // 純聊天收費
+  chatOnlyRate            Float? // 純聊天收費
   FavoritePartner         FavoritePartner[]
   GroupBookingParticipant GroupBookingParticipant[]
   user                    User                      @relation(fields: [userId], references: [id])
@@ -97,6 +97,11 @@ model Partner {
   referralsGiven          ReferralRecord[]          @relation("Inviter")
   schedules               Schedule[]
   withdrawalRequests      WithdrawalRequest[]
+
+  @@index([status])
+  @@index([status, isAvailableNow])
+  @@index([status, isRankBooster])
+  @@index([userId])
 }
 
 model Customer {
@@ -114,6 +119,8 @@ model Customer {
   GroupBookingParticipant GroupBookingParticipant[]
   GroupBookingReview      GroupBookingReview[]
   orders                  Order[]
+
+  @@index([userId])
 }
 
 model Schedule {
@@ -127,6 +134,11 @@ model Schedule {
   updatedAt   DateTime @updatedAt
   bookings    Booking?
   partner     Partner  @relation(fields: [partnerId], references: [id])
+
+  @@index([partnerId, date, isAvailable])
+  @@index([partnerId, date])
+  @@index([date, isAvailable])
+  @@index([partnerId, isAvailable])
 }
 
 model Booking {
@@ -162,6 +174,11 @@ model Booking {
   orders                    Order[]
   referralEarnings          ReferralEarning[]
   reviews                   Review[]
+
+  @@index([status])
+  @@index([customerId, status])
+  @@index([scheduleId])
+  @@index([customerId, createdAt])
 }
 
 model Order {
@@ -417,21 +434,21 @@ enum IdVerificationStatus {
 }
 
 enum AnnouncementType {
-  SYSTEM_NOTICE    // 系統通知
-  ACTIVITY_NOTICE   // 活動公告
+  SYSTEM_NOTICE // 系統通知
+  ACTIVITY_NOTICE // 活動公告
   SYSTEM_ANNOUNCEMENT // 系統公告
 }
 
 model Message {
-  id          String    @id @default(cuid())
-  senderId    String
-  receiverId  String
-  content     String
-  isRead      Boolean   @default(false)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  sender      User      @relation("MessageSender", fields: [senderId], references: [id])
-  receiver    User      @relation("MessageReceiver", fields: [receiverId], references: [id])
+  id         String   @id @default(cuid())
+  senderId   String
+  receiverId String
+  content    String
+  isRead     Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  sender     User     @relation("MessageSender", fields: [senderId], references: [id])
+  receiver   User     @relation("MessageReceiver", fields: [receiverId], references: [id])
 
   @@index([receiverId, isRead])
   @@index([senderId])
@@ -453,37 +470,37 @@ model Notification {
 }
 
 model Announcement {
-  id          String            @id @default(cuid())
-  title       String
-  content     String
-  type        AnnouncementType
-  isActive    Boolean           @default(true)
-  expiresAt   DateTime?
-  createdAt   DateTime          @default(now())
-  updatedAt   DateTime          @updatedAt
-  createdBy   String            // 創建者 ID
-  creator     User              @relation("AnnouncementCreator", fields: [createdBy], references: [id])
+  id        String           @id @default(cuid())
+  title     String
+  content   String
+  type      AnnouncementType
+  isActive  Boolean          @default(true)
+  expiresAt DateTime?
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+  createdBy String // 創建者 ID
+  creator   User             @relation("AnnouncementCreator", fields: [createdBy], references: [id])
 
   @@index([isActive, expiresAt])
 }
 
 // 個人通知系統
 model PersonalNotification {
-  id          String   @id @default(cuid())
-  userId      String   // 接收者 ID
-  senderId    String   // 發送者 ID (管理員)
+  id          String           @id @default(cuid())
+  userId      String // 接收者 ID
+  senderId    String // 發送者 ID (管理員)
   title       String
   content     String
-  type        NotificationType  // 通知類型
+  type        NotificationType // 通知類型
   priority    Priority         @default(MEDIUM) // 優先級
   isRead      Boolean          @default(false)
   isImportant Boolean          @default(false) // 重要通知
-  expiresAt   DateTime?        // 過期時間
+  expiresAt   DateTime? // 過期時間
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
-  
-  user        User             @relation("PersonalNotificationReceiver", fields: [userId], references: [id])
-  sender      User             @relation("PersonalNotificationSender", fields: [senderId], references: [id])
+
+  user   User @relation("PersonalNotificationReceiver", fields: [userId], references: [id])
+  sender User @relation("PersonalNotificationSender", fields: [senderId], references: [id])
 
   @@index([userId, isRead])
   @@index([userId, isImportant])
@@ -492,16 +509,16 @@ model PersonalNotification {
 // 管理員私訊系統
 model AdminMessage {
   id          String   @id @default(cuid())
-  userId      String   // 接收者 ID
-  adminId     String   // 管理員 ID
+  userId      String // 接收者 ID
+  adminId     String // 管理員 ID
   content     String
   isRead      Boolean  @default(false)
   isFromAdmin Boolean  @default(true) // true: 管理員發送, false: 用戶回覆
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-  
-  user        User     @relation("AdminMessageReceiver", fields: [userId], references: [id])
-  admin       User     @relation("AdminMessageSender", fields: [adminId], references: [id])
+
+  user  User @relation("AdminMessageReceiver", fields: [userId], references: [id])
+  admin User @relation("AdminMessageSender", fields: [adminId], references: [id])
 
   @@index([userId, isRead])
   @@index([userId, createdAt])
@@ -509,11 +526,11 @@ model AdminMessage {
 
 // 通知類型枚舉
 enum NotificationType {
-  WARNING     // 警告
-  VIOLATION   // 違規
-  REMINDER    // 提醒
-  INFO        // 一般資訊
-  SYSTEM      // 系統通知
+  WARNING // 警告
+  VIOLATION // 違規
+  REMINDER // 提醒
+  INFO // 一般資訊
+  SYSTEM // 系統通知
 }
 
 // 優先級枚舉

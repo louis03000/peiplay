@@ -70,11 +70,25 @@ export async function GET(request: NextRequest) {
 
     const partners = await db.query<PartnerRecord[]>(
       async (client) => {
+        // 優化：在資料庫層面過濾被停權的用戶
+        
         return client.partner.findMany({
           where: {
             status: 'APPROVED',
             ...(rankBooster ? { isRankBooster: true } : {}),
             ...(availableNow ? { isAvailableNow: true } : {}),
+            // 過濾被停權的用戶
+            user: {
+              OR: [
+                { isSuspended: false },
+                {
+                  isSuspended: true,
+                  suspensionEndsAt: {
+                    lte: now, // 停權已過期
+                  },
+                },
+              ],
+            },
           },
           select: {
             id: true,
@@ -100,6 +114,14 @@ export async function GET(request: NextRequest) {
               where: {
                 isAvailable: true,
                 date: scheduleDateFilter,
+                // 只載入沒有活躍預約的時段
+                bookings: {
+                  none: {
+                    status: {
+                      in: ['PENDING', 'CONFIRMED', 'AWAITING_PAYMENT', 'PROCESSING', 'PARTNER_ACCEPTED', 'PAID_WAITING_PARTNER_CONFIRMATION'],
+                    },
+                  },
+                },
               },
               select: {
                 id: true,
@@ -114,6 +136,7 @@ export async function GET(request: NextRequest) {
                 },
               },
               orderBy: [{ date: 'asc' }, { startTime: 'asc' }],
+              take: 50, // 限制每個 partner 最多載入 50 個時段
             },
           },
           orderBy: { createdAt: 'desc' },
@@ -125,14 +148,6 @@ export async function GET(request: NextRequest) {
 
     const processed = partners
       .map((partner) => {
-        // filter out suspended partners
-        if (partner.user?.isSuspended) {
-          const endsAt = partner.user.suspensionEndsAt ? new Date(partner.user.suspensionEndsAt) : null
-          if (endsAt && endsAt > now) {
-            return null
-          }
-        }
-
         // normalize images (cover + rank booster proofs)
         let images = partner.images ?? []
         if ((!images || images.length === 0) && partner.coverImage) {
@@ -143,19 +158,15 @@ export async function GET(request: NextRequest) {
         }
         images = images.slice(0, 8)
 
-        const availableSchedules = partner.schedules
-          .filter((schedule) => {
-            if (!schedule.bookings) return true
-            return !ACTIVE_BOOKING_STATUSES.has(schedule.bookings.status)
-          })
-          .map((schedule) => ({
-            id: schedule.id,
-            date: schedule.date,
-            startTime: schedule.startTime,
-            endTime: schedule.endTime,
-            isAvailable: schedule.isAvailable,
-            bookings: schedule.bookings,
-          }))
+        // 時段已經在資料庫層面過濾過了，這裡只需要簡單映射
+        const availableSchedules = partner.schedules.map((schedule) => ({
+          id: schedule.id,
+          date: schedule.date,
+          startTime: schedule.startTime,
+          endTime: schedule.endTime,
+          isAvailable: schedule.isAvailable,
+          bookings: schedule.bookings,
+        }))
 
         // When no additional filters, hide partners without schedules unless marked availableNow
         if (!rankBooster && !availableNow) {
