@@ -114,14 +114,19 @@ export async function GET(request: NextRequest) {
               where: {
                 isAvailable: true,
                 date: scheduleDateFilter,
-                // 只載入沒有活躍預約的時段
-                bookings: {
-                  none: {
-                    status: {
-                      in: ['PENDING', 'CONFIRMED', 'AWAITING_PAYMENT', 'PROCESSING', 'PARTNER_ACCEPTED', 'PAID_WAITING_PARTNER_CONFIRMATION'],
+                // 只載入沒有活躍預約的時段（一對一關係使用 is/isNot）
+                OR: [
+                  { bookings: { is: null } }, // 沒有預約
+                  {
+                    bookings: {
+                      isNot: {
+                        status: {
+                          in: ['PENDING', 'CONFIRMED', 'AWAITING_PAYMENT', 'PROCESSING', 'PARTNER_ACCEPTED', 'PAID_WAITING_PARTNER_CONFIRMATION'],
+                        },
+                      },
                     },
                   },
-                },
+                ],
               },
               select: {
                 id: true,
