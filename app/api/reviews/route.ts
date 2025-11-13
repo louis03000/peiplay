@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { db } from '@/lib/db-resilience'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 
@@ -14,53 +14,63 @@ export async function POST(request: Request) {
 
     const { bookingId, revieweeId, rating, comment } = await request.json()
 
-    // 檢查是否已評價過
-    const existingReview = await prisma.review.findFirst({
-      where: {
-        bookingId,
-        reviewerId: session.user.id,
-        revieweeId
+    const result = await db.query(async (client) => {
+      // 檢查是否已評價過
+      const existingReview = await client.review.findFirst({
+        where: {
+          bookingId,
+          reviewerId: session.user.id,
+          revieweeId
+        }
+      })
+
+      if (existingReview) {
+        throw new Error('已經評價過此預約')
       }
-    })
 
-    if (existingReview) {
-      return NextResponse.json({ error: '已經評價過此預約' }, { status: 400 })
-    }
+      // 檢查預約是否存在且已完成
+      const booking = await client.booking.findUnique({
+        where: { id: bookingId },
+        include: { schedule: true }
+      })
 
-    // 檢查預約是否存在且已完成
-    const booking = await prisma.booking.findUnique({
-      where: { id: bookingId },
-      include: { schedule: true }
-    })
-
-    if (!booking) {
-      return NextResponse.json({ error: '預約不存在' }, { status: 404 })
-    }
-
-    if (booking.status !== 'COMPLETED') {
-      return NextResponse.json({ error: '只能評價已完成的預約' }, { status: 400 })
-    }
-
-    const review = await prisma.review.create({
-      data: {
-        bookingId,
-        reviewerId: session.user.id,
-        revieweeId,
-        rating,
-        comment
-      },
-      include: {
-        reviewer: true,
-        reviewee: true
+      if (!booking) {
+        throw new Error('預約不存在')
       }
-    })
 
-    return NextResponse.json({ review })
+      if (booking.status !== 'COMPLETED') {
+        throw new Error('只能評價已完成的預約')
+      }
+
+      const review = await client.review.create({
+        data: {
+          bookingId,
+          reviewerId: session.user.id,
+          revieweeId,
+          rating,
+          comment
+        },
+        include: {
+          reviewer: true,
+          reviewee: true
+        }
+      })
+
+      return { review }
+    }, 'reviews:POST')
+
+    return NextResponse.json(result)
   } catch (error) {
     console.error('Error creating review:', error)
+    if (error instanceof NextResponse) {
+      return error
+    }
+    const errorMessage = error instanceof Error ? error.message : '創建評價失敗'
+    const status = errorMessage.includes('已經評價') || errorMessage.includes('只能評價') ? 400 :
+                   errorMessage.includes('不存在') ? 404 : 500
     return NextResponse.json(
-      { error: '創建評價失敗' },
-      { status: 500 }
+      { error: errorMessage },
+      { status }
     )
   }
 }
@@ -75,28 +85,35 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: '需要提供 userId 或 bookingId' }, { status: 400 })
     }
 
-    const reviews = await prisma.review.findMany({
-      where: {
-        ...(userId ? { revieweeId: userId } : {}),
-        ...(bookingId ? { bookingId } : {})
-      },
-      include: {
-        reviewer: true,
-        reviewee: true,
-        booking: {
-          include: {
-            schedule: true
+    const result = await db.query(async (client) => {
+      const reviews = await client.review.findMany({
+        where: {
+          ...(userId ? { revieweeId: userId } : {}),
+          ...(bookingId ? { bookingId } : {})
+        },
+        include: {
+          reviewer: true,
+          reviewee: true,
+          booking: {
+            include: {
+              schedule: true
+            }
           }
+        },
+        orderBy: {
+          createdAt: 'desc'
         }
-      },
-      orderBy: {
-        createdAt: 'desc'
-      }
-    })
+      })
 
-    return NextResponse.json({ reviews })
+      return { reviews }
+    }, 'reviews:GET')
+
+    return NextResponse.json(result)
   } catch (error) {
     console.error('Error fetching reviews:', error)
+    if (error instanceof NextResponse) {
+      return error
+    }
     return NextResponse.json(
       { error: '獲取評價失敗' },
       { status: 500 }

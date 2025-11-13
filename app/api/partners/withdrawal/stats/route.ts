@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth/next'
 import { authOptions } from '@/lib/auth'
-import { prisma } from '@/lib/prisma'
-import { createErrorResponse, withDatabaseQuery } from '@/lib/api-helpers'
+import { db } from '@/lib/db-resilience'
+import { createErrorResponse } from '@/lib/api-helpers'
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -24,10 +24,10 @@ export async function GET(request: NextRequest) {
     }
 
     // 使用帶有重試機制的資料庫查詢
-    const result = await withDatabaseQuery(async () => {
+    const result = await db.query(async (client) => {
       // 檢查是否為夥伴
       console.log("🔍 查詢夥伴資料...");
-      const partner = await prisma.partner.findUnique({
+      const partner = await client.partner.findUnique({
         where: { userId: session.user.id },
         select: {
           id: true,
@@ -39,13 +39,13 @@ export async function GET(request: NextRequest) {
 
       if (!partner) {
         console.log("❌ 用戶不是夥伴");
-        return NextResponse.json({ error: '您不是夥伴' }, { status: 403 });
+        throw new Error('您不是夥伴');
       }
 
       // 並行執行所有資料庫查詢以提高性能
       const [totalEarningsResult, totalOrders, totalWithdrawnResult, pendingWithdrawals] = await Promise.all([
         // 計算總收入
-        prisma.booking.aggregate({
+        client.booking.aggregate({
           where: {
             schedule: { partnerId: partner.id },
             status: { in: ['COMPLETED', 'CONFIRMED'] }
@@ -54,7 +54,7 @@ export async function GET(request: NextRequest) {
         }),
         
         // 計算總接單數
-        prisma.booking.count({
+        client.booking.count({
           where: {
             schedule: { partnerId: partner.id },
             status: { in: ['COMPLETED', 'CONFIRMED'] }
@@ -62,7 +62,7 @@ export async function GET(request: NextRequest) {
         }),
         
         // 計算已提領總額
-        prisma.withdrawalRequest.aggregate({
+        client.withdrawalRequest.aggregate({
           where: {
             partnerId: partner.id,
             status: { in: ['APPROVED', 'COMPLETED'] }
@@ -71,7 +71,7 @@ export async function GET(request: NextRequest) {
         }),
         
         // 計算待審核的提領申請數
-        prisma.withdrawalRequest.count({
+        client.withdrawalRequest.count({
           where: {
             partnerId: partner.id,
             status: 'PENDING'
@@ -106,11 +106,6 @@ export async function GET(request: NextRequest) {
         referralEarnings
       };
     }, 'partners/withdrawal/stats');
-
-    // 如果結果是 NextResponse（錯誤響應），直接返回
-    if (result instanceof NextResponse) {
-      return result;
-    }
 
     return NextResponse.json(result);
 
