@@ -144,7 +144,7 @@ export async function GET(request: NextRequest) {
         })
       },
       'partners:list'
-    )) as PartnerRecord[]
+    )) as unknown as PartnerRecord[]
 
     const processed = partners
       .map((partner) => {
