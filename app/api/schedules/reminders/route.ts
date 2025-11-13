@@ -124,7 +124,7 @@ export async function POST(request: Request) {
       )
     }
 
-    return await db.query(async (client) => {
+    const result = await db.query(async (client) => {
       // 更新提醒狀態
       await client.booking.update({
         where: {
@@ -137,6 +137,8 @@ export async function POST(request: Request) {
 
       return { message: '更新提醒狀態成功' }
     }, 'schedules/reminders:POST')
+
+    return NextResponse.json(result)
   } catch (error) {
     console.error('Error updating reminder status:', error)
     return NextResponse.json(

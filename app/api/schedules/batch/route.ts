@@ -21,7 +21,7 @@ export async function DELETE(request: Request) {
       )
     }
 
-    return await db.query(async (client) => {
+    const result = await db.query(async (client) => {
       // 獲取當前用戶的 partner 信息
       const partner = await client.partner.findUnique({
         where: { userId: session.user.id },
@@ -41,6 +41,8 @@ export async function DELETE(request: Request) {
 
       return { message: '批量刪除成功' }
     }, 'schedules/batch:DELETE')
+
+    return NextResponse.json(result)
   } catch (error) {
     console.error('Error batch deleting schedules:', error)
     if (error instanceof NextResponse) {
@@ -69,7 +71,7 @@ export async function PUT(request: Request) {
       )
     }
 
-    return await db.query(async (client) => {
+    const result = await db.query(async (client) => {
       // 獲取當前用戶的 partner 信息
       const partner = await client.partner.findUnique({
         where: { userId: session.user.id },
@@ -92,6 +94,8 @@ export async function PUT(request: Request) {
 
       return { message: '批量更新成功' }
     }, 'schedules/batch:PUT')
+
+    return NextResponse.json(result)
   } catch (error) {
     console.error('Error batch updating schedules:', error)
     if (error instanceof NextResponse) {
