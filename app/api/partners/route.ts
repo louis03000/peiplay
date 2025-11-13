@@ -68,7 +68,7 @@ export async function GET(request: NextRequest) {
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate())
     const scheduleDateFilter = dateRange ?? { gte: todayStart }
 
-    const partners = await db.query<PartnerRecord[]>(
+    const partners = (await db.query(
       async (client) => {
         // 優化：在資料庫層面過濾被停權的用戶
         
@@ -144,7 +144,7 @@ export async function GET(request: NextRequest) {
         })
       },
       'partners:list'
-    )
+    )) as PartnerRecord[]
 
     const processed = partners
       .map((partner) => {
