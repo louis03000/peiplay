@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { db } from '@/lib/db-resilience'
 
 export const dynamic = 'force-dynamic'
 
@@ -8,15 +8,13 @@ export async function GET() {
     console.log('🔍 測試資料庫連接...')
     console.log('DATABASE_URL:', process.env.DATABASE_URL ? '已設定' : '未設定')
     
-    // 測試基本連接
-    await prisma.$connect()
-    console.log('✅ 資料庫連接成功')
-    
-    // 測試簡單查詢
-    const userCount = await prisma.user.count()
-    console.log('✅ 用戶數量:', userCount)
-    
-    await prisma.$disconnect()
+    // 測試基本連接和簡單查詢
+    const userCount = await db.query(async (client) => {
+      console.log('✅ 資料庫連接成功')
+      const count = await client.user.count()
+      console.log('✅ 用戶數量:', count)
+      return count
+    })
     
     return NextResponse.json({
       success: true,

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { db } from '@/lib/db-resilience'
 
 
 export const dynamic = 'force-dynamic';
@@ -8,27 +8,30 @@ export async function GET() {
     console.log('Testing database connection...')
     console.log('DATABASE_URL:', process.env.DATABASE_URL ? 'Set' : 'Not set')
     
-    // 測試資料庫連接
-    await prisma.$connect()
-    console.log('Database connection successful')
-    
-    // 測試簡單查詢
-    const partnerCount = await prisma.partner.count()
-    console.log(`Found ${partnerCount} partners in database`)
-    
-    // 測試更複雜的查詢
-    const approvedPartners = await prisma.partner.findMany({
-      where: { status: 'APPROVED' },
-      select: { id: true, name: true, status: true }
+    // 測試資料庫連接和查詢
+    const result = await db.query(async (client) => {
+      console.log('Database connection successful')
+      
+      // 測試簡單查詢
+      const partnerCount = await client.partner.count()
+      console.log(`Found ${partnerCount} partners in database`)
+      
+      // 測試更複雜的查詢
+      const approvedPartners = await client.partner.findMany({
+        where: { status: 'APPROVED' },
+        select: { id: true, name: true, status: true }
+      })
+      
+      console.log(`Found ${approvedPartners.length} approved partners`)
+      
+      return { partnerCount, approvedPartnerCount: approvedPartners.length }
     })
-    
-    console.log(`Found ${approvedPartners.length} approved partners`)
     
     return NextResponse.json({
       success: true,
       message: 'Database connection successful',
-      partnerCount,
-      approvedPartnerCount: approvedPartners.length,
+      partnerCount: result.partnerCount,
+      approvedPartnerCount: result.approvedPartnerCount,
       databaseUrl: process.env.DATABASE_URL ? 'Configured' : 'Not configured'
     })
     
@@ -40,8 +43,5 @@ export async function GET() {
       error: error instanceof Error ? error.message : 'Unknown error',
       databaseUrl: process.env.DATABASE_URL ? 'Configured' : 'Not configured'
     }, { status: 500 })
-    
-  } finally {
-    await prisma.$disconnect()
   }
 } 
