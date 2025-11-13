@@ -1,38 +1,40 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { db } from '@/lib/db-resilience'
 
 
 export const dynamic = 'force-dynamic';
 export async function GET() {
   try {
     // 查找所有時間衝突的預約
-    const conflictingBookings = await prisma.booking.findMany({
-      where: {
-        status: {
-          in: ['PENDING', 'CONFIRMED', 'PARTNER_ACCEPTED']
-        }
-      },
-      include: {
-        schedule: {
-          include: {
-            partner: {
-              include: {
-                user: true
+    const conflictingBookings = await db.query(async (client) => {
+      return await client.booking.findMany({
+        where: {
+          status: {
+            in: ['PENDING', 'CONFIRMED', 'PARTNER_ACCEPTED']
+          }
+        },
+        include: {
+          schedule: {
+            include: {
+              partner: {
+                include: {
+                  user: true
+                }
               }
+            }
+          },
+          customer: {
+            include: {
+              user: true
             }
           }
         },
-        customer: {
-          include: {
-            user: true
+        orderBy: {
+          schedule: {
+            startTime: 'asc'
           }
         }
-      },
-      orderBy: {
-        schedule: {
-          startTime: 'asc'
-        }
-      }
+      });
     })
 
     // 按夥伴分組並檢查衝突
@@ -102,32 +104,38 @@ export async function POST(request: NextRequest) {
 
     if (action === 'cancel_later') {
       // 取消較晚創建的預約
-      const bookings = await prisma.booking.findMany({
-        where: {
-          id: { in: bookingIds }
-        },
-        include: {
-          schedule: true
-        },
-        orderBy: {
-          createdAt: 'desc'
-        }
-      })
+      const bookings = await db.query(async (client) => {
+        return await client.booking.findMany({
+          where: {
+            id: { in: bookingIds }
+          },
+          include: {
+            schedule: true
+          },
+          orderBy: {
+            createdAt: 'desc'
+          }
+        });
+      });
 
       // 取消除了最早創建的所有預約
       const toCancel = bookings.slice(1) // 保留第一個（最早創建的），取消其他的
       
       for (const booking of toCancel) {
-        await prisma.booking.update({
-          where: { id: booking.id },
-          data: { status: 'CANCELLED' }
-        })
+        await db.query(async (client) => {
+          await client.booking.update({
+            where: { id: booking.id },
+            data: { status: 'CANCELLED' }
+          });
+        });
         
         // 重新開放時段
-        await prisma.schedule.update({
-          where: { id: booking.scheduleId },
-          data: { isAvailable: true }
-        })
+        await db.query(async (client) => {
+          await client.schedule.update({
+            where: { id: booking.scheduleId },
+            data: { isAvailable: true }
+          });
+        });
       }
 
       return NextResponse.json({

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { db } from '@/lib/db-resilience'
 
 
 export const dynamic = 'force-dynamic';
@@ -8,31 +8,33 @@ export async function POST() {
     console.log('🚨 開始緊急清理重複預約...')
 
     // 查找所有重複的預約（相同夥伴、相同時間）
-    const allBookings = await prisma.booking.findMany({
-      where: {
-        status: {
-          in: ['PENDING', 'CONFIRMED', 'PARTNER_ACCEPTED']
-        }
-      },
-      include: {
-        schedule: {
-          include: {
-            partner: {
-              include: {
-                user: true
+    const allBookings = await db.query(async (client) => {
+      return await client.booking.findMany({
+        where: {
+          status: {
+            in: ['PENDING', 'CONFIRMED', 'PARTNER_ACCEPTED']
+          }
+        },
+        include: {
+          schedule: {
+            include: {
+              partner: {
+                include: {
+                  user: true
+                }
               }
+            }
+          },
+          customer: {
+            include: {
+              user: true
             }
           }
         },
-        customer: {
-          include: {
-            user: true
-          }
+        orderBy: {
+          createdAt: 'asc' // 保留最早創建的
         }
-      },
-      orderBy: {
-        createdAt: 'asc' // 保留最早創建的
-      }
+      });
     })
 
     // 按夥伴和時間分組
@@ -76,16 +78,20 @@ export async function POST() {
 
     // 取消重複的預約
     for (const booking of toCancel) {
-      await prisma.booking.update({
-        where: { id: booking.id },
-        data: { status: 'CANCELLED' }
-      })
+      await db.query(async (client) => {
+        await client.booking.update({
+          where: { id: booking.id },
+          data: { status: 'CANCELLED' }
+        });
+      });
 
       // 重新開放時段
-      await prisma.schedule.update({
-        where: { id: booking.scheduleId },
-        data: { isAvailable: true }
-      })
+      await db.query(async (client) => {
+        await client.schedule.update({
+          where: { id: booking.scheduleId },
+          data: { isAvailable: true }
+        });
+      });
 
       console.log(`✅ 已取消預約 ${booking.id} (客戶: ${booking.customer.user.name})`)
     }
