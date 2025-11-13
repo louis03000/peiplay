@@ -1,14 +1,16 @@
 import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { db } from '@/lib/db-resilience'
 
 
 export const dynamic = 'force-dynamic';
 export async function GET() {
   try {
     // 檢查所有夥伴資料
-    const partners = await prisma.partner.findMany({
-      include: { user: true }
-    })
+    const partners = await db.query(async (client) => {
+      return await client.partner.findMany({
+        include: { user: true }
+      });
+    });
     
     console.log('所有夥伴資料:', partners)
     

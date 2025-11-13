@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth/next'
 import { authOptions } from '@/lib/auth'
-import { prisma } from '@/lib/prisma'
+import { db } from '@/lib/db-resilience'
 
 
 export const dynamic = 'force-dynamic';
@@ -14,29 +14,31 @@ export async function GET() {
     }
 
     // 獲取用戶的預約
-    const bookings = await prisma.booking.findMany({
-      where: {
-        customer: {
-          userId: session.user.id
-        }
-      },
-      include: {
-        schedule: {
-          include: {
-            partner: true
+    const bookings = await db.query(async (client) => {
+      return await client.booking.findMany({
+        where: {
+          customer: {
+            userId: session.user.id
           }
         },
-        customer: {
-          include: {
-            user: true
+        include: {
+          schedule: {
+            include: {
+              partner: true
+            }
+          },
+          customer: {
+            include: {
+              user: true
+            }
           }
-        }
-      },
-      orderBy: {
-        createdAt: 'desc'
-      },
-      take: 5
-    })
+        },
+        orderBy: {
+          createdAt: 'desc'
+        },
+        take: 5
+      });
+    });
 
     const testHtml = `
       <!DOCTYPE html>
