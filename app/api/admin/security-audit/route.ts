@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db-resilience'
 import { createErrorResponse } from '@/lib/api-helpers'
+import type { PrismaClient } from '@prisma/client'
 
 export const dynamic = 'force-dynamic'
 
@@ -32,7 +33,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-async function performSecurityAudit(client: Parameters<typeof db.query>[0]) {
+async function performSecurityAudit(client: PrismaClient) {
   const userSecurity = await auditUserSecurity(client)
   const passwordSecurity = await auditPasswordSecurity(client)
   const emailSecurity = await auditEmailSecurity(client)
@@ -51,7 +52,7 @@ async function performSecurityAudit(client: Parameters<typeof db.query>[0]) {
   return auditResults
 }
 
-async function auditUserSecurity(client: Parameters<typeof db.query>[0]) {
+async function auditUserSecurity(client: PrismaClient) {
   const totalUsers = await client.user.count()
   const verifiedUsers = await client.user.count({
     where: { emailVerified: true },
@@ -71,7 +72,7 @@ async function auditUserSecurity(client: Parameters<typeof db.query>[0]) {
   }
 }
 
-async function auditPasswordSecurity(client: Parameters<typeof db.query>[0]) {
+async function auditPasswordSecurity(client: PrismaClient) {
   const usersWithWeakPasswords = await client.user.findMany({
     where: {
       OR: [
@@ -89,7 +90,7 @@ async function auditPasswordSecurity(client: Parameters<typeof db.query>[0]) {
   }
 }
 
-async function auditEmailSecurity(client: Parameters<typeof db.query>[0]) {
+async function auditEmailSecurity(client: PrismaClient) {
   const duplicateEmails = await client.user.groupBy({
     by: ['email'],
     _count: { email: true },
@@ -108,7 +109,7 @@ async function auditEmailSecurity(client: Parameters<typeof db.query>[0]) {
   }
 }
 
-async function auditSystemSecurity(client: Parameters<typeof db.query>[0]) {
+async function auditSystemSecurity(client: PrismaClient) {
   const recentLogins = await client.user.findMany({
     where: {
       updatedAt: {
