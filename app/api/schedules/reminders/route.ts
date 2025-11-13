@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { db } from '@/lib/db-resilience'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { addHours } from 'date-fns'
@@ -24,26 +24,24 @@ export async function GET() {
       return NextResponse.json({ error: '未授權' }, { status: 401 })
     }
 
-    // 獲取當前用戶的 partner 信息
-    const partner = await prisma.partner.findUnique({
-      where: { userId: session.user.id },
-    })
+    const result = await db.query(async (client) => {
+      // 獲取當前用戶的 partner 信息
+      const partner = await client.partner.findUnique({
+        where: { userId: session.user.id },
+      })
 
-    if (!partner) {
-      return NextResponse.json(
-        { error: '找不到夥伴信息' },
-        { status: 404 }
-      )
-    }
+      if (!partner) {
+        throw new Error('找不到夥伴信息')
+      }
 
-    const now = new Date()
-    const reminderWindow = {
-      start: now,
-      end: addHours(now, 24), // 未來 24 小時內的時段
-    }
+      const now = new Date()
+      const reminderWindow = {
+        start: now,
+        end: addHours(now, 24), // 未來 24 小時內的時段
+      }
 
-    // 獲取需要提醒的時段
-    const schedules = await prisma.schedule.findMany({
+      // 獲取需要提醒的時段
+      const schedules = await client.schedule.findMany({
       where: {
         partnerId: partner.id,
         date: {
@@ -94,9 +92,15 @@ export async function GET() {
       })
       .filter((reminder): reminder is Reminder => reminder !== null)
 
-    return NextResponse.json({ reminders })
+      return { reminders }
+    }, 'schedules/reminders:GET')
+
+    return NextResponse.json(result)
   } catch (error) {
     console.error('Error getting schedule reminders:', error)
+    if (error instanceof NextResponse) {
+      return error
+    }
     return NextResponse.json(
       { error: '獲取時段提醒失敗' },
       { status: 500 }
@@ -120,17 +124,19 @@ export async function POST(request: Request) {
       )
     }
 
-    // 更新提醒狀態
-    await prisma.booking.update({
-      where: {
-        id: bookingId,
-      },
-      data: {
-        reminderSent,
-      },
-    })
+    return await db.query(async (client) => {
+      // 更新提醒狀態
+      await client.booking.update({
+        where: {
+          id: bookingId,
+        },
+        data: {
+          reminderSent,
+        },
+      })
 
-    return NextResponse.json({ message: '更新提醒狀態成功' })
+      return { message: '更新提醒狀態成功' }
+    }, 'schedules/reminders:POST')
   } catch (error) {
     console.error('Error updating reminder status:', error)
     return NextResponse.json(

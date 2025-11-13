@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { prisma } from '@/lib/prisma'
+import { db } from '@/lib/db-resilience'
 
 
 export const dynamic = 'force-dynamic';
@@ -10,15 +10,6 @@ export async function POST(request: NextRequest) {
     const session = await getServerSession(authOptions)
     if (!session?.user?.id) {
       return NextResponse.json({ error: '請先登入' }, { status: 401 })
-    }
-
-    // 檢查是否為夥伴
-    const partner = await prisma.partner.findUnique({
-      where: { userId: session.user.id }
-    })
-
-    if (!partner) {
-      return NextResponse.json({ error: '您不是夥伴' }, { status: 403 })
     }
 
     const { months = 1 } = await request.json()
@@ -30,8 +21,18 @@ export async function POST(request: NextRequest) {
     const cutoffDate = new Date()
     cutoffDate.setMonth(cutoffDate.getMonth() - months)
 
-    // 使用事務確保資料一致性
-    const result = await prisma.$transaction(async (tx) => {
+    return await db.query(async (client) => {
+      // 檢查是否為夥伴
+      const partner = await client.partner.findUnique({
+        where: { userId: session.user.id }
+      })
+
+      if (!partner) {
+        throw new Error('您不是夥伴')
+      }
+
+      // 使用事務確保資料一致性
+      return await client.$transaction(async (tx) => {
       // 1. 查找要刪除的預約記錄
       const bookingsToDelete = await tx.booking.findMany({
         where: {
@@ -69,24 +70,30 @@ export async function POST(request: NextRequest) {
         }
       })
 
-      return {
-        deletedBookings: deletedBookings.count,
-        deletedSchedules: scheduleIds.length,
-        cutoffDate
-      }
-    })
-
-    return NextResponse.json({
-      message: `已清理 ${months} 個月前的資料`,
-      deletedBookings: result.deletedBookings,
-      deletedSchedules: result.deletedSchedules,
-      cutoffDate: result.cutoffDate.toISOString(),
-      warning: '此操作無法復原，請謹慎使用'
+        return {
+          deletedBookings: deletedBookings.count,
+          deletedSchedules: scheduleIds.length,
+          cutoffDate
+        }
+      })
+    }, 'partners/cleanup-old-data').then(result => {
+      return NextResponse.json({
+        message: `已清理 ${months} 個月前的資料`,
+        deletedBookings: result.deletedBookings,
+        deletedSchedules: result.deletedSchedules,
+        cutoffDate: result.cutoffDate.toISOString(),
+        warning: '此操作無法復原，請謹慎使用'
+      })
     })
 
   } catch (error) {
     console.error('清理舊資料時發生錯誤:', error)
-    return NextResponse.json({ error: '清理舊資料失敗' }, { status: 500 })
+    if (error instanceof NextResponse) {
+      return error
+    }
+    const errorMessage = error instanceof Error ? error.message : '清理舊資料失敗'
+    const status = errorMessage.includes('不是夥伴') ? 403 : 500
+    return NextResponse.json({ error: errorMessage }, { status })
   }
 }
 
@@ -98,64 +105,73 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: '請先登入' }, { status: 401 })
     }
 
-    // 檢查是否為夥伴
-    const partner = await prisma.partner.findUnique({
-      where: { userId: session.user.id }
-    })
-
-    if (!partner) {
-      return NextResponse.json({ error: '您不是夥伴' }, { status: 403 })
-    }
-
     const { searchParams } = new URL(request.url)
     const months = parseInt(searchParams.get('months') || '1')
 
     const cutoffDate = new Date()
     cutoffDate.setMonth(cutoffDate.getMonth() - months)
 
-    // 統計要清理的資料
-    const [oldBookings, totalBookings, totalSchedules] = await Promise.all([
-      prisma.booking.count({
-        where: {
-          schedule: {
-            partnerId: partner.id
-          },
-          status: 'COMPLETED',
-          createdAt: {
-            lt: cutoffDate
-          }
-        }
-      }),
-      prisma.booking.count({
-        where: {
-          schedule: {
-            partnerId: partner.id
-          }
-        }
-      }),
-      prisma.schedule.count({
-        where: {
-          partnerId: partner.id
-        }
+    const result = await db.query(async (client) => {
+      // 檢查是否為夥伴
+      const partner = await client.partner.findUnique({
+        where: { userId: session.user.id }
       })
-    ])
 
-    return NextResponse.json({
-      cleanupSuggestion: {
-        months,
-        cutoffDate: cutoffDate.toISOString(),
-        oldBookingsToDelete: oldBookings,
-        totalBookings,
-        totalSchedules,
-        willDeletePercentage: totalBookings > 0 ? Math.round((oldBookings / totalBookings) * 100) : 0
-      },
-      recommendation: oldBookings > 100 ? 
-        '建議清理舊資料以提升性能' : 
-        '資料量較少，暫不需要清理'
-    })
+      if (!partner) {
+        throw new Error('您不是夥伴')
+      }
+
+      // 統計要清理的資料
+      const [oldBookings, totalBookings, totalSchedules] = await Promise.all([
+        client.booking.count({
+          where: {
+            schedule: {
+              partnerId: partner.id
+            },
+            status: 'COMPLETED',
+            createdAt: {
+              lt: cutoffDate
+            }
+          }
+        }),
+        client.booking.count({
+          where: {
+            schedule: {
+              partnerId: partner.id
+            }
+          }
+        }),
+        client.schedule.count({
+          where: {
+            partnerId: partner.id
+          }
+        })
+      ])
+
+      return {
+        cleanupSuggestion: {
+          months,
+          cutoffDate: cutoffDate.toISOString(),
+          oldBookingsToDelete: oldBookings,
+          totalBookings,
+          totalSchedules,
+          willDeletePercentage: totalBookings > 0 ? Math.round((oldBookings / totalBookings) * 100) : 0
+        },
+        recommendation: oldBookings > 100 ? 
+          '建議清理舊資料以提升性能' : 
+          '資料量較少，暫不需要清理'
+      }
+    }, 'partners/cleanup-old-data:GET')
+
+    return NextResponse.json(result)
 
   } catch (error) {
     console.error('獲取清理建議時發生錯誤:', error)
-    return NextResponse.json({ error: '獲取清理建議失敗' }, { status: 500 })
+    if (error instanceof NextResponse) {
+      return error
+    }
+    const errorMessage = error instanceof Error ? error.message : '獲取清理建議失敗'
+    const status = errorMessage.includes('不是夥伴') ? 403 : 500
+    return NextResponse.json({ error: errorMessage }, { status })
   }
 }

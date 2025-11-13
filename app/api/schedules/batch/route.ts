@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { db } from '@/lib/db-resilience'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 
@@ -21,29 +21,31 @@ export async function DELETE(request: Request) {
       )
     }
 
-    // 獲取當前用戶的 partner 信息
-    const partner = await prisma.partner.findUnique({
-      where: { userId: session.user.id },
-    })
+    return await db.query(async (client) => {
+      // 獲取當前用戶的 partner 信息
+      const partner = await client.partner.findUnique({
+        where: { userId: session.user.id },
+      })
 
-    if (!partner) {
-      return NextResponse.json(
-        { error: '找不到夥伴信息' },
-        { status: 404 }
-      )
-    }
+      if (!partner) {
+        throw new Error('找不到夥伴信息')
+      }
 
-    // 刪除選中的時段
-    await prisma.schedule.deleteMany({
-      where: {
-        id: { in: ids },
-        partnerId: partner.id,
-      },
-    })
+      // 刪除選中的時段
+      await client.schedule.deleteMany({
+        where: {
+          id: { in: ids },
+          partnerId: partner.id,
+        },
+      })
 
-    return NextResponse.json({ message: '批量刪除成功' })
+      return { message: '批量刪除成功' }
+    }, 'schedules/batch:DELETE')
   } catch (error) {
     console.error('Error batch deleting schedules:', error)
+    if (error instanceof NextResponse) {
+      return error
+    }
     return NextResponse.json(
       { error: '批量刪除時段失敗' },
       { status: 500 }
@@ -67,32 +69,34 @@ export async function PUT(request: Request) {
       )
     }
 
-    // 獲取當前用戶的 partner 信息
-    const partner = await prisma.partner.findUnique({
-      where: { userId: session.user.id },
-    })
+    return await db.query(async (client) => {
+      // 獲取當前用戶的 partner 信息
+      const partner = await client.partner.findUnique({
+        where: { userId: session.user.id },
+      })
 
-    if (!partner) {
-      return NextResponse.json(
-        { error: '找不到夥伴信息' },
-        { status: 404 }
-      )
-    }
+      if (!partner) {
+        throw new Error('找不到夥伴信息')
+      }
 
-    // 更新選中時段的狀態
-    await prisma.schedule.updateMany({
-      where: {
-        id: { in: ids },
-        partnerId: partner.id,
-      },
-      data: {
-        isAvailable,
-      },
-    })
+      // 更新選中時段的狀態
+      await client.schedule.updateMany({
+        where: {
+          id: { in: ids },
+          partnerId: partner.id,
+        },
+        data: {
+          isAvailable,
+        },
+      })
 
-    return NextResponse.json({ message: '批量更新成功' })
+      return { message: '批量更新成功' }
+    }, 'schedules/batch:PUT')
   } catch (error) {
     console.error('Error batch updating schedules:', error)
+    if (error instanceof NextResponse) {
+      return error
+    }
     return NextResponse.json(
       { error: '批量更新時段失敗' },
       { status: 500 }
