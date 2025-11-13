@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { db } from "@/lib/db-resilience";
 
 export const dynamic = 'force-dynamic';
 
@@ -34,8 +34,9 @@ export async function GET(request: Request) {
       };
     }
 
-    // 查詢夥伴
-    const partners = await prisma.partner.findMany({
+    const result = await db.query(async (client) => {
+      // 查詢夥伴
+      const partners = await client.partner.findMany({
       where,
       select: {
         id: true,
@@ -105,9 +106,9 @@ export async function GET(request: Request) {
       });
     });
 
-    // 同時獲取該時段的群組預約
-    const thirtyMinutesFromNow = new Date(now.getTime() + 30 * 60 * 1000);
-    const groupBookings = await prisma.groupBooking.findMany({
+      // 同時獲取該時段的群組預約
+      const thirtyMinutesFromNow = new Date(now.getTime() + 30 * 60 * 1000);
+      const groupBookings = await client.groupBooking.findMany({
       where: {
         status: 'ACTIVE',
         startTime: { 
@@ -184,10 +185,13 @@ export async function GET(request: Request) {
       };
     }).filter(Boolean);
 
-    return NextResponse.json({
-      partners: partnersWithRating,
-      groupBookings: groupBookingsWithRating
-    });
+      return {
+        partners: partnersWithRating,
+        groupBookings: groupBookingsWithRating
+      };
+    }, 'group-booking/available-partners')
+
+    return NextResponse.json(result);
 
   } catch (error) {
     console.error('獲取可用夥伴失敗:', error);

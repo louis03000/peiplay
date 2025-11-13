@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { db } from '@/lib/db-resilience'
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -27,57 +27,62 @@ export async function GET(request: Request) {
     
     console.log(`🔄 開始檢查「現在有空」狀態，當前時間: ${new Date().toISOString()}`);
     
-    // 找到所有開啟「現在有空」超過30分鐘的夥伴
-    const expiredPartners = await prisma.partner.findMany({
-      where: {
-        isAvailableNow: true,
-        availableNowSince: {
-          lt: thirtyMinutesAgo
+    const result = await db.query(async (client) => {
+      // 找到所有開啟「現在有空」超過30分鐘的夥伴
+      const expiredPartners = await client.partner.findMany({
+        where: {
+          isAvailableNow: true,
+          availableNowSince: {
+            lt: thirtyMinutesAgo
+          }
+        },
+        select: {
+          id: true,
+          name: true,
+          availableNowSince: true
         }
-      },
-      select: {
-        id: true,
-        name: true,
-        availableNowSince: true
-      }
-    })
-
-    console.log(`📊 找到 ${expiredPartners.length} 個需要自動關閉的夥伴`);
-
-    if (expiredPartners.length === 0) {
-      return NextResponse.json({ 
-        message: '沒有需要自動關閉的夥伴',
-        closedCount: 0,
-        timestamp: new Date().toISOString()
       })
-    }
 
-    // 批量關閉過期的「現在有空」狀態
-    const result = await prisma.partner.updateMany({
-      where: {
-        isAvailableNow: true,
-        availableNowSince: {
-          lt: thirtyMinutesAgo
+      console.log(`📊 找到 ${expiredPartners.length} 個需要自動關閉的夥伴`);
+
+      if (expiredPartners.length === 0) {
+        return { 
+          message: '沒有需要自動關閉的夥伴',
+          closedCount: 0,
+          timestamp: new Date().toISOString(),
+          expiredPartners: []
         }
-      },
-      data: {
-        isAvailableNow: false,
-        availableNowSince: null
       }
-    })
 
-    console.log(`✅ 自動關閉了 ${result.count} 個夥伴的「現在有空」狀態`);
+      // 批量關閉過期的「現在有空」狀態
+      const updateResult = await client.partner.updateMany({
+        where: {
+          isAvailableNow: true,
+          availableNowSince: {
+            lt: thirtyMinutesAgo
+          }
+        },
+        data: {
+          isAvailableNow: false,
+          availableNowSince: null
+        }
+      })
 
-    return NextResponse.json({
-      message: `成功自動關閉 ${result.count} 個夥伴的「現在有空」狀態`,
-      closedCount: result.count,
-      timestamp: new Date().toISOString(),
-      expiredPartners: expiredPartners.map(p => ({
-        id: p.id,
-        name: p.name,
-        availableNowSince: p.availableNowSince
-      }))
-    })
+      console.log(`✅ 自動關閉了 ${updateResult.count} 個夥伴的「現在有空」狀態`);
+
+      return {
+        message: `成功自動關閉 ${updateResult.count} 個夥伴的「現在有空」狀態`,
+        closedCount: updateResult.count,
+        timestamp: new Date().toISOString(),
+        expiredPartners: expiredPartners.map(p => ({
+          id: p.id,
+          name: p.name,
+          availableNowSince: p.availableNowSince
+        }))
+      }
+    }, 'cron/auto-close-available')
+
+    return NextResponse.json(result)
 
   } catch (error) {
     console.error('❌ 自動關閉「現在有空」狀態時發生錯誤:', error)

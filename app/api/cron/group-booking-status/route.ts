@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { db } from '@/lib/db-resilience';
 
 export const dynamic = 'force-dynamic';
 
@@ -8,9 +8,10 @@ export async function GET() {
   try {
     const now = new Date();
     
-    // 1. 處理開始前30分鐘的群組（關閉群組，創建文字頻道）
-    const thirtyMinutesFromNow = new Date(now.getTime() + 30 * 60 * 1000);
-    const groupsToClose = await prisma.groupBooking.findMany({
+    const result = await db.query(async (client) => {
+      // 1. 處理開始前30分鐘的群組（關閉群組，創建文字頻道）
+      const thirtyMinutesFromNow = new Date(now.getTime() + 30 * 60 * 1000);
+      const groupsToClose = await client.groupBooking.findMany({
       where: {
         status: 'ACTIVE',
         startTime: {
@@ -29,12 +30,12 @@ export async function GET() {
       }
     });
 
-    for (const group of groupsToClose) {
-      // 關閉群組（不再接受新成員）
-      await prisma.groupBooking.update({
-        where: { id: group.id },
-        data: { status: 'FULL' }
-      });
+      for (const group of groupsToClose) {
+        // 關閉群組（不再接受新成員）
+        await client.groupBooking.update({
+          where: { id: group.id },
+          data: { status: 'FULL' }
+        });
 
       // 創建文字頻道
       try {
@@ -51,9 +52,9 @@ export async function GET() {
       }
     }
 
-    // 2. 處理開始前3分鐘的群組（創建語音頻道）
-    const threeMinutesFromNow = new Date(now.getTime() + 3 * 60 * 1000);
-    const groupsForVoice = await prisma.groupBooking.findMany({
+      // 2. 處理開始前3分鐘的群組（創建語音頻道）
+      const threeMinutesFromNow = new Date(now.getTime() + 3 * 60 * 1000);
+      const groupsForVoice = await client.groupBooking.findMany({
       where: {
         status: 'FULL',
         startTime: {
@@ -81,42 +82,45 @@ export async function GET() {
       }
     }
 
-    // 3. 處理已結束的群組（刪除頻道，標記為完成）
-    const endedGroups = await prisma.groupBooking.findMany({
-      where: {
-        status: { in: ['FULL', 'ACTIVE'] },
-        endTime: { lte: now }
-      }
-    });
-
-    for (const group of endedGroups) {
-      // 刪除 Discord 頻道
-      try {
-        await fetch(`${process.env.NEXTAUTH_URL}/api/discord/group-channels`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            groupBookingId: group.id,
-            action: 'delete_channels'
-          })
-        });
-      } catch (error) {
-        console.error('Error deleting channels for group:', group.id, error);
-      }
-
-      // 標記為完成
-      await prisma.groupBooking.update({
-        where: { id: group.id },
-        data: { status: 'COMPLETED' }
+      // 3. 處理已結束的群組（刪除頻道，標記為完成）
+      const endedGroups = await client.groupBooking.findMany({
+        where: {
+          status: { in: ['FULL', 'ACTIVE'] },
+          endTime: { lte: now }
+        }
       });
-    }
 
-    return NextResponse.json({
-      success: true,
-      closed: groupsToClose.length,
-      voiceChannels: groupsForVoice.length,
-      completed: endedGroups.length
-    });
+      for (const group of endedGroups) {
+        // 刪除 Discord 頻道
+        try {
+          await fetch(`${process.env.NEXTAUTH_URL}/api/discord/group-channels`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              groupBookingId: group.id,
+              action: 'delete_channels'
+            })
+          });
+        } catch (error) {
+          console.error('Error deleting channels for group:', group.id, error);
+        }
+
+        // 標記為完成
+        await client.groupBooking.update({
+          where: { id: group.id },
+          data: { status: 'COMPLETED' }
+        });
+      }
+
+      return {
+        success: true,
+        closed: groupsToClose.length,
+        voiceChannels: groupsForVoice.length,
+        completed: endedGroups.length
+      };
+    }, 'cron/group-booking-status')
+
+    return NextResponse.json(result);
 
   } catch (error) {
     console.error('Group booking status automation error:', error);
