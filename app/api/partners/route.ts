@@ -3,7 +3,6 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db-resilience";
 import { createErrorResponse } from "@/lib/api-helpers";
-import { prisma } from "@/lib/prisma";
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
