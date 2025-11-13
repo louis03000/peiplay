@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
-
+import { db } from '@/lib/db-resilience'
 
 export const dynamic = 'force-dynamic';
-const prisma = new PrismaClient()
 
 export async function GET() {
   try {
@@ -16,36 +14,38 @@ export async function GET() {
     console.log('查詢窗口:', windowStart.toISOString(), '到', windowEnd.toISOString())
 
     // 查詢符合條件的預約
-    const bookings = await prisma.booking.findMany({
-      where: {
-        status: {
-          in: ['CONFIRMED', 'COMPLETED', 'PARTNER_ACCEPTED']
+    const bookings = await db.query(async (client) => {
+      return await client.booking.findMany({
+        where: {
+          status: {
+            in: ['CONFIRMED', 'COMPLETED', 'PARTNER_ACCEPTED']
+          },
+          schedule: {
+            startTime: {
+              gte: windowStart,
+              lte: windowEnd
+            }
+          },
+          discordVoiceChannelId: null
         },
-        schedule: {
-          startTime: {
-            gte: windowStart,
-            lte: windowEnd
-          }
-        },
-        discordVoiceChannelId: null
-      },
-      include: {
-        schedule: {
-          include: {
-            partner: {
-              include: {
-                user: true
+        include: {
+          schedule: {
+            include: {
+              partner: {
+                include: {
+                  user: true
+                }
               }
             }
-          }
-        },
-        customer: {
-          include: {
-            user: true
+          },
+          customer: {
+            include: {
+              user: true
+            }
           }
         }
-      }
-    })
+      });
+    });
 
     console.log('找到預約數量:', bookings.length)
 
@@ -73,7 +73,5 @@ export async function GET() {
   } catch (error) {
     console.error('調試語音頻道創建失敗:', error)
     return NextResponse.json({ error: '調試失敗' }, { status: 500 })
-  } finally {
-    await prisma.$disconnect()
   }
 }

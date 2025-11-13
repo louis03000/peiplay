@@ -1,34 +1,48 @@
 import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { db } from '@/lib/db-resilience'
 
 
 export const dynamic = 'force-dynamic';
 export async function GET() {
   try {
-    // 檢查資料庫連接
-    await prisma.$connect()
-    
-    // 獲取各表的統計資料
-    const userCount = await prisma.user.count()
-    const customerCount = await prisma.customer.count()
-    const partnerCount = await prisma.partner.count()
-    const scheduleCount = await prisma.schedule.count()
-    const bookingCount = await prisma.booking.count()
-    const orderCount = await prisma.order.count()
-    const reviewCount = await prisma.review.count()
+    // 獲取各表的統計資料和最近的用戶
+    const { statistics, recentUsers } = await db.query(async (client) => {
+      const [userCount, customerCount, partnerCount, scheduleCount, bookingCount, orderCount, reviewCount] = await Promise.all([
+        client.user.count(),
+        client.customer.count(),
+        client.partner.count(),
+        client.schedule.count(),
+        client.booking.count(),
+        client.order.count(),
+        client.review.count()
+      ]);
 
-    // 檢查最近的用戶
-    const recentUsers = await prisma.user.findMany({
-      take: 5,
-      orderBy: { createdAt: 'desc' },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        role: true,
-        createdAt: true
-      }
-    })
+      // 檢查最近的用戶
+      const recent = await client.user.findMany({
+        take: 5,
+        orderBy: { createdAt: 'desc' },
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          role: true,
+          createdAt: true
+        }
+      });
+
+      return {
+        statistics: {
+          users: userCount,
+          customers: customerCount,
+          partners: partnerCount,
+          schedules: scheduleCount,
+          bookings: bookingCount,
+          orders: orderCount,
+          reviews: reviewCount
+        },
+        recentUsers: recent
+      };
+    });
 
     // 檢查環境變數（不顯示敏感資訊）
     const dbUrl = process.env.DATABASE_URL || 'Not set'
@@ -40,15 +54,7 @@ export async function GET() {
         url: dbUrlPreview,
         timestamp: new Date().toISOString()
       },
-      statistics: {
-        users: userCount,
-        customers: customerCount,
-        partners: partnerCount,
-        schedules: scheduleCount,
-        bookings: bookingCount,
-        orders: orderCount,
-        reviews: reviewCount
-      },
+      statistics,
       recentUsers: recentUsers,
       environment: {
         nodeEnv: process.env.NODE_ENV,
@@ -62,7 +68,5 @@ export async function GET() {
       details: error instanceof Error ? error.message : 'Unknown error',
       timestamp: new Date().toISOString()
     }, { status: 500 })
-  } finally {
-    await prisma.$disconnect()
   }
 } 

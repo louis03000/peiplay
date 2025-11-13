@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { prisma } from '@/lib/prisma'
+import { db } from '@/lib/db-resilience'
 
 
 export const dynamic = 'force-dynamic';
@@ -12,15 +12,18 @@ export async function POST() {
       return NextResponse.json({ error: '請先登入' }, { status: 401 })
     }
 
-    // 檢查所有夥伴資料
-    const partners = await prisma.partner.findMany({
-      include: { user: true }
-    })
-    
-    // 檢查客戶資料
-    const customer = await prisma.customer.findUnique({
-      where: { userId: session.user.id }
-    })
+    // 檢查所有夥伴資料和客戶資料
+    const { partners, customer } = await db.query(async (client) => {
+      const partnersData = await client.partner.findMany({
+        include: { user: true }
+      });
+      
+      const customerData = await client.customer.findUnique({
+        where: { userId: session.user.id }
+      });
+      
+      return { partners: partnersData, customer: customerData };
+    });
 
     // 移除金幣檢查
 

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
+import { db } from '@/lib/db-resilience';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -16,36 +16,38 @@ export async function GET() {
       return NextResponse.json({ error: '請先登入' }, { status: 401 });
     }
 
-    await prisma.$connect();
+    const { partner, bookings } = await db.query(async (client) => {
+      const partnerData = await client.partner.findUnique({
+        where: { userId: session.user.id }
+      });
 
-    const partner = await prisma.partner.findUnique({
-      where: { userId: session.user.id }
-    });
+      if (!partnerData) {
+        throw new Error('夥伴資料不存在');
+      }
 
-    if (!partner) {
-      return NextResponse.json({ error: '夥伴資料不存在' }, { status: 404 });
-    }
-
-    // 簡單查詢，不過濾時間
-    const bookings = await prisma.booking.findMany({
-      where: {
-        schedule: {
-          partnerId: partner.id
-        }
-      },
-      include: {
-        customer: {
-          select: { name: true }
-        },
-        schedule: {
-          select: {
-            startTime: true,
-            endTime: true,
-            date: true
+      // 簡單查詢，不過濾時間
+      const bookingsData = await client.booking.findMany({
+        where: {
+          schedule: {
+            partnerId: partnerData.id
           }
-        }
-      },
-      orderBy: { createdAt: 'desc' }
+        },
+        include: {
+          customer: {
+            select: { name: true }
+          },
+          schedule: {
+            select: {
+              startTime: true,
+              endTime: true,
+              date: true
+            }
+          }
+        },
+        orderBy: { createdAt: 'desc' }
+      });
+
+      return { partner: partnerData, bookings: bookingsData };
     });
 
     const now = new Date();
@@ -82,15 +84,12 @@ export async function GET() {
 
   } catch (error) {
     console.error('🔍 DEBUG: 測試 API 失敗:', error);
+    if (error instanceof Error && error.message === '夥伴資料不存在') {
+      return NextResponse.json({ error: '夥伴資料不存在' }, { status: 404 });
+    }
     return NextResponse.json({ 
       error: '測試 API 失敗',
       details: error instanceof Error ? error.message : 'Unknown error'
     }, { status: 500 });
-  } finally {
-    try {
-      await prisma.$disconnect();
-    } catch (disconnectError) {
-      console.error("❌ 斷開連線失敗:", disconnectError);
-    }
   }
 }

@@ -1,31 +1,40 @@
 import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { db } from '@/lib/db-resilience'
 
 
 export const dynamic = 'force-dynamic';
 export async function GET() {
   try {
-    const users = await prisma.user.findMany({
-      include: {
-        customer: true,
-        partner: true,
-      },
-      orderBy: {
-        createdAt: 'asc'
-      }
-    })
+    const { users, counts } = await db.query(async (client) => {
+      const usersData = await client.user.findMany({
+        include: {
+          customer: true,
+          partner: true,
+        },
+        orderBy: {
+          createdAt: 'asc'
+        }
+      });
 
-    const userCount = await prisma.user.count()
-    const customerCount = await prisma.customer.count()
-    const partnerCount = await prisma.partner.count()
-    const scheduleCount = await prisma.schedule.count()
+      const [userCount, customerCount, partnerCount, scheduleCount] = await Promise.all([
+        client.user.count(),
+        client.customer.count(),
+        client.partner.count(),
+        client.schedule.count()
+      ]);
+
+      return {
+        users: usersData,
+        counts: { userCount, customerCount, partnerCount, scheduleCount }
+      };
+    });
 
     return NextResponse.json({
       summary: {
-        totalUsers: userCount,
-        totalCustomers: customerCount,
-        totalPartners: partnerCount,
-        totalSchedules: scheduleCount
+        totalUsers: counts.userCount,
+        totalCustomers: counts.customerCount,
+        totalPartners: counts.partnerCount,
+        totalSchedules: counts.scheduleCount
       },
       users: users.map(user => ({
         id: user.id,
