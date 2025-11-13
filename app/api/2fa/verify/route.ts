@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { prisma } from '@/lib/prisma'
+import { db } from '@/lib/db-resilience'
 import speakeasy from 'speakeasy'
 import type { Prisma } from '@prisma/client'
 
@@ -19,39 +19,49 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Token is required' }, { status: 400 })
     }
 
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email }
-    }) as { id: string; twoFactorSecret: string | null } | null
+    const result = await db.query(async (client) => {
+      const user = await client.user.findUnique({
+        where: { email: session.user.email }
+      }) as { id: string; twoFactorSecret: string | null } | null
 
-    if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 })
-    }
+      if (!user) {
+        throw new Error('User not found')
+      }
 
-    if (!user?.twoFactorSecret) {
-      return NextResponse.json({ error: '2FA not set up' }, { status: 400 })
-    }
+      if (!user?.twoFactorSecret) {
+        throw new Error('2FA not set up')
+      }
 
-    const verified = speakeasy.totp.verify({
-      secret: user.twoFactorSecret,
-      encoding: 'base32',
-      token
-    })
+      const verified = speakeasy.totp.verify({
+        secret: user.twoFactorSecret,
+        encoding: 'base32',
+        token
+      })
 
-    if (!verified) {
-      return NextResponse.json({ error: 'Invalid token' }, { status: 400 })
-    }
+      if (!verified) {
+        throw new Error('Invalid token')
+      }
 
-    await prisma.user.update({
-      where: { id: user.id },
-      data: { isTwoFactorEnabled: true } as Prisma.UserUncheckedUpdateInput
-    })
+      await client.user.update({
+        where: { id: user.id },
+        data: { isTwoFactorEnabled: true } as Prisma.UserUncheckedUpdateInput
+      })
 
-    return NextResponse.json({ success: true })
+      return { success: true }
+    }, '2fa/verify')
+
+    return NextResponse.json(result)
   } catch (error) {
     console.error('2FA verification error:', error)
+    if (error instanceof NextResponse) {
+      return error
+    }
+    const errorMessage = error instanceof Error ? error.message : 'Internal server error'
+    const status = errorMessage.includes('not found') || errorMessage.includes('not set up') ? 404 :
+                   errorMessage.includes('Invalid token') ? 400 : 500
     return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
+      { error: errorMessage },
+      { status }
     )
   }
 } 

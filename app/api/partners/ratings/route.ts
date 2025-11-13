@@ -1,28 +1,29 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { db } from '@/lib/db-resilience';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
   try {
-    // 獲取所有夥伴的基本信息
-    const partners = await prisma.partner.findMany({
-      where: {
-        status: 'APPROVED'
-      },
-      select: {
-        id: true,
-        name: true,
-        games: true,
-        halfHourlyRate: true,
-        coverImage: true
-      }
-    });
+    const result = await db.query(async (client) => {
+      // 獲取所有夥伴的基本信息
+      const partners = await client.partner.findMany({
+        where: {
+          status: 'APPROVED'
+        },
+        select: {
+          id: true,
+          name: true,
+          games: true,
+          halfHourlyRate: true,
+          coverImage: true
+        }
+      });
 
-    // 為每個夥伴計算平均評價
-    const partnersWithRatings = await Promise.all(
-      partners.map(async (partner) => {
-        const reviews = await prisma.review.findMany({
+      // 為每個夥伴計算平均評價
+      const partnersWithRatings = await Promise.all(
+        partners.map(async (partner) => {
+          const reviews = await client.review.findMany({
           where: {
             revieweeId: partner.id,
             isApproved: true
@@ -49,15 +50,18 @@ export async function GET() {
       })
     );
 
-    // 按平均評價排序（評價高的在前）
-    partnersWithRatings.sort((a, b) => {
-      if (b.averageRating === a.averageRating) {
-        return b.totalReviews - a.totalReviews; // 評價數量多的在前
-      }
-      return b.averageRating - a.averageRating;
-    });
+      // 按平均評價排序（評價高的在前）
+      partnersWithRatings.sort((a, b) => {
+        if (b.averageRating === a.averageRating) {
+          return b.totalReviews - a.totalReviews; // 評價數量多的在前
+        }
+        return b.averageRating - a.averageRating;
+      });
 
-    return NextResponse.json({ partners: partnersWithRatings });
+      return { partners: partnersWithRatings }
+    }, 'partners/ratings')
+
+    return NextResponse.json(result)
 
   } catch (error) {
     console.error('Error fetching partners with ratings:', error);

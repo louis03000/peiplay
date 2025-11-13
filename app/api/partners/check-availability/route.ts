@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { db } from '@/lib/db-resilience'
 
 
 export const dynamic = 'force-dynamic';
@@ -16,33 +16,32 @@ export async function POST(request: NextRequest) {
     const start = new Date(startTime)
     const end = new Date(endTime)
 
-    // 檢查夥伴是否存在
-    const partner = await prisma.partner.findUnique({
-      where: { id: partnerId },
-      include: { user: true }
-    })
+    return await db.query(async (client) => {
+      // 檢查夥伴是否存在
+      const partner = await client.partner.findUnique({
+        where: { id: partnerId },
+        include: { user: true }
+      })
 
-    if (!partner) {
-      return NextResponse.json({ 
-        error: '找不到指定的夥伴' 
-      }, { status: 404 })
-    }
-
-    // 檢查夥伴是否被停權
-    if (partner.user?.isSuspended) {
-      const now = new Date()
-      const endsAt = partner.user.suspensionEndsAt ? new Date(partner.user.suspensionEndsAt) : null
-      
-      if (endsAt && endsAt > now) {
-        return NextResponse.json({ 
-          error: '該夥伴目前被停權中',
-          available: false 
-        }, { status: 403 })
+      if (!partner) {
+        throw new Error('找不到指定的夥伴')
       }
-    }
 
-    // 檢查時間衝突
-    const conflictingBookings = await prisma.booking.findMany({
+      // 檢查夥伴是否被停權
+      if (partner.user?.isSuspended) {
+        const now = new Date()
+        const endsAt = partner.user.suspensionEndsAt ? new Date(partner.user.suspensionEndsAt) : null
+        
+        if (endsAt && endsAt > now) {
+          return NextResponse.json({ 
+            error: '該夥伴目前被停權中',
+            available: false 
+          }, { status: 403 })
+        }
+      }
+
+      // 檢查時間衝突
+      const conflictingBookings = await client.booking.findMany({
       where: {
         schedule: {
           partnerId: partnerId
@@ -102,26 +101,32 @@ export async function POST(request: NextRequest) {
       }, { status: 409 })
     }
 
-    // 檢查夥伴是否「現在有空」
-    const isAvailableNow = partner.isAvailableNow && 
-      partner.availableNowSince && 
-      new Date(partner.availableNowSince) <= new Date()
+      // 檢查夥伴是否「現在有空」
+      const isAvailableNow = partner.isAvailableNow && 
+        partner.availableNowSince && 
+        new Date(partner.availableNowSince) <= new Date()
 
-    return NextResponse.json({
-      available: true,
-      partner: {
-        id: partner.id,
-        name: partner.name,
-        isAvailableNow: isAvailableNow,
-        halfHourlyRate: partner.halfHourlyRate
-      },
-      message: '夥伴可用'
-    })
+      return NextResponse.json({
+        available: true,
+        partner: {
+          id: partner.id,
+          name: partner.name,
+          isAvailableNow: isAvailableNow,
+          halfHourlyRate: partner.halfHourlyRate
+        },
+        message: '夥伴可用'
+      })
+    }, 'partners/check-availability')
 
   } catch (error) {
     console.error('檢查夥伴可用性時發生錯誤:', error)
+    if (error instanceof NextResponse) {
+      return error
+    }
+    const errorMessage = error instanceof Error ? error.message : '檢查夥伴可用性失敗'
+    const status = errorMessage.includes('找不到') ? 404 : 500
     return NextResponse.json({ 
-      error: '檢查夥伴可用性失敗' 
-    }, { status: 500 })
+      error: errorMessage 
+    }, { status })
   }
 }

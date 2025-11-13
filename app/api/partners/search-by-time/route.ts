@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { db } from '@/lib/db-resilience'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 
@@ -27,8 +27,9 @@ export async function GET(request: Request) {
     const startDateTime = new Date(`${startDate}T${startTime}:00`)
     const endDateTime = new Date(`${endDate}T${endTime}:00`)
 
-    // 查詢在指定日期範圍和時段範圍內有可用時段的夥伴
-    const partners = await prisma.partner.findMany({
+    const result = await db.query(async (client) => {
+      // 查詢在指定日期範圍和時段範圍內有可用時段的夥伴
+      const partners = await client.partner.findMany({
       where: {
         status: 'APPROVED',
         schedules: {
@@ -145,7 +146,10 @@ export async function GET(request: Request) {
       })
       .filter(partner => partner.schedules.length > 0)
 
-    return NextResponse.json(partnersWithAvailableSchedules)
+      return partnersWithAvailableSchedules
+    }, 'partners/search-by-time')
+
+    return NextResponse.json(result)
   } catch (error) {
     console.error('Error searching partners by time:', error)
     return NextResponse.json(

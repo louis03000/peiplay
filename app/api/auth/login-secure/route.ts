@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { db } from '@/lib/db-resilience'
 import { SecurityEnhanced, RateLimiter, InputValidator, SecurityLogger } from '@/lib/security-enhanced'
 
 export const dynamic = 'force-dynamic';
@@ -42,107 +42,113 @@ export async function POST(request: Request) {
       )
     }
 
-    // 查找用戶
-    const user = await prisma.user.findUnique({
-      where: { email: sanitizedEmail }
-    })
+    return await db.query(async (client) => {
+      // 查找用戶
+      const user = await client.user.findUnique({
+        where: { email: sanitizedEmail }
+      })
 
-    if (!user) {
-      SecurityLogger.logSecurityEvent('anonymous', 'LOGIN_FAILED', {
-        event: 'USER_NOT_FOUND',
-        ipAddress,
-        userAgent,
-        email: sanitizedEmail.substring(0, 3) + '***',
-      });
-      
-      return NextResponse.json(
-        { error: 'Email 或密碼錯誤' },
-        { status: 401 }
-      )
-    }
+      if (!user) {
+        SecurityLogger.logSecurityEvent('anonymous', 'LOGIN_FAILED', {
+          event: 'USER_NOT_FOUND',
+          ipAddress,
+          userAgent,
+          email: sanitizedEmail.substring(0, 3) + '***',
+        });
+        
+        throw new Error('Email 或密碼錯誤')
+      }
 
-    // 檢查用戶是否被鎖定
-    if (user.lockUntil && user.lockUntil > new Date()) {
-      SecurityLogger.logSecurityEvent(user.id, 'LOGIN_FAILED', {
-        event: 'ACCOUNT_LOCKED',
-        ipAddress,
-        userAgent,
-        lockUntil: user.lockUntil,
-      });
-      
-      return NextResponse.json(
-        { error: '帳戶已被鎖定，請稍後再試' },
-        { status: 423 }
-      )
-    }
+      // 檢查用戶是否被鎖定
+      if (user.lockUntil && user.lockUntil > new Date()) {
+        SecurityLogger.logSecurityEvent(user.id, 'LOGIN_FAILED', {
+          event: 'ACCOUNT_LOCKED',
+          ipAddress,
+          userAgent,
+          lockUntil: user.lockUntil,
+        });
+        
+        throw new Error('帳戶已被鎖定，請稍後再試')
+      }
 
-    // 驗證密碼
-    const isPasswordValid = await SecurityEnhanced.verifyPassword(password, user.password);
-    
-    if (!isPasswordValid) {
-      // 增加失敗次數
-      const newLoginAttempts = user.loginAttempts + 1;
-      const shouldLock = newLoginAttempts >= 5;
+      // 驗證密碼
+      const isPasswordValid = await SecurityEnhanced.verifyPassword(password, user.password);
       
-      await prisma.user.update({
+      if (!isPasswordValid) {
+        // 增加失敗次數
+        const newLoginAttempts = user.loginAttempts + 1;
+        const shouldLock = newLoginAttempts >= 5;
+        
+        await client.user.update({
+          where: { id: user.id },
+          data: {
+            loginAttempts: newLoginAttempts,
+            lockUntil: shouldLock ? new Date(Date.now() + 30 * 60 * 1000) : null, // 鎖定 30 分鐘
+          },
+        });
+
+        SecurityLogger.logSecurityEvent(user.id, 'LOGIN_FAILED', {
+          event: 'INVALID_PASSWORD',
+          ipAddress,
+          userAgent,
+          attemptCount: newLoginAttempts,
+          locked: shouldLock,
+        });
+
+        throw new Error(`Email 或密碼錯誤|${Math.max(0, 5 - newLoginAttempts)}`)
+      }
+
+      // 登入成功，重置失敗次數
+      await client.user.update({
         where: { id: user.id },
         data: {
-          loginAttempts: newLoginAttempts,
-          lockUntil: shouldLock ? new Date(Date.now() + 30 * 60 * 1000) : null, // 鎖定 30 分鐘
+          loginAttempts: 0,
+          lockUntil: null,
         },
       });
 
-      SecurityLogger.logSecurityEvent(user.id, 'LOGIN_FAILED', {
-        event: 'INVALID_PASSWORD',
+      // 記錄成功登入
+      SecurityLogger.logSecurityEvent(user.id, 'LOGIN_SUCCESS', {
+        event: 'LOGIN_SUCCESS',
         ipAddress,
         userAgent,
-        attemptCount: newLoginAttempts,
-        locked: shouldLock,
       });
 
-      return NextResponse.json(
-        { 
-          error: 'Email 或密碼錯誤',
-          remainingAttempts: Math.max(0, 5 - newLoginAttempts)
+      // 重置速率限制
+      RateLimiter.resetRateLimit(ipAddress);
+
+      return NextResponse.json({
+        message: '登入成功',
+        user: {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          role: user.role,
         },
-        { status: 401 }
-      )
-    }
-
-    // 登入成功，重置失敗次數
-    await prisma.user.update({
-      where: { id: user.id },
-      data: {
-        loginAttempts: 0,
-        lockUntil: null,
-      },
-    });
-
-    // 記錄成功登入
-    SecurityLogger.logSecurityEvent(user.id, 'LOGIN_SUCCESS', {
-      event: 'LOGIN_SUCCESS',
-      ipAddress,
-      userAgent,
-    });
-
-    // 重置速率限制
-    RateLimiter.resetRateLimit(ipAddress);
-
-    return NextResponse.json({
-      message: '登入成功',
-      user: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        role: user.role,
-      },
-    })
+      })
+    }, 'auth/login-secure')
 
   } catch (error) {
     console.error('登入錯誤:', error)
+    if (error instanceof NextResponse) {
+      return error
+    }
+    const errorMessage = error instanceof Error ? error.message : '登入失敗，請稍後再試'
+    if (errorMessage.includes('|')) {
+      const [msg, remaining] = errorMessage.split('|')
+      return NextResponse.json(
+        { 
+          error: msg,
+          remainingAttempts: parseInt(remaining) || 0
+        },
+        { status: 401 }
+      )
+    }
+    const status = errorMessage.includes('已被鎖定') ? 423 :
+                   errorMessage.includes('Email 或密碼錯誤') ? 401 : 500
     return NextResponse.json(
-      { error: '登入失敗，請稍後再試' },
-      { status: 500 }
+      { error: errorMessage },
+      { status }
     )
   }
 }

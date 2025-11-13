@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { db } from '@/lib/db-resilience'
 import bcrypt from 'bcryptjs'
 import { sendEmailVerificationCode } from '@/lib/email'
 import { SecurityEnhanced, RateLimiter, InputValidator, SecurityLogger } from '@/lib/security-enhanced'
@@ -77,17 +77,16 @@ async function registerHandler(request: Request) {
       )
     }
 
-    // 檢查郵箱是否已被註冊
-    const existingUser = await prisma.user.findUnique({
-      where: { email: sanitizedData.email },
-    })
+    // 使用 db.query 處理所有資料庫操作
+    return await db.query(async (client) => {
+      // 檢查郵箱是否已被註冊
+      const existingUser = await client.user.findUnique({
+        where: { email: sanitizedData.email },
+      })
 
-    if (existingUser) {
-      return NextResponse.json(
-        { error: '此郵箱已被註冊' },
-        { status: 400 }
-      )
-    }
+      if (existingUser) {
+        throw new Error('此郵箱已被註冊')
+      }
 
     // 檢查年齡限制（18歲以上）
     const today = new Date();
@@ -107,71 +106,68 @@ async function registerHandler(request: Request) {
       )
     }
 
-    // 加密密碼
-    const hashedPassword = await SecurityEnhanced.hashPassword(sanitizedData.password)
+      // 加密密碼
+      const hashedPassword = await SecurityEnhanced.hashPassword(sanitizedData.password)
 
-    // 檢查是否為管理員帳號
-    const isAdminEmail = sanitizedData.email === 'peiplay2025@gmail.com';
-    
-    // 生成 6 位數驗證碼
-    const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
-    
-    // 設定過期時間（10分鐘後）
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
-
-    // 創建用戶
-    const user = await prisma.user.create({
-      data: {
-        email: sanitizedData.email,
-        password: hashedPassword,
-        name: sanitizedData.name,
-        birthday: new Date(sanitizedData.birthday),
-        phone: sanitizedData.phone,
-        discord: sanitizedData.discord,
-        role: isAdminEmail ? 'ADMIN' : 'CUSTOMER',
-        emailVerified: isAdminEmail, // 管理員帳號直接設為已驗證
-        emailVerificationCode: isAdminEmail ? null : verificationCode,
-        emailVerificationExpires: isAdminEmail ? null : expiresAt,
-      },
-    })
-
-    // 記錄安全事件
-    SecurityLogger.logSecurityEvent(
-      user.id,
-      'USER_REGISTRATION_SUCCESS',
-      { 
-        email: sanitizedData.email.substring(0, 3) + '***',
-        registrationTime: new Date().toISOString() 
-      }
-    );
-
-    // 如果是管理員帳號，直接返回成功
-    if (isAdminEmail) {
-      return NextResponse.json({ 
-        message: '管理員帳號註冊成功，可直接登入',
-        email: sanitizedData.email,
-        isAdmin: true
-      })
-    }
-
-    // 發送驗證碼 Email（僅限非管理員帳號）
-    const emailSent = await sendEmailVerificationCode(
-      sanitizedData.email,
-      sanitizedData.name,
-      verificationCode
-    );
-
-    if (!emailSent) {
-      // 如果發送失敗，刪除剛創建的用戶
-      await prisma.user.delete({
-        where: { id: user.id }
-      });
+      // 檢查是否為管理員帳號
+      const isAdminEmail = sanitizedData.email === 'peiplay2025@gmail.com';
       
-      return NextResponse.json(
-        { error: '發送驗證碼失敗，請稍後再試' },
-        { status: 500 }
-      )
-    }
+      // 生成 6 位數驗證碼
+      const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+      
+      // 設定過期時間（10分鐘後）
+      const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+
+      // 創建用戶
+      const user = await client.user.create({
+        data: {
+          email: sanitizedData.email,
+          password: hashedPassword,
+          name: sanitizedData.name,
+          birthday: new Date(sanitizedData.birthday),
+          phone: sanitizedData.phone,
+          discord: sanitizedData.discord,
+          role: isAdminEmail ? 'ADMIN' : 'CUSTOMER',
+          emailVerified: isAdminEmail, // 管理員帳號直接設為已驗證
+          emailVerificationCode: isAdminEmail ? null : verificationCode,
+          emailVerificationExpires: isAdminEmail ? null : expiresAt,
+        },
+      })
+
+      // 記錄安全事件
+      SecurityLogger.logSecurityEvent(
+        user.id,
+        'USER_REGISTRATION_SUCCESS',
+        { 
+          email: sanitizedData.email.substring(0, 3) + '***',
+          registrationTime: new Date().toISOString() 
+        }
+      );
+
+      // 如果是管理員帳號，直接返回成功
+      if (isAdminEmail) {
+        return NextResponse.json({ 
+          message: '管理員帳號註冊成功，可直接登入',
+          email: sanitizedData.email,
+          isAdmin: true
+        })
+      }
+
+      // 發送驗證碼 Email（僅限非管理員帳號）
+      const emailSent = await sendEmailVerificationCode(
+        sanitizedData.email,
+        sanitizedData.name,
+        verificationCode
+      );
+
+      if (!emailSent) {
+        // 如果發送失敗，刪除剛創建的用戶
+        await client.user.delete({
+          where: { id: user.id }
+        });
+        
+        throw new Error('發送驗證碼失敗，請稍後再試')
+      }
 
     // 邀請用戶加入 Discord 伺服器
     try {
@@ -199,21 +195,22 @@ async function registerHandler(request: Request) {
       // 不影響註冊流程，只記錄錯誤
     }
 
-    // 記錄成功的註冊
-    SecurityLogger.logSecurityEvent(user.id, 'USER_REGISTERED', {
-      email: sanitizedData.email.substring(0, 3) + '***',
-      hasPhone: !!sanitizedData.phone,
-      hasDiscord: !!sanitizedData.discord,
-      isAdmin: isAdminEmail
-    })
+      // 記錄成功的註冊
+      SecurityLogger.logSecurityEvent(user.id, 'USER_REGISTERED', {
+        email: sanitizedData.email.substring(0, 3) + '***',
+        hasPhone: !!sanitizedData.phone,
+        hasDiscord: !!sanitizedData.discord,
+        isAdmin: isAdminEmail
+      })
 
-    // 重置速率限制
-    RateLimiter.resetRateLimit(clientIp)
+      // 重置速率限制
+      RateLimiter.resetRateLimit(clientIp)
 
-    return NextResponse.json({ 
-      message: '註冊成功，請檢查您的 Email 並完成驗證',
-      email: sanitizedData.email 
-    })
+      return NextResponse.json({ 
+        message: '註冊成功，請檢查您的 Email 並完成驗證',
+        email: sanitizedData.email 
+      })
+    }, 'auth/register')
   } catch (error) {
     console.error('Error registering user:', error)
     
@@ -222,9 +219,16 @@ async function registerHandler(request: Request) {
       additionalInfo: { error: error instanceof Error ? error.message : 'Unknown error' }
     });
     
+    if (error instanceof NextResponse) {
+      return error
+    }
+    const errorMessage = error instanceof Error ? error.message : '註冊失敗'
+    const status = errorMessage.includes('已被註冊') || errorMessage.includes('格式無效') || 
+                   errorMessage.includes('安全要求') || errorMessage.includes('年滿18歲') ? 400 :
+                   errorMessage.includes('發送驗證碼失敗') ? 500 : 500
     return NextResponse.json(
-      { error: '註冊失敗' },
-      { status: 500 }
+      { error: errorMessage },
+      { status }
     )
   }
 }
