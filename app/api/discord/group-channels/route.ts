@@ -13,24 +13,26 @@ export async function POST(request: Request) {
     }
 
     // 獲取群組預約信息
-    const groupBooking = await prisma.groupBooking.findUnique({
-      where: { id: groupBookingId },
-      include: {
-        GroupBookingParticipant: {
-          include: {
-            Partner: {
-              include: { user: true }
+    const groupBooking = await db.query(async (client) => {
+      return await client.groupBooking.findUnique({
+        where: { id: groupBookingId },
+        include: {
+          GroupBookingParticipant: {
+            include: {
+              Partner: {
+                include: { user: true }
+              }
             }
-          }
-        },
-        bookings: {
-          include: {
-            customer: {
-              include: { user: true }
+          },
+          bookings: {
+            include: {
+              customer: {
+                include: { user: true }
+              }
             }
           }
         }
-      }
+      });
     });
 
     if (!groupBooking) {
@@ -71,9 +73,11 @@ export async function POST(request: Request) {
         updateData.discordVoiceChannelId = channelId;
       }
 
-      await prisma.groupBooking.update({
-        where: { id: groupBookingId },
-        data: updateData
+      await db.query(async (client) => {
+        return await client.groupBooking.update({
+          where: { id: groupBookingId },
+          data: updateData
+        });
       });
     }
 
@@ -173,12 +177,14 @@ async function deleteDiscordChannels(groupBooking: any) {
     }
 
     // 清除頻道 ID
-    await prisma.groupBooking.update({
-      where: { id: groupBooking.id },
-      data: {
-        discordTextChannelId: null,
-        discordVoiceChannelId: null
-      }
+    await db.query(async (client) => {
+      return await client.groupBooking.update({
+        where: { id: groupBooking.id },
+        data: {
+          discordTextChannelId: null,
+          discordVoiceChannelId: null
+        }
+      });
     });
   } catch (error) {
     console.error('Error deleting Discord channels:', error);
