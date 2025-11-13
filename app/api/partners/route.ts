@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db-resilience";
 import { createErrorResponse } from "@/lib/api-helpers";
+import { BookingStatus } from "@prisma/client";
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -48,10 +49,11 @@ function parseDateRange(start?: string | null, end?: string | null) {
 }
 
 const ACTIVE_BOOKING_STATUSES = new Set([
-  'PENDING',
-  'CONFIRMED',
-  'AWAITING_PAYMENT',
-  'PROCESSING',
+  BookingStatus.PENDING,
+  BookingStatus.CONFIRMED,
+  BookingStatus.PENDING_PAYMENT,
+  BookingStatus.PAID_WAITING_PARTNER_CONFIRMATION,
+  BookingStatus.PARTNER_ACCEPTED,
 ])
 
 export async function GET(request: NextRequest) {
@@ -121,7 +123,13 @@ export async function GET(request: NextRequest) {
                     bookings: {
                       isNot: {
                         status: {
-                          in: ['PENDING', 'CONFIRMED', 'AWAITING_PAYMENT', 'PROCESSING', 'PARTNER_ACCEPTED', 'PAID_WAITING_PARTNER_CONFIRMATION'],
+                          in: [
+                            BookingStatus.PENDING,
+                            BookingStatus.CONFIRMED,
+                            BookingStatus.PENDING_PAYMENT,
+                            BookingStatus.PARTNER_ACCEPTED,
+                            BookingStatus.PAID_WAITING_PARTNER_CONFIRMATION,
+                          ],
                         },
                       },
                     },
