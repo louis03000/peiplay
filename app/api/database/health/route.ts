@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { checkDatabaseHealth, getDatabaseStats } from '@/lib/db-connection'
-import { prisma } from '@/lib/prisma'
+import { db } from '@/lib/db-resilience'
 
 export const dynamic = 'force-dynamic'
 
@@ -14,18 +14,19 @@ export async function GET(request: NextRequest) {
     
     // 執行簡單查詢測試
     const queryStart = performance.now()
-    const userCount = await prisma.user.count()
+    const { userCount, dbInfo } = await db.query(async (client) => {
+      const count = await client.user.count()
+      const info = await client.$queryRaw`
+        SELECT 
+          version() as version,
+          current_database() as database_name,
+          current_user as current_user,
+          inet_server_addr() as server_address,
+          inet_server_port() as server_port
+      ` as any[]
+      return { userCount: count, dbInfo: info }
+    })
     const queryTime = performance.now() - queryStart
-    
-    // 檢查資料庫版本和配置
-    const dbInfo = await prisma.$queryRaw`
-      SELECT 
-        version() as version,
-        current_database() as database_name,
-        current_user as current_user,
-        inet_server_addr() as server_address,
-        inet_server_port() as server_port
-    ` as any[]
     
     const totalTime = performance.now() - startTime
     
@@ -139,27 +140,33 @@ async function runBasicTests() {
   
   // 測試 1: 簡單查詢
   const start1 = performance.now()
-  await prisma.user.count()
+  await db.query(async (client) => {
+    await client.user.count()
+  })
   const time1 = performance.now() - start1
   tests.push({ name: '用戶計數查詢', time: time1, status: time1 < 100 ? 'good' : 'slow' })
   
   // 測試 2: 複雜查詢
   const start2 = performance.now()
-  await prisma.user.findMany({ take: 10 })
+  await db.query(async (client) => {
+    await client.user.findMany({ take: 10 })
+  })
   const time2 = performance.now() - start2
   tests.push({ name: '用戶列表查詢', time: time2, status: time2 < 200 ? 'good' : 'slow' })
   
   // 測試 3: 關聯查詢
   const start3 = performance.now()
-  await prisma.user.findMany({
-    include: { 
-      customer: {
-        include: {
-          bookings: true
+  await db.query(async (client) => {
+    await client.user.findMany({
+      include: { 
+        customer: {
+          include: {
+            bookings: true
+          }
         }
-      }
-    },
-    take: 5
+      },
+      take: 5
+    })
   })
   const time3 = performance.now() - start3
   tests.push({ name: '關聯查詢', time: time3, status: time3 < 500 ? 'good' : 'slow' })
@@ -175,7 +182,9 @@ async function runStressTests() {
   // 並發查詢測試
   const start = performance.now()
   const promises = Array.from({ length: concurrentRequests }, () => 
-    prisma.user.count()
+    db.query(async (client) => {
+      return await client.user.count()
+    })
   )
   
   await Promise.all(promises)
@@ -194,16 +203,20 @@ async function runStressTests() {
 async function runConnectionTests() {
   const tests = []
   
-  // 測試連接建立時間
+  // 測試連接建立時間（使用 db.query 會自動處理連接）
   const start = performance.now()
-  await prisma.$connect()
+  await db.query(async (client) => {
+    await client.$queryRaw`SELECT 1`
+  })
   const connectTime = performance.now() - start
   tests.push({ name: '連接建立', time: connectTime, status: connectTime < 1000 ? 'good' : 'slow' })
   
   // 測試連接穩定性
   const stabilityStart = performance.now()
   for (let i = 0; i < 10; i++) {
-    await prisma.$queryRaw`SELECT 1`
+    await db.query(async (client) => {
+      await client.$queryRaw`SELECT 1`
+    })
   }
   const stabilityTime = performance.now() - stabilityStart
   tests.push({ name: '連接穩定性 (10次查詢)', time: stabilityTime, status: stabilityTime < 2000 ? 'good' : 'slow' })

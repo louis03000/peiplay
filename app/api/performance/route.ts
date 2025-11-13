@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { db } from '@/lib/db-resilience'
 
 export const dynamic = 'force-dynamic'
 
@@ -10,9 +10,9 @@ export async function GET(request: NextRequest) {
     
     // 測試資料庫連接性能
     const dbStart = performance.now()
-    await prisma.$connect()
-    const userCount = await prisma.user.count()
-    await prisma.$disconnect()
+    const userCount = await db.query(async (client) => {
+      return await client.user.count()
+    })
     const dbTime = performance.now() - dbStart
     
     const totalTime = performance.now() - startTime
