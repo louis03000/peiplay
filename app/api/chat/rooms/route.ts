@@ -139,11 +139,17 @@ export async function GET(request: Request) {
 
       // 批量查詢未讀訊息數（避免 N+1 問題）
       const roomIds = memberships.map((m: any) => m.roomId);
-      const lastReadMap = new Map(
-        memberships.map((m: any) => [
-          m.roomId,
-          m.lastReadAt || m.joinedAt,
-        ])
+      const lastReadMap = new Map<string, Date>(
+        memberships.map((m: any) => {
+          const readAt = m.lastReadAt || m.joinedAt;
+          // 確保轉換為 Date 對象
+          const readDate = readAt instanceof Date 
+            ? readAt 
+            : readAt 
+              ? new Date(readAt as string | number)
+              : new Date();
+          return [m.roomId, readDate];
+        })
       );
 
       // 批量查詢所有未讀訊息
@@ -162,9 +168,8 @@ export async function GET(request: Request) {
       // 計算每個聊天室的未讀數
       const unreadCountMap = new Map<string, number>();
       unreadMessages.forEach((msg: any) => {
-        const lastReadAt = lastReadMap.get(msg.roomId);
-        if (lastReadAt) {
-          const lastReadDate = lastReadAt instanceof Date ? lastReadAt : new Date(lastReadAt);
+        const lastReadDate = lastReadMap.get(msg.roomId);
+        if (lastReadDate) {
           const messageDate = new Date(msg.createdAt);
           if (messageDate > lastReadDate) {
             unreadCountMap.set(
