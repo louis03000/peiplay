@@ -203,6 +203,12 @@ export default function Navbar() {
             <span className="text-xl">🔍</span>
             <span className="font-medium">搜尋夥伴</span>
           </Link>
+          {session?.user && (
+            <Link href="/chat" className="flex items-center space-x-2 text-white hover:text-green-300 transition-colors">
+              <span className="text-xl">💬</span>
+              <span className="font-medium">聊天室</span>
+            </Link>
+          )}
           {!isPartner && (
             <Link href="/join" className="flex items-center space-x-2 text-white hover:text-red-300 transition-colors">
               <span className="text-xl">💼</span>
@@ -320,6 +326,14 @@ export default function Navbar() {
                   <Link href="/bookings" className="flex items-center justify-center space-x-2 text-gray-900 hover:text-orange-600 hover:bg-orange-50 transition-colors rounded-lg px-2 py-2">
                     <span className="text-lg">📋</span>
                     <span className="font-medium text-sm">預約管理</span>
+                  </Link>
+                </div>
+                
+                {/* 聊天室 */}
+                <div className="px-3 py-2">
+                  <Link href="/chat" className="flex items-center justify-center space-x-2 text-gray-900 hover:text-green-600 hover:bg-green-50 transition-colors rounded-lg px-2 py-2">
+                    <span className="text-lg">💬</span>
+                    <span className="font-medium text-sm">聊天室</span>
                   </Link>
                 </div>
                 
