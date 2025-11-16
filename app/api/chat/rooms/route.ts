@@ -119,7 +119,7 @@ export async function GET(request: Request) {
 
       // 計算未讀訊息數
       const rooms = await Promise.all(
-        memberships.map(async (membership) => {
+        memberships.map(async (membership: any) => {
           const lastReadAt = membership.lastReadAt || membership.joinedAt;
           const unreadCount = await (client as any).chatMessage.count({
             where: {
@@ -137,7 +137,7 @@ export async function GET(request: Request) {
             groupBookingId: membership.room.groupBookingId,
             lastMessageAt: membership.room.lastMessageAt,
             unreadCount,
-            members: membership.room.members.map((m) => ({
+            members: membership.room.members.map((m: any) => ({
               id: m.user.id,
               name: m.user.name,
               email: m.user.email,
