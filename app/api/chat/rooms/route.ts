@@ -275,7 +275,7 @@ export async function POST(request: Request) {
         // 收集所有參與者的 userId
         memberUserIds = groupBooking.GroupBookingParticipant
           .map((p: any) => p.Customer?.userId || p.Partner?.userId)
-          .filter((id): id is string => !!id);
+          .filter((id: any): id is string => !!id);
 
         // 驗證用戶是否有權限
         if (
