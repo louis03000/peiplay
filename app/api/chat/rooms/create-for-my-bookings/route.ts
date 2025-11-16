@@ -107,7 +107,7 @@ export async function POST(request: Request) {
         },
       });
 
-      const existingBookingIds = new Set(existingRooms.map((r) => r.bookingId));
+      const existingBookingIds = new Set(existingRooms.map((r: { bookingId: string | null }) => r.bookingId));
 
       // 只為沒有聊天室的訂單創建聊天室
       const bookingsToCreate = uniqueBookings.filter(
