@@ -274,7 +274,7 @@ export async function POST(request: Request) {
 
         // 收集所有參與者的 userId
         memberUserIds = groupBooking.GroupBookingParticipant
-          .map((p) => p.Customer?.userId || p.Partner?.userId)
+          .map((p: any) => p.Customer?.userId || p.Partner?.userId)
           .filter((id): id is string => !!id);
 
         // 驗證用戶是否有權限
@@ -293,7 +293,7 @@ export async function POST(request: Request) {
           bookingId: bookingId || null,
           groupBookingId: groupBookingId || null,
           members: {
-            create: memberUserIds.map((userId) => ({
+            create: memberUserIds.map((userId: string) => ({
               userId,
             })),
           },
