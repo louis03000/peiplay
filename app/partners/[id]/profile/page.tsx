@@ -129,6 +129,40 @@ export default function PartnerProfilePage() {
     fetchPartnerProfile()
   }, [fetchPartnerProfile])
 
+  // 計算生日、年齡、星座（必須在所有條件返回之前調用）
+  const birthdayString = partner?.birthday || null
+  const { birthday, age, zodiacSign } = useMemo(() => {
+    if (!birthdayString) {
+      return {
+        birthday: new Date(),
+        age: 0,
+        zodiacSign: '未知'
+      }
+    }
+    try {
+      const bday = new Date(birthdayString)
+      if (isNaN(bday.getTime())) {
+        return {
+          birthday: new Date(),
+          age: 0,
+          zodiacSign: '未知'
+        }
+      }
+      return {
+        birthday: bday,
+        age: calculateAge(bday),
+        zodiacSign: calculateZodiacSign(bday)
+      }
+    } catch (err) {
+      console.error('計算生日資訊時發生錯誤:', err)
+      return {
+        birthday: new Date(),
+        age: 0,
+        zodiacSign: '未知'
+      }
+    }
+  }, [birthdayString])
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 flex items-center justify-center">
@@ -151,38 +185,6 @@ export default function PartnerProfilePage() {
       </div>
     )
   }
-
-  const { birthday, age, zodiacSign } = useMemo(() => {
-    if (!partner?.birthday) {
-      return {
-        birthday: new Date(),
-        age: 0,
-        zodiacSign: '未知'
-      }
-    }
-    try {
-      const bday = new Date(partner.birthday)
-      if (isNaN(bday.getTime())) {
-        return {
-          birthday: new Date(),
-          age: 0,
-          zodiacSign: '未知'
-        }
-      }
-      return {
-        birthday: bday,
-        age: calculateAge(bday),
-        zodiacSign: calculateZodiacSign(bday)
-      }
-    } catch (err) {
-      console.error('計算生日資訊時發生錯誤:', err)
-      return {
-        birthday: new Date(),
-        age: 0,
-        zodiacSign: '未知'
-      }
-    }
-  }, [partner?.birthday])
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900">
