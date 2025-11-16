@@ -18,6 +18,7 @@ export async function GET() {
       }, { status: 401 })
     }
 
+    // 優化：使用索引優化的查詢（Partner.userId 索引）
     const partner = await db.query(async (client) => {
       return client.partner.findUnique({
         where: { userId: session.user.id },

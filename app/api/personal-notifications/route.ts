@@ -17,12 +17,28 @@ export async function GET() {
     }
 
     const notifications = await db.query(async (client) => {
+      const now = new Date();
+      
+      // 優化：限制載入數量，只載入最近的 50 筆通知
+      // 使用索引優化的查詢：userId + isRead, userId + isImportant
       return client.personalNotification.findMany({
         where: {
           userId: session.user.id,
-          OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+          OR: [
+            { expiresAt: null },
+            { expiresAt: { gt: now } }
+          ],
         },
-        include: {
+        select: {
+          id: true,
+          title: true,
+          content: true,
+          type: true,
+          priority: true,
+          isRead: true,
+          isImportant: true,
+          expiresAt: true,
+          createdAt: true,
           sender: {
             select: {
               id: true,
@@ -30,7 +46,12 @@ export async function GET() {
             },
           },
         },
-        orderBy: [{ isImportant: 'desc' }, { priority: 'desc' }, { createdAt: 'desc' }],
+        orderBy: [
+          { isImportant: 'desc' },
+          { priority: 'desc' },
+          { createdAt: 'desc' }
+        ],
+        take: 50, // 限制最多載入 50 筆通知
       });
     }, 'notifications:list');
 

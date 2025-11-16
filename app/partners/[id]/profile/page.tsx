@@ -69,16 +69,16 @@ export default function PartnerProfilePage() {
   // 手機版滑動手勢處理
   const minSwipeDistance = 50
 
-  const onTouchStart = (e: React.TouchEvent) => {
+  const onTouchStart = useCallback((e: React.TouchEvent) => {
     setTouchEnd(null)
     setTouchStart(e.targetTouches[0].clientX)
-  }
+  }, [])
 
-  const onTouchMove = (e: React.TouchEvent) => {
+  const onTouchMove = useCallback((e: React.TouchEvent) => {
     setTouchEnd(e.targetTouches[0].clientX)
-  }
+  }, [])
 
-  const onTouchEnd = () => {
+  const onTouchEnd = useCallback(() => {
     if (!touchStart || !touchEnd) return
     
     const distance = touchStart - touchEnd
@@ -91,15 +91,11 @@ export default function PartnerProfilePage() {
     if (isRightSwipe && displayImages.length > 1) {
       handlePrevImage()
     }
-  }
+  }, [touchStart, touchEnd, displayImages.length, handleNextImage, handlePrevImage])
 
-  useEffect(() => {
-    if (partnerId) {
-      fetchPartnerProfile()
-    }
-  }, [partnerId])
-
-  const fetchPartnerProfile = async () => {
+  const fetchPartnerProfile = useCallback(async () => {
+    if (!partnerId) return
+    
     try {
       setLoading(true)
       const response = await fetch(`/api/partners/${partnerId}/profile`, {
@@ -117,7 +113,11 @@ export default function PartnerProfilePage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [partnerId])
+
+  useEffect(() => {
+    fetchPartnerProfile()
+  }, [fetchPartnerProfile])
 
   if (loading) {
     return (
@@ -142,9 +142,14 @@ export default function PartnerProfilePage() {
     )
   }
 
-  const birthday = new Date(partner.birthday)
-  const age = calculateAge(birthday)
-  const zodiacSign = calculateZodiacSign(birthday)
+  const { birthday, age, zodiacSign } = useMemo(() => {
+    const bday = new Date(partner.birthday)
+    return {
+      birthday: bday,
+      age: calculateAge(bday),
+      zodiacSign: calculateZodiacSign(bday)
+    }
+  }, [partner.birthday])
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900">
@@ -181,6 +186,7 @@ export default function PartnerProfilePage() {
                 fill
                 className="object-cover"
                 priority
+                sizes="(max-width: 768px) 100vw, 80vw"
               />
               
               {/* 電腦版：左右箭頭 */}
@@ -245,6 +251,7 @@ export default function PartnerProfilePage() {
                       fill
                       className="object-cover"
                       priority
+                      sizes="128px"
                     />
                   ) : (
                     <div className="w-full h-full bg-gradient-to-br from-purple-400 to-blue-400 flex items-center justify-center">
@@ -352,19 +359,21 @@ export default function PartnerProfilePage() {
                 )}
 
                 {/* 留言板 */}
-                {partner.customerMessage && (
-                  <div className="bg-gray-700/50 rounded-xl p-6">
-                    <h3 className="text-xl font-semibold text-white mb-4 flex items-center">
-                      <svg className="w-6 h-6 mr-2 text-indigo-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                      </svg>
-                      留言板
-                    </h3>
+                <div className="bg-gray-700/50 rounded-xl p-6">
+                  <h3 className="text-xl font-semibold text-white mb-4 flex items-center">
+                    <svg className="w-6 h-6 mr-2 text-indigo-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                    </svg>
+                    留言板
+                  </h3>
+                  {partner.customerMessage ? (
                     <p className="text-gray-200 leading-relaxed whitespace-pre-wrap break-words">
                       {partner.customerMessage}
                     </p>
-                  </div>
-                )}
+                  ) : (
+                    <p className="text-gray-400 italic">夥伴還沒有留下任何訊息</p>
+                  )}
+                </div>
 
                 {/* 所有照片 */}
                 {partner.images.length > 0 && (
@@ -383,6 +392,8 @@ export default function PartnerProfilePage() {
                             alt={`${partner.name} 的照片 ${index + 1}`}
                             fill
                             className="object-cover rounded-lg border border-gray-600"
+                            sizes="(max-width: 768px) 50vw, 33vw"
+                            loading={index < 3 ? 'eager' : 'lazy'}
                           />
                           <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center">
                             <button
