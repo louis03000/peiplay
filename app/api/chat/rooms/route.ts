@@ -240,13 +240,27 @@ export async function POST(request: Request) {
           throw new Error('訂單不存在');
         }
 
-        // 驗證用戶是否有權限
-        if (
-          booking.customer.userId !== session.user.id &&
-          booking.schedule.partner.userId !== session.user.id &&
-          session.user.role !== 'ADMIN'
-        ) {
+        // 驗證用戶是否有權限（放寬條件，只要是用戶或陪玩就可以）
+        const isCustomer = booking.customer.userId === session.user.id;
+        const isPartner = booking.schedule.partner.userId === session.user.id;
+        const isAdmin = session.user.role === 'ADMIN';
+        
+        if (!isCustomer && !isPartner && !isAdmin) {
           throw new Error('無權限創建此聊天室');
+        }
+        
+        // 允許更多狀態的訂單創建聊天室（不只是 CONFIRMED）
+        // 只要不是 PENDING、REJECTED、CANCELLED 都可以
+        const allowedStatuses = [
+          'CONFIRMED',
+          'PARTNER_ACCEPTED',
+          'COMPLETED',
+          'PAID_WAITING_PARTNER_CONFIRMATION',
+        ];
+        
+        if (!allowedStatuses.includes(booking.status)) {
+          // 不拋出錯誤，但記錄警告
+          console.warn(`訂單 ${bookingId} 狀態為 ${booking.status}，通常不會有聊天室`);
         }
 
         memberUserIds = [

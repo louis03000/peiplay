@@ -52,6 +52,24 @@ export default function ChatPage() {
   const loadRooms = async () => {
     try {
       setLoading(true);
+      
+      // 先嘗試為現有訂單創建聊天室（如果還沒有）
+      try {
+        const createRes = await fetch('/api/chat/rooms/create-for-my-bookings', {
+          method: 'POST',
+        });
+        if (createRes.ok) {
+          const createData = await createRes.json();
+          if (createData.created > 0) {
+            console.log(`已為 ${createData.created} 個訂單創建聊天室`);
+          }
+        }
+      } catch (err) {
+        // 忽略錯誤，繼續載入聊天室列表
+        console.warn('創建聊天室時發生錯誤:', err);
+      }
+      
+      // 載入聊天室列表
       const res = await fetch('/api/chat/rooms');
       if (res.ok) {
         const data = await res.json();

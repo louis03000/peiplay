@@ -301,8 +301,8 @@ export default function MyBookings({ showCompletedOnly }: MyBookingsProps) {
                   </td>
                   <td className="py-4 px-6">
                     <div className="flex gap-2 flex-wrap">
-                      {/* 聊天室按鈕 */}
-                      {(b.status === 'CONFIRMED' || b.status === 'PARTNER_ACCEPTED' || b.status === 'COMPLETED') && (
+                      {/* 聊天室按鈕 - 只要不是 PENDING、REJECTED、CANCELLED 都可以聊天 */}
+                      {!['PENDING', 'REJECTED', 'CANCELLED', 'PENDING_PAYMENT'].includes(b.status) && (
                         <button
                           onClick={async () => {
                             try {
@@ -317,7 +317,8 @@ export default function MyBookings({ showCompletedOnly }: MyBookingsProps) {
                                 // 導航到聊天室
                                 window.location.href = `/chat/${data.room.id}`;
                               } else {
-                                alert('無法進入聊天室，請稍後再試');
+                                const errorData = await res.json().catch(() => ({}));
+                                alert(errorData.error || '無法進入聊天室，請稍後再試');
                               }
                             } catch (error) {
                               console.error('Error entering chat:', error);
