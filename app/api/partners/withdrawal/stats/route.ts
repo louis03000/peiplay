@@ -33,21 +33,23 @@ export async function GET(request: NextRequest) {
         throw new Error('您不是夥伴');
       }
 
-      // 優化：使用 raw SQL 進行高效的 JOIN 查詢，避免多次查詢
+      // 優化：使用 raw SQL 進行高效的 JOIN 查詢
       // 並行執行所有查詢以提高性能
+      // 關鍵：確保 Schedule 表有 partnerId 索引，Booking 表有 scheduleId + status 複合索引
       const [bookingStats, totalWithdrawnResult, pendingWithdrawals] = await Promise.all([
         // 使用 raw SQL 進行優化的 JOIN 查詢
+        // 這個查詢會利用 Schedule.partnerId 索引和 Booking.scheduleId_status 複合索引
         client.$queryRaw<Array<{ totalEarnings: number | null, totalOrders: bigint }>>`
           SELECT 
             COALESCE(SUM(b."finalAmount"), 0)::float as "totalEarnings",
             COUNT(b.id)::bigint as "totalOrders"
           FROM "Booking" b
           INNER JOIN "Schedule" s ON b."scheduleId" = s.id
-          WHERE s."partnerId" = ${partner.id}
+          WHERE s."partnerId" = ${partner.id}::text
             AND b.status IN ('COMPLETED', 'CONFIRMED')
         `,
         
-        // 計算已提領總額 - 使用索引優化的查詢
+        // 計算已提領總額 - 使用 WithdrawalRequest.partnerId_status 複合索引
         client.withdrawalRequest.aggregate({
           where: {
             partnerId: partner.id,
@@ -56,7 +58,7 @@ export async function GET(request: NextRequest) {
           _sum: { amount: true }
         }),
         
-        // 計算待審核的提領申請數 - 使用索引優化的查詢
+        // 計算待審核的提領申請數 - 使用 WithdrawalRequest.partnerId_status 複合索引
         client.withdrawalRequest.count({
           where: {
             partnerId: partner.id,
