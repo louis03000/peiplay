@@ -43,7 +43,6 @@ export function useChatSocket({ roomId, enabled = true }: UseChatSocketOptions) 
       transports: ['websocket', 'polling'],
       auth: {
         userId: session.user.id,
-        token: session.accessToken || '', // 如果有 token
       },
     });
 
