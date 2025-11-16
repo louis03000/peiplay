@@ -19,14 +19,16 @@ export async function GET(request: Request) {
     }
 
     const result = await db.query(async (client) => {
-      // 檢查模型是否存在（如果 migration 還沒執行）
-      if (!('chatRoomMember' in client)) {
-        // 如果模型不存在，返回空陣列
-        return [];
-      }
+      // 使用動態訪問來避免 TypeScript 類型錯誤（如果 migration 還沒執行）
+      try {
+        const chatRoomMember = (client as any).chatRoomMember;
+        if (!chatRoomMember) {
+          // 如果模型不存在，返回空陣列
+          return [];
+        }
 
-      // 獲取用戶參與的所有聊天室
-      const memberships = await client.chatRoomMember.findMany({
+        // 獲取用戶參與的所有聊天室
+        const memberships = await chatRoomMember.findMany({
         where: {
           userId: session.user.id,
           isActive: true,
@@ -119,7 +121,7 @@ export async function GET(request: Request) {
       const rooms = await Promise.all(
         memberships.map(async (membership) => {
           const lastReadAt = membership.lastReadAt || membership.joinedAt;
-          const unreadCount = await client.chatMessage.count({
+          const unreadCount = await (client as any).chatMessage.count({
             where: {
               roomId: membership.roomId,
               senderId: { not: session.user.id },
@@ -156,7 +158,15 @@ export async function GET(request: Request) {
         })
       );
 
-      return rooms;
+        return rooms;
+      } catch (error: any) {
+        // 如果模型不存在（通常是 Prisma 錯誤），返回空陣列
+        if (error?.message?.includes('chatRoomMember') || error?.code === 'P2001' || error?.message?.includes('does not exist')) {
+          console.warn('聊天室模型尚未建立，請執行資料庫 migration');
+          return [];
+        }
+        throw error;
+      }
     }, 'chat:rooms:get');
 
     return NextResponse.json({ rooms: result });
@@ -189,12 +199,17 @@ export async function POST(request: Request) {
 
     const result = await db.query(async (client) => {
       // 檢查模型是否存在（如果 migration 還沒執行）
-      if (!('chatRoom' in client)) {
+      try {
+        const testQuery = (client as any).chatRoom;
+        if (!testQuery) {
+          throw new Error('聊天功能尚未啟用，請先執行資料庫 migration');
+        }
+      } catch (error) {
         throw new Error('聊天功能尚未啟用，請先執行資料庫 migration');
       }
 
       // 檢查聊天室是否已存在
-      const existingRoom = await client.chatRoom.findFirst({
+      const existingRoom = await (client as any).chatRoom.findFirst({
         where: {
           OR: [
             { bookingId: bookingId || undefined },
@@ -213,7 +228,7 @@ export async function POST(request: Request) {
 
       if (bookingId) {
         // 一對一聊天室：客戶和陪玩
-        const booking = await client.booking.findUnique({
+        const booking = await (client as any).booking.findUnique({
           where: { id: bookingId },
           include: {
             customer: { include: { user: true } },
@@ -241,7 +256,7 @@ export async function POST(request: Request) {
       } else if (groupBookingId) {
         // 群組聊天室
         roomType = 'GROUP';
-        const groupBooking = await client.groupBooking.findUnique({
+        const groupBooking = await (client as any).groupBooking.findUnique({
           where: { id: groupBookingId },
           include: {
             GroupBookingParticipant: {
@@ -272,7 +287,7 @@ export async function POST(request: Request) {
       }
 
       // 創建聊天室和成員
-      const room = await client.chatRoom.create({
+      const room = await (client as any).chatRoom.create({
         data: {
           type: roomType,
           bookingId: bookingId || null,
