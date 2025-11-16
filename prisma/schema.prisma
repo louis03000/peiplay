@@ -41,6 +41,9 @@ model User {
   securityLogs                  SecurityLog[]
   messagesSent                  Message[]              @relation("MessageSender")
   messagesReceived              Message[]              @relation("MessageReceiver")
+  chatMessagesSent              ChatMessage[]          @relation("ChatMessageSender")
+  chatRoomMembers               ChatRoomMember[]
+  messageReadReceipts           MessageReadReceipt[]
   notifications                 Notification[]
   announcements                 Announcement[]         @relation("AnnouncementCreator")
   personalNotificationsReceived PersonalNotification[] @relation("PersonalNotificationReceiver")
@@ -174,6 +177,7 @@ model Booking {
   orders                    Order[]
   referralEarnings          ReferralEarning[]
   reviews                   Review[]
+  chatRoom                  ChatRoom?
 
   @@index([status])
   @@index([customerId, status])
@@ -215,6 +219,7 @@ model GroupBooking {
   bookings                Booking[]
   GroupBookingParticipant GroupBookingParticipant[]
   GroupBookingReview      GroupBookingReview[]
+  chatRoom                ChatRoom?
 
   @@index([date, startTime])
   @@index([status])
@@ -444,6 +449,79 @@ enum AnnouncementType {
   SYSTEM_ANNOUNCEMENT // 系統公告
 }
 
+// 聊天室模型（支援一對一和群組）
+model ChatRoom {
+  id             String           @id @default(cuid())
+  type           ChatRoomType     @default(ONE_ON_ONE) // ONE_ON_ONE, GROUP
+  bookingId      String?          @unique // 關聯到訂單（可選，一對一）
+  groupBookingId String?          @unique // 關聯到群組預約（可選，一對一）
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  lastMessageAt  DateTime? // 最後訊息時間
+  members        ChatRoomMember[]
+  messages       ChatMessage[]
+  booking        Booking?         @relation(fields: [bookingId], references: [id])
+  groupBooking   GroupBooking?    @relation(fields: [groupBookingId], references: [id])
+
+  @@index([bookingId])
+  @@index([groupBookingId])
+  @@index([lastMessageAt])
+}
+
+// 聊天室成員
+model ChatRoomMember {
+  id         String    @id @default(cuid())
+  roomId     String
+  userId     String
+  joinedAt   DateTime  @default(now())
+  lastReadAt DateTime? // 最後讀取時間
+  isActive   Boolean   @default(true)
+  room       ChatRoom  @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([roomId, userId])
+  @@index([userId])
+  @@index([roomId])
+}
+
+// 聊天訊息（新模型，支援聊天室）
+model ChatMessage {
+  id               String               @id @default(cuid())
+  roomId           String
+  senderId         String
+  content          String
+  contentType      MessageContentType   @default(TEXT)
+  status           MessageStatus        @default(SENT)
+  moderationStatus ModerationStatus     @default(PENDING)
+  moderationReason String? // 審查原因
+  moderationScore  Float? // 審查分數（0-1）
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+  room             ChatRoom             @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  sender           User                 @relation("ChatMessageSender", fields: [senderId], references: [id])
+  readReceipts     MessageReadReceipt[]
+
+  @@index([roomId, createdAt])
+  @@index([senderId])
+  @@index([moderationStatus])
+  @@index([roomId, status])
+}
+
+// 訊息已讀回條
+model MessageReadReceipt {
+  id        String      @id @default(cuid())
+  messageId String
+  userId    String
+  readAt    DateTime    @default(now())
+  message   ChatMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId])
+  @@index([userId])
+  @@index([messageId])
+}
+
+// 舊的 Message model（保留用於向後兼容，但新功能使用 ChatMessage）
 model Message {
   id         String   @id @default(cuid())
   senderId   String
@@ -544,4 +622,32 @@ enum Priority {
   MEDIUM
   HIGH
   URGENT
+}
+
+// 聊天室類型
+enum ChatRoomType {
+  ONE_ON_ONE // 一對一
+  GROUP // 群組
+}
+
+// 訊息內容類型
+enum MessageContentType {
+  TEXT // 文字
+  IMAGE // 圖片（未來擴展）
+  SYSTEM // 系統訊息
+}
+
+// 訊息狀態
+enum MessageStatus {
+  SENT // 已發送
+  DELIVERED // 已送達
+  READ // 已讀
+}
+
+// 內容審查狀態
+enum ModerationStatus {
+  PENDING // 待審查
+  APPROVED // 通過
+  REJECTED // 拒絕（違規）
+  FLAGGED // 標記（可疑，需人工審查）
 }

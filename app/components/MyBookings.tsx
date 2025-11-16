@@ -300,7 +300,35 @@ export default function MyBookings({ showCompletedOnly }: MyBookingsProps) {
                     </span>
                   </td>
                   <td className="py-4 px-6">
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 flex-wrap">
+                      {/* 聊天室按鈕 */}
+                      {(b.status === 'CONFIRMED' || b.status === 'PARTNER_ACCEPTED' || b.status === 'COMPLETED') && (
+                        <button
+                          onClick={async () => {
+                            try {
+                              // 創建或獲取聊天室
+                              const res = await fetch('/api/chat/rooms', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ bookingId: b.id }),
+                              });
+                              if (res.ok) {
+                                const data = await res.json();
+                                // 導航到聊天室
+                                window.location.href = `/chat/${data.room.id}`;
+                              } else {
+                                alert('無法進入聊天室，請稍後再試');
+                              }
+                            } catch (error) {
+                              console.error('Error entering chat:', error);
+                              alert('無法進入聊天室，請稍後再試');
+                            }
+                          }}
+                          className="px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 transition-colors"
+                        >
+                          聊天
+                        </button>
+                      )}
                       {canReview(b) && (
                         <button
                           onClick={() => {

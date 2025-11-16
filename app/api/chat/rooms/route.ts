@@ -1,0 +1,299 @@
+import { NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
+import { db } from '@/lib/db-resilience';
+import { createErrorResponse } from '@/lib/api-helpers';
+
+export const dynamic = 'force-dynamic';
+
+/**
+ * GET /api/chat/rooms
+ * 獲取用戶的聊天室列表
+ */
+export async function GET(request: Request) {
+  try {
+    const session = await getServerSession(authOptions);
+
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: '請先登入' }, { status: 401 });
+    }
+
+    const result = await db.query(async (client) => {
+      // 獲取用戶參與的所有聊天室
+      const memberships = await client.chatRoomMember.findMany({
+        where: {
+          userId: session.user.id,
+          isActive: true,
+        },
+        include: {
+          room: {
+            include: {
+              members: {
+                include: {
+                  user: {
+                    select: {
+                      id: true,
+                      name: true,
+                      email: true,
+                      role: true,
+                    },
+                  },
+                },
+              },
+              messages: {
+                take: 1,
+                orderBy: { createdAt: 'desc' },
+                include: {
+                  sender: {
+                    select: {
+                      id: true,
+                      name: true,
+                      email: true,
+                    },
+                  },
+                },
+              },
+              booking: {
+                include: {
+                  customer: {
+                    include: {
+                      user: {
+                        select: {
+                          id: true,
+                          name: true,
+                        },
+                      },
+                    },
+                  },
+                  schedule: {
+                    include: {
+                      partner: {
+                        include: {
+                          user: {
+                            select: {
+                              id: true,
+                              name: true,
+                            },
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+              groupBooking: {
+                include: {
+                  GroupBookingParticipant: {
+                    include: {
+                      Customer: {
+                        include: {
+                          user: {
+                            select: {
+                              id: true,
+                              name: true,
+                            },
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+        orderBy: {
+          room: {
+            lastMessageAt: 'desc',
+          },
+        },
+      });
+
+      // 計算未讀訊息數
+      const rooms = await Promise.all(
+        memberships.map(async (membership) => {
+          const lastReadAt = membership.lastReadAt || membership.joinedAt;
+          const unreadCount = await client.chatMessage.count({
+            where: {
+              roomId: membership.roomId,
+              senderId: { not: session.user.id },
+              createdAt: { gt: lastReadAt },
+              moderationStatus: { not: 'REJECTED' },
+            },
+          });
+
+          return {
+            id: membership.room.id,
+            type: membership.room.type,
+            bookingId: membership.room.bookingId,
+            groupBookingId: membership.room.groupBookingId,
+            lastMessageAt: membership.room.lastMessageAt,
+            unreadCount,
+            members: membership.room.members.map((m) => ({
+              id: m.user.id,
+              name: m.user.name,
+              email: m.user.email,
+              role: m.user.role,
+            })),
+            lastMessage: membership.room.messages[0]
+              ? {
+                  id: membership.room.messages[0].id,
+                  content: membership.room.messages[0].content,
+                  senderId: membership.room.messages[0].senderId,
+                  sender: membership.room.messages[0].sender,
+                  createdAt: membership.room.messages[0].createdAt,
+                }
+              : null,
+            booking: membership.room.booking,
+            groupBooking: membership.room.groupBooking,
+          };
+        })
+      );
+
+      return rooms;
+    }, 'chat:rooms:get');
+
+    return NextResponse.json({ rooms: result });
+  } catch (error) {
+    return createErrorResponse(error, 'chat:rooms:get');
+  }
+}
+
+/**
+ * POST /api/chat/rooms
+ * 創建聊天室（基於訂單或群組預約）
+ */
+export async function POST(request: Request) {
+  try {
+    const session = await getServerSession(authOptions);
+
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: '請先登入' }, { status: 401 });
+    }
+
+    const body = await request.json();
+    const { bookingId, groupBookingId } = body;
+
+    if (!bookingId && !groupBookingId) {
+      return NextResponse.json(
+        { error: '需要提供 bookingId 或 groupBookingId' },
+        { status: 400 }
+      );
+    }
+
+    const result = await db.query(async (client) => {
+      // 檢查聊天室是否已存在
+      const existingRoom = await client.chatRoom.findFirst({
+        where: {
+          OR: [
+            { bookingId: bookingId || undefined },
+            { groupBookingId: groupBookingId || undefined },
+          ],
+        },
+      });
+
+      if (existingRoom) {
+        return { room: existingRoom, created: false };
+      }
+
+      // 創建新聊天室
+      let roomType: 'ONE_ON_ONE' | 'GROUP' = 'ONE_ON_ONE';
+      let memberUserIds: string[] = [];
+
+      if (bookingId) {
+        // 一對一聊天室：客戶和陪玩
+        const booking = await client.booking.findUnique({
+          where: { id: bookingId },
+          include: {
+            customer: { include: { user: true } },
+            schedule: { include: { partner: { include: { user: true } } } },
+          },
+        });
+
+        if (!booking) {
+          throw new Error('訂單不存在');
+        }
+
+        // 驗證用戶是否有權限
+        if (
+          booking.customer.userId !== session.user.id &&
+          booking.schedule.partner.userId !== session.user.id &&
+          session.user.role !== 'ADMIN'
+        ) {
+          throw new Error('無權限創建此聊天室');
+        }
+
+        memberUserIds = [
+          booking.customer.userId,
+          booking.schedule.partner.userId,
+        ];
+      } else if (groupBookingId) {
+        // 群組聊天室
+        roomType = 'GROUP';
+        const groupBooking = await client.groupBooking.findUnique({
+          where: { id: groupBookingId },
+          include: {
+            GroupBookingParticipant: {
+              include: {
+                Customer: { include: { user: true } },
+                Partner: { include: { user: true } },
+              },
+            },
+          },
+        });
+
+        if (!groupBooking) {
+          throw new Error('群組預約不存在');
+        }
+
+        // 收集所有參與者的 userId
+        memberUserIds = groupBooking.GroupBookingParticipant
+          .map((p) => p.Customer?.userId || p.Partner?.userId)
+          .filter((id): id is string => !!id);
+
+        // 驗證用戶是否有權限
+        if (
+          !memberUserIds.includes(session.user.id) &&
+          session.user.role !== 'ADMIN'
+        ) {
+          throw new Error('無權限創建此聊天室');
+        }
+      }
+
+      // 創建聊天室和成員
+      const room = await client.chatRoom.create({
+        data: {
+          type: roomType,
+          bookingId: bookingId || null,
+          groupBookingId: groupBookingId || null,
+          members: {
+            create: memberUserIds.map((userId) => ({
+              userId,
+            })),
+          },
+        },
+        include: {
+          members: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                  role: true,
+                },
+              },
+            },
+          },
+        },
+      });
+
+      return { room, created: true };
+    }, 'chat:rooms:post');
+
+    return NextResponse.json(result);
+  } catch (error) {
+    return createErrorResponse(error, 'chat:rooms:post');
+  }
+}
+
