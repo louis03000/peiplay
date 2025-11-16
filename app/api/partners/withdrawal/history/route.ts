@@ -19,9 +19,19 @@ export async function GET() {
         return { type: 'NOT_PARTNER' } as const
       }
 
+      // 優化：限制載入數量，只載入最近的記錄
       const withdrawals = await client.withdrawalRequest.findMany({
         where: { partnerId: partner.id },
         orderBy: { requestedAt: 'desc' },
+        take: 50, // 限制最多載入 50 筆記錄
+        select: {
+          id: true,
+          amount: true,
+          status: true,
+          requestedAt: true,
+          processedAt: true,
+          adminNote: true,
+        },
       })
 
       return {

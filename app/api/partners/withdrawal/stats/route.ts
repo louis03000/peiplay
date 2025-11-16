@@ -12,39 +12,31 @@ const PLATFORM_FEE_PERCENTAGE = 0.15; // 15%
 
 export async function GET(request: NextRequest) {
   try {
-    console.log("✅ partners/withdrawal/stats GET api triggered");
-    
-    // 檢查認證
     const session = await getServerSession(authOptions);
-    console.log("🔐 Session check:", { hasSession: !!session, userId: session?.user?.id });
     
     if (!session?.user?.id) {
-      console.log("❌ 未登入");
       return NextResponse.json({ error: '請先登入' }, { status: 401 });
     }
 
     // 使用帶有重試機制的資料庫查詢
     const result = await db.query(async (client) => {
       // 檢查是否為夥伴
-      console.log("🔍 查詢夥伴資料...");
       const partner = await client.partner.findUnique({
         where: { userId: session.user.id },
         select: {
           id: true,
-          referralEarnings: true // 夥伴的推薦收入
+          referralEarnings: true
         }
       });
-      
-      console.log("👤 夥伴資料:", { partnerId: partner?.id, hasPartner: !!partner });
 
       if (!partner) {
-        console.log("❌ 用戶不是夥伴");
         throw new Error('您不是夥伴');
       }
 
       // 並行執行所有資料庫查詢以提高性能
+      // 使用嵌套查詢，Prisma 會自動優化（schedule 表已有 partnerId 索引）
       const [totalEarningsResult, totalOrders, totalWithdrawnResult, pendingWithdrawals] = await Promise.all([
-        // 計算總收入
+        // 計算總收入 - Prisma 會自動優化嵌套查詢
         client.booking.aggregate({
           where: {
             schedule: { partnerId: partner.id },
@@ -61,7 +53,7 @@ export async function GET(request: NextRequest) {
           }
         }),
         
-        // 計算已提領總額
+        // 計算已提領總額 - 使用索引優化的查詢
         client.withdrawalRequest.aggregate({
           where: {
             partnerId: partner.id,
@@ -70,7 +62,7 @@ export async function GET(request: NextRequest) {
           _sum: { amount: true }
         }),
         
-        // 計算待審核的提領申請數
+        // 計算待審核的提領申請數 - 使用索引優化的查詢
         client.withdrawalRequest.count({
           where: {
             partnerId: partner.id,
@@ -86,17 +78,6 @@ export async function GET(request: NextRequest) {
       // 計算可提領餘額
       const partnerEarnings = totalEarnings * (1 - PLATFORM_FEE_PERCENTAGE);
       const availableBalance = partnerEarnings + referralEarnings - totalWithdrawn;
-
-      console.log('📊 提領統計計算結果:', {
-        partnerId: partner.id,
-        totalEarnings,
-        totalOrders,
-        partnerEarnings,
-        referralEarnings,
-        totalWithdrawn,
-        availableBalance,
-        pendingWithdrawals
-      });
 
       return {
         totalEarnings,

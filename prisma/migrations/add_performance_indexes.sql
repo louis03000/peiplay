@@ -22,3 +22,8 @@ CREATE INDEX IF NOT EXISTS "Booking_customerId_createdAt_idx" ON "Booking"("cust
 -- Customer 表索引
 CREATE INDEX IF NOT EXISTS "Customer_userId_idx" ON "Customer"("userId");
 
+-- WithdrawalRequest 表索引
+CREATE INDEX IF NOT EXISTS "WithdrawalRequest_partnerId_idx" ON "WithdrawalRequest"("partnerId");
+CREATE INDEX IF NOT EXISTS "WithdrawalRequest_partnerId_status_idx" ON "WithdrawalRequest"("partnerId", "status");
+CREATE INDEX IF NOT EXISTS "WithdrawalRequest_partnerId_requestedAt_idx" ON "WithdrawalRequest"("partnerId", "requestedAt");
+
