@@ -19,6 +19,12 @@ export async function GET(request: Request) {
     }
 
     const result = await db.query(async (client) => {
+      // 檢查模型是否存在（如果 migration 還沒執行）
+      if (!('chatRoomMember' in client)) {
+        // 如果模型不存在，返回空陣列
+        return [];
+      }
+
       // 獲取用戶參與的所有聊天室
       const memberships = await client.chatRoomMember.findMany({
         where: {
@@ -182,6 +188,11 @@ export async function POST(request: Request) {
     }
 
     const result = await db.query(async (client) => {
+      // 檢查模型是否存在（如果 migration 還沒執行）
+      if (!('chatRoom' in client)) {
+        throw new Error('聊天功能尚未啟用，請先執行資料庫 migration');
+      }
+
       // 檢查聊天室是否已存在
       const existingRoom = await client.chatRoom.findFirst({
         where: {
