@@ -163,11 +163,15 @@ export async function GET(request: Request) {
       const unreadCountMap = new Map<string, number>();
       unreadMessages.forEach((msg: any) => {
         const lastReadAt = lastReadMap.get(msg.roomId);
-        if (lastReadAt && new Date(msg.createdAt) > new Date(lastReadAt)) {
-          unreadCountMap.set(
-            msg.roomId,
-            (unreadCountMap.get(msg.roomId) || 0) + 1
-          );
+        if (lastReadAt) {
+          const lastReadDate = lastReadAt instanceof Date ? lastReadAt : new Date(lastReadAt);
+          const messageDate = new Date(msg.createdAt);
+          if (messageDate > lastReadDate) {
+            unreadCountMap.set(
+              msg.roomId,
+              (unreadCountMap.get(msg.roomId) || 0) + 1
+            );
+          }
         }
       });
 
