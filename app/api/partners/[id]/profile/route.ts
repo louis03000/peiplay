@@ -60,20 +60,20 @@ export async function GET(
     const formattedPartner = {
       id: partner.id,
       name: partner.name,
-      birthday: partner.birthday.toISOString(),
-      gender: partner.gender || '未提供',
-      interests: partner.interests || [],
-      games: partner.games || [],
-      supportsChatOnly: partner.supportsChatOnly || false,
-      chatOnlyRate: partner.chatOnlyRate || null,
-      halfHourlyRate: partner.halfHourlyRate,
+      birthday: partner.birthday?.toISOString() || new Date().toISOString(),
+      gender: partner.gender || null,
+      interests: Array.isArray(partner.interests) ? partner.interests : [],
+      games: Array.isArray(partner.games) ? partner.games : [],
+      supportsChatOnly: Boolean(partner.supportsChatOnly),
+      chatOnlyRate: partner.chatOnlyRate ?? null,
+      halfHourlyRate: partner.halfHourlyRate || 0,
       customerMessage: partner.customerMessage || null,
-      images,
+      images: Array.isArray(images) ? images : [],
       reviewsReceived: reviewsReceived.map(review => ({
         id: review.id,
-        rating: review.rating,
+        rating: review.rating || 0,
         comment: review.comment || null,
-        createdAt: review.createdAt.toISOString(),
+        createdAt: review.createdAt?.toISOString() || new Date().toISOString(),
         reviewer: {
           name: review.reviewer?.name || '匿名'
         }

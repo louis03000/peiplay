@@ -85,13 +85,23 @@ export default function PartnerProfilePage() {
     const isLeftSwipe = distance > minSwipeDistance
     const isRightSwipe = distance < -minSwipeDistance
 
-    if (isLeftSwipe && displayImages.length > 1) {
-      handleNextImage()
+    if (isLeftSwipe) {
+      setCurrentImageIndex((prev) => {
+        if (displayImages.length > 1) {
+          return (prev + 1) % displayImages.length
+        }
+        return prev
+      })
     }
-    if (isRightSwipe && displayImages.length > 1) {
-      handlePrevImage()
+    if (isRightSwipe) {
+      setCurrentImageIndex((prev) => {
+        if (displayImages.length > 1) {
+          return (prev - 1 + displayImages.length) % displayImages.length
+        }
+        return prev
+      })
     }
-  }, [touchStart, touchEnd, displayImages.length, handleNextImage, handlePrevImage])
+  }, [touchStart, touchEnd, displayImages.length])
 
   const fetchPartnerProfile = useCallback(async () => {
     if (!partnerId) return
@@ -143,13 +153,36 @@ export default function PartnerProfilePage() {
   }
 
   const { birthday, age, zodiacSign } = useMemo(() => {
-    const bday = new Date(partner.birthday)
-    return {
-      birthday: bday,
-      age: calculateAge(bday),
-      zodiacSign: calculateZodiacSign(bday)
+    if (!partner?.birthday) {
+      return {
+        birthday: new Date(),
+        age: 0,
+        zodiacSign: '未知'
+      }
     }
-  }, [partner.birthday])
+    try {
+      const bday = new Date(partner.birthday)
+      if (isNaN(bday.getTime())) {
+        return {
+          birthday: new Date(),
+          age: 0,
+          zodiacSign: '未知'
+        }
+      }
+      return {
+        birthday: bday,
+        age: calculateAge(bday),
+        zodiacSign: calculateZodiacSign(bday)
+      }
+    } catch (err) {
+      console.error('計算生日資訊時發生錯誤:', err)
+      return {
+        birthday: new Date(),
+        age: 0,
+        zodiacSign: '未知'
+      }
+    }
+  }, [partner?.birthday])
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900">
