@@ -17,6 +17,7 @@ CREATE INDEX IF NOT EXISTS "Schedule_partnerId_isAvailable_idx" ON "Schedule"("p
 CREATE INDEX IF NOT EXISTS "Booking_status_idx" ON "Booking"("status");
 CREATE INDEX IF NOT EXISTS "Booking_customerId_status_idx" ON "Booking"("customerId", "status");
 CREATE INDEX IF NOT EXISTS "Booking_scheduleId_idx" ON "Booking"("scheduleId");
+CREATE INDEX IF NOT EXISTS "Booking_scheduleId_status_idx" ON "Booking"("scheduleId", "status");
 CREATE INDEX IF NOT EXISTS "Booking_customerId_createdAt_idx" ON "Booking"("customerId", "createdAt");
 
 -- Customer 表索引

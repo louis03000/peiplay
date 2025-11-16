@@ -178,6 +178,7 @@ model Booking {
   @@index([status])
   @@index([customerId, status])
   @@index([scheduleId])
+  @@index([scheduleId, status])
   @@index([customerId, createdAt])
 }
 
