@@ -41,7 +41,7 @@ export async function POST(request: Request) {
 
       const bookings: any[] = [];
 
-      // 獲取用戶作為客戶的訂單（只包含未結束的）
+      // 獲取用戶作為客戶的訂單（只包含未結束的，只選擇必要欄位）
       if (customer) {
         const customerBookings = await client.booking.findMany({
           where: {
@@ -53,15 +53,28 @@ export async function POST(request: Request) {
               endTime: { gte: now }, // 只處理未結束的訂單
             },
           },
-          include: {
-            customer: { include: { user: true } },
-            schedule: { include: { partner: { include: { user: true } } } },
+          select: {
+            id: true,
+            customer: {
+              select: {
+                userId: true,
+              },
+            },
+            schedule: {
+              select: {
+                partner: {
+                  select: {
+                    userId: true,
+                  },
+                },
+              },
+            },
           },
         });
         bookings.push(...customerBookings);
       }
 
-      // 獲取用戶作為夥伴的訂單（只包含未結束的）
+      // 獲取用戶作為夥伴的訂單（只包含未結束的，只選擇必要欄位）
       if (partner) {
         const partnerBookings = await client.booking.findMany({
           where: {
@@ -73,9 +86,22 @@ export async function POST(request: Request) {
               in: ['CONFIRMED', 'PARTNER_ACCEPTED', 'COMPLETED', 'PAID_WAITING_PARTNER_CONFIRMATION'],
             },
           },
-          include: {
-            customer: { include: { user: true } },
-            schedule: { include: { partner: { include: { user: true } } } },
+          select: {
+            id: true,
+            customer: {
+              select: {
+                userId: true,
+              },
+            },
+            schedule: {
+              select: {
+                partner: {
+                  select: {
+                    userId: true,
+                  },
+                },
+              },
+            },
           },
         });
         bookings.push(...partnerBookings);
@@ -117,8 +143,8 @@ export async function POST(request: Request) {
       const createdRooms: any[] = [];
       const skippedRooms: any[] = [];
 
-      // 批量創建聊天室
-      for (const booking of bookingsToCreate) {
+      // 批量創建聊天室（使用 Promise.all 並行創建）
+      const createPromises = bookingsToCreate.map(async (booking) => {
         try {
           const room = await chatRoom.create({
             data: {
@@ -133,14 +159,28 @@ export async function POST(request: Request) {
             },
           });
 
-          createdRooms.push({ bookingId: booking.id, roomId: room.id });
+          return { bookingId: booking.id, roomId: room.id, success: true };
         } catch (error: any) {
-          skippedRooms.push({
+          return {
             bookingId: booking.id,
             reason: error.message || '創建失敗',
+            success: false,
+          };
+        }
+      });
+
+      const createResults = await Promise.all(createPromises);
+      
+      createResults.forEach((result) => {
+        if (result.success) {
+          createdRooms.push({ bookingId: result.bookingId, roomId: result.roomId });
+        } else {
+          skippedRooms.push({
+            bookingId: result.bookingId,
+            reason: result.reason,
           });
         }
-      }
+      });
 
       // 記錄已存在的聊天室
       uniqueBookings.forEach((b) => {

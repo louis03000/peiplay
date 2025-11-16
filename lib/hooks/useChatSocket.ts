@@ -37,13 +37,25 @@ export function useChatSocket({ roomId, enabled = true }: UseChatSocketOptions) 
   useEffect(() => {
     if (!enabled || !session?.user?.id || !roomId) return;
 
-    const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:5000';
+    // 只在有配置 Socket URL 時才連接（生產環境需要單獨部署 Socket Server）
+    const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL;
+    
+    // 如果沒有配置 Socket URL，跳過連接（聊天功能將使用輪詢方式）
+    if (!socketUrl) {
+      console.warn('Socket.IO URL not configured, real-time features disabled');
+      setIsConnected(false);
+      return;
+    }
     
     socketRef.current = io(socketUrl, {
       transports: ['websocket', 'polling'],
       auth: {
         userId: session.user.id,
       },
+      reconnection: true,
+      reconnectionDelay: 1000,
+      reconnectionAttempts: 5,
+      timeout: 10000,
     });
 
     const socket = socketRef.current;

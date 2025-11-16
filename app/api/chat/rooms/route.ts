@@ -137,46 +137,66 @@ export async function GET(request: Request) {
         },
       });
 
-      // 計算未讀訊息數（已結束的訂單聊天室已在查詢時過濾）
-      const rooms = await Promise.all(
-        memberships.map(async (membership: any) => {
-          const lastReadAt = membership.lastReadAt || membership.joinedAt;
-          const unreadCount = await (client as any).chatMessage.count({
-            where: {
-              roomId: membership.roomId,
-              senderId: { not: session.user.id },
-              createdAt: { gt: lastReadAt },
-              moderationStatus: { not: 'REJECTED' },
-            },
-          });
-
-          return {
-            id: membership.room.id,
-            type: membership.room.type,
-            bookingId: membership.room.bookingId,
-            groupBookingId: membership.room.groupBookingId,
-            lastMessageAt: membership.room.lastMessageAt,
-            unreadCount,
-            members: membership.room.members.map((m: any) => ({
-              id: m.user.id,
-              name: m.user.name,
-              email: m.user.email,
-              role: m.user.role,
-            })),
-            lastMessage: membership.room.messages[0]
-              ? {
-                  id: membership.room.messages[0].id,
-                  content: membership.room.messages[0].content,
-                  senderId: membership.room.messages[0].senderId,
-                  sender: membership.room.messages[0].sender,
-                  createdAt: membership.room.messages[0].createdAt,
-                }
-              : null,
-            booking: membership.room.booking,
-            groupBooking: membership.room.groupBooking,
-          };
-        })
+      // 批量查詢未讀訊息數（避免 N+1 問題）
+      const roomIds = memberships.map((m: any) => m.roomId);
+      const lastReadMap = new Map(
+        memberships.map((m: any) => [
+          m.roomId,
+          m.lastReadAt || m.joinedAt,
+        ])
       );
+
+      // 批量查詢所有未讀訊息
+      const unreadMessages = await (client as any).chatMessage.findMany({
+        where: {
+          roomId: { in: roomIds },
+          senderId: { not: session.user.id },
+          moderationStatus: { not: 'REJECTED' },
+        },
+        select: {
+          roomId: true,
+          createdAt: true,
+        },
+      });
+
+      // 計算每個聊天室的未讀數
+      const unreadCountMap = new Map<string, number>();
+      unreadMessages.forEach((msg: any) => {
+        const lastReadAt = lastReadMap.get(msg.roomId);
+        if (lastReadAt && new Date(msg.createdAt) > new Date(lastReadAt)) {
+          unreadCountMap.set(
+            msg.roomId,
+            (unreadCountMap.get(msg.roomId) || 0) + 1
+          );
+        }
+      });
+
+      // 構建返回結果
+      const rooms = memberships.map((membership: any) => ({
+        id: membership.room.id,
+        type: membership.room.type,
+        bookingId: membership.room.bookingId,
+        groupBookingId: membership.room.groupBookingId,
+        lastMessageAt: membership.room.lastMessageAt,
+        unreadCount: unreadCountMap.get(membership.roomId) || 0,
+        members: membership.room.members.map((m: any) => ({
+          id: m.user.id,
+          name: m.user.name,
+          email: m.user.email,
+          role: m.user.role,
+        })),
+        lastMessage: membership.room.messages[0]
+          ? {
+              id: membership.room.messages[0].id,
+              content: membership.room.messages[0].content,
+              senderId: membership.room.messages[0].senderId,
+              sender: membership.room.messages[0].sender,
+              createdAt: membership.room.messages[0].createdAt,
+            }
+          : null,
+        booking: membership.room.booking,
+        groupBooking: membership.room.groupBooking,
+      }));
 
         return rooms;
       } catch (error: any) {
