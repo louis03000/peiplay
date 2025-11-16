@@ -203,12 +203,6 @@ export default function Navbar() {
             <span className="text-xl">🔍</span>
             <span className="font-medium">搜尋夥伴</span>
           </Link>
-          {session?.user && (
-            <Link href="/chat" className="flex items-center space-x-2 text-white hover:text-green-300 transition-colors">
-              <span className="text-xl">💬</span>
-              <span className="font-medium">聊天室</span>
-            </Link>
-          )}
           {!isPartner && (
             <Link href="/join" className="flex items-center space-x-2 text-white hover:text-red-300 transition-colors">
               <span className="text-xl">💼</span>
