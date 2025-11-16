@@ -3,6 +3,7 @@ import { db } from '@/lib/db-resilience'
 import { createErrorResponse } from '@/lib/api-helpers'
 import { BookingStatus } from '@prisma/client'
 import { sendBookingConfirmationEmail } from '@/lib/email'
+import { createChatRoomForBooking } from '@/lib/chat-helpers'
 
 export const dynamic = 'force-dynamic';
 
@@ -76,6 +77,22 @@ export async function PUT(
     }
 
     const { booking, finalStatus } = result
+
+    // 如果狀態變為 CONFIRMED 或 PARTNER_ACCEPTED，自動創建聊天室（非阻塞）
+    if (
+      (finalStatus === BookingStatus.CONFIRMED ||
+        finalStatus === BookingStatus.PARTNER_ACCEPTED) &&
+      bookingId
+    ) {
+      db.query(
+        async (client) => {
+          await createChatRoomForBooking(client, bookingId);
+        },
+        'chat:auto-create-on-status-update'
+      ).catch((error) => {
+        console.error('❌ 自動創建聊天室失敗:', error);
+      });
+    }
 
     if (finalStatus === BookingStatus.CONFIRMED && booking.customer.user.email) {
       try {

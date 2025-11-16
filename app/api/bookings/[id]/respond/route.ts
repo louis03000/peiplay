@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth';
 import { db } from '@/lib/db-resilience';
 import { createErrorResponse } from '@/lib/api-helpers';
 import { sendBookingConfirmationEmail, sendBookingRejectionEmail } from '@/lib/email';
+import { createChatRoomForBooking } from '@/lib/chat-helpers';
 import { BookingStatus } from '@prisma/client';
 
 export const dynamic = 'force-dynamic';
@@ -126,6 +127,18 @@ export async function POST(
     const duration =
       (result.booking.schedule.endTime.getTime() - result.booking.schedule.startTime.getTime()) /
       (1000 * 60 * 60);
+
+    // 如果接受預約，自動創建聊天室（非阻塞）
+    if (result.action === 'accept') {
+      db.query(
+        async (client) => {
+          await createChatRoomForBooking(client, resolvedParams.id);
+        },
+        'chat:auto-create-on-respond'
+      ).catch((error) => {
+        console.error('❌ 自動創建聊天室失敗:', error);
+      });
+    }
 
     if (result.action === 'accept') {
       sendBookingConfirmationEmail(

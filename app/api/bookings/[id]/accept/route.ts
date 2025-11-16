@@ -5,6 +5,7 @@ import { sendBookingConfirmationEmail } from '@/lib/email';
 import { db } from '@/lib/db-resilience';
 import { createErrorResponse } from '@/lib/api-helpers';
 import { BookingStatus } from '@prisma/client';
+import { createChatRoomForBooking } from '@/lib/chat-helpers';
 
 export const dynamic = 'force-dynamic';
 
@@ -73,6 +74,16 @@ export async function POST(
     }
 
     const booking = result.booking;
+
+    // 自動創建聊天室（非阻塞）
+    db.query(
+      async (client) => {
+        await createChatRoomForBooking(client, bookingId);
+      },
+      'chat:auto-create-on-accept'
+    ).catch((error) => {
+      console.error('❌ 自動創建聊天室失敗:', error);
+    });
 
     // 發送 Email 確認通知給顧客（非阻塞）
     try {
