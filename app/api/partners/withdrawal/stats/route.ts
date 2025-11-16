@@ -33,14 +33,19 @@ export async function GET(request: NextRequest) {
         throw new Error('您不是夥伴');
       }
 
-      // 優化：先並行獲取 scheduleIds 和 withdrawal 相關查詢
-      // 然後使用 scheduleIds 直接查詢 booking，避免嵌套查詢
-      const [scheduleIdsResult, totalWithdrawnResult, pendingWithdrawals] = await Promise.all([
-        // 獲取所有相關的 schedule IDs（使用索引，查詢很快）
-        client.schedule.findMany({
-          where: { partnerId: partner.id },
-          select: { id: true },
-        }),
+      // 優化：使用 raw SQL 進行高效的 JOIN 查詢，避免多次查詢
+      // 並行執行所有查詢以提高性能
+      const [bookingStats, totalWithdrawnResult, pendingWithdrawals] = await Promise.all([
+        // 使用 raw SQL 進行優化的 JOIN 查詢
+        client.$queryRaw<Array<{ totalEarnings: number | null, totalOrders: bigint }>>`
+          SELECT 
+            COALESCE(SUM(b."finalAmount"), 0)::float as "totalEarnings",
+            COUNT(b.id)::bigint as "totalOrders"
+          FROM "Booking" b
+          INNER JOIN "Schedule" s ON b."scheduleId" = s.id
+          WHERE s."partnerId" = ${partner.id}
+            AND b.status IN ('COMPLETED', 'CONFIRMED')
+        `,
         
         // 計算已提領總額 - 使用索引優化的查詢
         client.withdrawalRequest.aggregate({
@@ -60,36 +65,12 @@ export async function GET(request: NextRequest) {
         })
       ]);
 
-      const scheduleIds = scheduleIdsResult.map(s => s.id);
-
-      // 如果沒有 schedule，直接返回空結果
-      if (scheduleIds.length === 0) {
-        return {
-          totalEarnings: 0,
-          totalOrders: 0,
-          availableBalance: Math.max(0, partner.referralEarnings || 0),
-          pendingWithdrawals,
-          referralEarnings: partner.referralEarnings || 0
-        };
-      }
-
-      // 使用 scheduleIds 直接查詢 booking（使用 scheduleId 索引，查詢很快）
-      const [totalEarningsResult, totalOrders] = await Promise.all([
-        client.booking.aggregate({
-          where: {
-            scheduleId: { in: scheduleIds },
-            status: { in: ['COMPLETED', 'CONFIRMED'] }
-          },
-          _sum: { finalAmount: true }
-        }),
-        
-        client.booking.count({
-          where: {
-            scheduleId: { in: scheduleIds },
-            status: { in: ['COMPLETED', 'CONFIRMED'] }
-          }
-        })
-      ]);
+      const totalEarningsResult = {
+        _sum: {
+          finalAmount: bookingStats[0]?.totalEarnings || 0
+        }
+      };
+      const totalOrders = Number(bookingStats[0]?.totalOrders || 0);
 
       const totalEarnings = totalEarningsResult._sum.finalAmount || 0;
       const totalWithdrawn = totalWithdrawnResult._sum.amount || 0;
