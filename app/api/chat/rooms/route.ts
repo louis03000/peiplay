@@ -27,11 +27,31 @@ export async function GET(request: Request) {
           return [];
         }
 
-        // 獲取用戶參與的所有聊天室
+        const now = new Date();
+        
+        // 獲取用戶參與的所有聊天室，過濾掉已結束的訂單聊天室
         const memberships = await chatRoomMember.findMany({
         where: {
           userId: session.user.id,
           isActive: true,
+          // 只包含未結束的訂單聊天室或群組聊天室
+          OR: [
+            {
+              room: {
+                groupBookingId: { not: null }, // 群組聊天室
+              },
+            },
+            {
+              room: {
+                bookingId: { not: null },
+                booking: {
+                  schedule: {
+                    endTime: { gte: now }, // 未結束的訂單
+                  },
+                },
+              },
+            },
+          ],
         },
         include: {
           room: {
@@ -117,7 +137,7 @@ export async function GET(request: Request) {
         },
       });
 
-      // 計算未讀訊息數
+      // 計算未讀訊息數（已結束的訂單聊天室已在查詢時過濾）
       const rooms = await Promise.all(
         memberships.map(async (membership: any) => {
           const lastReadAt = membership.lastReadAt || membership.joinedAt;

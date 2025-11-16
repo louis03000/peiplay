@@ -26,7 +26,9 @@ export async function POST(request: Request) {
         throw new Error('聊天功能尚未啟用，請先執行資料庫 migration');
       }
 
-      // 獲取用戶的所有訂單（作為客戶或夥伴）
+      const now = new Date();
+
+      // 獲取用戶的所有訂單（作為客戶或夥伴），只包含未結束的訂單
       const customer = await client.customer.findUnique({
         where: { userId: session.user.id },
         select: { id: true },
@@ -39,13 +41,16 @@ export async function POST(request: Request) {
 
       const bookings: any[] = [];
 
-      // 獲取用戶作為客戶的訂單
+      // 獲取用戶作為客戶的訂單（只包含未結束的）
       if (customer) {
         const customerBookings = await client.booking.findMany({
           where: {
             customerId: customer.id,
             status: {
               in: ['CONFIRMED', 'PARTNER_ACCEPTED', 'COMPLETED', 'PAID_WAITING_PARTNER_CONFIRMATION'],
+            },
+            schedule: {
+              endTime: { gte: now }, // 只處理未結束的訂單
             },
           },
           include: {
@@ -56,11 +61,14 @@ export async function POST(request: Request) {
         bookings.push(...customerBookings);
       }
 
-      // 獲取用戶作為夥伴的訂單
+      // 獲取用戶作為夥伴的訂單（只包含未結束的）
       if (partner) {
         const partnerBookings = await client.booking.findMany({
           where: {
-            schedule: { partnerId: partner.id },
+            schedule: {
+              partnerId: partner.id,
+              endTime: { gte: now }, // 只處理未結束的訂單
+            },
             status: {
               in: ['CONFIRMED', 'PARTNER_ACCEPTED', 'COMPLETED', 'PAID_WAITING_PARTNER_CONFIRMATION'],
             },
@@ -78,21 +86,39 @@ export async function POST(request: Request) {
         new Map(bookings.map((b) => [b.id, b])).values()
       );
 
+      if (uniqueBookings.length === 0) {
+        return {
+          totalBookings: 0,
+          created: 0,
+          skipped: 0,
+          createdRooms: [],
+          skippedRooms: [],
+        };
+      }
+
+      // 批量查詢已存在的聊天室（避免N+1問題）
+      const bookingIds = uniqueBookings.map((b) => b.id);
+      const existingRooms = await chatRoom.findMany({
+        where: {
+          bookingId: { in: bookingIds },
+        },
+        select: {
+          bookingId: true,
+        },
+      });
+
+      const existingBookingIds = new Set(existingRooms.map((r) => r.bookingId));
+
+      // 只為沒有聊天室的訂單創建聊天室
+      const bookingsToCreate = uniqueBookings.filter(
+        (b) => !existingBookingIds.has(b.id)
+      );
+
       const createdRooms: any[] = [];
       const skippedRooms: any[] = [];
 
-      for (const booking of uniqueBookings) {
-        // 檢查聊天室是否已存在
-        const existingRoom = await chatRoom.findFirst({
-          where: { bookingId: booking.id },
-        });
-
-        if (existingRoom) {
-          skippedRooms.push({ bookingId: booking.id, reason: '已存在' });
-          continue;
-        }
-
-        // 創建聊天室
+      // 批量創建聊天室
+      for (const booking of bookingsToCreate) {
         try {
           const room = await chatRoom.create({
             data: {
@@ -115,6 +141,13 @@ export async function POST(request: Request) {
           });
         }
       }
+
+      // 記錄已存在的聊天室
+      uniqueBookings.forEach((b) => {
+        if (existingBookingIds.has(b.id)) {
+          skippedRooms.push({ bookingId: b.id, reason: '已存在' });
+        }
+      });
 
       return {
         totalBookings: uniqueBookings.length,
