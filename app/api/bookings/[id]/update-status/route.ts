@@ -49,6 +49,7 @@ export async function PUT(
         }
       }
 
+      // 只选择必要的字段，减少查询时间
       const updatedBooking = await client.booking.update({
         where: { id: bookingId },
         data: {
@@ -57,9 +58,36 @@ export async function PUT(
           ...(paymentInfo && { paymentInfo }),
           ...(paymentError && { paymentError }),
         },
-        include: {
-          customer: { include: { user: true } },
-          schedule: { include: { partner: { include: { user: true } } } },
+        select: {
+          id: true,
+          status: true,
+          finalAmount: true,
+          schedule: {
+            select: {
+              startTime: true,
+              endTime: true,
+              partner: {
+                select: {
+                  user: {
+                    select: {
+                      name: true,
+                      email: true,
+                    },
+                  },
+                },
+              },
+            },
+          },
+          customer: {
+            select: {
+              user: {
+                select: {
+                  email: true,
+                  name: true,
+                },
+              },
+            },
+          },
         },
       })
 
@@ -78,62 +106,86 @@ export async function PUT(
 
     const { booking, finalStatus } = result
 
-    // 如果狀態變為 CONFIRMED 或 PARTNER_ACCEPTED，自動創建聊天室（非阻塞）
-    if (
+    // 立即返回响应
+    const responseData = {
+      id: booking.id,
+      status: booking.status,
+      finalAmount: booking.finalAmount,
+    };
+
+    // 后台处理耗时操作（不阻塞响应）
+    Promise.all([
+      // 如果狀態變為 CONFIRMED 或 PARTNER_ACCEPTED，自動創建聊天室
       (finalStatus === BookingStatus.CONFIRMED ||
         finalStatus === BookingStatus.PARTNER_ACCEPTED) &&
       bookingId
-    ) {
-      db.query(
-        async (client) => {
-          await createChatRoomForBooking(client, bookingId);
-        },
-        'chat:auto-create-on-status-update'
-      ).catch((error) => {
-        console.error('❌ 自動創建聊天室失敗:', error);
-      });
-    }
+        ? db.query(
+            async (client) => {
+              await createChatRoomForBooking(client, bookingId);
+            },
+            'chat:auto-create-on-status-update'
+          ).catch((error) => {
+            console.error('❌ 自動創建聊天室失敗:', error);
+          })
+        : Promise.resolve(),
 
-    if (finalStatus === BookingStatus.CONFIRMED && booking.customer.user.email) {
-      try {
-        const duration = Math.round((new Date(booking.schedule.endTime).getTime() - new Date(booking.schedule.startTime).getTime()) / (1000 * 60))
+      // 发送确认邮件
+      finalStatus === BookingStatus.CONFIRMED && booking.customer.user.email
+        ? (async () => {
+            try {
+              const duration = Math.round(
+                (new Date(booking.schedule.endTime).getTime() -
+                  new Date(booking.schedule.startTime).getTime()) /
+                  (1000 * 60)
+              );
 
-        await sendBookingConfirmationEmail(
-          booking.customer.user.email,
-          booking.customer.user.name || '客戶',
-          booking.schedule.partner.user.name || '夥伴',
-          {
-            duration,
-            startTime: booking.schedule.startTime.toISOString(),
-            endTime: booking.schedule.endTime.toISOString(),
-            totalCost: booking.finalAmount || 0,
-            bookingId: booking.id,
-          }
-        )
-      } catch (emailError) {
-        console.error('❌ 發送預約確認通知失敗:', emailError)
-      }
-    }
+              await sendBookingConfirmationEmail(
+                booking.customer.user.email,
+                booking.customer.user.name || '客戶',
+                booking.schedule.partner.user.name || '夥伴',
+                {
+                  duration,
+                  startTime: booking.schedule.startTime.toISOString(),
+                  endTime: booking.schedule.endTime.toISOString(),
+                  totalCost: booking.finalAmount || 0,
+                  bookingId: booking.id,
+                }
+              );
+            } catch (emailError) {
+              console.error('❌ 發送預約確認通知失敗:', emailError);
+            }
+          })()
+        : Promise.resolve(),
 
-    if (finalStatus === BookingStatus.COMPLETED) {
-      try {
-        const referralResponse = await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/partners/referral/calculate-earnings`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ bookingId }),
-        })
+      // 计算推荐收入
+      finalStatus === BookingStatus.COMPLETED
+        ? fetch(
+            `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/partners/referral/calculate-earnings`,
+            {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({ bookingId }),
+            }
+          )
+            .then((referralResponse) => {
+              if (!referralResponse.ok) {
+                console.warn(
+                  `⚠️ 預約 ${bookingId} 推薦收入計算失敗:`,
+                  referralResponse.status
+                );
+              }
+            })
+            .catch((error) => {
+              console.error(`❌ 預約 ${bookingId} 推薦收入計算錯誤:`, error);
+            })
+        : Promise.resolve(),
+    ]).catch((error) => {
+      console.error('❌ 後台處理失敗:', error);
+    });
 
-        if (!referralResponse.ok) {
-          console.warn(`⚠️ 預約 ${bookingId} 推薦收入計算失敗:`, referralResponse.status)
-        }
-      } catch (error) {
-        console.error(`❌ 預約 ${bookingId} 推薦收入計算錯誤:`, error)
-      }
-    }
-
-    return NextResponse.json(booking)
+    return NextResponse.json(responseData)
   } catch (error) {
     return createErrorResponse(error, 'bookings:update-status')
   }

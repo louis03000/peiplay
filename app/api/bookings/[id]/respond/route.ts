@@ -81,23 +81,38 @@ export async function POST(
 
       const newStatus = action === 'accept' ? BookingStatus.CONFIRMED : BookingStatus.REJECTED;
 
+      // 先更新状态，只选择必要的字段
       const updated = await client.booking.update({
         where: { id: booking.id },
         data: {
           status: newStatus,
           ...(action === 'reject' && reason ? { rejectReason: reason.trim() } : {}),
         },
-        include: {
-          customer: {
-            include: {
-              user: true,
+        select: {
+          id: true,
+          status: true,
+          finalAmount: true,
+          schedule: {
+            select: {
+              startTime: true,
+              endTime: true,
+              partner: {
+                select: {
+                  user: {
+                    select: {
+                      name: true,
+                    },
+                  },
+                },
+              },
             },
           },
-          schedule: {
-            include: {
-              partner: {
-                include: {
-                  user: true,
+          customer: {
+            select: {
+              user: {
+                select: {
+                  email: true,
+                  name: true,
                 },
               },
             },
@@ -105,7 +120,7 @@ export async function POST(
         },
       });
 
-      return { type: 'SUCCESS', booking: updated, action } as const;
+      return { type: 'SUCCESS', booking: updated, action, originalBooking: booking } as const;
     }, 'bookings:respond');
 
     if (result.type === 'NO_PARTNER') {
@@ -124,60 +139,74 @@ export async function POST(
       return NextResponse.json({ error: '預約狀態不正確' }, { status: 400 });
     }
 
-    const duration =
-      (result.booking.schedule.endTime.getTime() - result.booking.schedule.startTime.getTime()) /
-      (1000 * 60 * 60);
-
-    // 如果接受預約，自動創建聊天室（非阻塞）
-    if (result.action === 'accept') {
-      db.query(
-        async (client) => {
-          await createChatRoomForBooking(client, resolvedParams.id);
-        },
-        'chat:auto-create-on-respond'
-      ).catch((error) => {
-        console.error('❌ 自動創建聊天室失敗:', error);
-      });
-    }
-
-    if (result.action === 'accept') {
-      sendBookingConfirmationEmail(
-        result.booking.customer.user.email,
-        result.booking.customer.user.name || '客戶',
-        result.booking.schedule.partner.user.name || '夥伴',
-        {
-          duration,
-          startTime: result.booking.schedule.startTime.toISOString(),
-          endTime: result.booking.schedule.endTime.toISOString(),
-          totalCost: result.booking.finalAmount,
-          bookingId: result.booking.id,
-        }
-      ).catch((error) => {
-        console.error('❌ Email 發送失敗:', error);
-      });
-    } else {
-      sendBookingRejectionEmail(
-        result.booking.customer.user.email,
-        result.booking.customer.user.name || '客戶',
-        result.booking.schedule.partner.user.name || '夥伴',
-        {
-          startTime: result.booking.schedule.startTime.toISOString(),
-          endTime: result.booking.schedule.endTime.toISOString(),
-          bookingId: result.booking.id,
-        }
-      ).catch((error) => {
-        console.error('❌ Email 發送失敗:', error);
-      });
-    }
-
-    return NextResponse.json({
+    // 立即返回响应，后台处理耗时操作
+    const responseData = {
       success: true,
       message: `預約已${result.action === 'accept' ? '接受' : '拒絕'}`,
       booking: {
         id: result.booking.id,
         status: result.booking.status,
       },
+    };
+
+    // 后台处理耗时操作（不阻塞响应）
+    Promise.all([
+      // 如果接受預約，自動創建聊天室
+      result.action === 'accept'
+        ? db.query(
+            async (client) => {
+              await createChatRoomForBooking(client, resolvedParams.id);
+            },
+            'chat:auto-create-on-respond'
+          ).catch((error) => {
+            console.error('❌ 自動創建聊天室失敗:', error);
+          })
+        : Promise.resolve(),
+      
+      // 发送邮件（使用原始 booking 数据，因为更新后的只包含部分字段）
+      (async () => {
+        const originalBooking = result.originalBooking;
+        if (!originalBooking) return;
+
+        const duration =
+          (originalBooking.schedule.endTime.getTime() - originalBooking.schedule.startTime.getTime()) /
+          (1000 * 60 * 60);
+
+        if (result.action === 'accept') {
+          await sendBookingConfirmationEmail(
+            originalBooking.customer.user.email,
+            originalBooking.customer.user.name || '客戶',
+            originalBooking.schedule.partner.user.name || '夥伴',
+            {
+              duration,
+              startTime: originalBooking.schedule.startTime.toISOString(),
+              endTime: originalBooking.schedule.endTime.toISOString(),
+              totalCost: result.booking.finalAmount || 0,
+              bookingId: result.booking.id,
+            }
+          ).catch((error) => {
+            console.error('❌ Email 發送失敗:', error);
+          });
+        } else {
+          await sendBookingRejectionEmail(
+            originalBooking.customer.user.email,
+            originalBooking.customer.user.name || '客戶',
+            originalBooking.schedule.partner.user.name || '夥伴',
+            {
+              startTime: originalBooking.schedule.startTime.toISOString(),
+              endTime: originalBooking.schedule.endTime.toISOString(),
+              bookingId: result.booking.id,
+            }
+          ).catch((error) => {
+            console.error('❌ Email 發送失敗:', error);
+          });
+        }
+      })(),
+    ]).catch((error) => {
+      console.error('❌ 後台處理失敗:', error);
     });
+
+    return NextResponse.json(responseData);
   } catch (error) {
     return createErrorResponse(error, 'bookings:respond');
   }

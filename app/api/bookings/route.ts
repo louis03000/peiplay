@@ -27,9 +27,18 @@ export async function POST(request: Request) {
     }
 
     const result = await db.query(async (client) => {
+      // 只选择必要的字段
       const customer = await client.customer.findUnique({
         where: { userId: session.user.id },
-        include: { user: true },
+        select: {
+          id: true,
+          user: {
+            select: {
+              name: true,
+              email: true,
+            },
+          },
+        },
       });
 
       if (!customer) {
@@ -50,12 +59,23 @@ export async function POST(request: Request) {
         }> = [];
 
         for (const scheduleId of scheduleIds) {
+          // 只选择必要的字段，减少查询时间
           const schedule = await tx.schedule.findUnique({
             where: { id: scheduleId },
-            include: {
+            select: {
+              id: true,
+              partnerId: true,
+              startTime: true,
+              endTime: true,
               partner: {
-                include: {
-                  user: true,
+                select: {
+                  halfHourlyRate: true,
+                  user: {
+                    select: {
+                      email: true,
+                      name: true,
+                    },
+                  },
                 },
               },
             },
