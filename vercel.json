@@ -1,9 +1,2 @@
-{
-  "crons": [
-    {
-      "path": "/api/cron/auto-close-available",
-      "schedule": "*/5 * * * *"
-    }
-  ]
-}
+{}
 

@@ -5,16 +5,16 @@ export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 /**
- * 自動關閉「現在有空」開關的 Cron Job
- * 每5分鐘自動關閉開啟超過30分鐘的「現在有空」狀態
+ * 自動關閉「現在有空」開關的 API（手動調用）
  * 
- * ⚠️ 注意：
- * - Vercel Hobby 計劃的 Cron Jobs 每天只能執行一次
- * - Vercel Pro 計劃支持更頻繁的執行（每5分鐘）
- * - 如果使用 Hobby 計劃，自動關閉邏輯也會在用戶訪問相關API時觸發
- *   （/api/partner/dashboard 和 /api/partners/self）
+ * ⚠️ 注意：此 API 不再通過 cron 自動執行
+ * 自動關閉功能已整合到以下 API 中，會在用戶訪問時自動觸發：
+ * - /api/partner/dashboard (GET) - 獲取夥伴儀表板時
+ * - /api/partners/self (GET/PATCH) - 獲取或更新夥伴狀態時
  * 
- * 在 Vercel 中，這個 endpoint 通過 vercel.json 配置 cron 任務
+ * 此 API 保留作為手動調用的備用方案，可用於：
+ * - 管理員手動觸發批量關閉
+ * - 測試和調試
  */
 export async function GET(request: Request) {
   // 驗證 cron secret（如果設置了）
