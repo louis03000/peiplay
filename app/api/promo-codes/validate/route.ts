@@ -5,7 +5,7 @@ import { db } from "@/lib/db-resilience";
 export const dynamic = 'force-dynamic';
 export async function POST(request: Request) {
   try {
-    const { code, amount } = await request.json();
+    const { code, amount, partnerId } = await request.json();
 
     if (!code || !amount) {
       return NextResponse.json({ error: '缺少必要參數' }, { status: 400 });
@@ -14,7 +14,15 @@ export async function POST(request: Request) {
     const result = await db.query(async (client) => {
       // 查找優惠碼
       const promoCode = await client.promoCode.findUnique({
-        where: { code: code.toUpperCase() }
+        where: { code: code.toUpperCase() },
+        include: {
+          partner: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+        },
       });
 
       if (!promoCode) {
@@ -24,6 +32,16 @@ export async function POST(request: Request) {
       // 檢查是否啟用
       if (!promoCode.isActive) {
         throw new Error('優惠碼已停用');
+      }
+
+      // 如果優惠碼綁定了特定夥伴，驗證是否匹配
+      if (promoCode.partnerId) {
+        if (!partnerId) {
+          throw new Error('此優惠碼僅限特定夥伴使用，請選擇正確的夥伴');
+        }
+        if (promoCode.partnerId !== partnerId) {
+          throw new Error(`此優惠碼僅限用於 ${promoCode.partner?.name || '特定夥伴'}，無法用於當前選擇的夥伴`);
+        }
       }
 
       // 檢查使用次數限制
@@ -75,7 +93,7 @@ export async function POST(request: Request) {
     }
     const errorMessage = error instanceof Error ? error.message : 'Error validating promo code';
     const status = errorMessage.includes('不存在') ? 404 : 
-                   errorMessage.includes('停用') || errorMessage.includes('上限') || errorMessage.includes('生效') || errorMessage.includes('過期') ? 400 : 500;
+                   errorMessage.includes('停用') || errorMessage.includes('上限') || errorMessage.includes('生效') || errorMessage.includes('過期') || errorMessage.includes('僅限') || errorMessage.includes('無法用於') ? 400 : 500;
     return NextResponse.json({ error: errorMessage }, { status });
   }
 } 

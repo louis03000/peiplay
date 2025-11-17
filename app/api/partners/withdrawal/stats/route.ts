@@ -3,12 +3,10 @@ import { getServerSession } from 'next-auth/next'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db-resilience'
 import { createErrorResponse } from '@/lib/api-helpers'
+import { getPartnerLastWeekRank, calculatePlatformFeePercentage } from '@/lib/ranking-helpers'
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
-
-// 平台抽成比例
-const PLATFORM_FEE_PERCENTAGE = 0.15; // 15%
 
 export async function GET(request: NextRequest) {
   try {
@@ -86,6 +84,11 @@ export async function GET(request: NextRequest) {
       const totalWithdrawn = totalWithdrawnResult._sum.amount || 0;
       const referralEarnings = partner.referralEarnings || 0;
 
+      // 獲取夥伴上一週的排名並計算平台維護費
+      // 本週的排名決定下週的減免，所以計算當前週的費用時，需要查詢上一週的排名
+      const rank = await getPartnerLastWeekRank(partner.id);
+      const PLATFORM_FEE_PERCENTAGE = calculatePlatformFeePercentage(rank);
+
       // 計算可提領餘額
       const partnerEarnings = totalEarnings * (1 - PLATFORM_FEE_PERCENTAGE);
       const availableBalance = partnerEarnings + referralEarnings - totalWithdrawn;
@@ -95,7 +98,9 @@ export async function GET(request: NextRequest) {
         totalOrders,
         availableBalance: Math.max(0, availableBalance),
         pendingWithdrawals,
-        referralEarnings
+        referralEarnings,
+        platformFeePercentage: PLATFORM_FEE_PERCENTAGE,
+        rank: rank || null
       };
     }, 'partners/withdrawal/stats');
 

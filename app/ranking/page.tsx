@@ -7,11 +7,11 @@ interface RankingData {
   id: string
   name: string
   games: string[]
-  rating: number
-  totalBookings: number
+  totalMinutes: number
   coverImage?: string
   rank: number
-  isTrending?: boolean
+  isAvailableNow?: boolean
+  isRankBooster?: boolean
 }
 
 export default function RankingPage() {
@@ -49,55 +49,6 @@ export default function RankingPage() {
         if (response.ok) {
           const data = await response.json()
           setRankings(data)
-        } else {
-          // 設置默認數據
-          setRankings([
-            {
-              id: '1',
-              name: '遊戲高手小陳',
-              games: ['英雄聯盟', '特戰英豪'],
-              rating: 4.9,
-              totalBookings: 234,
-              rank: 1,
-              isTrending: true
-            },
-            {
-              id: '2',
-              name: '電競女神小雨',
-              games: ['Apex 英雄', 'CS:GO'],
-              rating: 4.8,
-              totalBookings: 189,
-              rank: 2,
-              isTrending: true
-            },
-            {
-              id: '3',
-              name: '專業陪玩阿明',
-              games: ['PUBG', '英雄聯盟'],
-              rating: 4.7,
-              totalBookings: 156,
-              rank: 3,
-              isTrending: false
-            },
-            {
-              id: '4',
-              name: '遊戲達人小華',
-              games: ['特戰英豪', 'Apex 英雄'],
-              rating: 4.6,
-              totalBookings: 143,
-              rank: 4,
-              isTrending: false
-            },
-            {
-              id: '5',
-              name: '電競選手小強',
-              games: ['CS:GO', 'PUBG'],
-              rating: 4.5,
-              totalBookings: 128,
-              rank: 5,
-              isTrending: true
-            }
-          ])
         }
       } catch (error) {
         console.error('Failed to fetch rankings:', error)
@@ -251,23 +202,34 @@ export default function RankingPage() {
                         <h3 className="text-2xl font-bold" style={{color: '#333140'}}>
                           {partner.name}
                         </h3>
-                        {partner.isTrending && (
-                          <div className="px-3 py-1 rounded-full text-xs font-semibold bg-red-500 text-white animate-pulse">
-                            🔥 熱門
+                        {partner.isAvailableNow && (
+                          <div className="px-3 py-1 rounded-full text-xs font-semibold bg-green-500 text-white">
+                            🟢 現在有空
                           </div>
                         )}
                       </div>
                       
                       <div className="flex items-center gap-6 mb-3">
                         <div className="flex items-center gap-2">
-                          <span className="text-yellow-400 text-lg">⭐</span>
+                          <span className="text-blue-400 text-lg">⏱️</span>
                           <span className="text-lg font-semibold" style={{color: '#333140'}}>
-                            {partner.rating}
+                            {Math.floor(partner.totalMinutes / 60)} 小時 {partner.totalMinutes % 60} 分鐘
                           </span>
                         </div>
-                        <div className="text-sm" style={{color: '#333140', opacity: 0.7}}>
-                          {partner.totalBookings} 次預約
-                        </div>
+                        {partner.rank <= 10 && (
+                          <div className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                            partner.rank === 1 
+                              ? 'bg-yellow-100 text-yellow-800' 
+                              : partner.rank <= 3
+                              ? 'bg-gray-100 text-gray-800'
+                              : 'bg-blue-100 text-blue-800'
+                          }`}>
+                            {partner.rank === 1 && '🏆 平台維護費減免 2%'}
+                            {partner.rank === 2 && '🥈 平台維護費減免 1%'}
+                            {partner.rank === 3 && '🥉 平台維護費減免 1%'}
+                            {partner.rank >= 4 && partner.rank <= 10 && '🎁 可申請優惠碼'}
+                          </div>
+                        )}
                       </div>
 
                       <div className="flex flex-wrap gap-2">

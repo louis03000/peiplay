@@ -100,6 +100,8 @@ model Partner {
   referralsGiven          ReferralRecord[]          @relation("Inviter")
   schedules               Schedule[]
   withdrawalRequests      WithdrawalRequest[]
+  promoCodes              PromoCode[]
+  rankingHistories        RankingHistory[]
 
   @@index([status])
   @@index([status, isAvailableNow])
@@ -252,8 +254,28 @@ model PromoCode {
   validUntil   DateTime?
   isActive     Boolean       @default(true)
   description  String?
+  partnerId    String?       // 如果設置，此優惠碼只能用於特定夥伴
+  partner      Partner?      @relation(fields: [partnerId], references: [id])
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
+
+  @@index([partnerId])
+}
+
+model RankingHistory {
+  id           String   @id @default(cuid())
+  weekStartDate DateTime // 週的開始日期（週一）
+  partnerId    String
+  rank         Int      // 排名（1-10有獎勵）
+  totalMinutes Int      // 該週的總時長（分鐘）
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  partner      Partner  @relation(fields: [partnerId], references: [id])
+
+  @@unique([weekStartDate, partnerId])
+  @@index([weekStartDate])
+  @@index([partnerId])
+  @@index([weekStartDate, rank])
 }
 
 model WithdrawalRequest {

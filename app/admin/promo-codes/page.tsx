@@ -14,7 +14,14 @@ interface PromoCode {
   validUntil: string | null;
   isActive: boolean;
   description: string | null;
+  partnerId: string | null;
+  partner: { id: string; name: string } | null;
   createdAt: string;
+}
+
+interface Partner {
+  id: string;
+  name: string;
 }
 
 export default function AdminPromoCodesPage() {
@@ -23,6 +30,7 @@ export default function AdminPromoCodesPage() {
   const session = sessionData.data;
   const status = sessionData.status;
   const [promoCodes, setPromoCodes] = useState<PromoCode[]>([]);
+  const [partners, setPartners] = useState<Partner[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -37,7 +45,8 @@ export default function AdminPromoCodesPage() {
     validFrom: new Date().toISOString().slice(0, 16),
     validUntil: '',
     description: '',
-    isActive: true
+    isActive: true,
+    partnerId: '' as string | ''
   });
 
   useEffect(() => {
@@ -47,7 +56,20 @@ export default function AdminPromoCodesPage() {
       return;
     }
     fetchPromoCodes();
+    fetchPartners();
   }, [session, status, router]);
+
+  const fetchPartners = async () => {
+    try {
+      const res = await fetch("/api/admin/partners?status=APPROVED");
+      if (res.ok) {
+        const data = await res.json();
+        setPartners(data.map((p: any) => ({ id: p.id, name: p.name })));
+      }
+    } catch (err) {
+      console.error("載入夥伴列表失敗:", err);
+    }
+  };
 
   const fetchPromoCodes = async () => {
     try {
@@ -90,7 +112,8 @@ export default function AdminPromoCodesPage() {
           validFrom: new Date().toISOString().slice(0, 16),
           validUntil: '',
           description: '',
-          isActive: true
+          isActive: true,
+          partnerId: ''
         });
       } else {
         const error = await res.json();
@@ -197,6 +220,9 @@ export default function AdminPromoCodesPage() {
                   有效期
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  綁定夥伴
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   狀態
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -232,6 +258,15 @@ export default function AdminPromoCodesPage() {
                     <div>生效：{formatDate(promoCode.validFrom)}</div>
                     {promoCode.validUntil && (
                       <div>到期：{formatDate(promoCode.validUntil)}</div>
+                    )}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {promoCode.partner ? (
+                      <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
+                        {promoCode.partner.name}
+                      </span>
+                    ) : (
+                      <span className="text-gray-400">通用優惠碼</span>
                     )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
@@ -360,6 +395,27 @@ export default function AdminPromoCodesPage() {
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
                   placeholder="例如：新用戶專屬優惠"
                 />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-900 mb-1">
+                  綁定夥伴（選填）
+                </label>
+                <select
+                  value={formData.partnerId}
+                  onChange={(e) => setFormData({...formData, partnerId: e.target.value})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
+                >
+                  <option value="">通用優惠碼（所有夥伴可用）</option>
+                  {partners.map((partner) => (
+                    <option key={partner.id} value={partner.id}>
+                      {partner.name}
+                    </option>
+                  ))}
+                </select>
+                <p className="mt-1 text-xs text-gray-500">
+                  如果選擇特定夥伴，此優惠碼只能用於該夥伴的預約
+                </p>
               </div>
             </div>
             

@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db-resilience'
 import { createErrorResponse } from '@/lib/api-helpers'
+import { getPartnerLastWeekRank, calculatePlatformFeePercentage } from '@/lib/ranking-helpers'
 
 export const dynamic = 'force-dynamic'
 
@@ -30,7 +31,10 @@ export async function POST(request: Request) {
         return { type: 'NOT_PARTNER' } as const
       }
 
-      const PLATFORM_FEE_PERCENTAGE = 0.15
+      // 獲取夥伴上一週的排名並計算平台維護費
+      // 本週的排名決定下週的減免，所以計算當前週的費用時，需要查詢上一週的排名
+      const rank = await getPartnerLastWeekRank(partner.id)
+      const PLATFORM_FEE_PERCENTAGE = calculatePlatformFeePercentage(rank)
 
       const [totalEarnings, totalWithdrawn] = await Promise.all([
         client.booking.aggregate({

@@ -122,6 +122,7 @@ function BookingWizardContent() {
         body: JSON.stringify({
           code: promoCode.trim(),
           amount: originalAmount,
+          partnerId: selectedPartner.id,
         }),
       });
 

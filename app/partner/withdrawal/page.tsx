@@ -10,6 +10,8 @@ interface WithdrawalStats {
   availableBalance: number
   pendingWithdrawals: number
   referralEarnings: number
+  platformFeePercentage?: number
+  rank?: number | null
 }
 
 interface WithdrawalHistory {
@@ -332,7 +334,10 @@ export default function WithdrawalPage() {
                         <p className="text-sm text-yellow-800">
                           <strong>費用說明：</strong>
                           <br />• 最小提領金額：NT$ 100
-                          <br />• 平台維護費：15%
+                          <br />• 平台維護費：{(stats?.platformFeePercentage || 0.15) * 100}%
+                          {stats?.rank === 1 && ' (第一名優惠：減免2%)'}
+                          {(stats?.rank === 2 || stats?.rank === 3) && ' (第二、三名優惠：減免1%)'}
+                          {stats?.rank && stats.rank >= 4 && stats.rank <= 10 && ' (排名4-10名：可申請優惠碼)'}
                           <br />• 轉帳手續費：NT$ 15
                         </p>
                       </div>
