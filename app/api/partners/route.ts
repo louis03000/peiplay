@@ -74,24 +74,56 @@ export async function GET(request: NextRequest) {
       async (client) => {
         // 優化：在資料庫層面過濾被停權的用戶
         
-        return client.partner.findMany({
-          where: {
-            status: 'APPROVED',
-            ...(rankBooster ? { isRankBooster: true } : {}),
-            ...(availableNow ? { isAvailableNow: true } : {}),
-            // 過濾被停權的用戶
-            user: {
-              OR: [
-                { isSuspended: false },
-                {
-                  isSuspended: true,
-                  suspensionEndsAt: {
-                    lte: now, // 停權已過期
-                  },
+        // 如果篩選「現在有空」，需要排除有活躍預約的夥伴
+        let partnerWhere: any = {
+          status: 'APPROVED',
+          ...(rankBooster ? { isRankBooster: true } : {}),
+          ...(availableNow ? { isAvailableNow: true } : {}),
+          // 過濾被停權的用戶
+          user: {
+            OR: [
+              { isSuspended: false },
+              {
+                isSuspended: true,
+                suspensionEndsAt: {
+                  lte: now, // 停權已過期
                 },
-              ],
-            },
+              },
+            ],
           },
+        }
+
+        // 如果篩選「現在有空」，排除有活躍預約的夥伴
+        if (availableNow) {
+          // 查詢所有有活躍預約的夥伴ID（預約尚未結束）
+          const busySchedules = await client.schedule.findMany({
+            where: {
+              bookings: {
+                status: {
+                  in: Array.from(ACTIVE_BOOKING_STATUSES),
+                },
+              },
+              endTime: { gte: now }, // 預約尚未結束
+            },
+            select: {
+              partnerId: true,
+            },
+          })
+
+          const busyPartnerIds = Array.from(
+            new Set(busySchedules.map((s) => s.partnerId))
+          )
+
+          // 排除有活躍預約的夥伴
+          if (busyPartnerIds.length > 0) {
+            partnerWhere.id = {
+              notIn: busyPartnerIds,
+            }
+          }
+        }
+        
+        return client.partner.findMany({
+          where: partnerWhere,
           select: {
             id: true,
             name: true,

@@ -20,6 +20,24 @@ export async function GET() {
 
     // 優化：使用索引優化的查詢（Partner.userId 索引）
     const partner = await db.query(async (client) => {
+      const now = new Date()
+      const thirtyMinutesAgo = new Date(now.getTime() - 30 * 60 * 1000)
+      
+      // 先檢查並自動關閉超過30分鐘的「現在有空」狀態
+      await client.partner.updateMany({
+        where: {
+          userId: session.user.id,
+          isAvailableNow: true,
+          availableNowSince: {
+            lt: thirtyMinutesAgo
+          }
+        },
+        data: {
+          isAvailableNow: false,
+          availableNowSince: null
+        }
+      })
+      
       return client.partner.findUnique({
         where: { userId: session.user.id },
         select: {
@@ -52,6 +70,24 @@ export async function PATCH(request: Request) {
     const { isAvailableNow, isRankBooster, allowGroupBooking, rankBoosterNote, rankBoosterRank, customerMessage, availableNowSince } = payload
 
     const result = await db.query(async (client) => {
+      const now = new Date()
+      const thirtyMinutesAgo = new Date(now.getTime() - 30 * 60 * 1000)
+      
+      // 先檢查並自動關閉超過30分鐘的「現在有空」狀態
+      await client.partner.updateMany({
+        where: {
+          userId: session.user.id,
+          isAvailableNow: true,
+          availableNowSince: {
+            lt: thirtyMinutesAgo
+          }
+        },
+        data: {
+          isAvailableNow: false,
+          availableNowSince: null
+        }
+      })
+      
       const partner = await client.partner.findUnique({
         where: { userId: session.user.id },
       })
