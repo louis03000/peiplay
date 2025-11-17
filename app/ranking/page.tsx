@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useSession } from 'next-auth/react'
 import SecureImage from '@/components/SecureImage'
 
 interface RankingData {
@@ -15,8 +16,10 @@ interface RankingData {
 }
 
 export default function RankingPage() {
+  const { data: session } = useSession()
   const [rankings, setRankings] = useState<RankingData[]>([])
   const [loading, setLoading] = useState(true)
+  const [currentPartnerId, setCurrentPartnerId] = useState<string | null>(null)
   const [selectedGame, setSelectedGame] = useState('all')
   const [timeFilter, setTimeFilter] = useState('week')
 
@@ -34,6 +37,29 @@ export default function RankingPage() {
     { value: 'month', label: '本月' },
     { value: 'all', label: '全部時間' }
   ]
+
+  // 獲取當前用戶的夥伴ID
+  useEffect(() => {
+    const fetchCurrentPartner = async () => {
+      if (session?.user?.id) {
+        try {
+          const response = await fetch('/api/partners/self')
+          if (response.ok) {
+            const data = await response.json()
+            if (data?.partner?.id) {
+              setCurrentPartnerId(data.partner.id)
+            }
+          }
+        } catch (error) {
+          console.error('Failed to fetch current partner:', error)
+        }
+      } else {
+        setCurrentPartnerId(null)
+      }
+    }
+
+    fetchCurrentPartner()
+  }, [session])
 
   useEffect(() => {
     const fetchRankings = async () => {
@@ -216,7 +242,8 @@ export default function RankingPage() {
                             {Math.floor(partner.totalMinutes / 60)} 小時 {partner.totalMinutes % 60} 分鐘
                           </span>
                         </div>
-                        {partner.rank <= 10 && (
+                        {/* 只對登入的夥伴顯示自己的獎勵信息 */}
+                        {partner.rank <= 10 && currentPartnerId === partner.id && (
                           <div className={`px-3 py-1 rounded-full text-xs font-semibold ${
                             partner.rank === 1 
                               ? 'bg-yellow-100 text-yellow-800' 
