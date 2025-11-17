@@ -726,8 +726,8 @@ function BookingWizardContent() {
                 </div>
               </div>
 
-              {/* 群組預約按鈕 */}
-              <div className="mb-6 text-center">
+              {/* 群組預約和多人陪玩按鈕 */}
+              <div className="mb-6 flex flex-col sm:flex-row gap-4 justify-center items-center">
                 <a
                   href="/booking/group"
                   className="inline-flex items-center gap-2 px-6 py-3 bg-[#6C63FF] text-white rounded-2xl hover:bg-[#5a52e6] transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 font-medium"
@@ -735,6 +735,14 @@ function BookingWizardContent() {
                   <span className="text-lg">🎮</span>
                   <span className="font-medium">群組預約</span>
                   <span className="text-sm opacity-90">與其他玩家一起預約</span>
+                </a>
+                <a
+                  href="/booking/multi-player"
+                  className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-2xl hover:from-purple-600 hover:to-pink-600 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 font-medium"
+                >
+                  <span className="text-lg">👥</span>
+                  <span className="font-medium">多人陪玩</span>
+                  <span className="text-sm opacity-90">一次選擇多位夥伴</span>
                 </a>
               </div>
 

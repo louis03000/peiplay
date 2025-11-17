@@ -20,6 +20,8 @@ export async function GET() {
           name: true,
           birthday: true,
           phone: true,
+          violationCount: true,
+          violations: true,
           user: { select: { email: true, id: true } },
         },
       })
@@ -35,6 +37,8 @@ export async function GET() {
       phone: customer.phone,
       email: customer.user.email,
       userId: customer.user.id,
+      violationCount: customer.violationCount || 0,
+      violations: customer.violations || [],
     })
   } catch (error) {
     return createErrorResponse(error, 'customer:me:get')

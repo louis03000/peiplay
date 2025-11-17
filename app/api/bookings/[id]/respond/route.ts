@@ -71,6 +71,8 @@ export async function POST(
       }
 
       const isGroupBooking = booking.isGroupBooking === true || booking.groupBookingId !== null;
+      const isMultiPlayerBooking = booking.isMultiPlayerBooking === true || booking.multiPlayerBookingId !== null;
+      
       if (isGroupBooking) {
         return { type: 'GROUP' } as const;
       }
@@ -80,6 +82,34 @@ export async function POST(
       }
 
       const newStatus = action === 'accept' ? BookingStatus.CONFIRMED : BookingStatus.REJECTED;
+
+      // 如果是多人陪玩，需要更新群組狀態
+      let multiPlayerBookingUpdate = null;
+      if (isMultiPlayerBooking && booking.multiPlayerBookingId) {
+        const multiPlayerBooking = await client.multiPlayerBooking.findUnique({
+          where: { id: booking.multiPlayerBookingId },
+          include: {
+            bookings: {
+              select: {
+                id: true,
+                status: true,
+              },
+            },
+          },
+        });
+
+        if (multiPlayerBooking) {
+          // 檢查是否有至少一個夥伴已確認
+          const hasConfirmedPartner = multiPlayerBooking.bookings.some(
+            b => b.id !== booking.id && (b.status === 'CONFIRMED' || b.status === 'PARTNER_ACCEPTED')
+          );
+
+          // 如果接受且群組狀態是 PENDING，更新為 ACTIVE
+          if (action === 'accept' && multiPlayerBooking.status === 'PENDING') {
+            multiPlayerBookingUpdate = { status: 'ACTIVE' };
+          }
+        }
+      }
 
       // 先更新状态，只选择必要的字段
       const updated = await client.booking.update({
@@ -120,7 +150,17 @@ export async function POST(
         },
       });
 
-      return { type: 'SUCCESS', booking: updated, action, originalBooking: booking } as const;
+      // 更新多人陪玩群組狀態（如果需要）
+      if (multiPlayerBookingUpdate && booking.multiPlayerBookingId) {
+        await client.multiPlayerBooking.update({
+          where: { id: booking.multiPlayerBookingId },
+          data: multiPlayerBookingUpdate,
+        }).catch((error) => {
+          console.error('❌ 更新多人陪玩群組狀態失敗:', error);
+        });
+      }
+
+      return { type: 'SUCCESS', booking: updated, action, originalBooking: booking, isMultiPlayerBooking } as const;
     }, 'bookings:respond');
 
     if (result.type === 'NO_PARTNER') {
@@ -135,6 +175,8 @@ export async function POST(
     if (result.type === 'GROUP') {
       return NextResponse.json({ error: '群組預約不需要確認' }, { status: 400 });
     }
+    
+    // 多人陪玩允許確認，不需要特殊處理
     if (result.type === 'INVALID_STATUS') {
       return NextResponse.json({ error: '預約狀態不正確' }, { status: 400 });
     }

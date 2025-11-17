@@ -118,7 +118,10 @@ model Customer {
   updatedAt               DateTime                  @updatedAt
   lineId                  String?                   @unique
   userId                  String                    @unique
+  violationCount          Int                       @default(0)
+  violations              Json?                     // 違規詳情陣列 [{time, reason, bookingId}]
   bookings                Booking[]
+  multiPlayerBookings     MultiPlayerBooking[]
   user                    User                      @relation(fields: [userId], references: [id])
   FavoritePartner         FavoritePartner[]
   GroupBookingParticipant GroupBookingParticipant[]
@@ -173,8 +176,11 @@ model Booking {
   serviceType               String            @default("GAMING")
   groupBookingId            String?
   isGroupBooking            Boolean           @default(false)
+  multiPlayerBookingId      String?
+  isMultiPlayerBooking      Boolean           @default(false)
   customer                  Customer          @relation(fields: [customerId], references: [id])
   groupBooking              GroupBooking?     @relation(fields: [groupBookingId], references: [id])
+  multiPlayerBooking        MultiPlayerBooking? @relation(fields: [multiPlayerBookingId], references: [id])
   schedule                  Schedule          @relation(fields: [scheduleId], references: [id])
   orders                    Order[]
   referralEarnings          ReferralEarning[]
@@ -186,6 +192,7 @@ model Booking {
   @@index([scheduleId])
   @@index([scheduleId, status])
   @@index([customerId, createdAt])
+  @@index([multiPlayerBookingId])
 }
 
 model Order {
@@ -225,6 +232,27 @@ model GroupBooking {
 
   @@index([date, startTime])
   @@index([status])
+}
+
+model MultiPlayerBooking {
+  id                      String                    @id @default(cuid())
+  customerId              String
+  date                    DateTime
+  startTime               DateTime
+  endTime                 DateTime
+  games                   String[]                  @default([])
+  status                  MultiPlayerBookingStatus  @default(PENDING)
+  totalAmount             Float                     @default(0)
+  createdAt               DateTime                  @default(now())
+  updatedAt               DateTime                  @updatedAt
+  lastAdjustmentAt        DateTime?                // 最後調整時間
+  customer                Customer                  @relation(fields: [customerId], references: [id])
+  bookings                Booking[]
+  chatRoom                ChatRoom?
+
+  @@index([customerId])
+  @@index([status])
+  @@index([date, startTime])
 }
 
 model Review {
@@ -448,6 +476,13 @@ enum GroupBookingStatus {
   FULL
 }
 
+enum MultiPlayerBookingStatus {
+  PENDING
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
 enum GroupBookingType {
   USER_INITIATED
   PARTNER_INITIATED
@@ -473,20 +508,23 @@ enum AnnouncementType {
 
 // 聊天室模型（支援一對一和群組）
 model ChatRoom {
-  id             String           @id @default(cuid())
-  type           ChatRoomType     @default(ONE_ON_ONE) // ONE_ON_ONE, GROUP
-  bookingId      String?          @unique // 關聯到訂單（可選，一對一）
-  groupBookingId String?          @unique // 關聯到群組預約（可選，一對一）
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime         @updatedAt
-  lastMessageAt  DateTime? // 最後訊息時間
-  members        ChatRoomMember[]
-  messages       ChatMessage[]
-  booking        Booking?         @relation(fields: [bookingId], references: [id])
-  groupBooking   GroupBooking?    @relation(fields: [groupBookingId], references: [id])
+  id                   String              @id @default(cuid())
+  type                 ChatRoomType        @default(ONE_ON_ONE) // ONE_ON_ONE, GROUP
+  bookingId            String?             @unique // 關聯到訂單（可選，一對一）
+  groupBookingId       String?             @unique // 關聯到群組預約（可選，一對一）
+  multiPlayerBookingId String?             @unique // 關聯到多人陪玩（可選）
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
+  lastMessageAt        DateTime? // 最後訊息時間
+  members              ChatRoomMember[]
+  messages             ChatMessage[]
+  booking              Booking?            @relation(fields: [bookingId], references: [id])
+  groupBooking         GroupBooking?       @relation(fields: [groupBookingId], references: [id])
+  multiPlayerBooking   MultiPlayerBooking? @relation(fields: [multiPlayerBookingId], references: [id])
 
   @@index([bookingId])
   @@index([groupBookingId])
+  @@index([multiPlayerBookingId])
   @@index([lastMessageAt])
 }
 
