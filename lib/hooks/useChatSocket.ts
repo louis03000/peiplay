@@ -37,12 +37,24 @@ export function useChatSocket({ roomId, enabled = true }: UseChatSocketOptions) 
   useEffect(() => {
     if (!enabled || !session?.user?.id || !roomId) return;
 
-    // 只在有配置 Socket URL 時才連接（生產環境需要單獨部署 Socket Server）
-    const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL;
+    // 優先使用環境變數，否則使用相對路徑（適用於同域部署）
+    let socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL;
     
-    // 如果沒有配置 Socket URL，跳過連接（聊天功能將使用輪詢方式）
+    // 如果沒有配置，嘗試使用當前域名的 Socket Server（如果部署在同一域名下）
+    if (!socketUrl && typeof window !== 'undefined') {
+      // 假設 Socket Server 在 /socket.io 路徑下（需要 Next.js API route 代理）
+      // 或者使用當前域名的 5000 端口（僅開發環境）
+      if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+        socketUrl = 'http://localhost:5000';
+      } else {
+        // 生產環境：如果沒有配置，跳過連接
+        console.warn('Socket.IO URL not configured, real-time features disabled');
+        setIsConnected(false);
+        return;
+      }
+    }
+    
     if (!socketUrl) {
-      console.warn('Socket.IO URL not configured, real-time features disabled');
       setIsConnected(false);
       return;
     }
@@ -56,6 +68,7 @@ export function useChatSocket({ roomId, enabled = true }: UseChatSocketOptions) 
       reconnectionDelay: 1000,
       reconnectionAttempts: 5,
       timeout: 10000,
+      autoConnect: true,
     });
 
     const socket = socketRef.current;
@@ -150,15 +163,51 @@ export function useChatSocket({ roomId, enabled = true }: UseChatSocketOptions) 
     };
   }, [enabled, session?.user?.id, roomId]);
 
-  // 發送訊息
+  // 發送訊息（如果 WebSocket 不可用，回退到 API）
   const sendMessage = useCallback(
-    (content: string) => {
-      if (!socketRef.current || !roomId || !content.trim()) return;
+    async (content: string) => {
+      if (!roomId || !content.trim()) return;
 
-      socketRef.current.emit('message:send', {
-        roomId,
-        content: content.trim(),
-      });
+      // 如果 WebSocket 已連接，使用 WebSocket 發送
+      if (socketRef.current?.connected) {
+        socketRef.current.emit('message:send', {
+          roomId,
+          content: content.trim(),
+        });
+        return;
+      }
+
+      // 否則使用 API 發送（後備方案）
+      try {
+        const res = await fetch(`/api/chat/rooms/${roomId}/messages`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ content: content.trim() }),
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          // 將訊息添加到本地狀態（模擬 WebSocket 接收）
+          setMessages((prev) => {
+            if (prev.some((m) => m.id === data.message.id)) {
+              return prev;
+            }
+            return [...prev, {
+              id: data.message.id,
+              roomId: data.message.roomId,
+              senderId: data.message.senderId,
+              sender: data.message.sender,
+              content: data.message.content,
+              contentType: data.message.contentType,
+              status: data.message.status,
+              moderationStatus: data.message.moderationStatus,
+              createdAt: data.message.createdAt,
+            }];
+          });
+        }
+      } catch (error) {
+        console.error('Failed to send message via API:', error);
+      }
     },
     [roomId]
   );

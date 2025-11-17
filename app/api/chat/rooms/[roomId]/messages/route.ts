@@ -56,7 +56,7 @@ export async function GET(
         where.createdAt = { lt: new Date(before) };
       }
 
-      const messages = await client.chatMessage.findMany({
+      const messages = await (client as any).chatMessage.findMany({
         where,
         include: {
           sender: {
@@ -65,11 +65,6 @@ export async function GET(
               name: true,
               email: true,
               role: true,
-            },
-          },
-          readReceipts: {
-            where: {
-              userId: session.user.id,
             },
           },
         },
@@ -87,3 +82,93 @@ export async function GET(
   }
 }
 
+/**
+ * POST /api/chat/rooms/[roomId]/messages
+ * 發送訊息到聊天室（當 WebSocket 不可用時的後備方案）
+ */
+export async function POST(
+  request: Request,
+  { params }: { params: { roomId: string } }
+) {
+  try {
+    const session = await getServerSession(authOptions);
+
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: '請先登入' }, { status: 401 });
+    }
+
+    const { roomId } = params;
+    const body = await request.json();
+    const { content } = body;
+
+    if (!content || !content.trim()) {
+      return NextResponse.json({ error: '訊息內容不能為空' }, { status: 400 });
+    }
+
+    const result = await db.query(async (client) => {
+      // 驗證用戶是否有權限
+      const membership = await (client as any).chatRoomMember.findUnique({
+        where: {
+          roomId_userId: {
+            roomId,
+            userId: session.user.id,
+          },
+        },
+      });
+
+      if (!membership) {
+        throw new Error('無權限訪問此聊天室');
+      }
+
+      // 簡單的內容審查（關鍵字過濾）
+      const blockedKeywords = ['垃圾', 'spam'];
+      const hasBlockedKeyword = blockedKeywords.some((keyword) =>
+        content.toLowerCase().includes(keyword.toLowerCase())
+      );
+
+      // 創建訊息
+      const message = await (client as any).chatMessage.create({
+        data: {
+          roomId,
+          senderId: session.user.id,
+          content: content.trim(),
+          contentType: 'TEXT',
+          status: 'SENT',
+          moderationStatus: hasBlockedKeyword ? 'FLAGGED' : 'APPROVED',
+        },
+        include: {
+          sender: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              role: true,
+            },
+          },
+        },
+      });
+
+      // 更新聊天室最後訊息時間
+      await (client as any).chatRoom.update({
+        where: { id: roomId },
+        data: { lastMessageAt: new Date() },
+      });
+
+      return {
+        id: message.id,
+        roomId: message.roomId,
+        senderId: message.senderId,
+        sender: message.sender,
+        content: message.content,
+        contentType: message.contentType,
+        status: message.status,
+        moderationStatus: message.moderationStatus,
+        createdAt: message.createdAt.toISOString(),
+      };
+    }, 'chat:rooms:roomId:messages:post');
+
+    return NextResponse.json({ message: result });
+  } catch (error) {
+    return createErrorResponse(error, 'chat:rooms:roomId:messages:post');
+  }
+}

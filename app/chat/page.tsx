@@ -85,6 +85,20 @@ export default function ChatPage() {
     loadRooms();
   }, [status, router]);
 
+  // 自動選擇第一個聊天室
+  useEffect(() => {
+    if (rooms.length > 0 && !selectedRoomId) {
+      setSelectedRoomId(rooms[0].id);
+      // 從列表直接構建 RoomDetail，避免額外請求
+      const firstRoom = rooms[0];
+      setSelectedRoom({
+        id: firstRoom.id,
+        type: firstRoom.type,
+        members: firstRoom.members,
+      });
+    }
+  }, [rooms, selectedRoomId]);
+
   const loadRooms = async () => {
     try {
       setLoading(true);
@@ -100,21 +114,36 @@ export default function ChatPage() {
       // 處理聊天室列表（優先）
       if (roomsRes.status === 'fulfilled' && roomsRes.value.ok) {
         const data = await roomsRes.value.json();
-        setRooms(data.rooms || []);
+        const loadedRooms = data.rooms || [];
+        setRooms(loadedRooms);
+        
+        // 如果有新創建的聊天室，自動選擇第一個
+        if (loadedRooms.length > 0 && !selectedRoomId) {
+          const firstRoom = loadedRooms[0];
+          setSelectedRoomId(firstRoom.id);
+          setSelectedRoom({
+            id: firstRoom.id,
+            type: firstRoom.type,
+            members: firstRoom.members,
+          });
+        }
       } else {
         setError('載入聊天室失敗');
       }
       
-      // 處理創建結果（非阻塞）
+      // 處理創建結果（非阻塞，不影響顯示）
       if (createRes.status === 'fulfilled' && createRes.value.ok) {
         const createData = await createRes.value.json();
         if (createData.created > 0) {
-          // 如果有新創建的聊天室，重新載入列表
-          const refreshRes = await fetch('/api/chat/rooms');
-          if (refreshRes.ok) {
-            const refreshData = await refreshRes.json();
-            setRooms(refreshData.rooms || []);
-          }
+          // 如果有新創建的聊天室，重新載入列表（在背景執行）
+          fetch('/api/chat/rooms')
+            .then((res) => res.json())
+            .then((data) => {
+              setRooms(data.rooms || []);
+            })
+            .catch(() => {
+              // 忽略錯誤，不影響用戶體驗
+            });
         }
       }
     } catch (err) {
@@ -136,27 +165,37 @@ export default function ChatPage() {
     markAsRead,
   } = useChatSocket({ roomId: selectedRoomId, enabled: !!selectedRoomId });
 
-  // 載入選中的聊天室詳情
+  // 從列表更新選中的聊天室詳情（避免額外請求）
   useEffect(() => {
     if (!selectedRoomId) {
       setSelectedRoom(null);
       return;
     }
 
-    const loadRoom = async () => {
-      try {
-        const res = await fetch(`/api/chat/rooms/${selectedRoomId}`);
-        if (res.ok) {
-          const data = await res.json();
-          setSelectedRoom(data.room);
+    // 從已載入的列表中查找，避免額外 API 請求
+    const roomFromList = rooms.find((r) => r.id === selectedRoomId);
+    if (roomFromList) {
+      setSelectedRoom({
+        id: roomFromList.id,
+        type: roomFromList.type,
+        members: roomFromList.members,
+      });
+    } else {
+      // 如果列表中沒有，才發起請求（通常不會發生）
+      const loadRoom = async () => {
+        try {
+          const res = await fetch(`/api/chat/rooms/${selectedRoomId}`);
+          if (res.ok) {
+            const data = await res.json();
+            setSelectedRoom(data.room);
+          }
+        } catch (error) {
+          console.error('Error loading room:', error);
         }
-      } catch (error) {
-        console.error('Error loading room:', error);
-      }
-    };
-
-    loadRoom();
-  }, [selectedRoomId]);
+      };
+      loadRoom();
+    }
+  }, [selectedRoomId, rooms]);
 
   // 滾動到底部
   useEffect(() => {
@@ -187,7 +226,7 @@ export default function ChatPage() {
 
     setSending(true);
     try {
-      sendMessage(messageInput);
+      await sendMessage(messageInput);
       setMessageInput('');
       stopTyping();
     } catch (error) {
@@ -262,9 +301,17 @@ export default function ChatPage() {
               {rooms.map((room) => (
                 <button
                   key={room.id}
-                  onClick={() => setSelectedRoomId(room.id)}
+                  onClick={() => {
+                    setSelectedRoomId(room.id);
+                    // 立即更新選中的聊天室，避免延遲
+                    setSelectedRoom({
+                      id: room.id,
+                      type: room.type,
+                      members: room.members,
+                    });
+                  }}
                   className={`w-full text-left p-4 hover:bg-gray-50 transition-colors ${
-                    selectedRoomId === room.id ? 'bg-blue-50 border-l-4 border-blue-600' : ''
+                    selectedRoomId === room.id ? 'bg-gray-50 border-l-4 border-blue-600' : ''
                   }`}
                 >
                   <div className="flex items-center justify-between">
@@ -315,7 +362,7 @@ export default function ChatPage() {
                     {isConnected ? (
                       <span className="text-xs text-green-600">● 線上</span>
                     ) : (
-                      <span className="text-xs text-gray-400">離線</span>
+                      <span className="text-xs text-gray-400">● 離線</span>
                     )}
                     {onlineMembers.length > 0 && (
                       <span className="ml-2 text-xs text-gray-500">
@@ -405,11 +452,11 @@ export default function ChatPage() {
                   </div>
                 </div>
               )}
-              <div ref={messagesEndRef} />
+              <div ref={messagesEndRef} className="h-0" />
             </div>
 
             {/* Input */}
-            <form onSubmit={handleSendMessage} className="bg-white border-t border-gray-200 px-4 py-3">
+            <form onSubmit={handleSendMessage} className="bg-white border-t border-gray-200 px-4 py-3 relative">
               <div className="flex items-center space-x-2">
                 <input
                   type="text"
@@ -418,19 +465,17 @@ export default function ChatPage() {
                   onBlur={stopTyping}
                   placeholder="輸入訊息..."
                   className="flex-1 border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  disabled={!isConnected || sending}
+                  disabled={sending}
                 />
                 <button
                   type="submit"
-                  disabled={!messageInput.trim() || !isConnected || sending}
+                  disabled={!messageInput.trim() || sending}
                   className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {sending ? '發送中...' : '發送'}
                 </button>
               </div>
-              {!isConnected && (
-                <p className="mt-2 text-xs text-red-600">連接中斷，請重新整理頁面</p>
-              )}
+              {/* 不顯示連接錯誤，避免用戶困惑 */}
             </form>
           </>
         ) : (
