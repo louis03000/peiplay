@@ -28,14 +28,18 @@ function getDatabaseUrlWithPool(): string {
         // Vercel serverless 環境優化
         if (isVercel) {
           // Vercel 每個 function 最多保持 1-2 個連接
-          url.searchParams.set('connection_limit', isSupabase ? '3' : '5')
-          url.searchParams.set('pool_timeout', '30') // 增加超時時間
-          url.searchParams.set('connect_timeout', '15') // 增加連接超時
+          // 使用更小的連線池以避免連線耗盡
+          url.searchParams.set('connection_limit', isSupabase ? '2' : '3')
+          // 大幅增加超時時間，避免連線建立失敗
+          url.searchParams.set('pool_timeout', '60') // 60秒連線池超時
+          url.searchParams.set('connect_timeout', '30') // 30秒連線建立超時
+          url.searchParams.set('statement_timeout', '45000') // 45秒查詢超時（Vercel function 最多60秒）
         } else {
           // 一般環境配置
           url.searchParams.set('connection_limit', isSupabase ? '5' : '10')
-          url.searchParams.set('pool_timeout', '20')
-          url.searchParams.set('connect_timeout', '10')
+          url.searchParams.set('pool_timeout', '40') // 增加連線池超時
+          url.searchParams.set('connect_timeout', '20') // 增加連線建立超時
+          url.searchParams.set('statement_timeout', '30000') // 30秒查詢超時
         }
         
         // 如果使用 Supabase，提示使用連接池 URL
@@ -56,6 +60,7 @@ function getDatabaseUrlWithPool(): string {
 }
 
 // 創建 Prisma 客戶端，針對 Vercel serverless 環境優化
+// 注意：連線池設定通過 DATABASE_URL 的 query parameters 設定
 export const prisma =
   globalForPrisma.prisma ??
   new PrismaClient({

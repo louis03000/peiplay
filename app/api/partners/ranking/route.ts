@@ -37,32 +37,43 @@ export async function GET(request: NextRequest) {
         },
       })
 
+      // 優化：一次性獲取所有夥伴的評價，避免 N+1 查詢問題
+      const userIds = partnersList.map(p => p.userId)
+      const allReviews = await client.review.findMany({
+        where: {
+          revieweeId: { in: userIds },
+          isApproved: true,
+        },
+        select: {
+          revieweeId: true,
+          rating: true,
+        },
+      })
+
+      // 在記憶體中計算每個夥伴的平均評價
+      const reviewsByUserId = new Map<string, number[]>()
+      allReviews.forEach(review => {
+        if (!reviewsByUserId.has(review.revieweeId)) {
+          reviewsByUserId.set(review.revieweeId, [])
+        }
+        reviewsByUserId.get(review.revieweeId)!.push(review.rating)
+      })
+
       // 為每個夥伴計算平均評價
-      const partnersWithRatings = await Promise.all(
-        partnersList.map(async (partner) => {
-          const reviews = await client.review.findMany({
-            where: {
-              revieweeId: partner.userId,
-              isApproved: true,
-            },
-            select: {
-              rating: true,
-            },
-          })
+      const partnersWithRatings = partnersList.map(partner => {
+        const ratings = reviewsByUserId.get(partner.userId) || []
+        let averageRating = 0
+        if (ratings.length > 0) {
+          const totalRating = ratings.reduce((sum, rating) => sum + rating, 0)
+          averageRating = Math.round((totalRating / ratings.length) * 10) / 10
+        }
 
-          let averageRating = 0
-          if (reviews.length > 0) {
-            const totalRating = reviews.reduce((sum, review) => sum + review.rating, 0)
-            averageRating = Math.round((totalRating / reviews.length) * 10) / 10
-          }
-
-          return {
-            ...partner,
-            averageRating,
-            totalReviews: reviews.length,
-          }
-        })
-      )
+        return {
+          ...partner,
+          averageRating,
+          totalReviews: ratings.length,
+        }
+      })
 
       return partnersWithRatings
     }, 'partners:ranking:get')

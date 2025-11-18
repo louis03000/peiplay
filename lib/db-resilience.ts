@@ -9,16 +9,16 @@ import { prisma } from './prisma'
 // ========== 配置 ==========
 const RETRY_CONFIG = {
   maxAttempts: 3,           // 最大重試次數
-  initialDelay: 500,        // 初始延遲（毫秒）
-  maxDelay: 5000,           // 最大延遲（毫秒）
+  initialDelay: 1000,       // 初始延遲（毫秒）- 增加以給資料庫更多恢復時間
+  maxDelay: 10000,          // 最大延遲（毫秒）- 增加最大等待時間
   backoffMultiplier: 2,     // 延遲倍增係數
 }
 
 const CIRCUIT_BREAKER_CONFIG = {
   failureThreshold: 5,      // 失敗閾值（連續失敗幾次後打開斷路器）
   successThreshold: 2,      // 成功閾值（成功幾次後關閉斷路器）
-  timeout: 30000,           // 超時時間（毫秒）
-  resetTimeout: 60000,      // 重置時間（毫秒，斷路器打開後多久嘗試恢復）
+  timeout: 60000,           // 超時時間（毫秒）- 增加到60秒
+  resetTimeout: 90000,      // 重置時間（毫秒，斷路器打開後多久嘗試恢復）- 增加到90秒
 }
 
 // ========== 斷路器狀態 ==========
