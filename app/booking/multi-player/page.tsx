@@ -69,13 +69,28 @@ function MultiPlayerBookingContent() {
 
   // 可用的遊戲列表（從夥伴中提取）
   const [availableGames, setAvailableGames] = useState<string[]>([])
+  const [otherGame, setOtherGame] = useState('')
+  const [showOtherInput, setShowOtherInput] = useState(false)
 
   useEffect(() => {
     if (isAuthenticated && user?.id) {
       loadMyBookings()
       loadViolationCount()
+      loadGamesList()
     }
   }, [isAuthenticated, user?.id])
+
+  const loadGamesList = async () => {
+    try {
+      const response = await fetch('/api/games/list')
+      if (response.ok) {
+        const data = await response.json()
+        setAvailableGames(data.games || [])
+      }
+    } catch (error) {
+      console.error('載入遊戲列表失敗:', error)
+    }
+  }
 
   const loadMyBookings = async () => {
     try {
@@ -126,8 +141,14 @@ function MultiPlayerBookingContent() {
         endTime: selectedEndTime,
       })
       
-      if (selectedGames.length > 0) {
-        params.append('games', selectedGames.join(','))
+      // 組合選中的遊戲和自定義遊戲
+      const allGames = [...selectedGames]
+      if (otherGame && otherGame.trim().length > 0) {
+        allGames.push(otherGame.trim())
+      }
+      
+      if (allGames.length > 0) {
+        params.append('games', allGames.join(','))
       }
 
       const response = await fetch(`/api/partners/search-for-multi-player?${params}`)
@@ -178,6 +199,12 @@ function MultiPlayerBookingContent() {
       setLoading(true)
       const partnerScheduleIds = Array.from(selectedPartners)
 
+      // 組合選中的遊戲和自定義遊戲
+      const allGames = [...selectedGames]
+      if (otherGame && otherGame.trim().length > 0) {
+        allGames.push(otherGame.trim())
+      }
+
       const response = await fetch('/api/multi-player-booking', {
         method: 'POST',
         headers: {
@@ -187,7 +214,7 @@ function MultiPlayerBookingContent() {
           date: selectedDate,
           startTime: selectedStartTime,
           endTime: selectedEndTime,
-          games: selectedGames,
+          games: allGames,
           partnerScheduleIds,
         }),
       })
@@ -376,16 +403,33 @@ function MultiPlayerBookingContent() {
                 value={selectedGames}
                 onChange={(e) => {
                   const values = Array.from(e.target.selectedOptions, option => option.value)
-                  setSelectedGames(values)
+                  const hasOther = values.includes('__OTHER__')
+                  setSelectedGames(values.filter(v => v !== '__OTHER__'))
+                  setShowOtherInput(hasOther)
+                  if (!hasOther) {
+                    setOtherGame('')
+                  }
                 }}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 text-gray-900"
-                size={3}
+                size={4}
               >
                 {availableGames.map(game => (
                   <option key={game} value={game}>{game}</option>
                 ))}
+                <option value="__OTHER__">其他（自行輸入）</option>
               </select>
               <p className="text-xs text-gray-500 mt-1">按住 Ctrl/Cmd 可多選</p>
+              {showOtherInput && (
+                <div className="mt-2">
+                  <input
+                    type="text"
+                    value={otherGame}
+                    onChange={(e) => setOtherGame(e.target.value)}
+                    placeholder="請輸入遊戲名稱"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 text-gray-900"
+                  />
+                </div>
+              )}
             </div>
           </div>
           <button
