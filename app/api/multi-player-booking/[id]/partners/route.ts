@@ -34,7 +34,15 @@ export async function POST(
     const result = await db.query(async (client) => {
       const customer = await client.customer.findUnique({
         where: { userId: session.user.id },
-        select: { id: true },
+        select: {
+          id: true,
+          user: {
+            select: {
+              name: true,
+              email: true,
+            },
+          },
+        },
       })
 
       if (!customer) {
@@ -209,7 +217,10 @@ export async function POST(
           type: 'SUCCESS' as const,
           newBookings,
           additionalAmount,
-          customer,
+          customer: {
+            id: customer.id,
+            user: customer.user,
+          },
         }
       })
     }, 'multi-player-booking:add-partners')
