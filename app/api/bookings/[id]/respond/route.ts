@@ -5,7 +5,7 @@ import { db } from '@/lib/db-resilience';
 import { createErrorResponse } from '@/lib/api-helpers';
 import { sendBookingConfirmationEmail, sendBookingRejectionEmail } from '@/lib/email';
 import { createChatRoomForBooking } from '@/lib/chat-helpers';
-import { BookingStatus } from '@prisma/client';
+import { BookingStatus, MultiPlayerBookingStatus } from '@prisma/client';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -106,7 +106,7 @@ export async function POST(
 
           // 如果接受且群組狀態是 PENDING，更新為 ACTIVE
           if (action === 'accept' && multiPlayerBooking.status === 'PENDING') {
-            multiPlayerBookingUpdate = { status: 'ACTIVE' };
+            multiPlayerBookingUpdate = { status: MultiPlayerBookingStatus.ACTIVE };
           }
         }
       }
