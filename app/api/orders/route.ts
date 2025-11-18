@@ -6,6 +6,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { createErrorResponse } from '@/lib/api-helpers';
 import { db } from '@/lib/db-resilience';
+import { BookingStatus } from '@prisma/client';
 
 export async function GET(request: NextRequest) {
       try {
@@ -27,21 +28,58 @@ export async function GET(request: NextRequest) {
         return null;
         }
 
-      const orders = await tx.order.findMany({
-          where: { customerId: customer.id },
-          include: {
-            booking: {
-              include: {
-              schedule: {
-                include: {
-                  partner: true,
-                },
-              },
+      // 基於預約狀態來獲取消費記錄：顯示所有 CONFIRMED 或 COMPLETED 的預約（排除 CANCELLED 和 REJECTED）
+      const bookings = await tx.booking.findMany({
+        where: {
+          customerId: customer.id,
+          status: {
+            in: [
+              BookingStatus.CONFIRMED,
+              BookingStatus.COMPLETED,
+              BookingStatus.PAID_WAITING_PARTNER_CONFIRMATION,
+              BookingStatus.PARTNER_ACCEPTED,
+            ],
+          },
+        },
+        include: {
+          schedule: {
+            include: {
+              partner: true,
             },
           },
-          },
+        },
         orderBy: { createdAt: 'desc' },
       });
+
+      // 限制最多50筆，超過則刪除最早的
+      if (bookings.length > 50) {
+        const bookingsToDelete = bookings.slice(50);
+        const idsToDelete = bookingsToDelete.map(b => b.id);
+        
+        // 刪除超過50筆的預約
+        await tx.booking.deleteMany({
+          where: {
+            id: { in: idsToDelete },
+          },
+        });
+      }
+
+      // 將預約轉換為訂單格式，以便與現有代碼兼容
+      const orders = bookings.slice(0, 50).map(booking => ({
+        id: booking.id,
+        customerId: customer.id,
+        bookingId: booking.id,
+        amount: Math.round(booking.finalAmount || 0),
+        createdAt: booking.createdAt,
+        booking: {
+          schedule: {
+            partner: booking.schedule.partner,
+            date: booking.schedule.date,
+            startTime: booking.schedule.startTime,
+            endTime: booking.schedule.endTime,
+          },
+        },
+      }));
 
       return { customer, orders };
     }, isExportExcel ? 'orders:export' : 'orders:list');

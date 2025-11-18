@@ -32,10 +32,10 @@ export async function GET() {
         return null;
       }
 
-      const bookings = await client.booking.findMany({
+      // 返回所有狀態的預約，用於 profile 頁面顯示
+      const allBookings = await client.booking.findMany({
         where: {
           customerId: customer.id,
-          status: { in: ACTIVE_STATUSES },
         },
         select: {
           id: true,
@@ -48,15 +48,47 @@ export async function GET() {
               startTime: true,
               endTime: true,
               partner: {
-                select: { name: true },
+                select: { 
+                  id: true,
+                  name: true,
+                  userId: true,
+                },
               },
+            },
+          },
+          reviews: {
+            select: {
+              id: true,
+              reviewerId: true,
+            },
+          },
+          customer: {
+            select: {
+              id: true,
+              name: true,
             },
           },
         },
         orderBy: [{ createdAt: 'desc' }],
       });
 
-      return bookings;
+      // 限制最多50筆，超過則刪除最早的
+      if (allBookings.length > 50) {
+        const bookingsToDelete = allBookings.slice(50);
+        const idsToDelete = bookingsToDelete.map(b => b.id);
+        
+        // 刪除超過50筆的預約
+        await client.booking.deleteMany({
+          where: {
+            id: { in: idsToDelete },
+          },
+        });
+
+        // 只返回前50筆
+        return allBookings.slice(0, 50);
+      }
+
+      return allBookings;
     }, 'bookings:me');
 
     if (result === null) {

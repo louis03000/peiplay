@@ -19,6 +19,8 @@ export default function OrderHistory() {
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [currentPage, setCurrentPage] = useState(1)
+  const pageSize = 10
 
   useEffect(() => {
     const fetchOrders = async () => {
@@ -38,6 +40,10 @@ export default function OrderHistory() {
 
     fetchOrders()
   }, [])
+
+  // 分頁計算
+  const totalPages = Math.ceil(orders.length / pageSize)
+  const pagedOrders = orders.slice((currentPage - 1) * pageSize, currentPage * pageSize)
 
   return (
     <div className="bg-gray-800/50 p-6 rounded-lg shadow-inner">
@@ -76,7 +82,7 @@ export default function OrderHistory() {
               </tr>
             </thead>
             <tbody>
-              {orders.map((order, idx) => (
+              {pagedOrders.map((order, idx) => (
                 <tr key={order.id} 
                     className={`border-b border-gray-700 hover:bg-gray-700/80 transition-colors ${
                       idx % 2 === 0 ? "bg-gray-800/60" : "bg-gray-800/40"
@@ -108,6 +114,29 @@ export default function OrderHistory() {
           </table>
         )}
       </div>
+
+      {/* 分頁按鈕 */}
+      {totalPages > 1 && (
+        <div className="flex justify-center items-center gap-2 mt-6">
+          <button
+            className="px-3 py-1 rounded bg-gray-700 text-white disabled:opacity-50"
+            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+            disabled={currentPage === 1}
+          >上一頁</button>
+          {Array.from({ length: totalPages }, (_, i) => (
+            <button
+              key={i + 1}
+              className={`px-3 py-1 rounded ${currentPage === i + 1 ? 'bg-indigo-600 text-white' : 'bg-gray-700 text-gray-300'}`}
+              onClick={() => setCurrentPage(i + 1)}
+            >{i + 1}</button>
+          ))}
+          <button
+            className="px-3 py-1 rounded bg-gray-700 text-white disabled:opacity-50"
+            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+            disabled={currentPage === totalPages}
+          >下一頁</button>
+        </div>
+      )}
 
       {/* 統計資訊 */}
       {orders.length > 0 && (

@@ -301,8 +301,8 @@ export default function MyBookings({ showCompletedOnly }: MyBookingsProps) {
                   </td>
                   <td className="py-4 px-6">
                     <div className="flex gap-2 flex-wrap">
-                      {/* 聊天室按鈕 - 只要不是 PENDING、REJECTED、CANCELLED 都可以聊天 */}
-                      {!['PENDING', 'REJECTED', 'CANCELLED', 'PENDING_PAYMENT'].includes(b.status) && (
+                      {/* 聊天室按鈕 - 在 profile 頁面（showCompletedOnly）不顯示，其他頁面才顯示 */}
+                      {!showCompletedOnly && !['PENDING', 'REJECTED', 'CANCELLED', 'PENDING_PAYMENT'].includes(b.status) && (
                         <button
                           onClick={async () => {
                             try {
