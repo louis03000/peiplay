@@ -9,53 +9,66 @@ import { db } from '@/lib/db-resilience';
 import { BookingStatus } from '@prisma/client';
 
 export async function GET(request: NextRequest) {
-      try {
+  try {
+    console.log('📥 Orders API called');
     const session = await getServerSession(authOptions);
 
     if (!session?.user?.email) {
+      console.log('❌ No session or email');
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    console.log('✅ Session found:', session.user.email);
 
     const { searchParams } = request.nextUrl;
     const isExportExcel = searchParams.get('export') === 'excel';
 
-    const result = await db.query(async (tx) => {
-      const customer = await tx.customer.findFirst({
-        where: { user: { email: session.user.email } },
-      });
+    let result;
+    try {
+      result = await db.query(async (tx) => {
+        console.log('🔍 Looking for customer with email:', session.user.email);
+        const customer = await tx.customer.findFirst({
+          where: { user: { email: session.user.email } },
+        });
 
         if (!customer) {
-        return null;
+          console.log('❌ Customer not found');
+          return null;
         }
 
-      // 基於預約狀態來獲取消費記錄：顯示所有 CONFIRMED 或 COMPLETED 的預約（排除 CANCELLED 和 REJECTED）
-      const bookings = await tx.booking.findMany({
-        where: {
-          customerId: customer.id,
-          status: {
-            in: [
-              BookingStatus.CONFIRMED,
-              BookingStatus.COMPLETED,
-              BookingStatus.PAID_WAITING_PARTNER_CONFIRMATION,
-              BookingStatus.PARTNER_ACCEPTED,
-            ],
+        console.log('✅ Customer found:', customer.id);
+
+        // 基於預約狀態來獲取消費記錄：顯示所有 CONFIRMED 或 COMPLETED 的預約（排除 CANCELLED 和 REJECTED）
+        console.log('🔍 Fetching bookings for customer:', customer.id);
+        const bookings = await tx.booking.findMany({
+          where: {
+            customerId: customer.id,
+            status: {
+              in: [
+                BookingStatus.CONFIRMED,
+                BookingStatus.COMPLETED,
+                BookingStatus.PAID_WAITING_PARTNER_CONFIRMATION,
+                BookingStatus.PARTNER_ACCEPTED,
+              ],
+            },
           },
-        },
-        include: {
-          schedule: {
-            include: {
-              partner: {
-                select: {
-                  id: true,
-                  name: true,
-                  halfHourlyRate: true,
+          include: {
+            schedule: {
+              include: {
+                partner: {
+                  select: {
+                    id: true,
+                    name: true,
+                    halfHourlyRate: true,
+                  },
                 },
               },
             },
           },
-        },
-        orderBy: { createdAt: 'desc' },
-      });
+          orderBy: { createdAt: 'desc' },
+        });
+
+        console.log('✅ Found bookings:', bookings.length);
 
       // 限制最多50筆，超過則刪除最早的
       if (bookings.length > 50) {
@@ -124,14 +137,21 @@ export async function GET(request: NextRequest) {
         })
         .filter((order): order is NonNullable<typeof order> => order !== null);
 
-      return { customer, orders };
-    }, isExportExcel ? 'orders:export' : 'orders:list');
+        console.log('✅ Orders mapped successfully:', orders.length);
+        return { customer, orders };
+      }, isExportExcel ? 'orders:export' : 'orders:list');
+    } catch (dbError) {
+      console.error('❌ Database query error:', dbError);
+      throw dbError;
+    }
 
     if (!result) {
+      console.log('❌ Result is null');
       return NextResponse.json({ error: 'Customer not found' }, { status: 404 });
     }
 
     const { orders } = result;
+    console.log('✅ Returning orders:', orders.length);
 
     if (isExportExcel) {
       const ExcelJS = await import('exceljs');
@@ -191,13 +211,23 @@ export async function GET(request: NextRequest) {
         });
     }
 
-    return NextResponse.json({ orders });
+    const response = NextResponse.json({ orders });
+    console.log('✅ Response created successfully');
+    return response;
   } catch (error) {
     console.error('❌ Orders API Error:', error);
     if (error instanceof Error) {
       console.error('Error message:', error.message);
       console.error('Error stack:', error.stack);
     }
-    return createErrorResponse(error, 'orders');
+    // 返回更詳細的錯誤信息以便調試
+    return NextResponse.json(
+      {
+        error: 'Failed to load orders',
+        message: error instanceof Error ? error.message : 'Unknown error',
+        details: process.env.NODE_ENV === 'development' ? String(error) : undefined,
+      },
+      { status: 500 }
+    );
   }
 } 
