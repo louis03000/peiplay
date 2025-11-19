@@ -117,10 +117,13 @@ export async function POST(request: Request) {
           }
 
           // 檢查時段是否已被預約
-          if (schedule.bookings && schedule.bookings.status && 
-              schedule.bookings.status !== 'CANCELLED' && 
-              schedule.bookings.status !== 'REJECTED') {
-            throw new Error(`夥伴 ${schedule.partner.user.name} 的時段已被預約`)
+          if (schedule.bookings && Array.isArray(schedule.bookings)) {
+            const activeBooking = schedule.bookings.find(
+              (booking: any) => booking.status !== 'CANCELLED' && booking.status !== 'REJECTED'
+            )
+            if (activeBooking) {
+              throw new Error(`夥伴 ${schedule.partner.user.name} 的時段已被預約`)
+            }
           }
 
           // 檢查時段是否完全匹配

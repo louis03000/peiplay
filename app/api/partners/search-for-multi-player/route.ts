@@ -142,13 +142,17 @@ export async function GET(request: Request) {
             const scheduleStart = new Date(schedule.startTime)
             const scheduleEnd = new Date(schedule.endTime)
             
+            // 檢查是否有活躍的預約
+            const hasActiveBooking = schedule.bookings && Array.isArray(schedule.bookings)
+              ? schedule.bookings.some((booking: any) => 
+                  booking.status !== 'CANCELLED' && booking.status !== 'REJECTED'
+                )
+              : false
+            
             return scheduleStart.getTime() === startDateTime.getTime() &&
                    scheduleEnd.getTime() === endDateTime.getTime() &&
                    schedule.isAvailable &&
-                   (!schedule.bookings || 
-                    !schedule.bookings.status ||
-                    schedule.bookings.status === 'CANCELLED' ||
-                    schedule.bookings.status === 'REJECTED')
+                   !hasActiveBooking
           })
           
           if (!matchingSchedule) return null
