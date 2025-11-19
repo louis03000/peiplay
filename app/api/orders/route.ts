@@ -65,6 +65,12 @@ export async function GET(request: NextRequest) {
       }
 
       // 將預約轉換為訂單格式，以便與現有代碼兼容
+      // 使用類型守衛來安全地處理日期
+      const isDate = (value: unknown): value is Date => value instanceof Date;
+      const toISOString = (value: Date | string): string => {
+        return isDate(value) ? value.toISOString() : value;
+      };
+      
       const orders = bookings.slice(0, 50)
         .filter(booking => booking.schedule && booking.schedule.partner) // 過濾掉沒有 schedule 或 partner 的預約
         .map(booking => ({
@@ -72,17 +78,13 @@ export async function GET(request: NextRequest) {
           customerId: customer.id,
           bookingId: booking.id,
           amount: Math.round(booking.finalAmount || 0),
-          createdAt: booking.createdAt,
+          createdAt: toISOString(booking.createdAt as Date | string),
           booking: {
             schedule: {
               partner: booking.schedule.partner,
-              date: booking.schedule.date,
-              startTime: booking.schedule.startTime instanceof Date 
-                ? booking.schedule.startTime.toISOString() 
-                : booking.schedule.startTime,
-              endTime: booking.schedule.endTime instanceof Date 
-                ? booking.schedule.endTime.toISOString() 
-                : booking.schedule.endTime,
+              date: toISOString(booking.schedule.date as Date | string),
+              startTime: toISOString(booking.schedule.startTime as Date | string),
+              endTime: toISOString(booking.schedule.endTime as Date | string),
             },
           },
         }));
@@ -156,6 +158,11 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ orders });
   } catch (error) {
+    console.error('❌ Orders API Error:', error);
+    if (error instanceof Error) {
+      console.error('Error message:', error.message);
+      console.error('Error stack:', error.stack);
+    }
     return createErrorResponse(error, 'orders');
   }
 } 
