@@ -52,9 +52,15 @@ export async function GET(request: NextRequest) {
               ],
             },
           },
-          include: {
+          select: {
+            id: true,
+            finalAmount: true,
+            createdAt: true,
             schedule: {
-              include: {
+              select: {
+                date: true,
+                startTime: true,
+                endTime: true,
                 partner: {
                   select: {
                     id: true,
