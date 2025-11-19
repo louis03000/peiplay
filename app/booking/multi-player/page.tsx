@@ -66,11 +66,39 @@ function MultiPlayerBookingContent() {
   const [selectedStartTime, setSelectedStartTime] = useState('')
   const [selectedEndTime, setSelectedEndTime] = useState('')
   const [selectedGames, setSelectedGames] = useState<string[]>([])
+  const [selectedDuration, setSelectedDuration] = useState<number | null>(null) // 選中的時長（小時）
 
   // 可用的遊戲列表（從夥伴中提取）
   const [availableGames, setAvailableGames] = useState<string[]>([])
   const [otherGame, setOtherGame] = useState('')
   const [showOtherInput, setShowOtherInput] = useState(false)
+
+  // 根據開始時間和時長自動計算結束時間
+  const handleDurationSelect = (hours: number) => {
+    setSelectedDuration(hours)
+    if (selectedStartTime) {
+      const [hoursStr, minutesStr] = selectedStartTime.split(':')
+      const startDate = new Date()
+      startDate.setHours(parseInt(hoursStr), parseInt(minutesStr), 0, 0)
+      const endDate = new Date(startDate.getTime() + hours * 60 * 60 * 1000)
+      const endHours = endDate.getHours().toString().padStart(2, '0')
+      const endMinutes = endDate.getMinutes().toString().padStart(2, '0')
+      setSelectedEndTime(`${endHours}:${endMinutes}`)
+    }
+  }
+
+  // 當開始時間改變時，如果有選中時長，自動更新結束時間
+  useEffect(() => {
+    if (selectedStartTime && selectedDuration !== null) {
+      const [hoursStr, minutesStr] = selectedStartTime.split(':')
+      const startDate = new Date()
+      startDate.setHours(parseInt(hoursStr), parseInt(minutesStr), 0, 0)
+      const endDate = new Date(startDate.getTime() + selectedDuration * 60 * 60 * 1000)
+      const endHours = endDate.getHours().toString().padStart(2, '0')
+      const endMinutes = endDate.getMinutes().toString().padStart(2, '0')
+      setSelectedEndTime(`${endHours}:${endMinutes}`)
+    }
+  }, [selectedStartTime, selectedDuration])
 
   useEffect(() => {
     if (isAuthenticated && user?.id) {
@@ -367,7 +395,9 @@ function MultiPlayerBookingContent() {
         {/* 時間篩選器 */}
         <div className="bg-white rounded-lg shadow-md p-6 mb-8">
           <h2 className="text-xl font-semibold mb-4 text-gray-900">🎯 選擇時間和遊戲</h2>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+          
+          {/* 日期和時間選擇 */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">日期</label>
               <input
@@ -383,7 +413,10 @@ function MultiPlayerBookingContent() {
               <input
                 type="time"
                 value={selectedStartTime}
-                onChange={(e) => setSelectedStartTime(e.target.value)}
+                onChange={(e) => {
+                  setSelectedStartTime(e.target.value)
+                  setSelectedDuration(null) // 清除時長選擇，讓用戶手動調整
+                }}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 text-gray-900"
               />
             </div>
@@ -392,46 +425,102 @@ function MultiPlayerBookingContent() {
               <input
                 type="time"
                 value={selectedEndTime}
-                onChange={(e) => setSelectedEndTime(e.target.value)}
+                onChange={(e) => {
+                  setSelectedEndTime(e.target.value)
+                  setSelectedDuration(null) // 清除時長選擇
+                }}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 text-gray-900"
               />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">遊戲項目（可選）</label>
-              <select
-                multiple
-                value={selectedGames}
-                onChange={(e) => {
-                  const values = Array.from(e.target.selectedOptions, option => option.value)
-                  const hasOther = values.includes('__OTHER__')
-                  setSelectedGames(values.filter(v => v !== '__OTHER__'))
-                  setShowOtherInput(hasOther)
-                  if (!hasOther) {
+          </div>
+
+          {/* 時長快捷按鈕 */}
+          {selectedStartTime && (
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">快速選擇時長</label>
+              <div className="flex flex-wrap gap-2">
+                {[1, 1.5, 2, 2.5, 3, 4].map((hours) => (
+                  <button
+                    key={hours}
+                    type="button"
+                    onClick={() => handleDurationSelect(hours)}
+                    className={`px-4 py-2 rounded-lg border-2 transition-all text-sm font-medium ${
+                      selectedDuration === hours
+                        ? 'bg-purple-500 text-white border-purple-500 shadow-md'
+                        : 'bg-white text-gray-700 border-gray-300 hover:border-purple-300 hover:bg-purple-50'
+                    }`}
+                  >
+                    {hours === 1 ? '1小時' : hours === 1.5 ? '1.5小時' : `${hours}小時`}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* 遊戲項目選擇 */}
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-2">遊戲項目（可選）</label>
+            <div className="flex flex-wrap gap-2 mb-2">
+              {availableGames.map((game) => {
+                const isSelected = selectedGames.includes(game)
+                return (
+                  <button
+                    key={game}
+                    type="button"
+                    onClick={() => {
+                      if (isSelected) {
+                        setSelectedGames(selectedGames.filter(g => g !== game))
+                      } else {
+                        setSelectedGames([...selectedGames, game])
+                      }
+                    }}
+                    className={`px-4 py-2 rounded-lg border-2 transition-all text-sm font-medium ${
+                      isSelected
+                        ? 'bg-purple-500 text-white border-purple-500 shadow-md'
+                        : 'bg-white text-gray-700 border-gray-300 hover:border-purple-300 hover:bg-purple-50'
+                    }`}
+                  >
+                    {game} {isSelected && '✓'}
+                  </button>
+                )
+              })}
+              <button
+                type="button"
+                onClick={() => {
+                  if (showOtherInput) {
+                    setShowOtherInput(false)
                     setOtherGame('')
+                  } else {
+                    setShowOtherInput(true)
                   }
                 }}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 text-gray-900"
-                size={4}
+                className={`px-4 py-2 rounded-lg border-2 transition-all text-sm font-medium ${
+                  showOtherInput
+                    ? 'bg-purple-500 text-white border-purple-500 shadow-md'
+                    : 'bg-white text-gray-700 border-gray-300 hover:border-purple-300 hover:bg-purple-50'
+                }`}
               >
-                {availableGames.map(game => (
-                  <option key={game} value={game}>{game}</option>
-                ))}
-                <option value="__OTHER__">其他（自行輸入）</option>
-              </select>
-              <p className="text-xs text-gray-500 mt-1">按住 Ctrl/Cmd 可多選</p>
-              {showOtherInput && (
-                <div className="mt-2">
-                  <input
-                    type="text"
-                    value={otherGame}
-                    onChange={(e) => setOtherGame(e.target.value)}
-                    placeholder="請輸入遊戲名稱"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 text-gray-900"
-                  />
-                </div>
-              )}
+                其他 {showOtherInput && '✓'}
+              </button>
             </div>
+            {showOtherInput && (
+              <div className="mt-2">
+                <input
+                  type="text"
+                  value={otherGame}
+                  onChange={(e) => setOtherGame(e.target.value)}
+                  placeholder="請輸入遊戲名稱"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 text-gray-900"
+                />
+              </div>
+            )}
+            {selectedGames.length > 0 && (
+              <div className="mt-2 text-sm text-gray-600">
+                已選擇：{selectedGames.join('、')}
+              </div>
+            )}
           </div>
+
           <button
             onClick={searchPartners}
             disabled={loading}
