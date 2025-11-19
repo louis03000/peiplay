@@ -10,3 +10,4 @@ AND table_name = 'Customer'
 AND column_name IN ('violationCount', 'violations')
 ORDER BY column_name;
 
+

@@ -16,6 +16,19 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: '請先登入' }, { status: 401 });
     }
 
+    // 先檢查是否為夥伴
+    const partnerCheck = await db.query(async (client) => {
+      const partner = await client.partner.findUnique({
+        where: { userId: session.user.id },
+        select: { id: true }
+      });
+      return partner;
+    }, 'partners/withdrawal/stats:check');
+
+    if (!partnerCheck) {
+      return NextResponse.json({ error: '您不是夥伴' }, { status: 403 });
+    }
+
     // 使用帶有重試機制的資料庫查詢
     const result = await db.query(async (client) => {
       // 檢查是否為夥伴

@@ -104,8 +104,21 @@ export default function OrderHistory() {
                   </td>
                   <td className="py-4 px-6">
                     {order.booking?.schedule?.date && order.booking?.schedule?.startTime && order.booking?.schedule?.endTime
-                      ? `${new Date(order.booking.schedule.date).getFullYear()}/${(new Date(order.booking.schedule.date).getMonth()+1).toString().padStart(2,'0')}/${new Date(order.booking.schedule.date).getDate().toString().padStart(2,'0')} ` +
-                        `${order.booking.schedule.startTime.slice(0,5)} - ${order.booking.schedule.endTime.slice(0,5)}`
+                      ? (() => {
+                          const date = order.booking.schedule.date instanceof Date 
+                            ? order.booking.schedule.date 
+                            : new Date(order.booking.schedule.date);
+                          const startTime = order.booking.schedule.startTime instanceof Date
+                            ? order.booking.schedule.startTime
+                            : new Date(order.booking.schedule.startTime);
+                          const endTime = order.booking.schedule.endTime instanceof Date
+                            ? order.booking.schedule.endTime
+                            : new Date(order.booking.schedule.endTime);
+                          const dateStr = `${date.getFullYear()}/${(date.getMonth()+1).toString().padStart(2,'0')}/${date.getDate().toString().padStart(2,'0')}`;
+                          const startStr = startTime.toTimeString().slice(0,5);
+                          const endStr = endTime.toTimeString().slice(0,5);
+                          return `${dateStr} ${startStr} - ${endStr}`;
+                        })()
                       : '-'}
                   </td>
                 </tr>

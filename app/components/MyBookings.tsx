@@ -262,7 +262,9 @@ export default function MyBookings({ showCompletedOnly }: MyBookingsProps) {
                   {session?.user?.role === 'CUSTOMER' ? '夥伴姓名' : '顧客姓名'}
                 </th>
                 <th scope="col" className="py-3 px-6">預約狀態</th>
-                <th scope="col" className="py-3 px-6">操作</th>
+                {!showCompletedOnly && (
+                  <th scope="col" className="py-3 px-6">操作</th>
+                )}
               </tr>
             </thead>
             <tbody>
@@ -299,62 +301,64 @@ export default function MyBookings({ showCompletedOnly }: MyBookingsProps) {
                       {getStatusText(b.status)}
                     </span>
                   </td>
-                  <td className="py-4 px-6">
-                    <div className="flex gap-2 flex-wrap">
-                      {/* 聊天室按鈕 - 在 profile 頁面（showCompletedOnly）不顯示，其他頁面才顯示 */}
-                      {!showCompletedOnly && !['PENDING', 'REJECTED', 'CANCELLED', 'PENDING_PAYMENT'].includes(b.status) && (
-                        <button
-                          onClick={async () => {
-                            try {
-                              // 創建或獲取聊天室
-                              const res = await fetch('/api/chat/rooms', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ bookingId: b.id }),
-                              });
-                              if (res.ok) {
-                                const data = await res.json();
-                                // 導航到聊天室
-                                window.location.href = `/chat/${data.room.id}`;
-                              } else {
-                                const errorData = await res.json().catch(() => ({}));
-                                alert(errorData.error || '無法進入聊天室，請稍後再試');
+                  {!showCompletedOnly && (
+                    <td className="py-4 px-6">
+                      <div className="flex gap-2 flex-wrap">
+                        {/* 聊天室按鈕 - 只要不是 PENDING、REJECTED、CANCELLED 都可以聊天 */}
+                        {!['PENDING', 'REJECTED', 'CANCELLED', 'PENDING_PAYMENT'].includes(b.status) && (
+                          <button
+                            onClick={async () => {
+                              try {
+                                // 創建或獲取聊天室
+                                const res = await fetch('/api/chat/rooms', {
+                                  method: 'POST',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ bookingId: b.id }),
+                                });
+                                if (res.ok) {
+                                  const data = await res.json();
+                                  // 導航到聊天室
+                                  window.location.href = `/chat/${data.room.id}`;
+                                } else {
+                                  const errorData = await res.json().catch(() => ({}));
+                                  alert(errorData.error || '無法進入聊天室，請稍後再試');
+                                }
+                              } catch (error) {
+                                console.error('Error entering chat:', error);
+                                alert('無法進入聊天室，請稍後再試');
                               }
-                            } catch (error) {
-                              console.error('Error entering chat:', error);
-                              alert('無法進入聊天室，請稍後再試');
-                            }
-                          }}
-                          className="px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 transition-colors"
-                        >
-                          聊天
-                        </button>
-                      )}
-                      {canReview(b) && (
-                        <button
-                          onClick={() => {
-                            setSelectedBooking(b)
-                            setShowReviewForm(true)
-                          }}
-                          className="px-3 py-1 bg-indigo-600 text-white text-xs rounded hover:bg-indigo-700 transition-colors"
-                        >
-                          評價
-                        </button>
-                      )}
-                      {b.status === 'REJECTED' && b.rejectReason && (
-                        <div className="text-xs text-red-400">拒絕原因：{b.rejectReason}</div>
-                      )}
-                      {canCancel(b) && b.status !== 'REJECTED' && (
-                        <button
-                          onClick={() => handleCancelBooking(b.id)}
-                          disabled={cancellingBooking === b.id}
-                          className="px-3 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          {cancellingBooking === b.id ? '取消中...' : '取消預約'}
-                        </button>
-                      )}
-                    </div>
-                  </td>
+                            }}
+                            className="px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 transition-colors"
+                          >
+                            聊天
+                          </button>
+                        )}
+                        {canReview(b) && (
+                          <button
+                            onClick={() => {
+                              setSelectedBooking(b)
+                              setShowReviewForm(true)
+                            }}
+                            className="px-3 py-1 bg-indigo-600 text-white text-xs rounded hover:bg-indigo-700 transition-colors"
+                          >
+                            評價
+                          </button>
+                        )}
+                        {b.status === 'REJECTED' && b.rejectReason && (
+                          <div className="text-xs text-red-400">拒絕原因：{b.rejectReason}</div>
+                        )}
+                        {canCancel(b) && b.status !== 'REJECTED' && (
+                          <button
+                            onClick={() => handleCancelBooking(b.id)}
+                            disabled={cancellingBooking === b.id}
+                            className="px-3 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {cancellingBooking === b.id ? '取消中...' : '取消預約'}
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>

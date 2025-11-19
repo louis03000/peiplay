@@ -99,3 +99,4 @@ AND column_name IN ('violationCount', 'violations');
 - `violationCount` (integer, default 0)
 - `violations` (jsonb, nullable)
 
+

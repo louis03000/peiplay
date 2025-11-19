@@ -65,21 +65,27 @@ export async function GET(request: NextRequest) {
       }
 
       // 將預約轉換為訂單格式，以便與現有代碼兼容
-      const orders = bookings.slice(0, 50).map(booking => ({
-        id: booking.id,
-        customerId: customer.id,
-        bookingId: booking.id,
-        amount: Math.round(booking.finalAmount || 0),
-        createdAt: booking.createdAt,
-        booking: {
-          schedule: {
-            partner: booking.schedule.partner,
-            date: booking.schedule.date,
-            startTime: booking.schedule.startTime,
-            endTime: booking.schedule.endTime,
+      const orders = bookings.slice(0, 50)
+        .filter(booking => booking.schedule && booking.schedule.partner) // 過濾掉沒有 schedule 或 partner 的預約
+        .map(booking => ({
+          id: booking.id,
+          customerId: customer.id,
+          bookingId: booking.id,
+          amount: Math.round(booking.finalAmount || 0),
+          createdAt: booking.createdAt,
+          booking: {
+            schedule: {
+              partner: booking.schedule.partner,
+              date: booking.schedule.date,
+              startTime: booking.schedule.startTime instanceof Date 
+                ? booking.schedule.startTime.toISOString() 
+                : booking.schedule.startTime,
+              endTime: booking.schedule.endTime instanceof Date 
+                ? booking.schedule.endTime.toISOString() 
+                : booking.schedule.endTime,
+            },
           },
-        },
-      }));
+        }));
 
       return { customer, orders };
     }, isExportExcel ? 'orders:export' : 'orders:list');
@@ -109,12 +115,12 @@ export async function GET(request: NextRequest) {
         const schedule = order.booking?.schedule;
         const partner = schedule?.partner;
 
-        if (!schedule || !partner) {
+        if (!schedule || !partner || !schedule.startTime || !schedule.endTime) {
           continue;
         }
 
-        const start = new Date(schedule.startTime);
-        const end = new Date(schedule.endTime);
+        const start = schedule.startTime instanceof Date ? schedule.startTime : new Date(schedule.startTime);
+        const end = schedule.endTime instanceof Date ? schedule.endTime : new Date(schedule.endTime);
         const durationMinutes = Math.round((end.getTime() - start.getTime()) / 60000);
           const halfHourlyRate = partner.halfHourlyRate || 0;
         const totalAmount = Math.round((durationMinutes / 30) * halfHourlyRate);

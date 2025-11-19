@@ -35,11 +35,13 @@ function getDatabaseUrlWithPool(): string {
           url.searchParams.set('connect_timeout', '30') // 30秒連線建立超時
           url.searchParams.set('statement_timeout', '45000') // 45秒查詢超時（Vercel function 最多60秒）
         } else {
-          // 一般環境配置
+          // 一般環境配置 - 優化連接池以提高查詢速度
           url.searchParams.set('connection_limit', isSupabase ? '5' : '10')
-          url.searchParams.set('pool_timeout', '40') // 增加連線池超時
-          url.searchParams.set('connect_timeout', '20') // 增加連線建立超時
+          url.searchParams.set('pool_timeout', '30') // 減少連線池超時，加快連接獲取
+          url.searchParams.set('connect_timeout', '15') // 減少連線建立超時，加快連接速度
           url.searchParams.set('statement_timeout', '30000') // 30秒查詢超時
+          // 添加查詢優化參數
+          url.searchParams.set('application_name', 'peiplay') // 應用名稱，方便監控
         }
         
         // 如果使用 Supabase，提示使用連接池 URL
