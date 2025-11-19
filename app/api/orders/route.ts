@@ -119,8 +119,15 @@ export async function GET(request: NextRequest) {
           continue;
         }
 
-        const start = schedule.startTime instanceof Date ? schedule.startTime : new Date(schedule.startTime);
-        const end = schedule.endTime instanceof Date ? schedule.endTime : new Date(schedule.endTime);
+        // 安全地轉換日期：Prisma 返回的 DateTime 可能是 Date 對象或字符串
+        // 使用類型守衛來檢查是否為 Date 對象
+        const isDate = (value: unknown): value is Date => value instanceof Date;
+        const start = isDate(schedule.startTime) 
+          ? schedule.startTime 
+          : new Date(schedule.startTime as string | number);
+        const end = isDate(schedule.endTime) 
+          ? schedule.endTime 
+          : new Date(schedule.endTime as string | number);
         const durationMinutes = Math.round((end.getTime() - start.getTime()) / 60000);
           const halfHourlyRate = partner.halfHourlyRate || 0;
         const totalAmount = Math.round((durationMinutes / 30) * halfHourlyRate);
