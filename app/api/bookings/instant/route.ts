@@ -31,71 +31,93 @@ export async function POST(request: NextRequest) {
     }
 
     const result = await db.query(async (client) => {
-      const customer = await client.customer.findUnique({
-        where: { userId: session.user.id },
-        include: { user: true },
-      })
-
-      if (!customer) {
-        return { type: 'NO_CUSTOMER' } as const
-      }
-
-      const partner = await client.partner.findUnique({
-        where: { id: partnerId },
-        include: { user: true },
-      })
-
-      if (!partner) {
-        return { type: 'NO_PARTNER' } as const
-      }
-
-      const busyCheck = await checkPartnerCurrentlyBusy(partner.id, client)
-      if (busyCheck.isBusy) {
-        return { type: 'BUSY', busyCheck } as const
-      }
-
-      const now = new Date()
-      const startTime = new Date(now.getTime() + 15 * 60 * 1000)
-      const endTime = new Date(startTime.getTime() + duration * 60 * 60 * 1000)
-
-      const conflict = await checkTimeConflict(partner.id, startTime, endTime, undefined, client)
-      if (conflict.hasConflict) {
-        return { type: 'CONFLICT', conflict } as const
-      }
-
-      const pricing = {
-        duration,
-        originalAmount: duration * partner.halfHourlyRate * 2,
-      }
-
-      const { schedule, booking } = await client.$transaction(async (tx) => {
-        const createdSchedule = await tx.schedule.create({
-          data: {
-            partnerId: partner.id,
-            date: startTime,
-            startTime,
-            endTime,
-            isAvailable: false,
-          },
+      try {
+        console.log('🔍 開始查詢客戶資料...')
+        const customer = await client.customer.findUnique({
+          where: { userId: session.user.id },
+          include: { user: true },
         })
 
-        const createdBooking = await tx.booking.create({
-          data: {
-            customerId: customer.id,
-            scheduleId: createdSchedule.id,
-            status: BookingStatus.PAID_WAITING_PARTNER_CONFIRMATION,
-            originalAmount: pricing.originalAmount,
-            finalAmount: pricing.originalAmount,
-            paymentInfo: {
-              isInstantBooking: true,
+        if (!customer) {
+          console.log('❌ 客戶資料不存在')
+          return { type: 'NO_CUSTOMER' } as const
+        }
+
+        console.log('🔍 開始查詢夥伴資料...')
+        const partner = await client.partner.findUnique({
+          where: { id: partnerId },
+          include: { user: true },
+        })
+
+        if (!partner) {
+          console.log('❌ 夥伴不存在')
+          return { type: 'NO_PARTNER' } as const
+        }
+
+        console.log('🔍 檢查夥伴是否忙碌...')
+        const busyCheck = await checkPartnerCurrentlyBusy(partner.id, client)
+        if (busyCheck.isBusy) {
+          console.log('❌ 夥伴目前忙碌')
+          return { type: 'BUSY', busyCheck } as const
+        }
+
+        const now = new Date()
+        const startTime = new Date(now.getTime() + 15 * 60 * 1000)
+        const endTime = new Date(startTime.getTime() + duration * 60 * 60 * 1000)
+
+        console.log('🔍 檢查時間衝突...')
+        const conflict = await checkTimeConflict(partner.id, startTime, endTime, undefined, client)
+        if (conflict.hasConflict) {
+          console.log('❌ 時間衝突')
+          return { type: 'CONFLICT', conflict } as const
+        }
+
+        const pricing = {
+          duration,
+          originalAmount: duration * partner.halfHourlyRate * 2,
+        }
+
+        console.log('🔍 開始創建預約（事務）...')
+        const { schedule, booking } = await client.$transaction(async (tx) => {
+          console.log('📝 創建時段...')
+          const createdSchedule = await tx.schedule.create({
+            data: {
+              partnerId: partner.id,
+              date: startTime,
+              startTime,
+              endTime,
+              isAvailable: false,
             },
-          },
+          })
+
+          console.log('📝 創建預約...')
+          const createdBooking = await tx.booking.create({
+            data: {
+              customerId: customer.id,
+              scheduleId: createdSchedule.id,
+              status: BookingStatus.PAID_WAITING_PARTNER_CONFIRMATION,
+              originalAmount: pricing.originalAmount,
+              finalAmount: pricing.originalAmount,
+              paymentInfo: {
+                isInstantBooking: true,
+              },
+            },
+          })
+
+          return { schedule: createdSchedule, booking: createdBooking }
         })
 
-        return { schedule: createdSchedule, booking: createdBooking }
-      })
-
-      return { type: 'SUCCESS', customer, partner, schedule, booking, pricing, startTime, endTime } as const
+        console.log('✅ 預約創建成功')
+        return { type: 'SUCCESS', customer, partner, schedule, booking, pricing, startTime, endTime } as const
+      } catch (dbError) {
+        console.error('❌ 資料庫操作錯誤:', dbError)
+        console.error('錯誤詳情:', {
+          message: dbError instanceof Error ? dbError.message : 'Unknown error',
+          stack: dbError instanceof Error ? dbError.stack : undefined,
+          name: dbError instanceof Error ? dbError.name : undefined,
+        })
+        throw dbError
+      }
     }, 'bookings:instant')
 
     if (result.type === 'NO_CUSTOMER') {
@@ -164,6 +186,12 @@ export async function POST(request: NextRequest) {
       },
     })
   } catch (error) {
+    console.error('❌ 即時預約創建失敗:', error)
+    console.error('錯誤詳情:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+      name: error instanceof Error ? error.name : undefined,
+    })
     return createErrorResponse(error, 'bookings:instant')
   }
 }

@@ -1,9 +1,17 @@
-import type { PrismaClient } from '@prisma/client'
+import type { PrismaClient, Prisma } from '@prisma/client'
 import { prisma as defaultPrisma } from '@/lib/prisma'
 
-type PrismaClientLike = Pick<PrismaClient, 'booking'>
+// 支持普通客户端和事务客户端
+type PrismaClientLike = 
+  | Pick<PrismaClient, 'booking' | 'schedule' | 'partner' | 'customer'>
+  | Pick<Prisma.TransactionClient, 'booking' | 'schedule' | 'partner' | 'customer'>
 
-const resolveClient = (client?: PrismaClientLike): PrismaClientLike => client ?? defaultPrisma
+const resolveClient = (client?: PrismaClientLike): PrismaClientLike => {
+  if (client) {
+    return client as PrismaClientLike
+  }
+  return defaultPrisma as PrismaClientLike
+}
 
 /**
  * 時間衝突檢查工具函數
