@@ -966,9 +966,9 @@ function BookingWizardContent() {
                 <div className="text-lg text-gray-900 mb-4 text-center">
                   （3）確認預約
                 </div>
-                <div className="bg-palette-500 rounded-lg p-6 mb-6 border border-palette-600">
+                <div className="bg-blue-50 rounded-lg p-6 mb-6 border border-blue-200">
                   <div className="flex items-center gap-4 mb-4">
-                    <div className="w-16 h-16 rounded-full bg-palette-700 overflow-hidden relative flex-shrink-0">
+                    <div className="w-16 h-16 rounded-full bg-gray-200 overflow-hidden relative flex-shrink-0">
                       {selectedPartner.coverImage ? (
                         <SecureImage
                           src={selectedPartner.coverImage}
@@ -977,16 +977,16 @@ function BookingWizardContent() {
                           className="object-cover"
                         />
                       ) : (
-                        <div className="w-full h-full flex items-center justify-center text-white font-bold">
+                        <div className="w-full h-full flex items-center justify-center text-gray-600 font-bold text-xl">
                           {selectedPartner.name.charAt(0)}
                         </div>
                       )}
                     </div>
                     <div>
-                      <h3 className="text-white font-bold text-lg">
+                      <h3 className="text-gray-900 font-bold text-lg">
                         {selectedPartner.name}
                       </h3>
-                      <p className="text-gray-200 text-sm">
+                      <p className="text-gray-700 text-sm">
                         {selectedPartner.games.join(", ")}
                       </p>
                     </div>
@@ -1060,7 +1060,7 @@ function BookingWizardContent() {
                         <button
                           onClick={validatePromoCode}
                           disabled={!promoCode.trim() || isValidatingPromoCode}
-                          className="px-4 py-2 bg-palette-800 text-white rounded hover:bg-palette-900 disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           {isValidatingPromoCode ? "驗證中..." : "驗證"}
                         </button>

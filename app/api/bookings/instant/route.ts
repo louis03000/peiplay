@@ -11,6 +11,7 @@ export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 export async function POST(request: NextRequest) {
+  const requestStartTime = Date.now()
   let requestData: any
   try {
     requestData = await request.json()
@@ -19,14 +20,18 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    console.log('📥 收到即時預約請求:', { partnerId: requestData.partnerId, duration: requestData.duration })
+    
     const session = await getServerSession(authOptions)
     if (!session?.user?.id) {
+      console.log('❌ 未登入')
       return NextResponse.json({ error: '請先登入' }, { status: 401 })
     }
 
     const { partnerId, duration } = requestData
 
     if (!partnerId || !duration || duration <= 0) {
+      console.log('❌ 參數驗證失敗:', { partnerId, duration })
       return NextResponse.json({ error: '缺少必要參數' }, { status: 400 })
     }
 
@@ -78,34 +83,40 @@ export async function POST(request: NextRequest) {
         }
 
         console.log('🔍 開始創建預約（事務）...')
-        const { schedule, booking } = await client.$transaction(async (tx) => {
-          console.log('📝 創建時段...')
-          const createdSchedule = await tx.schedule.create({
-            data: {
-              partnerId: partner.id,
-              date: startTime,
-              startTime,
-              endTime,
-              isAvailable: false,
-            },
-          })
-
-          console.log('📝 創建預約...')
-          const createdBooking = await tx.booking.create({
-            data: {
-              customerId: customer.id,
-              scheduleId: createdSchedule.id,
-              status: BookingStatus.PAID_WAITING_PARTNER_CONFIRMATION,
-              originalAmount: pricing.originalAmount,
-              finalAmount: pricing.originalAmount,
-              paymentInfo: {
-                isInstantBooking: true,
+        const { schedule, booking } = await client.$transaction(
+          async (tx) => {
+            console.log('📝 創建時段...')
+            const createdSchedule = await tx.schedule.create({
+              data: {
+                partnerId: partner.id,
+                date: startTime,
+                startTime,
+                endTime,
+                isAvailable: false,
               },
-            },
-          })
+            })
 
-          return { schedule: createdSchedule, booking: createdBooking }
-        })
+            console.log('📝 創建預約...')
+            const createdBooking = await tx.booking.create({
+              data: {
+                customerId: customer.id,
+                scheduleId: createdSchedule.id,
+                status: BookingStatus.PAID_WAITING_PARTNER_CONFIRMATION,
+                originalAmount: pricing.originalAmount,
+                finalAmount: pricing.originalAmount,
+                paymentInfo: {
+                  isInstantBooking: true,
+                },
+              },
+            })
+
+            return { schedule: createdSchedule, booking: createdBooking }
+          },
+          {
+            maxWait: 10000, // 等待事務開始的最大時間（10秒）
+            timeout: 20000, // 事務執行的最大時間（20秒）
+          }
+        )
 
         console.log('✅ 預約創建成功')
         return { type: 'SUCCESS', customer, partner, schedule, booking, pricing, startTime, endTime } as const
@@ -192,6 +203,27 @@ export async function POST(request: NextRequest) {
       stack: error instanceof Error ? error.stack : undefined,
       name: error instanceof Error ? error.name : undefined,
     })
+    
+    // 返回更詳細的錯誤信息給前端
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    const isDatabaseError = errorMessage.includes('database') || 
+                           errorMessage.includes('connection') ||
+                           errorMessage.includes('timeout') ||
+                           errorMessage.includes('P1001') ||
+                           errorMessage.includes('P1002') ||
+                           errorMessage.includes('P1017')
+    
+    if (isDatabaseError) {
+      return NextResponse.json(
+        {
+          error: '資料庫操作失敗，請稍後再試',
+          details: process.env.NODE_ENV === 'development' ? errorMessage : undefined,
+          code: 'DATABASE_ERROR',
+        },
+        { status: 500 }
+      )
+    }
+    
     return createErrorResponse(error, 'bookings:instant')
   }
 }
