@@ -7,6 +7,7 @@ import Image from "next/image";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import PartnerCard from "@/components/PartnerCard";
+import SecureImage from "@/components/SecureImage";
 import { useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
@@ -967,14 +968,25 @@ function BookingWizardContent() {
                 </div>
                 <div className="bg-palette-500 rounded-lg p-6 mb-6 border border-palette-600">
                   <div className="flex items-center gap-4 mb-4">
-                    <div className="w-16 h-16 rounded-full bg-palette-700 flex items-center justify-center text-white font-bold">
-                      {selectedPartner.name.charAt(0)}
+                    <div className="w-16 h-16 rounded-full bg-palette-700 overflow-hidden relative flex-shrink-0">
+                      {selectedPartner.coverImage ? (
+                        <SecureImage
+                          src={selectedPartner.coverImage}
+                          alt={selectedPartner.name}
+                          fill
+                          className="object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-white font-bold">
+                          {selectedPartner.name.charAt(0)}
+                        </div>
+                      )}
                     </div>
                     <div>
-                      <h3 className="text-white font-semibold text-lg">
+                      <h3 className="text-white font-bold text-lg">
                         {selectedPartner.name}
                       </h3>
-                      <p className="text-gray-600 text-sm">
+                      <p className="text-gray-200 text-sm">
                         {selectedPartner.games.join(", ")}
                       </p>
                     </div>

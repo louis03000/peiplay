@@ -712,9 +712,9 @@ export default function PartnerSchedulePage() {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
-          <div className="text-white text-lg">載入中...</div>
-          <div className="text-gray-300 text-sm mt-2">正在獲取您的時段資料</div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-600 mx-auto mb-4"></div>
+          <div className="text-gray-700 text-lg">載入中...</div>
+          <div className="text-gray-600 text-sm mt-2">正在獲取您的時段資料</div>
         </div>
       </div>
     );

@@ -391,7 +391,7 @@ export default function MyBookings({ showCompletedOnly }: MyBookingsProps) {
 
       {/* 統計資訊 */}
       {sortedMerged.length > 0 && (
-        <div className="mt-4 text-right text-gray-400 text-sm">
+        <div className="mt-4 text-right text-gray-600 text-sm">
           共 {sortedMerged.length} 筆預約記錄
         </div>
       )}

@@ -155,7 +155,7 @@ export default function OrderHistory() {
 
       {/* 統計資訊 */}
       {orders.length > 0 && (
-        <div className="mt-4 flex justify-between items-center text-gray-400 text-sm">
+        <div className="mt-4 flex justify-between items-center text-gray-600 text-sm">
           <span>共 {orders.length} 筆消費記錄</span>
           <span className="font-medium">
             總消費金額: NT$ {orders.reduce((sum, order) => sum + order.amount, 0).toLocaleString()}
