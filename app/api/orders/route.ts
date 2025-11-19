@@ -44,7 +44,13 @@ export async function GET(request: NextRequest) {
         include: {
           schedule: {
             include: {
-              partner: true,
+              partner: {
+                select: {
+                  id: true,
+                  name: true,
+                  halfHourlyRate: true,
+                },
+              },
             },
           },
         },
@@ -67,27 +73,56 @@ export async function GET(request: NextRequest) {
       // 將預約轉換為訂單格式，以便與現有代碼兼容
       // 使用類型守衛來安全地處理日期
       const isDate = (value: unknown): value is Date => value instanceof Date;
-      const toISOString = (value: Date | string): string => {
-        return isDate(value) ? value.toISOString() : value;
+      const toISOString = (value: unknown): string => {
+        if (isDate(value)) {
+          return value.toISOString();
+        }
+        if (typeof value === 'string') {
+          return value;
+        }
+        // 如果是其他類型，嘗試轉換為 Date
+        try {
+          return new Date(value as string | number).toISOString();
+        } catch {
+          return String(value);
+        }
       };
       
       const orders = bookings.slice(0, 50)
-        .filter(booking => booking.schedule && booking.schedule.partner) // 過濾掉沒有 schedule 或 partner 的預約
-        .map(booking => ({
-          id: booking.id,
-          customerId: customer.id,
-          bookingId: booking.id,
-          amount: Math.round(booking.finalAmount || 0),
-          createdAt: toISOString(booking.createdAt as Date | string),
-          booking: {
-            schedule: {
-              partner: booking.schedule.partner,
-              date: toISOString(booking.schedule.date as Date | string),
-              startTime: toISOString(booking.schedule.startTime as Date | string),
-              endTime: toISOString(booking.schedule.endTime as Date | string),
-            },
-          },
-        }));
+        .filter(booking => {
+          // 確保有必要的數據
+          if (!booking.schedule || !booking.schedule.partner) {
+            return false;
+          }
+          // 確保日期字段存在
+          if (!booking.schedule.date || !booking.schedule.startTime || !booking.schedule.endTime) {
+            return false;
+          }
+          return true;
+        })
+        .map(booking => {
+          try {
+            return {
+              id: booking.id,
+              customerId: customer.id,
+              bookingId: booking.id,
+              amount: Math.round(booking.finalAmount || 0),
+              createdAt: toISOString(booking.createdAt),
+              booking: {
+                schedule: {
+                  partner: booking.schedule.partner,
+                  date: toISOString(booking.schedule.date),
+                  startTime: toISOString(booking.schedule.startTime),
+                  endTime: toISOString(booking.schedule.endTime),
+                },
+              },
+            };
+          } catch (err) {
+            console.error('Error mapping booking:', booking.id, err);
+            return null;
+          }
+        })
+        .filter((order): order is NonNullable<typeof order> => order !== null);
 
       return { customer, orders };
     }, isExportExcel ? 'orders:export' : 'orders:list');
