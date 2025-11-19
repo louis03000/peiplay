@@ -105,15 +105,17 @@ export default function OrderHistory() {
                   <td className="py-4 px-6">
                     {order.booking?.schedule?.date && order.booking?.schedule?.startTime && order.booking?.schedule?.endTime
                       ? (() => {
-                          const date = order.booking.schedule.date instanceof Date 
+                          // 使用類型守衛來安全地檢查是否為 Date 對象
+                          const isDate = (value: unknown): value is Date => value instanceof Date;
+                          const date = isDate(order.booking.schedule.date)
                             ? order.booking.schedule.date 
-                            : new Date(order.booking.schedule.date);
-                          const startTime = order.booking.schedule.startTime instanceof Date
+                            : new Date(order.booking.schedule.date as string | number);
+                          const startTime = isDate(order.booking.schedule.startTime)
                             ? order.booking.schedule.startTime
-                            : new Date(order.booking.schedule.startTime);
-                          const endTime = order.booking.schedule.endTime instanceof Date
+                            : new Date(order.booking.schedule.startTime as string | number);
+                          const endTime = isDate(order.booking.schedule.endTime)
                             ? order.booking.schedule.endTime
-                            : new Date(order.booking.schedule.endTime);
+                            : new Date(order.booking.schedule.endTime as string | number);
                           const dateStr = `${date.getFullYear()}/${(date.getMonth()+1).toString().padStart(2,'0')}/${date.getDate().toString().padStart(2,'0')}`;
                           const startStr = startTime.toTimeString().slice(0,5);
                           const endStr = endTime.toTimeString().slice(0,5);
