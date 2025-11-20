@@ -43,8 +43,15 @@ export async function GET(request: Request) {
       ? games.split(',').map(g => g.trim()).filter(g => g.length > 0)
       : []
 
+    console.log('🔍 搜索參數:', { date, startTime, endTime, games: gameList })
+    console.log('🔍 時間範圍:', { 
+      startDateTime: startDateTime.toISOString(), 
+      endDateTime: endDateTime.toISOString() 
+    })
+
     const result = await db.query(async (client) => {
       // 查詢在指定日期和時段內有可用時段的夥伴
+      // 修改：時段需要完全匹配開始和結束時間
       const partners = await client.partner.findMany({
         where: {
           status: 'APPROVED',
@@ -54,12 +61,8 @@ export async function GET(request: Request) {
                 gte: new Date(date),
                 lt: new Date(new Date(date).getTime() + 24 * 60 * 60 * 1000), // 同一天
               },
-              startTime: {
-                lte: startDateTime, // 時段開始時間不晚於搜尋開始時間
-              },
-              endTime: {
-                gte: endDateTime, // 時段結束時間不早於搜尋結束時間
-              },
+              startTime: startDateTime, // 時段開始時間必須完全匹配
+              endTime: endDateTime, // 時段結束時間必須完全匹配
               isAvailable: true
             }
           },
@@ -90,12 +93,8 @@ export async function GET(request: Request) {
                 gte: new Date(date),
                 lt: new Date(new Date(date).getTime() + 24 * 60 * 60 * 1000),
               },
-              startTime: {
-                lte: startDateTime,
-              },
-              endTime: {
-                gte: endDateTime,
-              },
+              startTime: startDateTime, // 完全匹配開始時間
+              endTime: endDateTime, // 完全匹配結束時間
               isAvailable: true
             },
             include: {
@@ -170,9 +169,11 @@ export async function GET(request: Request) {
         .filter(partner => partner !== null)
         .filter(partner => partner!.schedules.length > 0)
 
+      console.log('✅ 找到符合條件的夥伴:', partnersWithAvailableSchedules.length)
       return partnersWithAvailableSchedules
     }, 'partners/search-for-multi-player')
 
+    console.log('📤 返回結果:', result.length, '位夥伴')
     return NextResponse.json(result)
   } catch (error) {
     console.error('Error searching partners for multi-player:', error)

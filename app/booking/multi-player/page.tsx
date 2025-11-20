@@ -425,39 +425,53 @@ function MultiPlayerBookingContent() {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">開始時間</label>
-              <input
-                type="time"
+              <select
                 value={selectedStartTime}
                 onChange={(e) => {
-                  const time = e.target.value
-                  // 確保時間是每半小時（00或30分）
-                  const [hours, minutes] = time.split(':')
-                  const roundedMinutes = minutes ? (parseInt(minutes) < 30 ? '00' : '30') : '00'
-                  const roundedTime = `${hours}:${roundedMinutes}`
-                  setSelectedStartTime(roundedTime)
+                  setSelectedStartTime(e.target.value)
                   setSelectedDuration(null) // 清除時長選擇，讓用戶手動調整
                 }}
-                step="1800"
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 text-gray-900"
-              />
+              >
+                <option value="">請選擇</option>
+                {Array.from({ length: 48 }, (_, i) => {
+                  const hour = Math.floor(i / 2)
+                  const minute = (i % 2) * 30
+                  const timeStr = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`
+                  const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour
+                  const period = hour < 12 ? '上午' : '下午'
+                  return (
+                    <option key={timeStr} value={timeStr}>
+                      {period} {displayHour}:{minute.toString().padStart(2, '0')}
+                    </option>
+                  )
+                })}
+              </select>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">結束時間</label>
-              <input
-                type="time"
+              <select
                 value={selectedEndTime}
                 onChange={(e) => {
-                  const time = e.target.value
-                  // 確保時間是每半小時（00或30分）
-                  const [hours, minutes] = time.split(':')
-                  const roundedMinutes = minutes ? (parseInt(minutes) < 30 ? '00' : '30') : '00'
-                  const roundedTime = `${hours}:${roundedMinutes}`
-                  setSelectedEndTime(roundedTime)
+                  setSelectedEndTime(e.target.value)
                   setSelectedDuration(null) // 清除時長選擇
                 }}
-                step="1800"
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 text-gray-900"
-              />
+              >
+                <option value="">請選擇</option>
+                {Array.from({ length: 48 }, (_, i) => {
+                  const hour = Math.floor(i / 2)
+                  const minute = (i % 2) * 30
+                  const timeStr = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`
+                  const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour
+                  const period = hour < 12 ? '上午' : '下午'
+                  return (
+                    <option key={timeStr} value={timeStr}>
+                      {period} {displayHour}:{minute.toString().padStart(2, '0')}
+                    </option>
+                  )
+                })}
+              </select>
             </div>
           </div>
 
