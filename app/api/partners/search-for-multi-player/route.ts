@@ -66,7 +66,7 @@ export async function GET(request: Request) {
       })
 
       // 查詢在指定日期和時段內有可用時段的夥伴
-      // 使用範圍查詢，然後在後續過濾中進行精確匹配
+      // 先使用寬鬆的查詢條件，然後在 JavaScript 中進行精確匹配
       const partners = await client.partner.findMany({
         where: {
           status: 'APPROVED',
@@ -76,11 +76,12 @@ export async function GET(request: Request) {
                 gte: dateStart,
                 lte: dateEnd,
               },
+              // 使用範圍查詢，找到可能符合的時段
               startTime: {
-                lte: startDateTime, // 時段開始時間不晚於搜尋開始時間
+                lte: endDateTime, // 時段開始時間不晚於搜尋結束時間（包含在範圍內）
               },
               endTime: {
-                gte: endDateTime, // 時段結束時間不早於搜尋結束時間
+                gte: startDateTime, // 時段結束時間不早於搜尋開始時間（包含在範圍內）
               },
               isAvailable: true
             }
@@ -112,11 +113,12 @@ export async function GET(request: Request) {
                 gte: dateStart,
                 lte: dateEnd,
               },
+              // 使用更寬鬆的範圍查詢
               startTime: {
-                lte: startDateTime,
+                lte: endDateTime,
               },
               endTime: {
-                gte: endDateTime,
+                gte: startDateTime,
               },
               isAvailable: true
             },
@@ -159,11 +161,16 @@ export async function GET(request: Request) {
             : 0;
           
           // 找到符合時段的 schedule
+          // 需要完全匹配開始和結束時間
           const matchingSchedule = partner.schedules.find(schedule => {
-            // 檢查時段是否完全匹配（允許1秒的誤差，因為數據庫精度問題）
             const scheduleStart = new Date(schedule.startTime)
             const scheduleEnd = new Date(schedule.endTime)
             
+            // 檢查日期是否匹配（只比較日期部分，忽略時間）
+            const scheduleDateStr = scheduleStart.toISOString().split('T')[0]
+            const searchDateStr = startDateTime.toISOString().split('T')[0]
+            
+            // 檢查時間是否完全匹配（允許最多5分鐘的誤差，處理時區問題）
             const startDiff = Math.abs(scheduleStart.getTime() - startDateTime.getTime())
             const endDiff = Math.abs(scheduleEnd.getTime() - endDateTime.getTime())
             
@@ -173,24 +180,30 @@ export async function GET(request: Request) {
               schedule.bookings.status !== 'CANCELLED' && 
               schedule.bookings.status !== 'REJECTED'
             
-            // 允許最多1秒的誤差（處理時區或精度問題）
-            const isTimeMatch = startDiff <= 1000 && endDiff <= 1000
+            // 允許最多5分鐘的誤差（處理時區或精度問題）
+            const isTimeMatch = startDiff <= 5 * 60 * 1000 && endDiff <= 5 * 60 * 1000
+            const isDateMatch = scheduleDateStr === searchDateStr
             
             console.log('🔍 檢查時段:', {
               partnerName: partner.name,
               scheduleId: schedule.id,
+              scheduleDate: scheduleDateStr,
+              searchDate: searchDateStr,
               scheduleStart: scheduleStart.toISOString(),
               scheduleEnd: scheduleEnd.toISOString(),
               searchStart: startDateTime.toISOString(),
               searchEnd: endDateTime.toISOString(),
-              startDiff,
-              endDiff,
+              startDiff: `${Math.round(startDiff / 1000 / 60)}分鐘`,
+              endDiff: `${Math.round(endDiff / 1000 / 60)}分鐘`,
+              isDateMatch,
               isTimeMatch,
               isAvailable: schedule.isAvailable,
-              hasActiveBooking
+              hasActiveBooking,
+              willMatch: isDateMatch && isTimeMatch && schedule.isAvailable && !hasActiveBooking
             })
             
-            return isTimeMatch &&
+            return isDateMatch &&
+                   isTimeMatch &&
                    schedule.isAvailable &&
                    !hasActiveBooking
           })
@@ -211,12 +224,26 @@ export async function GET(request: Request) {
         .filter(partner => partner !== null)
         .filter(partner => partner!.matchingSchedule !== null && partner!.matchingSchedule !== undefined)
 
-      console.log('✅ 找到符合條件的夥伴:', partnersWithAvailableSchedules.length)
-      console.log('✅ 夥伴列表:', partnersWithAvailableSchedules.map(p => ({
-        id: p!.id,
-        name: p!.name,
-        matchingSchedule: p!.matchingSchedule
-      })))
+      console.log('✅ 初步查詢找到夥伴:', partners.length)
+      console.log('✅ 過濾後找到符合條件的夥伴:', partnersWithAvailableSchedules.length)
+      if (partnersWithAvailableSchedules.length > 0) {
+        console.log('✅ 夥伴列表:', partnersWithAvailableSchedules.map(p => ({
+          id: p!.id,
+          name: p!.name,
+          matchingSchedule: p!.matchingSchedule
+        })))
+      } else {
+        console.log('⚠️ 沒有找到匹配的時段，檢查所有時段:')
+        availablePartners.forEach(partner => {
+          console.log(`  夥伴 ${partner.name} 的時段:`, partner.schedules.map(s => ({
+            id: s.id,
+            startTime: new Date(s.startTime).toISOString(),
+            endTime: new Date(s.endTime).toISOString(),
+            isAvailable: s.isAvailable,
+            hasBooking: !!s.bookings
+          })))
+        })
+      }
       return partnersWithAvailableSchedules
     }, 'partners/search-for-multi-player')
 
