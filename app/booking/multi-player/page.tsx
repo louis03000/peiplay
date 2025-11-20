@@ -83,7 +83,9 @@ function MultiPlayerBookingContent() {
       const endDate = new Date(startDate.getTime() + hours * 60 * 60 * 1000)
       const endHours = endDate.getHours().toString().padStart(2, '0')
       const endMinutes = endDate.getMinutes().toString().padStart(2, '0')
-      setSelectedEndTime(`${endHours}:${endMinutes}`)
+      // 確保結束時間也是每半小時
+      const roundedMinutes = parseInt(endMinutes) < 30 ? '00' : '30'
+      setSelectedEndTime(`${endHours}:${roundedMinutes}`)
     }
   }
 
@@ -96,7 +98,9 @@ function MultiPlayerBookingContent() {
       const endDate = new Date(startDate.getTime() + selectedDuration * 60 * 60 * 1000)
       const endHours = endDate.getHours().toString().padStart(2, '0')
       const endMinutes = endDate.getMinutes().toString().padStart(2, '0')
-      setSelectedEndTime(`${endHours}:${endMinutes}`)
+      // 確保結束時間也是每半小時
+      const roundedMinutes = parseInt(endMinutes) < 30 ? '00' : '30'
+      setSelectedEndTime(`${endHours}:${roundedMinutes}`)
     }
   }, [selectedStartTime, selectedDuration])
 
@@ -182,16 +186,27 @@ function MultiPlayerBookingContent() {
       const response = await fetch(`/api/partners/search-for-multi-player?${params}`)
       if (response.ok) {
         const data = await response.json()
-        setPartners(data || [])
+        console.log('🔍 搜索結果:', data)
+        console.log('🔍 結果數量:', Array.isArray(data) ? data.length : 0)
+        
+        const partnersList = Array.isArray(data) ? data : []
+        setPartners(partnersList)
         
         // 提取所有遊戲
         const gamesSet = new Set<string>()
-        data.forEach((partner: Partner) => {
-          partner.games.forEach(game => gamesSet.add(game))
+        partnersList.forEach((partner: Partner) => {
+          if (partner.games && Array.isArray(partner.games)) {
+            partner.games.forEach(game => gamesSet.add(game))
+          }
         })
         setAvailableGames(Array.from(gamesSet))
+        
+        if (partnersList.length === 0) {
+          alert('沒有找到符合條件的夥伴')
+        }
       } else {
         const error = await response.json()
+        console.error('❌ 搜索失敗:', error)
         alert(error.error || '搜尋失敗')
       }
     } catch (error) {
@@ -414,9 +429,15 @@ function MultiPlayerBookingContent() {
                 type="time"
                 value={selectedStartTime}
                 onChange={(e) => {
-                  setSelectedStartTime(e.target.value)
+                  const time = e.target.value
+                  // 確保時間是每半小時（00或30分）
+                  const [hours, minutes] = time.split(':')
+                  const roundedMinutes = minutes ? (parseInt(minutes) < 30 ? '00' : '30') : '00'
+                  const roundedTime = `${hours}:${roundedMinutes}`
+                  setSelectedStartTime(roundedTime)
                   setSelectedDuration(null) // 清除時長選擇，讓用戶手動調整
                 }}
+                step="1800"
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 text-gray-900"
               />
             </div>
@@ -426,9 +447,15 @@ function MultiPlayerBookingContent() {
                 type="time"
                 value={selectedEndTime}
                 onChange={(e) => {
-                  setSelectedEndTime(e.target.value)
+                  const time = e.target.value
+                  // 確保時間是每半小時（00或30分）
+                  const [hours, minutes] = time.split(':')
+                  const roundedMinutes = minutes ? (parseInt(minutes) < 30 ? '00' : '30') : '00'
+                  const roundedTime = `${hours}:${roundedMinutes}`
+                  setSelectedEndTime(roundedTime)
                   setSelectedDuration(null) // 清除時長選擇
                 }}
+                step="1800"
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 text-gray-900"
               />
             </div>
@@ -538,6 +565,10 @@ function MultiPlayerBookingContent() {
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {partners.map((partner) => {
+                if (!partner.matchingSchedule || !partner.matchingSchedule.id) {
+                  console.warn('⚠️ 夥伴缺少 matchingSchedule:', partner)
+                  return null
+                }
                 const isSelected = selectedPartners.has(partner.matchingSchedule.id)
                 return (
                   <div
