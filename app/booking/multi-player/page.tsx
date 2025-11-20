@@ -439,7 +439,7 @@ function MultiPlayerBookingContent() {
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-2">快速選擇時長</label>
               <div className="flex flex-wrap gap-2">
-                {[1, 1.5, 2, 2.5, 3, 4].map((hours) => (
+                {[0.5, 1, 1.5, 2, 2.5, 3, 4].map((hours) => (
                   <button
                     key={hours}
                     type="button"
@@ -450,7 +450,7 @@ function MultiPlayerBookingContent() {
                         : 'bg-white text-gray-700 border-gray-300 hover:border-purple-300 hover:bg-purple-50'
                     }`}
                   >
-                    {hours === 1 ? '1小時' : hours === 1.5 ? '1.5小時' : `${hours}小時`}
+                    {hours === 0.5 ? '30分鐘' : hours === 1 ? '1小時' : hours === 1.5 ? '1.5小時' : `${hours}小時`}
                   </button>
                 ))}
               </div>
