@@ -357,19 +357,21 @@ export async function GET(request: Request) {
         return null
       }
 
-      return client.multiPlayerBooking.findMany({
-        where: { customerId: customer.id },
-        include: {
-          bookings: {
-            include: {
-              schedule: {
-                include: {
-                  partner: {
-                    include: {
-                      user: {
-                        select: {
-                          name: true,
-                          email: true,
+      try {
+        return await client.multiPlayerBooking.findMany({
+          where: { customerId: customer.id },
+          include: {
+            bookings: {
+              include: {
+                schedule: {
+                  include: {
+                    partner: {
+                      include: {
+                        user: {
+                          select: {
+                            name: true,
+                            email: true,
+                          },
                         },
                       },
                     },
@@ -378,9 +380,18 @@ export async function GET(request: Request) {
               },
             },
           },
-        },
-        orderBy: { createdAt: 'desc' },
-      })
+          orderBy: { createdAt: 'desc' },
+        })
+      } catch (dbError: any) {
+        // 如果表不存在，返回空数组而不是错误
+        if (dbError?.message?.includes('does not exist') || 
+            dbError?.message?.includes('table') ||
+            dbError?.code === 'P2021') {
+          console.warn('⚠️ MultiPlayerBooking 表不存在，返回空列表')
+          return []
+        }
+        throw dbError
+      }
     }, 'multi-player-booking:list')
 
     if (result === null) {
@@ -389,6 +400,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json({ multiPlayerBookings: result })
   } catch (error) {
+    console.error('❌ 獲取多人陪玩群組列表失敗:', error)
     return createErrorResponse(error, 'multi-player-booking:list')
   }
 }
