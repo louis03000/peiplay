@@ -42,9 +42,11 @@ export async function GET(request: Request) {
     const [endHour, endMinute] = endTime.split(':').map(Number)
     const [year, month, day] = dateStr.split('-').map(Number)
     
-    // 使用本地時區創建時間對象（用戶輸入的是本地時間）
-    const startDateTime = new Date(year, month - 1, day, startHour, startMinute, 0, 0)
-    const endDateTime = new Date(year, month - 1, day, endHour, endMinute, 0, 0)
+    // 使用 UTC 時區創建時間對象，與數據庫保持一致
+    // 假設用戶輸入的是本地時間，需要轉換為 UTC
+    // 但為了簡化，我們假設用戶輸入的時間就是 UTC 時間（或服務器時區）
+    const startDateTime = new Date(Date.UTC(year, month - 1, day, startHour, startMinute, 0, 0))
+    const endDateTime = new Date(Date.UTC(year, month - 1, day, endHour, endMinute, 0, 0))
 
     // 解析遊戲列表
     const gameList = games 
@@ -181,22 +183,24 @@ export async function GET(request: Request) {
             const scheduleEnd = new Date(schedule.endTime)
             const scheduleDate = new Date(schedule.date)
             
-            // 檢查日期是否匹配 - 提取日期字符串進行比較
-            // 使用本地時區的日期部分（因為用戶輸入的是本地時間）
-            const scheduleDateStr = `${scheduleDate.getFullYear()}-${String(scheduleDate.getMonth() + 1).padStart(2, '0')}-${String(scheduleDate.getDate()).padStart(2, '0')}`
-            const isDateMatch = scheduleDateStr === dateStr
+            // 檢查日期是否匹配 - 比較日期字符串（YYYY-MM-DD）
+            // 從完整的 ISO 字符串中提取日期部分
+            const scheduleDateStr = scheduleDate.toISOString().split('T')[0]
+            const searchDateStr = dateStr
+            const isDateMatch = scheduleDateStr === searchDateStr
             
-            // 檢查時間是否完全匹配 - 比較小時和分鐘（使用本地時區）
-            // 這樣可以避免時區轉換問題
-            const scheduleStartHour = scheduleStart.getHours()
-            const scheduleStartMinute = scheduleStart.getMinutes()
-            const scheduleEndHour = scheduleEnd.getHours()
-            const scheduleEndMinute = scheduleEnd.getMinutes()
+            // 檢查時間是否完全匹配
+            // 提取時間部分（HH:MM）進行比較，允許最多5分鐘的誤差
+            // 使用 UTC 時間進行比較，確保一致性
+            const scheduleStartHour = scheduleStart.getUTCHours()
+            const scheduleStartMinute = scheduleStart.getUTCMinutes()
+            const scheduleEndHour = scheduleEnd.getUTCHours()
+            const scheduleEndMinute = scheduleEnd.getUTCMinutes()
             
-            const searchStartHour = startDateTime.getHours()
-            const searchStartMinute = startDateTime.getMinutes()
-            const searchEndHour = endDateTime.getHours()
-            const searchEndMinute = endDateTime.getMinutes()
+            const searchStartHour = startDateTime.getUTCHours()
+            const searchStartMinute = startDateTime.getUTCMinutes()
+            const searchEndHour = endDateTime.getUTCHours()
+            const searchEndMinute = endDateTime.getUTCMinutes()
             
             // 計算時間差（分鐘）
             const startDiffMinutes = Math.abs((scheduleStartHour * 60 + scheduleStartMinute) - (searchStartHour * 60 + searchStartMinute))
@@ -215,7 +219,11 @@ export async function GET(request: Request) {
               partnerName: partner.name,
               scheduleId: schedule.id,
               scheduleDateStr,
-              searchDateStr: dateStr,
+              searchDateStr,
+              scheduleStartISO: scheduleStart.toISOString(),
+              scheduleEndISO: scheduleEnd.toISOString(),
+              searchStartISO: startDateTime.toISOString(),
+              searchEndISO: endDateTime.toISOString(),
               scheduleTime: `${scheduleStartHour}:${String(scheduleStartMinute).padStart(2, '0')} - ${scheduleEndHour}:${String(scheduleEndMinute).padStart(2, '0')}`,
               searchTime: `${searchStartHour}:${String(searchStartMinute).padStart(2, '0')} - ${searchEndHour}:${String(searchEndMinute).padStart(2, '0')}`,
               startDiffMinutes,
