@@ -91,6 +91,13 @@ export async function calculatePartnerTotalMinutes(
       },
     })
 
+    console.log(`📊 計算夥伴 ${partnerId} 的總時長:`, {
+      timeFilter,
+      gameFilter,
+      startDate: startDate?.toISOString(),
+      bookingsCount: bookings.length,
+    })
+
     // 如果指定了遊戲篩選，需要過濾
     let filteredBookings = bookings
     if (gameFilter) {
@@ -110,6 +117,10 @@ export async function calculatePartnerTotalMinutes(
       const durationMs = endTime.getTime() - startTime.getTime()
       const durationMinutes = Math.floor(durationMs / (1000 * 60))
       totalMinutes += durationMinutes
+    }
+
+    if (totalMinutes > 0) {
+      console.log(`✅ 夥伴 ${partnerId} 總時長: ${totalMinutes} 分鐘 (${Math.round(totalMinutes / 60 * 10) / 10} 小時)`)
     }
 
     return totalMinutes

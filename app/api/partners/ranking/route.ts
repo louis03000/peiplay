@@ -11,8 +11,11 @@ export async function GET(request: NextRequest) {
     const timeFilter = searchParams.get('timeFilter') || 'all'
     const gameFilter = searchParams.get('game') || undefined
 
+    console.log('🔍 排行榜查詢參數:', { timeFilter, gameFilter })
+
     // 獲取排名數據
     const rankings = await getPartnerRankings(timeFilter, gameFilter)
+    console.log('📊 獲取到的排名數據:', rankings.length, '個夥伴')
 
     // 獲取夥伴詳細信息並計算平均評價
     const partners = await db.query(async (client) => {
@@ -78,17 +81,20 @@ export async function GET(request: NextRequest) {
       return partnersWithRatings
     }, 'partners:ranking:get')
 
+    console.log('👥 獲取到的夥伴數量:', partners.length)
+
     // 合併排名數據和夥伴信息
     const rankingMap = new Map(rankings.map(r => [r.partnerId, r]))
     
     const rankingData = partners
       .map((partner) => {
         const ranking = rankingMap.get(partner.id)
+        const totalMinutes = ranking?.totalMinutes || 0
         return {
           id: partner.id,
           name: partner.name,
           games: partner.games,
-          totalMinutes: ranking?.totalMinutes || 0,
+          totalMinutes,
           coverImage: partner.coverImage,
           isAvailableNow: partner.isAvailableNow,
           isRankBooster: partner.isRankBooster,
@@ -98,7 +104,8 @@ export async function GET(request: NextRequest) {
           totalReviews: partner.totalReviews, // 評價數量
         }
       })
-      .filter(p => p.totalMinutes > 0) // 只顯示有實際時長的夥伴
+      // 顯示所有已批准的夥伴，即使沒有時長或評價
+      // 這樣可以確保排行榜不會是空的
       .sort((a, b) => {
         // 先按總時長排序
         if (b.totalMinutes !== a.totalMinutes) {
@@ -121,6 +128,14 @@ export async function GET(request: NextRequest) {
         ...partner,
         rank: index + 1, // 重新分配排名
       }))
+
+    console.log('✅ 最終排行榜數據:', rankingData.length, '個夥伴')
+    if (rankingData.length === 0) {
+      console.log('⚠️ 排行榜為空，可能的原因：')
+      console.log('   - 沒有已批准的夥伴')
+      console.log('   - 所有夥伴都沒有時長、評價或評論')
+      console.log('   - 時間篩選條件過於嚴格')
+    }
 
     return NextResponse.json(rankingData)
   } catch (error) {
