@@ -183,7 +183,17 @@ function MultiPlayerBookingContent() {
         params.append('games', allGames.join(','))
       }
 
-      const response = await fetch(`/api/partners/search-for-multi-player?${params}`)
+      const apiUrl = `/api/partners/search-for-multi-player?${params}`
+      console.log('🔍 前端發送搜索請求:', {
+        url: apiUrl,
+        date: selectedDate,
+        startTime: selectedStartTime,
+        endTime: selectedEndTime,
+        games: allGames
+      })
+
+      const response = await fetch(apiUrl)
+      console.log('📡 API 響應狀態:', response.status, response.statusText)
       if (response.ok) {
         const data = await response.json()
         console.log('🔍 搜索結果:', data)

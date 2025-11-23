@@ -53,12 +53,15 @@ export async function GET(request: Request) {
       ? games.split(',').map(g => g.trim()).filter(g => g.length > 0)
       : []
 
-    console.log('🔍 搜索參數:', { date, dateStr, startTime, endTime, games: gameList })
-    console.log('🔍 時間範圍:', { 
-      startDateTime: startDateTime.toISOString(), 
-      endDateTime: endDateTime.toISOString(),
-      startTimeStr: `${dateStr}T${startTime}:00`,
-      endTimeStr: `${dateStr}T${endTime}:00`
+    console.log('🔍 ========== 開始搜索多人陪玩夥伴 ==========')
+    console.log('🔍 搜索參數:', { 
+      date, 
+      dateStr, 
+      startTime, 
+      endTime, 
+      games: gameList,
+      startDateTime: startDateTime.toISOString(),
+      endDateTime: endDateTime.toISOString()
     })
 
     const result = await db.query(async (client) => {
@@ -82,7 +85,8 @@ export async function GET(request: Request) {
       })
 
       // 查詢在指定日期和時段內有可用時段的夥伴
-      // 先使用寬鬆的查詢條件，然後在 JavaScript 中進行精確匹配
+      // 先查詢所有已批准的夥伴，然後在 JavaScript 中進行精確匹配
+      // 這樣可以確保不會因為查詢條件太嚴格而漏掉夥伴
       const partners = await client.partner.findMany({
         where: {
           status: 'APPROVED',
@@ -91,13 +95,6 @@ export async function GET(request: Request) {
               date: {
                 gte: dateStart,
                 lte: dateEnd,
-              },
-              // 使用範圍查詢，找到可能符合的時段
-              startTime: {
-                lte: endDateTime, // 時段開始時間不晚於搜尋結束時間（包含在範圍內）
-              },
-              endTime: {
-                gte: startDateTime, // 時段結束時間不早於搜尋開始時間（包含在範圍內）
               },
               isAvailable: true
             }
@@ -129,13 +126,6 @@ export async function GET(request: Request) {
                 gte: dateStart,
                 lte: dateEnd,
               },
-              // 使用更寬鬆的範圍查詢
-              startTime: {
-                lte: endDateTime,
-              },
-              endTime: {
-                gte: startDateTime,
-              },
               isAvailable: true
             },
             include: {
@@ -148,6 +138,12 @@ export async function GET(request: Request) {
             }
           }
         }
+      })
+
+      console.log('📊 數據庫查詢結果:', {
+        totalPartners: partners.length,
+        partnersWithSchedules: partners.filter(p => p.schedules.length > 0).length,
+        totalSchedules: partners.reduce((sum, p) => sum + p.schedules.length, 0)
       })
 
       // 過濾掉被停權的夥伴
