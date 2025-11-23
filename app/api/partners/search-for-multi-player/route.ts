@@ -37,8 +37,13 @@ export async function GET(request: Request) {
     // 轉換時間格式為 Date 對象
     // 確保日期格式正確（YYYY-MM-DD）
     const dateStr = date.split('T')[0] // 移除時間部分（如果有）
-    const startDateTime = new Date(`${dateStr}T${startTime}:00`)
-    const endDateTime = new Date(`${dateStr}T${endTime}:00`)
+    // 使用本地時區創建日期時間對象（避免時區轉換問題）
+    const [startHour, startMinute] = startTime.split(':').map(Number)
+    const [endHour, endMinute] = endTime.split(':').map(Number)
+    const [year, month, day] = dateStr.split('-').map(Number)
+    
+    const startDateTime = new Date(year, month - 1, day, startHour, startMinute, 0, 0)
+    const endDateTime = new Date(year, month - 1, day, endHour, endMinute, 0, 0)
 
     // 解析遊戲列表
     const gameList = games 
@@ -166,13 +171,26 @@ export async function GET(request: Request) {
             const scheduleStart = new Date(schedule.startTime)
             const scheduleEnd = new Date(schedule.endTime)
             
-            // 檢查日期是否匹配（只比較日期部分，忽略時間）
-            const scheduleDateStr = scheduleStart.toISOString().split('T')[0]
-            const searchDateStr = startDateTime.toISOString().split('T')[0]
+            // 檢查日期是否匹配（使用 schedule.date 字段）
+            const scheduleDate = new Date(schedule.date)
+            // 將日期轉換為 YYYY-MM-DD 格式（使用本地時區）
+            const scheduleYear = scheduleDate.getFullYear()
+            const scheduleMonth = String(scheduleDate.getMonth() + 1).padStart(2, '0')
+            const scheduleDay = String(scheduleDate.getDate()).padStart(2, '0')
+            const scheduleDateStr = `${scheduleYear}-${scheduleMonth}-${scheduleDay}`
+            const searchDateStr = dateStr // 直接使用傳入的日期字符串 "YYYY-MM-DD"
             
-            // 檢查時間是否完全匹配（允許最多5分鐘的誤差，處理時區問題）
-            const startDiff = Math.abs(scheduleStart.getTime() - startDateTime.getTime())
-            const endDiff = Math.abs(scheduleEnd.getTime() - endDateTime.getTime())
+            // 檢查時間是否完全匹配（允許最多5分鐘的誤差）
+            // 比較時段的小時和分鐘（使用本地時區）
+            const scheduleStartHours = scheduleStart.getHours()
+            const scheduleStartMinutes = scheduleStart.getMinutes()
+            const scheduleEndHours = scheduleEnd.getHours()
+            const scheduleEndMinutes = scheduleEnd.getMinutes()
+            
+            const searchStartHours = startDateTime.getHours()
+            const searchStartMinutes = startDateTime.getMinutes()
+            const searchEndHours = endDateTime.getHours()
+            const searchEndMinutes = endDateTime.getMinutes()
             
             // 檢查是否有活躍的預約
             // 注意：Schedule.bookings 是單個對象（Booking?），不是數組
@@ -180,8 +198,12 @@ export async function GET(request: Request) {
               schedule.bookings.status !== 'CANCELLED' && 
               schedule.bookings.status !== 'REJECTED'
             
-            // 允許最多5分鐘的誤差（處理時區或精度問題）
-            const isTimeMatch = startDiff <= 5 * 60 * 1000 && endDiff <= 5 * 60 * 1000
+            // 比較小時和分鐘是否匹配（允許最多5分鐘的誤差）
+            const startTimeMatch = scheduleStartHours === searchStartHours && 
+              Math.abs(scheduleStartMinutes - searchStartMinutes) <= 5
+            const endTimeMatch = scheduleEndHours === searchEndHours && 
+              Math.abs(scheduleEndMinutes - searchEndMinutes) <= 5
+            const isTimeMatch = startTimeMatch && endTimeMatch
             const isDateMatch = scheduleDateStr === searchDateStr
             
             console.log('🔍 檢查時段:', {
