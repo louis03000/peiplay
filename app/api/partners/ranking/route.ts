@@ -14,8 +14,15 @@ export async function GET(request: NextRequest) {
     console.log('🔍 排行榜查詢參數:', { timeFilter, gameFilter })
 
     // 獲取排名數據
-    const rankings = await getPartnerRankings(timeFilter, gameFilter)
-    console.log('📊 獲取到的排名數據:', rankings.length, '個夥伴')
+    let rankings: Array<{ partnerId: string; totalMinutes: number; rank: number }> = []
+    try {
+      rankings = await getPartnerRankings(timeFilter, gameFilter)
+      console.log('📊 獲取到的排名數據:', rankings.length, '個夥伴')
+    } catch (error: any) {
+      console.error('❌ 獲取排名數據失敗:', error?.message || error)
+      // 如果獲取排名失敗，繼續執行，使用空數組
+      rankings = []
+    }
 
     // 獲取夥伴詳細信息並計算平均評價
     const partners = await db.query(async (client) => {

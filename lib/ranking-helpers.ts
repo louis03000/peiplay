@@ -189,25 +189,38 @@ export async function getPartnerRank(partnerId: string): Promise<number | null> 
  * 本週的排名決定下週的減免，所以計算當前週的費用時，需要查詢上一週的排名
  */
 export async function getPartnerLastWeekRank(partnerId: string): Promise<number | null> {
-  const lastWeekStart = getLastWeekStartDate()
-  
-  const result = await db.query(async (client) => {
-    const rankingHistory = await client.rankingHistory.findUnique({
-      where: {
-        weekStartDate_partnerId: {
-          weekStartDate: lastWeekStart,
-          partnerId,
-        },
-      },
-      select: {
-        rank: true,
-      },
-    })
+  try {
+    const lastWeekStart = getLastWeekStartDate()
+    
+    const result = await db.query(async (client) => {
+      // 檢查 RankingHistory 表是否存在
+      try {
+        const rankingHistory = await client.rankingHistory.findUnique({
+          where: {
+            weekStartDate_partnerId: {
+              weekStartDate: lastWeekStart,
+              partnerId,
+            },
+          },
+          select: {
+            rank: true,
+          },
+        })
 
-    return rankingHistory?.rank || null
-  }, 'ranking:get-last-week-rank')
+        return rankingHistory?.rank || null
+      } catch (error: any) {
+        // 如果表不存在或其他錯誤，返回 null（使用默認費率）
+        console.warn('⚠️ RankingHistory 表查詢失敗，使用默認費率:', error?.message || error)
+        return null
+      }
+    }, 'ranking:get-last-week-rank')
 
-  return result
+    return result
+  } catch (error: any) {
+    // 如果查詢失敗，返回 null（使用默認費率）
+    console.warn('⚠️ 獲取上一週排名失敗，使用默認費率:', error?.message || error)
+    return null
+  }
 }
 
 /**
