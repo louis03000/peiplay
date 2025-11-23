@@ -37,11 +37,12 @@ export async function GET(request: Request) {
     // 轉換時間格式為 Date 對象
     // 確保日期格式正確（YYYY-MM-DD）
     const dateStr = date.split('T')[0] // 移除時間部分（如果有）
-    // 使用本地時區創建日期時間對象（避免時區轉換問題）
+    // 解析時間
     const [startHour, startMinute] = startTime.split(':').map(Number)
     const [endHour, endMinute] = endTime.split(':').map(Number)
     const [year, month, day] = dateStr.split('-').map(Number)
     
+    // 使用本地時區創建時間對象（用戶輸入的是本地時間）
     const startDateTime = new Date(year, month - 1, day, startHour, startMinute, 0, 0)
     const endDateTime = new Date(year, month - 1, day, endHour, endMinute, 0, 0)
 
@@ -60,11 +61,19 @@ export async function GET(request: Request) {
 
     const result = await db.query(async (client) => {
       // 先查詢所有符合日期和時間範圍的時段，然後再過濾
-      const dateStart = new Date(dateStr)
-      dateStart.setHours(0, 0, 0, 0)
-      const dateEnd = new Date(dateStr)
-      dateEnd.setHours(23, 59, 59, 999)
+      // 使用 UTC 時區創建日期範圍，確保與數據庫一致
+      const dateStart = new Date(`${dateStr}T00:00:00.000Z`)
+      const dateEnd = new Date(`${dateStr}T23:59:59.999Z`)
 
+      console.log('🔍 搜索參數詳情:', {
+        dateStr,
+        startTime,
+        endTime,
+        startDateTime: startDateTime.toISOString(),
+        endDateTime: endDateTime.toISOString(),
+        startDateTimeLocal: `${startDateTime.getFullYear()}-${String(startDateTime.getMonth() + 1).padStart(2, '0')}-${String(startDateTime.getDate()).padStart(2, '0')} ${String(startDateTime.getHours()).padStart(2, '0')}:${String(startDateTime.getMinutes()).padStart(2, '0')}`,
+        endDateTimeLocal: `${endDateTime.getFullYear()}-${String(endDateTime.getMonth() + 1).padStart(2, '0')}-${String(endDateTime.getDate()).padStart(2, '0')} ${String(endDateTime.getHours()).padStart(2, '0')}:${String(endDateTime.getMinutes()).padStart(2, '0')}`,
+      })
       console.log('🔍 日期範圍:', {
         dateStart: dateStart.toISOString(),
         dateEnd: dateEnd.toISOString()
@@ -170,27 +179,31 @@ export async function GET(request: Request) {
           const matchingSchedule = partner.schedules.find(schedule => {
             const scheduleStart = new Date(schedule.startTime)
             const scheduleEnd = new Date(schedule.endTime)
-            
-            // 檢查日期是否匹配（使用 schedule.date 字段）
             const scheduleDate = new Date(schedule.date)
-            // 將日期轉換為 YYYY-MM-DD 格式（使用本地時區）
-            const scheduleYear = scheduleDate.getFullYear()
-            const scheduleMonth = String(scheduleDate.getMonth() + 1).padStart(2, '0')
-            const scheduleDay = String(scheduleDate.getDate()).padStart(2, '0')
-            const scheduleDateStr = `${scheduleYear}-${scheduleMonth}-${scheduleDay}`
-            const searchDateStr = dateStr // 直接使用傳入的日期字符串 "YYYY-MM-DD"
             
-            // 檢查時間是否完全匹配（允許最多5分鐘的誤差）
-            // 比較時段的小時和分鐘（使用本地時區）
-            const scheduleStartHours = scheduleStart.getHours()
-            const scheduleStartMinutes = scheduleStart.getMinutes()
-            const scheduleEndHours = scheduleEnd.getHours()
-            const scheduleEndMinutes = scheduleEnd.getMinutes()
+            // 檢查日期是否匹配 - 提取日期字符串進行比較
+            // 使用本地時區的日期部分（因為用戶輸入的是本地時間）
+            const scheduleDateStr = `${scheduleDate.getFullYear()}-${String(scheduleDate.getMonth() + 1).padStart(2, '0')}-${String(scheduleDate.getDate()).padStart(2, '0')}`
+            const isDateMatch = scheduleDateStr === dateStr
             
-            const searchStartHours = startDateTime.getHours()
-            const searchStartMinutes = startDateTime.getMinutes()
-            const searchEndHours = endDateTime.getHours()
-            const searchEndMinutes = endDateTime.getMinutes()
+            // 檢查時間是否完全匹配 - 比較小時和分鐘（使用本地時區）
+            // 這樣可以避免時區轉換問題
+            const scheduleStartHour = scheduleStart.getHours()
+            const scheduleStartMinute = scheduleStart.getMinutes()
+            const scheduleEndHour = scheduleEnd.getHours()
+            const scheduleEndMinute = scheduleEnd.getMinutes()
+            
+            const searchStartHour = startDateTime.getHours()
+            const searchStartMinute = startDateTime.getMinutes()
+            const searchEndHour = endDateTime.getHours()
+            const searchEndMinute = endDateTime.getMinutes()
+            
+            // 計算時間差（分鐘）
+            const startDiffMinutes = Math.abs((scheduleStartHour * 60 + scheduleStartMinute) - (searchStartHour * 60 + searchStartMinute))
+            const endDiffMinutes = Math.abs((scheduleEndHour * 60 + scheduleEndMinute) - (searchEndHour * 60 + searchEndMinute))
+            
+            // 允許最多5分鐘的誤差
+            const isTimeMatch = startDiffMinutes <= 5 && endDiffMinutes <= 5
             
             // 檢查是否有活躍的預約
             // 注意：Schedule.bookings 是單個對象（Booking?），不是數組
@@ -198,29 +211,13 @@ export async function GET(request: Request) {
               schedule.bookings.status !== 'CANCELLED' && 
               schedule.bookings.status !== 'REJECTED'
             
-            // 比較小時和分鐘是否匹配（允許最多5分鐘的誤差）
-            const startTimeMatch = scheduleStartHours === searchStartHours && 
-              Math.abs(scheduleStartMinutes - searchStartMinutes) <= 5
-            const endTimeMatch = scheduleEndHours === searchEndHours && 
-              Math.abs(scheduleEndMinutes - searchEndMinutes) <= 5
-            const isTimeMatch = startTimeMatch && endTimeMatch
-            const isDateMatch = scheduleDateStr === searchDateStr
-            
-            // 計算時間差（用於調試）
-            const startDiffMinutes = Math.abs((scheduleStartHours * 60 + scheduleStartMinutes) - (searchStartHours * 60 + searchStartMinutes))
-            const endDiffMinutes = Math.abs((scheduleEndHours * 60 + scheduleEndMinutes) - (searchEndHours * 60 + searchEndMinutes))
-            
             console.log('🔍 檢查時段:', {
               partnerName: partner.name,
               scheduleId: schedule.id,
-              scheduleDate: scheduleDateStr,
-              searchDate: searchDateStr,
-              scheduleStart: scheduleStart.toISOString(),
-              scheduleEnd: scheduleEnd.toISOString(),
-              searchStart: startDateTime.toISOString(),
-              searchEnd: endDateTime.toISOString(),
-              scheduleTime: `${scheduleStartHours}:${String(scheduleStartMinutes).padStart(2, '0')} - ${scheduleEndHours}:${String(scheduleEndMinutes).padStart(2, '0')}`,
-              searchTime: `${searchStartHours}:${String(searchStartMinutes).padStart(2, '0')} - ${searchEndHours}:${String(searchEndMinutes).padStart(2, '0')}`,
+              scheduleDateStr,
+              searchDateStr: dateStr,
+              scheduleTime: `${scheduleStartHour}:${String(scheduleStartMinute).padStart(2, '0')} - ${scheduleEndHour}:${String(scheduleEndMinute).padStart(2, '0')}`,
+              searchTime: `${searchStartHour}:${String(searchStartMinute).padStart(2, '0')} - ${searchEndHour}:${String(searchEndMinute).padStart(2, '0')}`,
               startDiffMinutes,
               endDiffMinutes,
               isDateMatch,
@@ -254,23 +251,46 @@ export async function GET(request: Request) {
 
       console.log('✅ 初步查詢找到夥伴:', partners.length)
       console.log('✅ 過濾後找到符合條件的夥伴:', partnersWithAvailableSchedules.length)
-      if (partnersWithAvailableSchedules.length > 0) {
+      
+      if (partners.length === 0) {
+        console.log('⚠️ 數據庫查詢沒有找到任何夥伴，可能的原因：')
+        console.log('   - 沒有 APPROVED 狀態的夥伴')
+        console.log('   - 沒有符合日期範圍的時段')
+        console.log('   - 時段時間範圍不匹配')
+        console.log('   - 時段 isAvailable = false')
+        if (gameList.length > 0) {
+          console.log('   - 遊戲篩選條件不匹配:', gameList)
+        }
+      } else if (partnersWithAvailableSchedules.length === 0) {
+        console.log('⚠️ 找到夥伴但沒有匹配的時段，詳細檢查:')
+        availablePartners.forEach(partner => {
+          console.log(`  夥伴 ${partner.name} (ID: ${partner.id}):`)
+          if (partner.schedules.length === 0) {
+            console.log('    - 沒有符合查詢條件的時段')
+          } else {
+            partner.schedules.forEach(s => {
+              const sStart = new Date(s.startTime)
+              const sEnd = new Date(s.endTime)
+              const sDate = new Date(s.date)
+              console.log(`    時段 ${s.id}:`, {
+                date: sDate.toISOString().split('T')[0],
+                startTime: sStart.toISOString(),
+                endTime: sEnd.toISOString(),
+                startTimeLocal: `${sStart.getUTCHours()}:${String(sStart.getUTCMinutes()).padStart(2, '0')}`,
+                endTimeLocal: `${sEnd.getUTCHours()}:${String(sEnd.getUTCMinutes()).padStart(2, '0')}`,
+                isAvailable: s.isAvailable,
+                hasBooking: !!s.bookings,
+                bookingStatus: s.bookings?.status
+              })
+            })
+          }
+        })
+      } else {
         console.log('✅ 夥伴列表:', partnersWithAvailableSchedules.map(p => ({
           id: p!.id,
           name: p!.name,
           matchingSchedule: p!.matchingSchedule
         })))
-      } else {
-        console.log('⚠️ 沒有找到匹配的時段，檢查所有時段:')
-        availablePartners.forEach(partner => {
-          console.log(`  夥伴 ${partner.name} 的時段:`, partner.schedules.map(s => ({
-            id: s.id,
-            startTime: new Date(s.startTime).toISOString(),
-            endTime: new Date(s.endTime).toISOString(),
-            isAvailable: s.isAvailable,
-            hasBooking: !!s.bookings
-          })))
-        })
       }
       return partnersWithAvailableSchedules
     }, 'partners/search-for-multi-player')
