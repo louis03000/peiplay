@@ -206,6 +206,10 @@ export async function GET(request: Request) {
             const isTimeMatch = startTimeMatch && endTimeMatch
             const isDateMatch = scheduleDateStr === searchDateStr
             
+            // 計算時間差（用於調試）
+            const startDiffMinutes = Math.abs((scheduleStartHours * 60 + scheduleStartMinutes) - (searchStartHours * 60 + searchStartMinutes))
+            const endDiffMinutes = Math.abs((scheduleEndHours * 60 + scheduleEndMinutes) - (searchEndHours * 60 + searchEndMinutes))
+            
             console.log('🔍 檢查時段:', {
               partnerName: partner.name,
               scheduleId: schedule.id,
@@ -215,8 +219,10 @@ export async function GET(request: Request) {
               scheduleEnd: scheduleEnd.toISOString(),
               searchStart: startDateTime.toISOString(),
               searchEnd: endDateTime.toISOString(),
-              startDiff: `${Math.round(startDiff / 1000 / 60)}分鐘`,
-              endDiff: `${Math.round(endDiff / 1000 / 60)}分鐘`,
+              scheduleTime: `${scheduleStartHours}:${String(scheduleStartMinutes).padStart(2, '0')} - ${scheduleEndHours}:${String(scheduleEndMinutes).padStart(2, '0')}`,
+              searchTime: `${searchStartHours}:${String(searchStartMinutes).padStart(2, '0')} - ${searchEndHours}:${String(searchEndMinutes).padStart(2, '0')}`,
+              startDiffMinutes,
+              endDiffMinutes,
               isDateMatch,
               isTimeMatch,
               isAvailable: schedule.isAvailable,
