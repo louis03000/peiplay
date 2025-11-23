@@ -448,11 +448,9 @@ function MultiPlayerBookingContent() {
                   const hour = Math.floor(i / 2)
                   const minute = (i % 2) * 30
                   const timeStr = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`
-                  const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour
-                  const period = hour < 12 ? '上午' : '下午'
                   return (
                     <option key={timeStr} value={timeStr}>
-                      {period} {displayHour}:{minute.toString().padStart(2, '0')}
+                      {timeStr}
                     </option>
                   )
                 })}
@@ -473,11 +471,9 @@ function MultiPlayerBookingContent() {
                   const hour = Math.floor(i / 2)
                   const minute = (i % 2) * 30
                   const timeStr = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`
-                  const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour
-                  const period = hour < 12 ? '上午' : '下午'
                   return (
                     <option key={timeStr} value={timeStr}>
-                      {period} {displayHour}:{minute.toString().padStart(2, '0')}
+                      {timeStr}
                     </option>
                   )
                 })}
