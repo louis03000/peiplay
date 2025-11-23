@@ -150,7 +150,17 @@ function MultiPlayerBookingContent() {
   }
 
   const searchPartners = async () => {
+    console.log('🔵 ========== 前端開始搜索 ==========')
+    console.log('🔵 選擇的參數:', {
+      selectedDate,
+      selectedStartTime,
+      selectedEndTime,
+      selectedGames,
+      otherGame
+    })
+    
     if (!selectedDate || !selectedStartTime || !selectedEndTime) {
+      console.log('❌ 缺少必要參數')
       alert('請選擇日期和時間')
       return
     }
@@ -160,7 +170,15 @@ function MultiPlayerBookingContent() {
     const twoHoursLater = new Date(now.getTime() + 2 * 60 * 60 * 1000)
     const selectedStartDateTime = new Date(`${selectedDate}T${selectedStartTime}:00`)
     
+    console.log('🔵 時間檢查:', {
+      now: now.toISOString(),
+      twoHoursLater: twoHoursLater.toISOString(),
+      selectedStartDateTime: selectedStartDateTime.toISOString(),
+      isValid: selectedStartDateTime > twoHoursLater
+    })
+    
     if (selectedStartDateTime <= twoHoursLater) {
+      console.log('❌ 時段太早')
       alert('預約時段必須在現在時間的2小時之後')
       return
     }
@@ -194,6 +212,20 @@ function MultiPlayerBookingContent() {
 
       const response = await fetch(apiUrl)
       console.log('📡 API 響應狀態:', response.status, response.statusText)
+      
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error('❌ API 錯誤響應:', errorText)
+        try {
+          const error = JSON.parse(errorText)
+          console.error('❌ 解析後的錯誤:', error)
+          alert(error.error || '搜尋失敗')
+        } catch (e) {
+          console.error('❌ 無法解析錯誤響應:', e)
+          alert(`搜尋失敗: ${response.status} ${response.statusText}`)
+        }
+        return
+      }
       if (response.ok) {
         const data = await response.json()
         console.log('🔍 搜索結果:', data)

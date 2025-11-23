@@ -6,9 +6,15 @@ import { authOptions } from '@/lib/auth'
 export const dynamic = 'force-dynamic'
 
 export async function GET(request: Request) {
+  console.log('🔵 ========== API 被調用 ==========')
+  console.log('🔵 Request URL:', request.url)
+  
   try {
     const session = await getServerSession(authOptions)
+    console.log('🔵 Session:', session ? '存在' : '不存在', session?.user?.id || '無用戶ID')
+    
     if (!session?.user) {
+      console.log('❌ 未授權')
       return NextResponse.json({ error: '未授權' }, { status: 401 })
     }
 
@@ -18,7 +24,10 @@ export async function GET(request: Request) {
     const endTime = searchParams.get('endTime') // 格式: "16:00"
     const games = searchParams.get('games') // 格式: "game1,game2" 或單個遊戲
 
+    console.log('🔵 接收到的參數:', { date, startTime, endTime, games })
+
     if (!date || !startTime || !endTime) {
+      console.log('❌ 缺少必要參數')
       return NextResponse.json({ error: '缺少必要參數' }, { status: 400 })
     }
 
@@ -42,11 +51,17 @@ export async function GET(request: Request) {
     const [endHour, endMinute] = endTime.split(':').map(Number)
     const [year, month, day] = dateStr.split('-').map(Number)
     
-    // 使用 UTC 時區創建時間對象，與數據庫保持一致
-    // 假設用戶輸入的是本地時間，需要轉換為 UTC
-    // 但為了簡化，我們假設用戶輸入的時間就是 UTC 時間（或服務器時區）
-    const startDateTime = new Date(Date.UTC(year, month - 1, day, startHour, startMinute, 0, 0))
-    const endDateTime = new Date(Date.UTC(year, month - 1, day, endHour, endMinute, 0, 0))
+    // 創建時間對象 - 使用本地時區（因為數據庫中的時間可能是本地時區存儲的）
+    // 先嘗試本地時區，如果不行再嘗試 UTC
+    const startDateTime = new Date(year, month - 1, day, startHour, startMinute, 0, 0)
+    const endDateTime = new Date(year, month - 1, day, endHour, endMinute, 0, 0)
+    
+    console.log('🔵 創建的時間對象:', {
+      startDateTime: startDateTime.toISOString(),
+      endDateTime: endDateTime.toISOString(),
+      startDateTimeLocal: `${startDateTime.getFullYear()}-${String(startDateTime.getMonth() + 1).padStart(2, '0')}-${String(startDateTime.getDate()).padStart(2, '0')} ${String(startDateTime.getHours()).padStart(2, '0')}:${String(startDateTime.getMinutes()).padStart(2, '0')}`,
+      endDateTimeLocal: `${endDateTime.getFullYear()}-${String(endDateTime.getMonth() + 1).padStart(2, '0')}-${String(endDateTime.getDate()).padStart(2, '0')} ${String(endDateTime.getHours()).padStart(2, '0')}:${String(endDateTime.getMinutes()).padStart(2, '0')}`
+    })
 
     // 解析遊戲列表
     const gameList = games 
@@ -187,16 +202,16 @@ export async function GET(request: Request) {
             
             // 檢查時間是否完全匹配
             // 提取時間部分（HH:MM）進行比較，允許最多5分鐘的誤差
-            // 使用 UTC 時間進行比較，確保一致性
-            const scheduleStartHour = scheduleStart.getUTCHours()
-            const scheduleStartMinute = scheduleStart.getUTCMinutes()
-            const scheduleEndHour = scheduleEnd.getUTCHours()
-            const scheduleEndMinute = scheduleEnd.getUTCMinutes()
+            // 使用本地時區進行比較（因為數據庫中的時間可能是本地時區存儲的）
+            const scheduleStartHour = scheduleStart.getHours()
+            const scheduleStartMinute = scheduleStart.getMinutes()
+            const scheduleEndHour = scheduleEnd.getHours()
+            const scheduleEndMinute = scheduleEnd.getMinutes()
             
-            const searchStartHour = startDateTime.getUTCHours()
-            const searchStartMinute = startDateTime.getUTCMinutes()
-            const searchEndHour = endDateTime.getUTCHours()
-            const searchEndMinute = endDateTime.getUTCMinutes()
+            const searchStartHour = startDateTime.getHours()
+            const searchStartMinute = startDateTime.getMinutes()
+            const searchEndHour = endDateTime.getHours()
+            const searchEndMinute = endDateTime.getMinutes()
             
             // 計算時間差（分鐘）
             const startDiffMinutes = Math.abs((scheduleStartHour * 60 + scheduleStartMinute) - (searchStartHour * 60 + searchStartMinute))
