@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic'
 export const maxDuration = 30 // Vercel 最大執行時間 30 秒
 
 export async function GET(request: Request) {
-  const startTime = Date.now()
+  const performanceStartTime = Date.now()
   console.log('🔵 ========== API 被調用 ==========')
   console.log('🔵 Request URL:', request.url)
   console.log('🔵 開始時間:', new Date().toISOString())
@@ -159,7 +159,7 @@ export async function GET(request: Request) {
         }
       })
 
-      const queryTime = Date.now() - startTime
+      const queryTime = Date.now() - performanceStartTime
       console.log('📊 數據庫查詢結果:', {
         totalPartners: partners.length,
         partnersWithSchedules: partners.filter(p => p.schedules.length > 0).length,
@@ -391,14 +391,14 @@ export async function GET(request: Request) {
       return partnersWithAvailableSchedules
     }, 'partners/search-for-multi-player')
 
-    const endTime = Date.now()
-    const duration = endTime - startTime
+    const endTimestamp = Date.now()
+    const duration = endTimestamp - performanceStartTime
     console.log('📤 返回結果:', result.length, '位夥伴')
     console.log('⏱️ 總執行時間:', duration, 'ms')
     return NextResponse.json(result)
   } catch (error: any) {
-    const endTime = Date.now()
-    const duration = endTime - startTime
+    const endTimestamp = Date.now()
+    const duration = endTimestamp - performanceStartTime
     console.error('❌ ========== 搜索失敗 ==========')
     console.error('❌ 錯誤類型:', error?.constructor?.name)
     console.error('❌ 錯誤訊息:', error?.message)
