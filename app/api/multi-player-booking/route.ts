@@ -384,12 +384,20 @@ export async function GET(request: Request) {
         })
       } catch (dbError: any) {
         // 如果表不存在，返回空数组而不是错误
-        if (dbError?.message?.includes('does not exist') || 
-            dbError?.message?.includes('table') ||
-            dbError?.code === 'P2021') {
-          console.warn('⚠️ MultiPlayerBooking 表不存在，返回空列表')
+        // 檢查多種可能的錯誤格式
+        const errorMessage = dbError?.message || ''
+        const errorCode = dbError?.code || ''
+        
+        if (errorMessage.includes('does not exist') || 
+            errorMessage.includes('table') ||
+            errorMessage.includes('MultiPlayerBooking') ||
+            errorCode === 'P2021' ||
+            errorCode === 'P1001') {
+          // 靜默處理：表不存在時返回空列表，不記錄錯誤
+          // 這不會影響搜尋功能，因為搜尋 API 不使用這個表
           return []
         }
+        // 其他錯誤才拋出
         throw dbError
       }
     }, 'multi-player-booking:list')
