@@ -107,10 +107,22 @@ export async function GET(request: Request) {
       }, { status: 400 })
     }
     
-    // 創建時間對象 - 使用 UTC 時區以確保與數據庫一致
-    // 注意：數據庫中的時間應該以 UTC 存儲
-    const startDateTime = new Date(Date.UTC(year, month - 1, day, startHour, startMinute, 0, 0))
-    const endDateTime = new Date(Date.UTC(year, month - 1, day, endHour, endMinute, 0, 0))
+    // 創建時間對象
+    // 注意：時段保存時使用本地時間轉為 ISO（UTC），所以我們需要：
+    // 1. 先用本地時間創建 Date 對象（這樣才能正確匹配）
+    // 2. 然後轉換為 UTC 進行比較（因為數據庫存儲的是 UTC）
+    // 但實際上，由於時段保存時已經轉換為 UTC，我們應該直接用 UTC 創建
+    // 問題是：如果用戶在 UTC+8 時區選擇 00:00，保存時會變成前一天的 16:00 UTC
+    // 所以我們需要考慮時區偏移
+    
+    // 方案：使用本地時間創建，然後獲取其 UTC 表示
+    // 這樣可以確保與保存時的邏輯一致
+    const localStartDateTime = new Date(year, month - 1, day, startHour, startMinute, 0, 0)
+    const localEndDateTime = new Date(year, month - 1, day, endHour, endMinute, 0, 0)
+    
+    // 獲取 UTC 時間（與數據庫中存儲的格式一致）
+    const startDateTime = new Date(localStartDateTime.toISOString())
+    const endDateTime = new Date(localEndDateTime.toISOString())
     
     if (isNaN(startDateTime.getTime()) || isNaN(endDateTime.getTime())) {
       console.log('❌ 創建的時間對象無效:', { startDateTime, endDateTime })
@@ -366,9 +378,11 @@ export async function GET(request: Request) {
             }
             
             // 檢查時間：搜尋的時段必須完全包含在夥伴的時段內
-            // 使用完整的 Date 對象進行比較，確保時區一致
+            // 使用完整的 Date 對象進行比較（都是 UTC 時間）
             // 時段開始時間 <= 搜尋開始時間 且 時段結束時間 >= 搜尋結束時間
-            const isTimeContained = scheduleStart <= startDateTime && scheduleEnd >= endDateTime
+            // 注意：scheduleStart 和 scheduleEnd 已經是 UTC 時間（從數據庫讀取）
+            // startDateTime 和 endDateTime 也是 UTC 時間（從本地時間轉換）
+            const isTimeContained = scheduleStart.getTime() <= startDateTime.getTime() && scheduleEnd.getTime() >= endDateTime.getTime()
             
             // 檢查是否有活躍的預約
             // 注意：Schedule.bookings 是單個對象（Booking?），不是數組
@@ -376,11 +390,15 @@ export async function GET(request: Request) {
               schedule.bookings.status !== 'CANCELLED' && 
               schedule.bookings.status !== 'REJECTED'
             
-            // 為了調試，計算時間差
-            const scheduleStartTotalMinutes = scheduleStart.getUTCHours() * 60 + scheduleStart.getUTCMinutes()
-            const scheduleEndTotalMinutes = scheduleEnd.getUTCHours() * 60 + scheduleEnd.getUTCMinutes()
-            const searchStartTotalMinutes = startDateTime.getUTCHours() * 60 + startDateTime.getUTCMinutes()
-            const searchEndTotalMinutes = endDateTime.getUTCHours() * 60 + endDateTime.getUTCMinutes()
+            // 為了調試，計算時間差（使用 UTC 時間）
+            const scheduleStartTime = scheduleStart.getTime()
+            const scheduleEndTime = scheduleEnd.getTime()
+            const searchStartTime = startDateTime.getTime()
+            const searchEndTime = endDateTime.getTime()
+            
+            // 計算時間差（毫秒）
+            const startDiffMs = searchStartTime - scheduleStartTime
+            const endDiffMs = scheduleEndTime - searchEndTime
             
             console.log('🔍 檢查時段:', {
               partnerName: partner.name,
@@ -393,15 +411,17 @@ export async function GET(request: Request) {
               searchEndISO: endDateTime.toISOString(),
               scheduleTimeUTC: `${scheduleStart.getUTCHours()}:${String(scheduleStart.getUTCMinutes()).padStart(2, '0')} - ${scheduleEnd.getUTCHours()}:${String(scheduleEnd.getUTCMinutes()).padStart(2, '0')}`,
               searchTimeUTC: `${startDateTime.getUTCHours()}:${String(startDateTime.getUTCMinutes()).padStart(2, '0')} - ${endDateTime.getUTCHours()}:${String(endDateTime.getUTCMinutes()).padStart(2, '0')}`,
-              scheduleStartTotalMinutes,
-              scheduleEndTotalMinutes,
-              searchStartTotalMinutes,
-              searchEndTotalMinutes,
+              scheduleStartTime,
+              scheduleEndTime,
+              searchStartTime,
+              searchEndTime,
+              startDiffMs: `${startDiffMs}ms (${Math.round(startDiffMs / 60000)}分鐘)`,
+              endDiffMs: `${endDiffMs}ms (${Math.round(endDiffMs / 60000)}分鐘)`,
               isDateMatch,
               isTimeContained: isTimeContained,
               timeCheck: {
-                startCheck: `${scheduleStartTotalMinutes} <= ${searchStartTotalMinutes} = ${scheduleStartTotalMinutes <= searchStartTotalMinutes}`,
-                endCheck: `${scheduleEndTotalMinutes} >= ${searchEndTotalMinutes} = ${scheduleEndTotalMinutes >= searchEndTotalMinutes}`
+                startCheck: `${scheduleStartTime} <= ${searchStartTime} = ${scheduleStartTime <= searchStartTime}`,
+                endCheck: `${scheduleEndTime} >= ${searchEndTime} = ${scheduleEndTime >= searchEndTime}`
               },
               isAvailable: schedule.isAvailable,
               hasActiveBooking,
