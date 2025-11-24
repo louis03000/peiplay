@@ -5,9 +5,13 @@ import { authOptions } from '@/lib/auth'
 
 export const dynamic = 'force-dynamic'
 
+export const maxDuration = 30 // Vercel 最大執行時間 30 秒
+
 export async function GET(request: Request) {
+  const startTime = Date.now()
   console.log('🔵 ========== API 被調用 ==========')
   console.log('🔵 Request URL:', request.url)
+  console.log('🔵 開始時間:', new Date().toISOString())
   
   try {
     const session = await getServerSession(authOptions)
@@ -155,11 +159,84 @@ export async function GET(request: Request) {
         }
       })
 
+      const queryTime = Date.now() - startTime
       console.log('📊 數據庫查詢結果:', {
         totalPartners: partners.length,
         partnersWithSchedules: partners.filter(p => p.schedules.length > 0).length,
-        totalSchedules: partners.reduce((sum, p) => sum + p.schedules.length, 0)
+        totalSchedules: partners.reduce((sum, p) => sum + p.schedules.length, 0),
+        queryTime: `${queryTime}ms`
       })
+      
+      if (partners.length === 0) {
+        console.log('⚠️ 數據庫查詢沒有找到任何已批准的夥伴')
+        // 檢查是否有任何夥伴存在（不管狀態）
+        const allPartnersCount = await client.partner.count()
+        console.log('📊 數據庫中總夥伴數:', allPartnersCount)
+        const approvedPartnersCount = await client.partner.count({
+          where: { status: 'APPROVED' }
+        })
+        console.log('📊 已批准夥伴數:', approvedPartnersCount)
+        
+        // 檢查該日期是否有任何時段
+        const schedulesOnDate = await client.schedule.findMany({
+          where: {
+            date: {
+              gte: dateStart,
+              lte: dateEnd,
+            },
+            isAvailable: true
+          },
+          include: {
+            partner: {
+              select: {
+                id: true,
+                name: true,
+                status: true
+              }
+            }
+          },
+          take: 5 // 只取前5個作為示例
+        })
+        console.log('📅 該日期範圍內的時段:', schedulesOnDate.length)
+        schedulesOnDate.forEach(s => {
+          const sStart = new Date(s.startTime)
+          const sEnd = new Date(s.endTime)
+          const sDate = new Date(s.date)
+          console.log(`  時段 ${s.id}:`, {
+            partnerName: s.partner.name,
+            partnerStatus: s.partner.status,
+            date: sDate.toISOString().split('T')[0],
+            startTime: sStart.toISOString(),
+            endTime: sEnd.toISOString(),
+            startTimeLocal: `${sStart.getHours()}:${String(sStart.getMinutes()).padStart(2, '0')}`,
+            endTimeLocal: `${sEnd.getHours()}:${String(sEnd.getMinutes()).padStart(2, '0')}`,
+            isAvailable: s.isAvailable
+          })
+        })
+      } else {
+        // 如果有夥伴，檢查他們的時段詳情
+        console.log('📋 找到的夥伴及其時段詳情（前3個）:')
+        partners.slice(0, 3).forEach(p => {
+          console.log(`  夥伴 ${p.name} (${p.id}):`, {
+            schedulesCount: p.schedules.length,
+            schedules: p.schedules.map(s => {
+              const sStart = new Date(s.startTime)
+              const sEnd = new Date(s.endTime)
+              const sDate = new Date(s.date)
+              return {
+                id: s.id,
+                date: sDate.toISOString().split('T')[0],
+                startTime: sStart.toISOString(),
+                endTime: sEnd.toISOString(),
+                startTimeLocal: `${sStart.getHours()}:${String(sStart.getMinutes()).padStart(2, '0')}`,
+                endTimeLocal: `${sEnd.getHours()}:${String(sEnd.getMinutes()).padStart(2, '0')}`,
+                isAvailable: s.isAvailable,
+                hasBooking: !!s.bookings
+              }
+            })
+          })
+        })
+      }
 
       // 過濾掉被停權的夥伴
       const availablePartners = partners.filter(partner => {
@@ -314,12 +391,27 @@ export async function GET(request: Request) {
       return partnersWithAvailableSchedules
     }, 'partners/search-for-multi-player')
 
+    const endTime = Date.now()
+    const duration = endTime - startTime
     console.log('📤 返回結果:', result.length, '位夥伴')
+    console.log('⏱️ 總執行時間:', duration, 'ms')
     return NextResponse.json(result)
-  } catch (error) {
-    console.error('Error searching partners for multi-player:', error)
+  } catch (error: any) {
+    const endTime = Date.now()
+    const duration = endTime - startTime
+    console.error('❌ ========== 搜索失敗 ==========')
+    console.error('❌ 錯誤類型:', error?.constructor?.name)
+    console.error('❌ 錯誤訊息:', error?.message)
+    console.error('❌ 錯誤堆疊:', error?.stack)
+    console.error('⏱️ 失敗時間:', duration, 'ms')
+    
+    // 確保返回錯誤響應
     return NextResponse.json(
-      { error: '搜尋夥伴失敗' },
+      { 
+        error: '搜尋夥伴失敗',
+        message: error?.message || '未知錯誤',
+        duration: duration
+      },
       { status: 500 }
     )
   }
