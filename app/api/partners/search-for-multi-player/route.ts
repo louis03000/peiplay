@@ -348,7 +348,8 @@ export async function GET(request: Request) {
             : 0;
           
           // 找到符合時段的 schedule
-          // 需要完全匹配開始和結束時間
+          // 檢查搜尋的時段是否完全包含在夥伴的可用時段內
+          // 即：時段開始時間 <= 搜尋開始時間 且 時段結束時間 >= 搜尋結束時間
           const matchingSchedule = partner.schedules.find(schedule => {
             const scheduleStart = new Date(schedule.startTime)
             const scheduleEnd = new Date(schedule.endTime)
@@ -360,30 +361,26 @@ export async function GET(request: Request) {
             const searchDateStr = dateStr
             const isDateMatch = scheduleDateStr === searchDateStr
             
-            // 檢查時間是否完全匹配
-            // 使用 UTC 時間進行比較，確保與數據庫一致
-            const scheduleStartHour = scheduleStart.getUTCHours()
-            const scheduleStartMinute = scheduleStart.getUTCMinutes()
-            const scheduleEndHour = scheduleEnd.getUTCHours()
-            const scheduleEndMinute = scheduleEnd.getUTCMinutes()
+            if (!isDateMatch) {
+              return false
+            }
             
-            const searchStartHour = startDateTime.getUTCHours()
-            const searchStartMinute = startDateTime.getUTCMinutes()
-            const searchEndHour = endDateTime.getUTCHours()
-            const searchEndMinute = endDateTime.getUTCMinutes()
-            
-            // 計算時間差（分鐘）
-            const startDiffMinutes = Math.abs((scheduleStartHour * 60 + scheduleStartMinute) - (searchStartHour * 60 + searchStartMinute))
-            const endDiffMinutes = Math.abs((scheduleEndHour * 60 + scheduleEndMinute) - (searchEndHour * 60 + searchEndMinute))
-            
-            // 允許最多5分鐘的誤差
-            const isTimeMatch = startDiffMinutes <= 5 && endDiffMinutes <= 5
+            // 檢查時間：搜尋的時段必須完全包含在夥伴的時段內
+            // 使用完整的 Date 對象進行比較，確保時區一致
+            // 時段開始時間 <= 搜尋開始時間 且 時段結束時間 >= 搜尋結束時間
+            const isTimeContained = scheduleStart <= startDateTime && scheduleEnd >= endDateTime
             
             // 檢查是否有活躍的預約
             // 注意：Schedule.bookings 是單個對象（Booking?），不是數組
             const hasActiveBooking = schedule.bookings && 
               schedule.bookings.status !== 'CANCELLED' && 
               schedule.bookings.status !== 'REJECTED'
+            
+            // 為了調試，計算時間差
+            const scheduleStartTotalMinutes = scheduleStart.getUTCHours() * 60 + scheduleStart.getUTCMinutes()
+            const scheduleEndTotalMinutes = scheduleEnd.getUTCHours() * 60 + scheduleEnd.getUTCMinutes()
+            const searchStartTotalMinutes = startDateTime.getUTCHours() * 60 + startDateTime.getUTCMinutes()
+            const searchEndTotalMinutes = endDateTime.getUTCHours() * 60 + endDateTime.getUTCMinutes()
             
             console.log('🔍 檢查時段:', {
               partnerName: partner.name,
@@ -394,19 +391,25 @@ export async function GET(request: Request) {
               scheduleEndISO: scheduleEnd.toISOString(),
               searchStartISO: startDateTime.toISOString(),
               searchEndISO: endDateTime.toISOString(),
-              scheduleTimeUTC: `${scheduleStartHour}:${String(scheduleStartMinute).padStart(2, '0')} - ${scheduleEndHour}:${String(scheduleEndMinute).padStart(2, '0')}`,
-              searchTimeUTC: `${searchStartHour}:${String(searchStartMinute).padStart(2, '0')} - ${searchEndHour}:${String(searchEndMinute).padStart(2, '0')}`,
-              startDiffMinutes,
-              endDiffMinutes,
+              scheduleTimeUTC: `${scheduleStart.getUTCHours()}:${String(scheduleStart.getUTCMinutes()).padStart(2, '0')} - ${scheduleEnd.getUTCHours()}:${String(scheduleEnd.getUTCMinutes()).padStart(2, '0')}`,
+              searchTimeUTC: `${startDateTime.getUTCHours()}:${String(startDateTime.getUTCMinutes()).padStart(2, '0')} - ${endDateTime.getUTCHours()}:${String(endDateTime.getUTCMinutes()).padStart(2, '0')}`,
+              scheduleStartTotalMinutes,
+              scheduleEndTotalMinutes,
+              searchStartTotalMinutes,
+              searchEndTotalMinutes,
               isDateMatch,
-              isTimeMatch,
+              isTimeContained: isTimeContained,
+              timeCheck: {
+                startCheck: `${scheduleStartTotalMinutes} <= ${searchStartTotalMinutes} = ${scheduleStartTotalMinutes <= searchStartTotalMinutes}`,
+                endCheck: `${scheduleEndTotalMinutes} >= ${searchEndTotalMinutes} = ${scheduleEndTotalMinutes >= searchEndTotalMinutes}`
+              },
               isAvailable: schedule.isAvailable,
               hasActiveBooking,
-              willMatch: isDateMatch && isTimeMatch && schedule.isAvailable && !hasActiveBooking
+              willMatch: isDateMatch && isTimeContained && schedule.isAvailable && !hasActiveBooking
             })
             
             return isDateMatch &&
-                   isTimeMatch &&
+                   isTimeContained &&
                    schedule.isAvailable &&
                    !hasActiveBooking
           })
