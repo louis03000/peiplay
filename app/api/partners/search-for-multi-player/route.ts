@@ -23,42 +23,114 @@ export async function GET(request: Request) {
     }
 
     const { searchParams } = new URL(request.url)
-    const date = searchParams.get('date') // 格式: "2024-01-15"
+    const date = searchParams.get('date') // 格式: "2024-01-15" 或 "2024/01/15"
     const startTime = searchParams.get('startTime') // 格式: "14:00"
     const endTime = searchParams.get('endTime') // 格式: "16:00"
     const games = searchParams.get('games') // 格式: "game1,game2" 或單個遊戲
 
-    console.log('🔵 接收到的參數:', { date, startTime, endTime, games })
+    console.log('🔵 接收到的原始參數:', { date, startTime, endTime, games })
 
+    // 驗證參數格式
     if (!date || !startTime || !endTime) {
-      console.log('❌ 缺少必要參數')
-      return NextResponse.json({ error: '缺少必要參數' }, { status: 400 })
+      console.log('❌ 缺少必要參數:', { date: !!date, startTime: !!startTime, endTime: !!endTime })
+      return NextResponse.json({ 
+        error: '缺少必要參數',
+        details: { date: !!date, startTime: !!startTime, endTime: !!endTime }
+      }, { status: 400 })
     }
+
+    // 統一日期格式：將 "2024/01/15" 轉換為 "2024-01-15"
+    const normalizedDate = date.replace(/\//g, '-')
+    
+    // 驗證日期格式
+    const datePattern = /^\d{4}-\d{2}-\d{2}$/
+    if (!datePattern.test(normalizedDate)) {
+      console.log('❌ 日期格式錯誤:', normalizedDate)
+      return NextResponse.json({ 
+        error: '日期格式錯誤，應為 YYYY-MM-DD',
+        received: date
+      }, { status: 400 })
+    }
+
+    // 驗證時間格式
+    const timePattern = /^\d{2}:\d{2}$/
+    if (!timePattern.test(startTime) || !timePattern.test(endTime)) {
+      console.log('❌ 時間格式錯誤:', { startTime, endTime })
+      return NextResponse.json({ 
+        error: '時間格式錯誤，應為 HH:MM',
+        received: { startTime, endTime }
+      }, { status: 400 })
+    }
+
+    console.log('🔵 標準化後的參數:', { date: normalizedDate, startTime, endTime, games })
 
     // 檢查時段是否在「現在+2小時」之後
     const now = new Date()
     const twoHoursLater = new Date(now.getTime() + 2 * 60 * 60 * 1000)
-    const selectedStartTime = new Date(`${date}T${startTime}:00`)
+    const selectedStartTime = new Date(`${normalizedDate}T${startTime}:00`)
+    
+    if (isNaN(selectedStartTime.getTime())) {
+      console.log('❌ 無法解析開始時間:', `${normalizedDate}T${startTime}:00`)
+      return NextResponse.json({ 
+        error: '開始時間格式錯誤',
+        received: { date: normalizedDate, startTime }
+      }, { status: 400 })
+    }
     
     if (selectedStartTime <= twoHoursLater) {
+      console.log('❌ 時段太早:', {
+        selectedStartTime: selectedStartTime.toISOString(),
+        twoHoursLater: twoHoursLater.toISOString()
+      })
       return NextResponse.json({ 
         error: '預約時段必須在現在時間的2小時之後',
-        minTime: twoHoursLater.toISOString()
+        minTime: twoHoursLater.toISOString(),
+        selectedTime: selectedStartTime.toISOString()
       }, { status: 400 })
     }
 
     // 轉換時間格式為 Date 對象
     // 確保日期格式正確（YYYY-MM-DD）
-    const dateStr = date.split('T')[0] // 移除時間部分（如果有）
+    const dateStr = normalizedDate.split('T')[0] // 移除時間部分（如果有）
     // 解析時間
     const [startHour, startMinute] = startTime.split(':').map(Number)
     const [endHour, endMinute] = endTime.split(':').map(Number)
     const [year, month, day] = dateStr.split('-').map(Number)
     
-    // 創建時間對象 - 使用本地時區（因為數據庫中的時間可能是本地時區存儲的）
-    // 先嘗試本地時區，如果不行再嘗試 UTC
-    const startDateTime = new Date(year, month - 1, day, startHour, startMinute, 0, 0)
-    const endDateTime = new Date(year, month - 1, day, endHour, endMinute, 0, 0)
+    // 驗證解析結果
+    if (isNaN(startHour) || isNaN(startMinute) || isNaN(endHour) || isNaN(endMinute) ||
+        isNaN(year) || isNaN(month) || isNaN(day)) {
+      console.log('❌ 無法解析時間或日期:', { startHour, startMinute, endHour, endMinute, year, month, day })
+      return NextResponse.json({ 
+        error: '時間或日期解析失敗',
+        received: { date: normalizedDate, startTime, endTime }
+      }, { status: 400 })
+    }
+    
+    // 創建時間對象 - 使用 UTC 時區以確保與數據庫一致
+    // 注意：數據庫中的時間應該以 UTC 存儲
+    const startDateTime = new Date(Date.UTC(year, month - 1, day, startHour, startMinute, 0, 0))
+    const endDateTime = new Date(Date.UTC(year, month - 1, day, endHour, endMinute, 0, 0))
+    
+    if (isNaN(startDateTime.getTime()) || isNaN(endDateTime.getTime())) {
+      console.log('❌ 創建的時間對象無效:', { startDateTime, endDateTime })
+      return NextResponse.json({ 
+        error: '時間對象創建失敗',
+        received: { date: normalizedDate, startTime, endTime }
+      }, { status: 400 })
+    }
+    
+    // 驗證結束時間晚於開始時間
+    if (endDateTime <= startDateTime) {
+      console.log('❌ 結束時間必須晚於開始時間:', {
+        startDateTime: startDateTime.toISOString(),
+        endDateTime: endDateTime.toISOString()
+      })
+      return NextResponse.json({ 
+        error: '結束時間必須晚於開始時間',
+        received: { startTime, endTime }
+      }, { status: 400 })
+    }
     
     console.log('🔵 創建的時間對象:', {
       startDateTime: startDateTime.toISOString(),
@@ -67,20 +139,22 @@ export async function GET(request: Request) {
       endDateTimeLocal: `${endDateTime.getFullYear()}-${String(endDateTime.getMonth() + 1).padStart(2, '0')}-${String(endDateTime.getDate()).padStart(2, '0')} ${String(endDateTime.getHours()).padStart(2, '0')}:${String(endDateTime.getMinutes()).padStart(2, '0')}`
     })
 
-    // 解析遊戲列表
+    // 解析遊戲列表，統一轉為小寫以確保大小寫不敏感匹配
     const gameList = games 
-      ? games.split(',').map(g => g.trim()).filter(g => g.length > 0)
+      ? games.split(',').map(g => g.trim().toLowerCase()).filter(g => g.length > 0)
       : []
 
     console.log('🔍 ========== 開始搜索多人陪玩夥伴 ==========')
     console.log('🔍 搜索參數:', { 
-      date, 
+      date: normalizedDate, 
       dateStr, 
       startTime, 
       endTime, 
       games: gameList,
       startDateTime: startDateTime.toISOString(),
-      endDateTime: endDateTime.toISOString()
+      endDateTime: endDateTime.toISOString(),
+      startDateTimeUTC: `${startDateTime.getUTCFullYear()}-${String(startDateTime.getUTCMonth() + 1).padStart(2, '0')}-${String(startDateTime.getUTCDate()).padStart(2, '0')} ${String(startDateTime.getUTCHours()).padStart(2, '0')}:${String(startDateTime.getUTCMinutes()).padStart(2, '0')}`,
+      endDateTimeUTC: `${endDateTime.getUTCFullYear()}-${String(endDateTime.getUTCMonth() + 1).padStart(2, '0')}-${String(endDateTime.getUTCDate()).padStart(2, '0')} ${String(endDateTime.getUTCHours()).padStart(2, '0')}:${String(endDateTime.getUTCMinutes()).padStart(2, '0')}`
     })
 
     const result = await db.query(async (client) => {
@@ -118,12 +192,10 @@ export async function GET(request: Request) {
               isAvailable: true
             }
           },
-          // 遊戲篩選
-          ...(gameList.length > 0 ? {
-            games: {
-              hasSome: gameList
-            }
-          } : {})
+          // 遊戲篩選 - 使用大小寫不敏感的匹配
+          // 注意：Prisma 的 hasSome 是大小寫敏感的，所以我們在查詢時不篩選遊戲
+          // 而是在後續的 JavaScript 邏輯中進行大小寫不敏感的匹配
+          // 這樣可以確保不會因為大小寫問題而漏掉夥伴
         },
         include: {
           user: {
@@ -258,6 +330,17 @@ export async function GET(request: Request) {
       // 只返回有可用時段的夥伴，並計算平均星等
       const partnersWithAvailableSchedules = availablePartners
         .map(partner => {
+          // 遊戲篩選：如果指定了遊戲，檢查夥伴是否有匹配的遊戲（大小寫不敏感）
+          if (gameList.length > 0) {
+            const partnerGames = (partner.games || []).map((g: string) => g.toLowerCase())
+            const hasMatchingGame = gameList.some(searchGame => 
+              partnerGames.some(partnerGame => partnerGame === searchGame)
+            )
+            if (!hasMatchingGame) {
+              return null
+            }
+          }
+          
           // 計算平均星等
           const reviews = partner.user?.reviewsReceived || [];
           const averageRating = reviews.length > 0 
@@ -272,23 +355,22 @@ export async function GET(request: Request) {
             const scheduleDate = new Date(schedule.date)
             
             // 檢查日期是否匹配 - 比較日期字符串（YYYY-MM-DD）
-            // 從完整的 ISO 字符串中提取日期部分
+            // 從完整的 ISO 字符串中提取日期部分（使用 UTC）
             const scheduleDateStr = scheduleDate.toISOString().split('T')[0]
             const searchDateStr = dateStr
             const isDateMatch = scheduleDateStr === searchDateStr
             
             // 檢查時間是否完全匹配
-            // 提取時間部分（HH:MM）進行比較，允許最多5分鐘的誤差
-            // 使用本地時區進行比較（因為數據庫中的時間可能是本地時區存儲的）
-            const scheduleStartHour = scheduleStart.getHours()
-            const scheduleStartMinute = scheduleStart.getMinutes()
-            const scheduleEndHour = scheduleEnd.getHours()
-            const scheduleEndMinute = scheduleEnd.getMinutes()
+            // 使用 UTC 時間進行比較，確保與數據庫一致
+            const scheduleStartHour = scheduleStart.getUTCHours()
+            const scheduleStartMinute = scheduleStart.getUTCMinutes()
+            const scheduleEndHour = scheduleEnd.getUTCHours()
+            const scheduleEndMinute = scheduleEnd.getUTCMinutes()
             
-            const searchStartHour = startDateTime.getHours()
-            const searchStartMinute = startDateTime.getMinutes()
-            const searchEndHour = endDateTime.getHours()
-            const searchEndMinute = endDateTime.getMinutes()
+            const searchStartHour = startDateTime.getUTCHours()
+            const searchStartMinute = startDateTime.getUTCMinutes()
+            const searchEndHour = endDateTime.getUTCHours()
+            const searchEndMinute = endDateTime.getUTCMinutes()
             
             // 計算時間差（分鐘）
             const startDiffMinutes = Math.abs((scheduleStartHour * 60 + scheduleStartMinute) - (searchStartHour * 60 + searchStartMinute))
@@ -312,8 +394,8 @@ export async function GET(request: Request) {
               scheduleEndISO: scheduleEnd.toISOString(),
               searchStartISO: startDateTime.toISOString(),
               searchEndISO: endDateTime.toISOString(),
-              scheduleTime: `${scheduleStartHour}:${String(scheduleStartMinute).padStart(2, '0')} - ${scheduleEndHour}:${String(scheduleEndMinute).padStart(2, '0')}`,
-              searchTime: `${searchStartHour}:${String(searchStartMinute).padStart(2, '0')} - ${searchEndHour}:${String(searchEndMinute).padStart(2, '0')}`,
+              scheduleTimeUTC: `${scheduleStartHour}:${String(scheduleStartMinute).padStart(2, '0')} - ${scheduleEndHour}:${String(scheduleEndMinute).padStart(2, '0')}`,
+              searchTimeUTC: `${searchStartHour}:${String(searchStartMinute).padStart(2, '0')} - ${searchEndHour}:${String(searchEndMinute).padStart(2, '0')}`,
               startDiffMinutes,
               endDiffMinutes,
               isDateMatch,

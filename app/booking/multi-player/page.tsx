@@ -219,37 +219,47 @@ function MultiPlayerBookingContent() {
         try {
           const error = JSON.parse(errorText)
           console.error('❌ 解析後的錯誤:', error)
-          alert(error.error || '搜尋失敗')
+          
+          // 顯示詳細的錯誤訊息
+          let errorMessage = error.error || '搜尋失敗'
+          if (error.details) {
+            errorMessage += `\n\n詳細資訊：${JSON.stringify(error.details, null, 2)}`
+          }
+          if (error.message) {
+            errorMessage += `\n\n訊息：${error.message}`
+          }
+          if (error.received) {
+            errorMessage += `\n\n接收到的參數：${JSON.stringify(error.received, null, 2)}`
+          }
+          
+          alert(errorMessage)
         } catch (e) {
           console.error('❌ 無法解析錯誤響應:', e)
-          alert(`搜尋失敗: ${response.status} ${response.statusText}`)
+          alert(`搜尋失敗: ${response.status} ${response.statusText}\n\n請檢查瀏覽器 Console 查看詳細錯誤訊息`)
         }
         return
       }
-      if (response.ok) {
-        const data = await response.json()
-        console.log('🔍 搜索結果:', data)
-        console.log('🔍 結果數量:', Array.isArray(data) ? data.length : 0)
-        
-        const partnersList = Array.isArray(data) ? data : []
-        setPartners(partnersList)
-        
-        // 提取所有遊戲
-        const gamesSet = new Set<string>()
-        partnersList.forEach((partner: Partner) => {
-          if (partner.games && Array.isArray(partner.games)) {
-            partner.games.forEach(game => gamesSet.add(game))
-          }
-        })
-        setAvailableGames(Array.from(gamesSet))
-        
-        if (partnersList.length === 0) {
-          alert('沒有找到符合條件的夥伴')
+      
+      const data = await response.json()
+      console.log('🔍 搜索結果:', data)
+      console.log('🔍 結果數量:', Array.isArray(data) ? data.length : 0)
+      
+      const partnersList = Array.isArray(data) ? data : []
+      setPartners(partnersList)
+      
+      // 提取所有遊戲
+      const gamesSet = new Set<string>()
+      partnersList.forEach((partner: Partner) => {
+        if (partner.games && Array.isArray(partner.games)) {
+          partner.games.forEach(game => gamesSet.add(game))
         }
-      } else {
-        const error = await response.json()
-        console.error('❌ 搜索失敗:', error)
-        alert(error.error || '搜尋失敗')
+      })
+      setAvailableGames(Array.from(gamesSet))
+      
+      if (partnersList.length === 0) {
+        // 顯示更詳細的訊息，幫助用戶理解為什麼沒有找到夥伴
+        const searchInfo = `日期：${selectedDate}\n開始時間：${selectedStartTime}\n結束時間：${selectedEndTime}${allGames.length > 0 ? `\n遊戲：${allGames.join(', ')}` : ''}`
+        alert(`沒有找到符合條件的夥伴\n\n搜尋條件：\n${searchInfo}\n\n可能的原因：\n1. 該時段沒有可用的夥伴\n2. 選擇的遊戲沒有匹配的夥伴\n3. 時段已被預約\n\n建議：\n- 嘗試選擇其他時段\n- 移除遊戲篩選條件\n- 選擇更長的時間範圍`)
       }
     } catch (error) {
       console.error('搜尋夥伴失敗:', error)
