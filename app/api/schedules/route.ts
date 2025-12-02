@@ -166,6 +166,9 @@ export async function POST(request: NextRequest) {
           }
 
           return baseSchedule
+        }, {
+          maxWait: 10000, // 等待事務開始的最大時間（10秒）
+          timeout: 20000, // 事務執行的最大時間（20秒）
         })
 
         return { type: 'SUCCESS', schedule: created } as const

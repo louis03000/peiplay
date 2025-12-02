@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db-resilience";
+import { createErrorResponse } from "@/lib/api-helpers";
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -52,15 +53,28 @@ export async function POST(request: Request) {
         });
 
         if (!customer) {
-          // 為夥伴創建客戶記錄
-          customer = await tx.customer.create({
-            data: {
-              name: user.name || '夥伴用戶',
-              birthday: new Date('1990-01-01'), // 默認生日
-              phone: '0000000000', // 默認電話
-              userId: partner.userId
+          try {
+            // 為夥伴創建客戶記錄
+            customer = await tx.customer.create({
+              data: {
+                id: `customer-${partner.userId}`,
+                name: user.name || '夥伴用戶',
+                birthday: new Date('1990-01-01'), // 預設生日
+                phone: '0000000000', // 預設電話
+                userId: partner.userId
+              }
+            });
+          } catch (error: any) {
+            // 如果創建失敗（可能是並發創建），再次查詢
+            if (error?.code === 'P2002') {
+              customer = await tx.customer.findUnique({
+                where: { userId: partner.userId }
+              });
             }
-          });
+            if (!customer) {
+              throw error;
+            }
+          }
         }
 
         // 創建群組預約
@@ -140,18 +154,23 @@ export async function POST(request: Request) {
             }
           }
         });
+      }, {
+        maxWait: 10000, // 等待事務開始的最大時間（10秒）
+        timeout: 20000, // 事務執行的最大時間（20秒）
       });
     }, 'group-booking:POST');
 
   } catch (error) {
-    console.error('創建群組預約失敗:', error);
+    console.error('❌ 創建群組預約失敗:', error);
+    console.error('錯誤詳情:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+      name: error instanceof Error ? error.name : undefined,
+    });
     if (error instanceof NextResponse) {
       return error;
     }
-    return NextResponse.json({ 
-      error: '創建群組預約失敗',
-      details: error instanceof Error ? error.message : 'Unknown error'
-    }, { status: 500 });
+    return createErrorResponse(error, 'group-booking:POST');
   }
 }
 

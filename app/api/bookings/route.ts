@@ -26,8 +26,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Valid schedule IDs were not provided' }, { status: 400 });
     }
 
+    console.log('🔍 開始創建預約流程...')
+    
     const result = await db.query(async (client) => {
-      // 只选择必要的字段
+      console.log('🔍 查詢客戶資料...')
+      // 只選擇必要的欄位
       const customer = await client.customer.findUnique({
         where: { userId: session.user.id },
         select: {
@@ -42,9 +45,14 @@ export async function POST(request: Request) {
       });
 
       if (!customer) {
+        console.log('❌ 找不到客戶資料')
         return { type: 'NO_CUSTOMER' } as const;
       }
+      
+      console.log('✅ 客戶資料找到:', customer.id)
 
+      console.log('🔍 開始創建預約，scheduleIds:', scheduleIds)
+      
       const entries = await client.$transaction(async (tx) => {
         const records: Array<{
           bookingId: string;
@@ -59,6 +67,7 @@ export async function POST(request: Request) {
         }> = [];
 
         for (const scheduleId of scheduleIds) {
+          console.log(`🔍 處理時段 ${scheduleId}...`)
           // 只选择必要的字段，减少查询时间
           const schedule = await tx.schedule.findUnique({
             where: { id: scheduleId },
@@ -105,6 +114,7 @@ export async function POST(request: Request) {
             (schedule.endTime.getTime() - schedule.startTime.getTime()) / (1000 * 60 * 60);
           const originalAmount = durationHours * schedule.partner.halfHourlyRate * 2;
 
+          console.log(`🔍 創建預約記錄，時段: ${scheduleId}`)
           const booking = await tx.booking.create({
             data: {
               customerId: customer.id,
@@ -114,6 +124,7 @@ export async function POST(request: Request) {
               finalAmount: originalAmount,
             },
           });
+          console.log(`✅ 預約創建成功: ${booking.id}`)
 
           records.push({
             bookingId: booking.id,
@@ -129,12 +140,17 @@ export async function POST(request: Request) {
         }
 
         return records;
+      }, {
+        maxWait: 10000, // 等待事務開始的最大時間（10秒）
+        timeout: 20000, // 事務執行的最大時間（20秒）
       });
 
+      console.log('✅ 所有預約創建完成，共', entries.length, '筆')
       return { type: 'SUCCESS', customer, entries } as const;
     }, 'bookings:create');
 
     if (result.type === 'NO_CUSTOMER') {
+      console.log('❌ 客戶資料不存在')
       return NextResponse.json({ error: '客戶資料不存在' }, { status: 404 });
     }
 
@@ -166,6 +182,12 @@ export async function POST(request: Request) {
       })),
     });
   } catch (error) {
+    console.error('❌ 創建預約失敗:', error)
+    console.error('錯誤詳情:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+      name: error instanceof Error ? error.name : undefined,
+    })
     return createErrorResponse(error, 'bookings:create');
   }
 }

@@ -273,6 +273,9 @@ export async function POST(request: Request) {
           bookings: bookingRecords,
           customer,
         }
+      }, {
+        maxWait: 10000, // 等待事務開始的最大時間（10秒）
+        timeout: 20000, // 事務執行的最大時間（20秒）
       })
     }, 'multi-player-booking:create')
 
