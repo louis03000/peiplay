@@ -15,20 +15,17 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
     }
 
-    // 获取所有配对记录
+    // 獲取所有配對記錄
+    // 注意：Prisma schema 中 PairingRecord 沒有直接關聯 Booking，需要透過 bookingId 查詢
     const pairingRecords = await db.query(async (client) => {
       return client.pairingRecord.findMany({
-        include: {
-          // 通过bookingId关联到Booking
-          // 注意：Prisma schema中PairingRecord没有直接关联Booking，需要通过bookingId查询
-        },
         orderBy: {
           timestamp: 'desc',
         },
       });
     }, 'pairing-records:export:get-records');
 
-    // 获取所有相关的Booking信息
+    // 獲取所有相關的 Booking 資訊
     const bookingIds = pairingRecords
       .map((record) => record.bookingId)
       .filter((id): id is string => id !== null && !id.startsWith('manual_'));
@@ -70,10 +67,10 @@ export async function GET(request: NextRequest) {
       });
     }, 'pairing-records:export:get-bookings');
 
-    // 创建bookingId到booking的映射
+    // 建立 bookingId 到 booking 的映射
     const bookingMap = new Map(bookings.map((b) => [b.id, b]));
 
-    // 处理配对记录数据
+    // 處理配對記錄資料
     interface PairingRecordData {
       date: string;
       time: string;
@@ -94,25 +91,25 @@ export async function GET(request: NextRequest) {
       let partnerName = '';
 
       if (booking && booking.schedule?.partner && booking.customer) {
-        // 从Booking获取正确的伙伴和顾客信息
-        // 伙伴是schedule.partner，顾客是booking.customer
+        // 從 Booking 獲取正確的夥伴和顧客資訊
+        // 夥伴是 schedule.partner，顧客是 booking.customer
         partnerDiscord = booking.schedule.partner.user?.discord || '';
         customerDiscord = booking.customer.user?.discord || '';
         partnerName = booking.schedule.partner.name || '';
       } else if (record.bookingId && !record.bookingId.startsWith('manual_')) {
-        // 如果有bookingId但找不到booking，可能是数据不一致
-        // 尝试通过user1Id和user2Id查找对应的User来获取Discord名字
-        // 但无法确定谁是伙伴谁是顾客，暂时跳过或标记为未知
-        console.warn(`找不到booking: ${record.bookingId}`);
+        // 如果有 bookingId 但找不到 booking，可能是資料不一致
+        // 嘗試透過 user1Id 和 user2Id 查找對應的 User 來獲取 Discord 名字
+        // 但無法確定誰是夥伴誰是顧客，暫時跳過或標記為未知
+        console.warn(`找不到 booking: ${record.bookingId}`);
         continue;
       } else {
-        // manual_前缀的手动配对，无法确定伙伴和顾客
-        // 跳过这些记录或使用user1Id和user2Id
-        console.warn(`手动配对记录，无法确定伙伴和顾客: ${record.id}`);
+        // manual_ 前綴的手動配對，無法確定夥伴和顧客
+        // 跳過這些記錄或使用 user1Id 和 user2Id
+        console.warn(`手動配對記錄，無法確定夥伴和顧客: ${record.id}`);
         continue;
       }
 
-      // 使用timestamp作为日期和时间
+      // 使用 timestamp 作為日期和時間
       const timestamp = new Date(record.timestamp);
       const date = timestamp.toLocaleDateString('zh-TW');
       const time = timestamp.toLocaleTimeString('zh-TW', {
@@ -132,10 +129,10 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // 按伙伴Discord名字分组
+    // 按夥伴 Discord 名字分組
     const recordsByPartner = new Map<string, PairingRecordData[]>();
     for (const record of records) {
-      // 使用伙伴Discord名字作为分组键
+      // 使用夥伴 Discord 名字作為分組鍵
       const partnerKey = record.partnerDiscord || '未知';
       if (!recordsByPartner.has(partnerKey)) {
         recordsByPartner.set(partnerKey, []);
@@ -143,14 +140,14 @@ export async function GET(request: NextRequest) {
       recordsByPartner.get(partnerKey)!.push(record);
     }
 
-    // 按伙伴Discord名字排序
+    // 按夥伴 Discord 名字排序
     const sortedPartners = Array.from(recordsByPartner.keys()).sort();
 
-    // 创建Excel工作簿
+    // 建立 Excel 工作簿
     const workbook = new ExcelJS.Workbook();
     const sheet = workbook.addWorksheet('訂單記錄');
 
-    // 设置列标题
+    // 設定列標題
     sheet.columns = [
       { header: '日期', key: 'date', width: 15 },
       { header: '時間', key: 'time', width: 15 },
@@ -159,7 +156,7 @@ export async function GET(request: NextRequest) {
       { header: '顧客 Discord 名字', key: 'customerDiscord', width: 25 },
     ];
 
-    // 设置标题行样式
+    // 設定標題行樣式
     const headerRow = sheet.getRow(1);
     headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
     headerRow.fill = {
@@ -169,14 +166,14 @@ export async function GET(request: NextRequest) {
     };
     headerRow.alignment = { vertical: 'middle', horizontal: 'center' };
 
-    // 按伙伴分组添加数据
+    // 按夥伴分組新增資料
     for (const partnerKey of sortedPartners) {
       const partnerRecords = recordsByPartner.get(partnerKey)!;
       
-      // 按时间排序（最新的在前）
+      // 按時間排序（最新的在前）
       partnerRecords.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
 
-      // 添加该伙伴的所有记录
+      // 新增該夥伴的所有記錄
       for (const record of partnerRecords) {
         sheet.addRow({
           date: record.date,
@@ -187,7 +184,7 @@ export async function GET(request: NextRequest) {
         });
       }
 
-      // 在不同伙伴之间添加空行
+      // 在不同夥伴之間新增空行
       if (sortedPartners.indexOf(partnerKey) < sortedPartners.length - 1) {
         sheet.addRow({});
       }
