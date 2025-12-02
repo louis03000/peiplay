@@ -214,11 +214,22 @@ export async function GET(request: NextRequest) {
 
       return client.booking.findMany({
         where: { customerId: customer.id },
-        include: {
+        select: {
+          id: true,
+          status: true,
+          createdAt: true,
+          updatedAt: true,
           schedule: {
-            include: {
+            select: {
+              id: true,
+              date: true,
+              startTime: true,
+              endTime: true,
               partner: {
-                select: { name: true },
+                select: { 
+                  name: true,
+                  id: true,
+                },
               },
             },
           },

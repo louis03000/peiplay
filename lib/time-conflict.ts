@@ -62,7 +62,9 @@ export async function checkTimeConflict(
       // 如果要更新預約，排除自己
       ...(excludeBookingId ? { id: { not: excludeBookingId } } : {})
     },
-    include: {
+    select: {
+      id: true,
+      status: true,
       schedule: {
         select: {
           startTime: true,
