@@ -95,25 +95,6 @@ export async function POST(request: Request) {
         return { type: 'USER_NOT_FOUND' } as const
       }
 
-      let customer = await client.customer.findUnique({ where: { userId: session.user.id } })
-      if (!customer) {
-        customer = await client.customer.create({
-          data: {
-            id: `customer-${session.user.id}`,
-            userId: session.user.id,
-            name: user.name || '未知客戶',
-            birthday: new Date('1990-01-01'),
-            phone: '0000000000',
-          },
-        }).catch(async () => {
-          return client.customer.findUnique({ where: { userId: session.user.id } })
-        })
-
-        if (!customer) {
-          return { type: 'CUSTOMER_CREATE_FAILED' } as const
-        }
-      }
-
       const startTime = new Date(`${data.date}T${normalizeTime(data.startTime)}`)
       const endTime = new Date(`${data.date}T${normalizeTime(data.endTime)}`)
 
@@ -134,10 +115,39 @@ export async function POST(request: Request) {
         return { type: 'INVALID_PARTICIPANTS' } as const
       }
 
-      try {
-        const groupBooking = await client.groupBooking.create({
+      // 使用事務確保所有操作的原子性
+      return await client.$transaction(async (tx) => {
+        // 查找或創建客戶記錄
+        let customer = await tx.customer.findUnique({ where: { userId: session.user.id } })
+        if (!customer) {
+          try {
+            customer = await tx.customer.create({
+              data: {
+                id: `customer-${session.user.id}`,
+                userId: session.user.id,
+                name: user.name || '未知客戶',
+                birthday: new Date('1990-01-01'),
+                phone: '0000000000',
+              },
+            })
+          } catch (error: any) {
+            // 如果創建失敗（可能是並發創建），再次查詢
+            if (error?.code === 'P2002') {
+              customer = await tx.customer.findUnique({ where: { userId: session.user.id } })
+            }
+            if (!customer) {
+              throw error
+            }
+          }
+        }
+
+        // 生成唯一的群組預約ID
+        const groupBookingId = `gb-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`
+
+        // 創建群組預約
+        const groupBooking = await tx.groupBooking.create({
           data: {
-            id: `gb-${Date.now()}`,
+            id: groupBookingId,
             type: 'PARTNER_INITIATED',
             title: data.title.trim(),
             description: data.description ? data.description.trim() : null,
@@ -154,7 +164,8 @@ export async function POST(request: Request) {
           },
         })
 
-        await client.groupBookingParticipant.create({
+        // 創建群組參與者記錄
+        await tx.groupBookingParticipant.create({
           data: {
             id: `gbp-${groupBooking.id}-${partner.id}`,
             groupBookingId: groupBooking.id,
@@ -164,15 +175,17 @@ export async function POST(request: Request) {
           },
         })
 
-        await client.groupBooking.update({
+        // 更新群組預約的當前參與人數
+        await tx.groupBooking.update({
           where: { id: groupBooking.id },
           data: { currentParticipants: 1 },
-        }).catch(() => undefined)
+        })
 
-        await client.partner.update({
+        // 確保夥伴的 allowGroupBooking 狀態為 true
+        await tx.partner.update({
           where: { id: partner.id },
           data: { allowGroupBooking: true },
-        }).catch(() => undefined)
+        })
 
         return {
           type: 'SUCCESS',
@@ -189,37 +202,44 @@ export async function POST(request: Request) {
             endTime: groupBooking.endTime.toISOString(),
           },
         }
-      } catch (error: any) {
-        if (error?.code === 'P2002') {
-          return { type: 'DUPLICATE' } as const
-        }
-        throw error
-      }
+      })
     }, 'partner:groups:post')
 
-    switch (result.type) {
-      case 'NOT_PARTNER':
-        return NextResponse.json({ error: '夥伴資料不存在' }, { status: 404 })
-      case 'USER_NOT_FOUND':
-        return NextResponse.json({ error: '用戶資料不存在' }, { status: 404 })
-      case 'CUSTOMER_CREATE_FAILED':
-        return NextResponse.json({ error: '無法創建客戶記錄' }, { status: 500 })
-      case 'INVALID_DATETIME':
-        return NextResponse.json({ error: '日期時間格式錯誤' }, { status: 400 })
-      case 'END_BEFORE_START':
-        return NextResponse.json({ error: '結束時間必須晚於開始時間' }, { status: 400 })
-      case 'INVALID_PRICE':
-        return NextResponse.json({ error: '每人費用必須大於0' }, { status: 400 })
-      case 'INVALID_PARTICIPANTS':
-        return NextResponse.json({ error: '最大參與人數必須在2到9人之間' }, { status: 400 })
-      case 'DUPLICATE':
-        return NextResponse.json({ error: '群組預約ID已存在，請稍後再試' }, { status: 409 })
-      case 'SUCCESS':
-        return NextResponse.json({ success: true, groupBooking: result.group })
-      default:
-        return NextResponse.json({ error: '未知錯誤' }, { status: 500 })
+    // 檢查結果類型
+    if (result && typeof result === 'object' && 'type' in result) {
+      switch (result.type) {
+        case 'NOT_PARTNER':
+          return NextResponse.json({ error: '夥伴資料不存在' }, { status: 404 })
+        case 'USER_NOT_FOUND':
+          return NextResponse.json({ error: '用戶資料不存在' }, { status: 404 })
+        case 'CUSTOMER_CREATE_FAILED':
+          return NextResponse.json({ error: '無法創建客戶記錄' }, { status: 500 })
+        case 'INVALID_DATETIME':
+          return NextResponse.json({ error: '日期時間格式錯誤' }, { status: 400 })
+        case 'END_BEFORE_START':
+          return NextResponse.json({ error: '結束時間必須晚於開始時間' }, { status: 400 })
+        case 'INVALID_PRICE':
+          return NextResponse.json({ error: '每人費用必須大於0' }, { status: 400 })
+        case 'INVALID_PARTICIPANTS':
+          return NextResponse.json({ error: '最大參與人數必須在2到9人之間' }, { status: 400 })
+        case 'DUPLICATE':
+          return NextResponse.json({ error: '群組預約ID已存在，請稍後再試' }, { status: 409 })
+        case 'SUCCESS':
+          return NextResponse.json({ success: true, groupBooking: result.group })
+        default:
+          return NextResponse.json({ error: '未知錯誤' }, { status: 500 })
+      }
     }
+
+    // 如果結果格式不正確，返回錯誤
+    return NextResponse.json({ error: '資料庫操作失敗' }, { status: 500 })
   } catch (error) {
+    console.error('❌ 創建群組預約失敗:', error)
+    console.error('錯誤詳情:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+      name: error instanceof Error ? error.name : undefined,
+    })
     return createErrorResponse(error, 'partner:groups:post')
   }
 }
