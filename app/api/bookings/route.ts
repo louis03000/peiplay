@@ -29,20 +29,31 @@ export async function POST(request: Request) {
     console.log('🔍 開始創建預約流程...')
     
     const result = await db.query(async (client) => {
-      console.log('🔍 查詢客戶資料...')
-      // 只選擇必要的欄位
-      const customer = await client.customer.findUnique({
-        where: { userId: session.user.id },
-        select: {
-          id: true,
-          user: {
-            select: {
-              name: true,
-              email: true,
+      console.log('🔍 查詢客戶資料，userId:', session.user.id)
+      
+      let customer;
+      try {
+        // 只選擇必要的欄位
+        customer = await client.customer.findUnique({
+          where: { userId: session.user.id },
+          select: {
+            id: true,
+            user: {
+              select: {
+                name: true,
+                email: true,
+              },
             },
           },
-        },
-      });
+        });
+      } catch (customerError: any) {
+        console.error('❌ 查詢客戶資料失敗:', {
+          code: customerError?.code,
+          message: customerError?.message,
+          meta: customerError?.meta,
+        });
+        throw customerError;
+      }
 
       if (!customer) {
         console.log('❌ 找不到客戶資料')
@@ -68,31 +79,45 @@ export async function POST(request: Request) {
 
         for (const scheduleId of scheduleIds) {
           console.log(`🔍 處理時段 ${scheduleId}...`)
-          // 只选择必要的字段，减少查询时间
-          const schedule = await tx.schedule.findUnique({
-            where: { id: scheduleId },
-            select: {
-              id: true,
-              partnerId: true,
-              startTime: true,
-              endTime: true,
-              partner: {
-                select: {
-                  halfHourlyRate: true,
-                  user: {
-                    select: {
-                      email: true,
-                      name: true,
+          
+          let schedule;
+          try {
+            // 只選擇必要的欄位，減少查詢時間
+            schedule = await tx.schedule.findUnique({
+              where: { id: scheduleId },
+              select: {
+                id: true,
+                partnerId: true,
+                startTime: true,
+                endTime: true,
+                partner: {
+                  select: {
+                    halfHourlyRate: true,
+                    user: {
+                      select: {
+                        email: true,
+                        name: true,
+                      },
                     },
                   },
                 },
               },
-            },
-          });
+            });
+          } catch (scheduleError: any) {
+            console.error(`❌ 查詢時段失敗 (${scheduleId}):`, {
+              code: scheduleError?.code,
+              message: scheduleError?.message,
+              meta: scheduleError?.meta,
+            });
+            throw new Error(`查詢時段失敗: ${scheduleError?.message || '未知錯誤'}`);
+          }
 
           if (!schedule) {
-            throw new Error(`Schedule ${scheduleId} not found`);
+            console.log(`❌ 時段不存在: ${scheduleId}`)
+            throw new Error(`時段不存在: ${scheduleId}`);
           }
+          
+          console.log(`✅ 時段找到: ${scheduleId}, 夥伴: ${schedule.partner.user.name}`)
 
           const conflict = await checkTimeConflict(
             schedule.partnerId,
@@ -115,6 +140,18 @@ export async function POST(request: Request) {
           const originalAmount = durationHours * schedule.partner.halfHourlyRate * 2;
 
           console.log(`🔍 創建預約記錄，時段: ${scheduleId}`)
+          
+          // 檢查時段是否已被預約（scheduleId 是 unique，只能有一個 booking）
+          const existingBooking = await tx.booking.findUnique({
+            where: { scheduleId },
+            select: { id: true, status: true },
+          });
+          
+          if (existingBooking) {
+            console.log(`❌ 時段 ${scheduleId} 已被預約，bookingId: ${existingBooking.id}, status: ${existingBooking.status}`)
+            throw new Error(`時段已被預約（預約編號: ${existingBooking.id}）`);
+          }
+          
           // 只設置數據庫中確實存在的字段，避免設置不存在的字段
           const bookingData: any = {
             customerId: customer.id,
@@ -124,10 +161,45 @@ export async function POST(request: Request) {
             finalAmount: originalAmount,
           };
           
-          const booking = await tx.booking.create({
-            data: bookingData,
-          });
-          console.log(`✅ 預約創建成功: ${booking.id}`)
+          console.log(`📝 準備創建預約，資料:`, bookingData)
+          
+          let booking;
+          try {
+            booking = await tx.booking.create({
+              data: bookingData,
+            });
+            console.log(`✅ 預約創建成功: ${booking.id}`)
+          } catch (createError: any) {
+            console.error(`❌ 創建預約失敗 (時段: ${scheduleId}):`, {
+              code: createError?.code,
+              message: createError?.message,
+              meta: createError?.meta,
+              stack: createError?.stack,
+            });
+            
+            // 處理 Prisma 特定錯誤
+            if (createError?.code === 'P2002') {
+              // Unique constraint violation - scheduleId 已被使用
+              const target = createError?.meta?.target as string[] || [];
+              if (target.includes('scheduleId')) {
+                throw new Error(`時段已被預約，請選擇其他時段`);
+              }
+              throw new Error(`資料衝突: ${target.join(', ')}`);
+            }
+            
+            if (createError?.code === 'P2003') {
+              // Foreign key constraint violation
+              throw new Error(`關聯資料錯誤: ${createError?.message}`);
+            }
+            
+            if (createError?.code === 'P2036') {
+              // Column does not exist
+              throw new Error(`資料庫欄位不存在: ${createError?.message}`);
+            }
+            
+            // 重新拋出錯誤，讓外層處理
+            throw createError;
+          }
 
           records.push({
             bookingId: booking.id,
@@ -184,13 +256,34 @@ export async function POST(request: Request) {
         message: '預約創建成功，已通知夥伴',
       })),
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ 創建預約失敗:', error)
     console.error('錯誤詳情:', {
+      code: error?.code,
       message: error instanceof Error ? error.message : 'Unknown error',
+      meta: error?.meta,
       stack: error instanceof Error ? error.stack : undefined,
       name: error instanceof Error ? error.name : undefined,
     })
+    
+    // 如果是 Prisma 錯誤，輸出更詳細的資訊
+    if (error?.code) {
+      console.error('🔍 Prisma 錯誤代碼:', error.code)
+      console.error('🔍 Prisma 錯誤 meta:', JSON.stringify(error.meta, null, 2))
+      
+      // 根據錯誤代碼返回更友好的錯誤訊息
+      if (error.code === 'P2002') {
+        const target = error.meta?.target as string[] || [];
+        if (target.includes('scheduleId')) {
+          return NextResponse.json({
+            error: '時段已被預約',
+            code: 'SCHEDULE_ALREADY_BOOKED',
+            details: '您選擇的時段已被其他用戶預約，請選擇其他時段',
+          }, { status: 409 });
+        }
+      }
+    }
+    
     return createErrorResponse(error, 'bookings:create');
   }
 }

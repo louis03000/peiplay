@@ -18,6 +18,18 @@ export interface ApiError {
  */
 export function createErrorResponse(error: unknown, context?: string): NextResponse {
   console.error(`❌ API Error${context ? ` [${context}]` : ''}:`, error)
+  
+  // 詳細記錄錯誤資訊
+  if (error && typeof error === 'object') {
+    const errorObj = error as any
+    console.error('🔍 錯誤詳情:', {
+      code: errorObj?.code,
+      message: errorObj?.message,
+      meta: errorObj?.meta,
+      name: errorObj?.name,
+      stack: errorObj?.stack,
+    })
+  }
 
   // Prisma 錯誤處理
   if (error instanceof Prisma.PrismaClientKnownRequestError) {
@@ -123,6 +135,18 @@ function handlePrismaError(
         { status: 400 }
       )
 
+    // 欄位不存在
+    case 'P2036':
+      return NextResponse.json(
+        {
+          error: '資料庫欄位不存在',
+          code: 'COLUMN_NOT_EXISTS',
+          details: isDevelopment ? error.message : undefined,
+          meta: error.meta,
+        },
+        { status: 500 }
+      )
+
     // 連接超時
     case 'P1001':
     case 'P1002':
@@ -140,11 +164,14 @@ function handlePrismaError(
 
     // 其他 Prisma 錯誤
     default:
+      console.error(`❌ 未處理的 Prisma 錯誤代碼: ${error.code}`)
+      console.error('錯誤 meta:', JSON.stringify(error.meta, null, 2))
       return NextResponse.json(
         {
           error: '資料庫操作失敗',
           code: error.code,
           details: isDevelopment ? error.message : undefined,
+          meta: isDevelopment ? error.meta : undefined,
         },
         { status: 500 }
       )
