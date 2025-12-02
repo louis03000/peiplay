@@ -175,9 +175,9 @@ model Booking {
   isWaitingPartnerResponse  Boolean           @default(false)
   serviceType               String            @default("GAMING")
   groupBookingId            String?
-  isGroupBooking            Boolean           @default(false)
+  isGroupBooking            Boolean?
   multiPlayerBookingId      String?
-  isMultiPlayerBooking      Boolean           @default(false)
+  isMultiPlayerBooking      Boolean?
   customer                  Customer          @relation(fields: [customerId], references: [id])
   groupBooking              GroupBooking?     @relation(fields: [groupBookingId], references: [id])
   multiPlayerBooking        MultiPlayerBooking? @relation(fields: [multiPlayerBookingId], references: [id])

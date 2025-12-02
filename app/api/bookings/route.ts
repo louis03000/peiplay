@@ -115,14 +115,17 @@ export async function POST(request: Request) {
           const originalAmount = durationHours * schedule.partner.halfHourlyRate * 2;
 
           console.log(`🔍 創建預約記錄，時段: ${scheduleId}`)
+          // 只設置數據庫中確實存在的字段，避免設置不存在的字段
+          const bookingData: any = {
+            customerId: customer.id,
+            scheduleId,
+            status: BookingStatus.PAID_WAITING_PARTNER_CONFIRMATION,
+            originalAmount,
+            finalAmount: originalAmount,
+          };
+          
           const booking = await tx.booking.create({
-            data: {
-              customerId: customer.id,
-              scheduleId,
-              status: BookingStatus.PAID_WAITING_PARTNER_CONFIRMATION,
-              originalAmount,
-              finalAmount: originalAmount,
-            },
+            data: bookingData,
           });
           console.log(`✅ 預約創建成功: ${booking.id}`)
 
