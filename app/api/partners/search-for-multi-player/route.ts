@@ -263,8 +263,8 @@ export async function GET(request: Request) {
         const schedulesOnDate = await client.schedule.findMany({
           where: {
             date: {
-              gte: dateStart,
-              lte: dateEnd,
+              gte: dateStartUTC,
+              lte: dateEndUTC,
             },
             isAvailable: true
           },
