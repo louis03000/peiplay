@@ -108,17 +108,12 @@ export async function GET(request: Request) {
     }
     
     // 創建時間對象
-    // 注意：時段保存時使用本地時間創建 Date，然後用 toISOString() 轉為 UTC 字符串存儲
-    // 所以我們需要：
-    // 1. 使用本地時間創建 Date 對象（與保存時的邏輯一致）
-    // 2. 然後轉換為 UTC 時間字符串進行比較（因為數據庫存儲的是 UTC）
-    const localStartDateTime = new Date(year, month - 1, day, startHour, startMinute, 0, 0)
-    const localEndDateTime = new Date(year, month - 1, day, endHour, endMinute, 0, 0)
-    
-    // 轉換為 UTC 時間（與數據庫中存儲的格式一致）
-    // 使用 toISOString() 然後再轉回 Date，確保與保存時的邏輯一致
-    const startDateTime = new Date(localStartDateTime.toISOString())
-    const endDateTime = new Date(localEndDateTime.toISOString())
+    // 時段保存時，如果使用 new Date("2025-12-05T00:00:00")，會解析為 UTC 時間
+    // 如果使用 new Date(2025, 11, 5, 0, 0, 0, 0)，會使用本地時間
+    // 為了確保匹配，我們使用本地時間創建 Date 對象
+    // JavaScript 會自動處理時區轉換，與數據庫存儲的 UTC 時間進行比較
+    const startDateTime = new Date(year, month - 1, day, startHour, startMinute, 0, 0)
+    const endDateTime = new Date(year, month - 1, day, endHour, endMinute, 0, 0)
     
     if (isNaN(startDateTime.getTime()) || isNaN(endDateTime.getTime())) {
       console.log('❌ 創建的時間對象無效:', { startDateTime, endDateTime })
@@ -166,21 +161,15 @@ export async function GET(request: Request) {
     })
 
     const result = await db.query(async (client) => {
-      // 先查詢所有符合日期和時間範圍的時段，然後再過濾
-      // 需要將本地日期轉換為 UTC 日期範圍
-      // 因為用戶選擇的是本地日期，但數據庫存儲的是 UTC 時間
-      // 為了確保查詢到所有可能的時段，我們需要擴大查詢範圍
-      // 考慮時區偏移（UTC+8），本地日期的 00:00 對應 UTC 前一天的 16:00
-      // 本地日期的 23:59 對應 UTC 當天的 15:59
-      // 所以我們需要查詢 UTC 前一天的 16:00 到 UTC 當天的 23:59:59
-      const localDateStart = new Date(year, month - 1, day, 0, 0, 0, 0)
-      const localDateEnd = new Date(year, month - 1, day, 23, 59, 59, 999)
-      // 轉換為 UTC 時間範圍
-      const dateStart = new Date(localDateStart.toISOString())
-      const dateEnd = new Date(localDateEnd.toISOString())
+      // 查詢時段時，需要匹配日期
+      // 時段保存時，date 是 new Date("2025-12-05")，這會解析為 2025-12-05 00:00:00 UTC
+      // 所以我們需要查詢該日期的 UTC 00:00:00 到 23:59:59
       // 為了確保不遺漏，擴大查詢範圍（前後各一天）
-      const expandedDateStart = new Date(dateStart.getTime() - 24 * 60 * 60 * 1000)
-      const expandedDateEnd = new Date(dateEnd.getTime() + 24 * 60 * 60 * 1000)
+      const dateStartUTC = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0))
+      const dateEndUTC = new Date(Date.UTC(year, month - 1, day, 23, 59, 59, 999))
+      // 擴大查詢範圍（前後各一天）
+      const expandedDateStart = new Date(dateStartUTC.getTime() - 24 * 60 * 60 * 1000)
+      const expandedDateEnd = new Date(dateEndUTC.getTime() + 24 * 60 * 60 * 1000)
 
       console.log('🔍 搜索參數詳情:', {
         dateStr,
@@ -192,8 +181,8 @@ export async function GET(request: Request) {
         endDateTimeLocal: `${endDateTime.getFullYear()}-${String(endDateTime.getMonth() + 1).padStart(2, '0')}-${String(endDateTime.getDate()).padStart(2, '0')} ${String(endDateTime.getHours()).padStart(2, '0')}:${String(endDateTime.getMinutes()).padStart(2, '0')}`,
       })
       console.log('🔍 日期範圍:', {
-        dateStart: dateStart.toISOString(),
-        dateEnd: dateEnd.toISOString(),
+        dateStartUTC: dateStartUTC.toISOString(),
+        dateEndUTC: dateEndUTC.toISOString(),
         expandedDateStart: expandedDateStart.toISOString(),
         expandedDateEnd: expandedDateEnd.toISOString()
       })
@@ -376,23 +365,25 @@ export async function GET(request: Request) {
             const scheduleEnd = new Date(schedule.endTime)
             const scheduleDate = new Date(schedule.date)
             
-            // 檢查日期是否匹配 - 使用本地日期進行比較
-            // 因為用戶選擇的是本地日期，時段保存時也是基於本地日期
-            // 需要將 UTC 日期轉換回本地日期進行比較
-            // 使用 getFullYear(), getMonth(), getDate() 會自動使用本地時區
-            const scheduleDateStr = `${scheduleDate.getFullYear()}-${String(scheduleDate.getMonth() + 1).padStart(2, '0')}-${String(scheduleDate.getDate()).padStart(2, '0')}`
-            const searchDateStr = dateStr
-            const isDateMatch = scheduleDateStr === searchDateStr
+            // 檢查日期是否匹配 - 使用 UTC 日期進行比較
+            // 因為數據庫存儲的是 UTC 時間，我們需要比較 UTC 日期
+            const scheduleDateUTC = `${scheduleDate.getUTCFullYear()}-${String(scheduleDate.getUTCMonth() + 1).padStart(2, '0')}-${String(scheduleDate.getUTCDate()).padStart(2, '0')}`
+            const searchDateUTC = `${startDateTime.getUTCFullYear()}-${String(startDateTime.getUTCMonth() + 1).padStart(2, '0')}-${String(startDateTime.getUTCDate()).padStart(2, '0')}`
+            const isDateMatch = scheduleDateUTC === searchDateUTC
             
             if (!isDateMatch) {
+              console.log('🔍 日期不匹配:', {
+                scheduleDateUTC,
+                searchDateUTC,
+                scheduleDateISO: scheduleDate.toISOString(),
+                searchDateISO: startDateTime.toISOString()
+              })
               return false
             }
             
             // 檢查時間：搜尋的時段必須完全包含在夥伴的時段內
             // 使用完整的 Date 對象進行比較（都是 UTC 時間）
             // 時段開始時間 <= 搜尋開始時間 且 時段結束時間 >= 搜尋結束時間
-            // 注意：scheduleStart 和 scheduleEnd 已經是 UTC 時間（從數據庫讀取）
-            // startDateTime 和 endDateTime 也是 UTC 時間（從本地時間轉換）
             const isTimeContained = scheduleStart.getTime() <= startDateTime.getTime() && scheduleEnd.getTime() >= endDateTime.getTime()
             
             // 檢查是否有活躍的預約
@@ -414,8 +405,8 @@ export async function GET(request: Request) {
             console.log('🔍 檢查時段:', {
               partnerName: partner.name,
               scheduleId: schedule.id,
-              scheduleDateStr,
-              searchDateStr,
+              scheduleDateUTC,
+              searchDateUTC,
               scheduleStartISO: scheduleStart.toISOString(),
               scheduleEndISO: scheduleEnd.toISOString(),
               searchStartISO: startDateTime.toISOString(),

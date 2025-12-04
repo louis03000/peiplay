@@ -142,7 +142,7 @@ export async function POST(request: Request) {
           let customer = await tx.customer.findUnique({ where: { userId: session.user.id } })
           if (!customer) {
             try {
-              console.log('🔍 創建客戶記錄...')
+              console.log('🔍 創建客戶記錄，userId:', session.user.id)
               customer = await tx.customer.create({
                 data: {
                   id: `customer-${session.user.id}`,
@@ -152,17 +152,29 @@ export async function POST(request: Request) {
                   phone: '0000000000',
                 },
               })
-              console.log('✅ 客戶記錄創建成功')
+              console.log('✅ 客戶記錄創建成功，customerId:', customer.id)
             } catch (error: any) {
-              console.log('⚠️ 創建客戶記錄失敗，嘗試再次查詢...', error?.code)
+              console.error('⚠️ 創建客戶記錄失敗，錯誤代碼:', error?.code)
+              console.error('錯誤詳情:', {
+                message: error?.message,
+                code: error?.code,
+                meta: error?.meta,
+              })
               // 如果創建失敗（可能是並發創建），再次查詢
               if (error?.code === 'P2002') {
+                console.log('⚠️ 檢測到重複鍵錯誤，嘗試再次查詢客戶記錄...')
                 customer = await tx.customer.findUnique({ where: { userId: session.user.id } })
+                if (customer) {
+                  console.log('✅ 成功找到客戶記錄（並發創建）')
+                }
               }
               if (!customer) {
-                throw error
+                console.error('❌ 無法創建或找到客戶記錄')
+                throw new Error(`無法創建客戶記錄: ${error?.message || '未知錯誤'}`)
               }
             }
+          } else {
+            console.log('✅ 找到現有客戶記錄，customerId:', customer.id)
           }
 
           // 生成唯一的群組預約ID
@@ -170,39 +182,71 @@ export async function POST(request: Request) {
           console.log('🔍 生成群組預約ID:', groupBookingId)
 
           // 創建群組預約
-          console.log('🔍 創建群組預約...')
-          const groupBooking = await tx.groupBooking.create({
-            data: {
-              id: groupBookingId,
-              type: 'PARTNER_INITIATED',
-              title: data.title.trim(),
-              description: data.description ? data.description.trim() : null,
-              date: startTime,
-              startTime,
-              endTime,
-              maxParticipants,
-              currentParticipants: 0,
-              pricePerPerson: parseFloat(data.pricePerPerson),
-              status: 'ACTIVE',
-              initiatorId: partner.id,
-              initiatorType: 'PARTNER',
-              games: Array.isArray(data.games) ? data.games.filter((g: any) => g && typeof g === 'string') : [],
-            },
+          console.log('🔍 創建群組預約，資料:', {
+            id: groupBookingId,
+            title: data.title.trim(),
+            startTime: startTime.toISOString(),
+            endTime: endTime.toISOString(),
+            maxParticipants,
+            pricePerPerson: parseFloat(data.pricePerPerson),
+            initiatorId: partner.id,
           })
-          console.log('✅ 群組預約創建成功:', groupBooking.id)
+          let groupBooking
+          try {
+            groupBooking = await tx.groupBooking.create({
+              data: {
+                id: groupBookingId,
+                type: 'PARTNER_INITIATED',
+                title: data.title.trim(),
+                description: data.description ? data.description.trim() : null,
+                date: startTime,
+                startTime,
+                endTime,
+                maxParticipants,
+                currentParticipants: 0,
+                pricePerPerson: parseFloat(data.pricePerPerson),
+                status: 'ACTIVE',
+                initiatorId: partner.id,
+                initiatorType: 'PARTNER',
+                games: Array.isArray(data.games) ? data.games.filter((g: any) => g && typeof g === 'string') : [],
+              },
+            })
+            console.log('✅ 群組預約創建成功:', groupBooking.id)
+          } catch (createError: any) {
+            console.error('❌ 創建群組預約失敗:', {
+              code: createError?.code,
+              message: createError?.message,
+              meta: createError?.meta,
+            })
+            throw createError
+          }
 
           // 創建群組參與者記錄
-          console.log('🔍 創建群組參與者記錄...')
-          await tx.groupBookingParticipant.create({
-            data: {
-              id: `gbp-${groupBooking.id}-${partner.id}`,
-              groupBookingId: groupBooking.id,
-              customerId: customer.id,
-              partnerId: partner.id,
-              status: 'ACTIVE',
-            },
+          console.log('🔍 創建群組參與者記錄，資料:', {
+            id: `gbp-${groupBooking.id}-${partner.id}`,
+            groupBookingId: groupBooking.id,
+            customerId: customer.id,
+            partnerId: partner.id,
           })
-          console.log('✅ 群組參與者記錄創建成功')
+          try {
+            await tx.groupBookingParticipant.create({
+              data: {
+                id: `gbp-${groupBooking.id}-${partner.id}`,
+                groupBookingId: groupBooking.id,
+                customerId: customer.id,
+                partnerId: partner.id,
+                status: 'ACTIVE',
+              },
+            })
+            console.log('✅ 群組參與者記錄創建成功')
+          } catch (participantError: any) {
+            console.error('❌ 創建群組參與者記錄失敗:', {
+              code: participantError?.code,
+              message: participantError?.message,
+              meta: participantError?.meta,
+            })
+            throw participantError
+          }
 
           // 更新群組預約的當前參與人數
           console.log('🔍 更新群組預約參與人數...')
@@ -238,7 +282,11 @@ export async function POST(request: Request) {
           timeout: 20000, // 事務執行的最大時間（20秒）
         })
 
-        console.log('✅ 事務完成')
+        console.log('✅ 事務完成，結果:', transactionResult)
+        if (!transactionResult || typeof transactionResult !== 'object' || !('type' in transactionResult)) {
+          console.error('❌ 事務返回了無效的結果:', transactionResult)
+          throw new Error('事務返回了無效的結果格式')
+        }
         return transactionResult
       } catch (transactionError: any) {
         console.error('❌ 事務執行失敗:', transactionError)
@@ -246,15 +294,33 @@ export async function POST(request: Request) {
           message: transactionError?.message,
           code: transactionError?.code,
           meta: transactionError?.meta,
+          stack: transactionError?.stack,
+          name: transactionError?.name,
         })
         // 如果是重複鍵錯誤，返回 DUPLICATE
         if (transactionError?.code === 'P2002') {
+          console.log('⚠️ 檢測到重複鍵錯誤，返回 DUPLICATE')
           return { type: 'DUPLICATE' } as const
+        }
+        // 如果是連接超時或連接錯誤，返回特定錯誤類型
+        if (transactionError?.code === 'P1001' || transactionError?.code === 'P1002' || 
+            transactionError?.code === 'P1008' || transactionError?.code === 'P1017' ||
+            transactionError?.code === 'P2024') {
+          console.error('❌ 資料庫連接超時')
+          throw new Error('資料庫連接超時，請稍後再試')
         }
         // 其他錯誤直接拋出，讓外層 catch 處理
         throw transactionError
       }
     }, 'partner:groups:post')
+
+    // 記錄結果以便調試
+    console.log('🔍 db.query 返回結果:', {
+      result,
+      resultType: typeof result,
+      hasType: result && typeof result === 'object' && 'type' in result,
+      resultKeys: result && typeof result === 'object' ? Object.keys(result) : [],
+    })
 
     // 檢查結果類型
     if (result && typeof result === 'object' && 'type' in result) {
@@ -278,12 +344,22 @@ export async function POST(request: Request) {
         case 'SUCCESS':
           return NextResponse.json({ success: true, groupBooking: result.group })
         default:
+          console.error('❌ 未知的結果類型:', result.type)
           return NextResponse.json({ error: '未知錯誤' }, { status: 500 })
       }
     }
 
-    // 如果結果格式不正確，返回錯誤
-    return NextResponse.json({ error: '資料庫操作失敗' }, { status: 500 })
+    // 如果結果格式不正確，返回錯誤（這不應該發生，但我們需要處理它）
+    console.error('❌ 結果格式不正確:', {
+      result,
+      resultType: typeof result,
+      isNull: result === null,
+      isUndefined: result === undefined,
+    })
+    return NextResponse.json({ 
+      error: '資料庫操作失敗',
+      details: '結果格式不正確，請檢查伺服器日誌',
+    }, { status: 500 })
   } catch (error) {
     console.error('❌ 創建群組預約失敗:', error)
     console.error('錯誤詳情:', {
