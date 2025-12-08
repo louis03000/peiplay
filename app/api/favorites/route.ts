@@ -17,11 +17,12 @@ export async function GET() {
     }
 
     const favorites = await db.query(async (client) => {
-      // 優化策略：
+      // 優化策略：使用批量查詢而非 JOIN
       // 1. 先查詢 customer（使用 userId 索引）
-      // 2. 查詢 favoritePartner（使用 customerId 索引）
-      // 3. 如果沒有最愛，直接返回空陣列，避免不必要的 JOIN
-      // 4. 只查詢必要的 Partner 欄位
+      // 2. 查詢 favoritePartner（不 JOIN Partner，速度更快）
+      // 3. 批量查詢所有 Partner（只查詢一次 Partner 表）
+      // 4. 在應用層合併資料
+      // 這樣可以同時擁有功能和速度
       
       const customer = await client.customer.findUnique({
         where: { userId: session.user.id },
@@ -32,21 +33,14 @@ export async function GET() {
         return [];
       }
 
-      // 進一步優化：直接查詢，移除 count 檢查（減少一次查詢）
-      // 使用索引優化的查詢：customerId 索引 + createdAt 排序
-      // 只查詢必要的欄位，減少資料傳輸
-      const rows = await client.favoritePartner.findMany({
+      // 第一步：查詢最愛（不 JOIN Partner，速度更快）
+      const favoriteRows = await client.favoritePartner.findMany({
         where: { customerId: customer.id },
         select: {
           id: true,
           partnerId: true,
           createdAt: true,
-          Partner: {
-            select: {
-              id: true,
-              name: true,
-            },
-          },
+          // 不 JOIN Partner，只獲取 partnerId
         },
         // 使用 createdAt DESC 排序，利用索引
         orderBy: { createdAt: 'desc' },
@@ -55,15 +49,30 @@ export async function GET() {
       });
 
       // 如果沒有最愛，直接返回空陣列
-      if (rows.length === 0) {
+      if (favoriteRows.length === 0) {
         return [];
       }
 
-      // 在應用層映射資料，減少資料庫處理
-      return rows.map((f) => ({
+      // 第二步：批量查詢所有 Partner（只查詢一次，比 JOIN 快）
+      const partnerIds = favoriteRows.map(f => f.partnerId);
+      const partners = await client.partner.findMany({
+        where: {
+          id: { in: partnerIds },
+        },
+        select: {
+          id: true,
+          name: true,
+        },
+      });
+
+      // 建立 partnerId -> partner 的映射
+      const partnerMap = new Map(partners.map(p => [p.id, p]));
+
+      // 第三步：在應用層合併資料
+      return favoriteRows.map((f) => ({
         id: f.id,
         partnerId: f.partnerId,
-        partnerName: f.Partner?.name || '未知夥伴',
+        partnerName: partnerMap.get(f.partnerId)?.name || '未知夥伴',
         createdAt: f.createdAt,
       }));
     }, 'favorites:get');
