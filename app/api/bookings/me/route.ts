@@ -32,8 +32,14 @@ export async function GET() {
         return null;
       }
 
-      // 返回所有狀態的預約，用於 profile 頁面顯示
-      const allBookings = await client.booking.findMany({
+      // 優化策略：
+      // 1. 直接限制查詢結果為 50 筆，避免載入過多資料
+      // 2. 使用 select 只查詢必要欄位
+      // 3. 使用索引優化的排序
+      // 4. 移除不必要的 customer 查詢（我們已經知道 customerId）
+      
+      // 直接限制為 50 筆，避免後續刪除操作（刪除操作很慢）
+      const bookings = await client.booking.findMany({
         where: {
           customerId: customer.id,
         },
@@ -62,33 +68,15 @@ export async function GET() {
               reviewerId: true,
             },
           },
-          customer: {
-            select: {
-              id: true,
-              name: true,
-            },
-          },
+          // 移除 customer 查詢，因為我們已經知道 customerId
         },
-        orderBy: [{ createdAt: 'desc' }],
+        // 使用 createdAt DESC 排序，利用索引
+        orderBy: { createdAt: 'desc' },
+        // 直接限制為 50 筆
+        take: 50,
       });
 
-      // 限制最多50筆，超過則刪除最早的
-      if (allBookings.length > 50) {
-        const bookingsToDelete = allBookings.slice(50);
-        const idsToDelete = bookingsToDelete.map(b => b.id);
-        
-        // 刪除超過50筆的預約
-        await client.booking.deleteMany({
-          where: {
-            id: { in: idsToDelete },
-          },
-        });
-
-        // 只返回前50筆
-        return allBookings.slice(0, 50);
-      }
-
-      return allBookings;
+      return bookings;
     }, 'bookings:me');
 
     if (result === null) {
