@@ -19,14 +19,13 @@ export async function GET() {
     const notifications = await db.query(async (client) => {
       const now = new Date();
       
-      // 優化策略：
-      // 1. 使用單一查詢，但優化查詢條件以利用索引
-      // 2. 先查詢最近的 100 筆通知（使用 userId + createdAt 索引）
-      // 3. 在應用層過濾過期通知和排序（避免複雜的資料庫排序）
-      // 4. 減少 JOIN：只查詢必要的 sender 資訊
+      // 優化策略：使用批量查詢而非 JOIN
+      // 1. 先查詢通知（不 JOIN sender，速度更快）
+      // 2. 批量查詢所有發送者（只查詢一次 User 表）
+      // 3. 在應用層合併資料
+      // 這樣可以同時擁有功能和速度
       
-      // 使用 userId + createdAt 索引進行快速查詢
-      // 先取較多資料，然後在應用層過濾和排序
+      // 第一步：查詢通知（不 JOIN sender，速度更快）
       const allNotifications = await client.personalNotification.findMany({
         where: {
           userId: session.user.id,
@@ -41,17 +40,12 @@ export async function GET() {
           isImportant: true,
           expiresAt: true,
           createdAt: true,
-          sender: {
-            select: {
-              id: true,
-              name: true,
-            },
-          },
+          senderId: true, // 獲取 senderId，用於批量查詢
         },
         // 使用 createdAt DESC 排序，利用現有索引
         orderBy: { createdAt: 'desc' },
-        // 先取 100 筆，然後在應用層過濾和排序
-        take: 100,
+        // 減少為 50 筆，提升速度
+        take: 50,
       });
       
       // 在應用層過濾過期通知
@@ -60,8 +54,43 @@ export async function GET() {
         return new Date(notification.expiresAt) > now;
       });
       
+      // 第二步：批量查詢所有發送者（只查詢一次，比 JOIN 快）
+      const senderIds = [...new Set(validNotifications.map(n => n.senderId).filter(Boolean))];
+      let senderMap = new Map<string, { id: string; name: string }>();
+      
+      if (senderIds.length > 0) {
+        const senders = await client.user.findMany({
+          where: {
+            id: { in: senderIds },
+          },
+          select: {
+            id: true,
+            name: true,
+          },
+        });
+        
+        // 建立 senderId -> sender 的映射
+        senderMap = new Map(senders.map(s => [s.id, { id: s.id, name: s.name || '系統' }]));
+      }
+      
+      // 第三步：在應用層合併資料
+      const notificationsWithSenders = validNotifications.map(notification => ({
+        id: notification.id,
+        title: notification.title,
+        content: notification.content,
+        type: notification.type,
+        priority: notification.priority,
+        isRead: notification.isRead,
+        isImportant: notification.isImportant,
+        expiresAt: notification.expiresAt,
+        createdAt: notification.createdAt,
+        sender: notification.senderId 
+          ? (senderMap.get(notification.senderId) || { id: notification.senderId, name: '系統' })
+          : { id: '', name: '系統' },
+      }));
+      
       // 在應用層排序：重要通知優先，然後按優先級，最後按時間
-      const sortedNotifications = validNotifications.sort((a, b) => {
+      const sortedNotifications = notificationsWithSenders.sort((a, b) => {
         // 1. 重要通知優先
         if (a.isImportant !== b.isImportant) {
           return a.isImportant ? -1 : 1;
@@ -79,11 +108,14 @@ export async function GET() {
         return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
       });
       
-      // 只返回前 50 筆
-      return sortedNotifications.slice(0, 50);
+      // 只返回前 30 筆（減少資料傳輸）
+      return sortedNotifications.slice(0, 30);
     }, 'notifications:list');
 
-    return NextResponse.json({ notifications });
+    // 直接返回，已經包含 sender 資訊
+    const formattedNotifications = notifications;
+
+    return NextResponse.json({ notifications: formattedNotifications });
   } catch (error) {
     return createErrorResponse(error, 'notifications:list');
   }

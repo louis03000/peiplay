@@ -32,15 +32,7 @@ export async function GET() {
         return [];
       }
 
-      // 先檢查是否有最愛（快速檢查）
-      const favoriteCount = await client.favoritePartner.count({
-        where: { customerId: customer.id },
-      });
-
-      if (favoriteCount === 0) {
-        return [];
-      }
-
+      // 進一步優化：直接查詢，移除 count 檢查（減少一次查詢）
       // 使用索引優化的查詢：customerId 索引 + createdAt 排序
       // 只查詢必要的欄位，減少資料傳輸
       const rows = await client.favoritePartner.findMany({
@@ -58,9 +50,14 @@ export async function GET() {
         },
         // 使用 createdAt DESC 排序，利用索引
         orderBy: { createdAt: 'desc' },
-        // 限制結果數量，避免載入過多資料
-        take: 100,
+        // 減少為 50 筆，提升速度
+        take: 50,
       });
+
+      // 如果沒有最愛，直接返回空陣列
+      if (rows.length === 0) {
+        return [];
+      }
 
       // 在應用層映射資料，減少資料庫處理
       return rows.map((f) => ({

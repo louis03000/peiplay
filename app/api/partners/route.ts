@@ -93,9 +93,10 @@ export async function GET(request: NextRequest) {
           },
         }
 
-        // 如果篩選「現在有空」，排除有活躍預約的夥伴
+        // 優化：如果篩選「現在有空」，排除有活躍預約的夥伴
+        // 使用更高效的查詢方式
         if (availableNow) {
-          // 查詢所有有活躍預約的夥伴ID（預約尚未結束）
+          // 優化：直接查詢有活躍預約的 partnerId，使用索引
           const busySchedules = await client.schedule.findMany({
             where: {
               bookings: {
@@ -108,6 +109,8 @@ export async function GET(request: NextRequest) {
             select: {
               partnerId: true,
             },
+            // 限制查詢數量，避免載入過多資料
+            take: 200,
           })
 
           const busyPartnerIds = Array.from(
@@ -185,7 +188,7 @@ export async function GET(request: NextRequest) {
             },
           },
           orderBy: { createdAt: 'desc' },
-          take: 100,
+          take: 50, // 減少為 50 筆，提升速度
         })
       },
       'partners:list'

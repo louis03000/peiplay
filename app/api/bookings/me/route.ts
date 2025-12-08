@@ -32,13 +32,13 @@ export async function GET() {
         return null;
       }
 
-      // 優化策略：
-      // 1. 直接限制查詢結果為 50 筆，避免載入過多資料
-      // 2. 使用 select 只查詢必要欄位
-      // 3. 使用索引優化的排序
-      // 4. 移除不必要的 customer 查詢（我們已經知道 customerId）
+      // 進一步優化策略：
+      // 1. 直接限制查詢結果為 30 筆（減少資料量）
+      // 2. 移除 reviews JOIN（如果不需要，可以通過其他 API 獲取）
+      // 3. 只查詢最必要的欄位
+      // 4. 使用索引優化的排序
       
-      // 直接限制為 50 筆，避免後續刪除操作（刪除操作很慢）
+      // 直接限制為 30 筆，減少資料傳輸和處理時間
       const bookings = await client.booking.findMany({
         where: {
           customerId: customer.id,
@@ -62,18 +62,13 @@ export async function GET() {
               },
             },
           },
-          reviews: {
-            select: {
-              id: true,
-              reviewerId: true,
-            },
-          },
-          // 移除 customer 查詢，因為我們已經知道 customerId
+          // 移除 reviews JOIN - 如果需要評價資訊，可以通過其他 API 獲取
+          // 這會大幅減少查詢時間
         },
         // 使用 createdAt DESC 排序，利用索引
         orderBy: { createdAt: 'desc' },
-        // 直接限制為 50 筆
-        take: 50,
+        // 減少為 30 筆，提升速度
+        take: 30,
       });
 
       return bookings;
