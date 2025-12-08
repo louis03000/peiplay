@@ -19,15 +19,17 @@ export async function GET() {
     const notifications = await db.query(async (client) => {
       const now = new Date();
       
-      // 優化：限制載入數量，只載入最近的 50 筆通知
-      // 使用索引優化的查詢：userId + isRead, userId + isImportant
-      return client.personalNotification.findMany({
+      // 優化策略：
+      // 1. 使用單一查詢，但優化查詢條件以利用索引
+      // 2. 先查詢最近的 100 筆通知（使用 userId + createdAt 索引）
+      // 3. 在應用層過濾過期通知和排序（避免複雜的資料庫排序）
+      // 4. 減少 JOIN：只查詢必要的 sender 資訊
+      
+      // 使用 userId + createdAt 索引進行快速查詢
+      // 先取較多資料，然後在應用層過濾和排序
+      const allNotifications = await client.personalNotification.findMany({
         where: {
           userId: session.user.id,
-          OR: [
-            { expiresAt: null },
-            { expiresAt: { gt: now } }
-          ],
         },
         select: {
           id: true,
@@ -46,13 +48,39 @@ export async function GET() {
             },
           },
         },
-        orderBy: [
-          { isImportant: 'desc' },
-          { priority: 'desc' },
-          { createdAt: 'desc' }
-        ],
-        take: 50, // 限制最多載入 50 筆通知
+        // 使用 createdAt DESC 排序，利用現有索引
+        orderBy: { createdAt: 'desc' },
+        // 先取 100 筆，然後在應用層過濾和排序
+        take: 100,
       });
+      
+      // 在應用層過濾過期通知
+      const validNotifications = allNotifications.filter(notification => {
+        if (!notification.expiresAt) return true;
+        return new Date(notification.expiresAt) > now;
+      });
+      
+      // 在應用層排序：重要通知優先，然後按優先級，最後按時間
+      const sortedNotifications = validNotifications.sort((a, b) => {
+        // 1. 重要通知優先
+        if (a.isImportant !== b.isImportant) {
+          return a.isImportant ? -1 : 1;
+        }
+        // 2. 優先級高的優先
+        const priorityOrder: Record<string, number> = { 
+          URGENT: 4, 
+          HIGH: 3, 
+          MEDIUM: 2, 
+          LOW: 1 
+        };
+        const priorityDiff = (priorityOrder[b.priority] || 0) - (priorityOrder[a.priority] || 0);
+        if (priorityDiff !== 0) return priorityDiff;
+        // 3. 最新的優先
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      });
+      
+      // 只返回前 50 筆
+      return sortedNotifications.slice(0, 50);
     }, 'notifications:list');
 
     return NextResponse.json({ notifications });

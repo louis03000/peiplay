@@ -17,7 +17,12 @@ export async function GET() {
     }
 
     const favorites = await db.query(async (client) => {
-      // 優化：直接使用 userId 查詢，減少一次查詢
+      // 優化策略：
+      // 1. 先查詢 customer（使用 userId 索引）
+      // 2. 查詢 favoritePartner（使用 customerId 索引）
+      // 3. 如果沒有最愛，直接返回空陣列，避免不必要的 JOIN
+      // 4. 只查詢必要的 Partner 欄位
+      
       const customer = await client.customer.findUnique({
         where: { userId: session.user.id },
         select: { id: true },
@@ -27,7 +32,17 @@ export async function GET() {
         return [];
       }
 
-      // 使用索引優化的查詢
+      // 先檢查是否有最愛（快速檢查）
+      const favoriteCount = await client.favoritePartner.count({
+        where: { customerId: customer.id },
+      });
+
+      if (favoriteCount === 0) {
+        return [];
+      }
+
+      // 使用索引優化的查詢：customerId 索引 + createdAt 排序
+      // 只查詢必要的欄位，減少資料傳輸
       const rows = await client.favoritePartner.findMany({
         where: { customerId: customer.id },
         select: {
@@ -41,14 +56,17 @@ export async function GET() {
             },
           },
         },
+        // 使用 createdAt DESC 排序，利用索引
         orderBy: { createdAt: 'desc' },
-        take: 100, // 限制結果數量
+        // 限制結果數量，避免載入過多資料
+        take: 100,
       });
 
+      // 在應用層映射資料，減少資料庫處理
       return rows.map((f) => ({
         id: f.id,
         partnerId: f.partnerId,
-        partnerName: f.Partner.name,
+        partnerName: f.Partner?.name || '未知夥伴',
         createdAt: f.createdAt,
       }));
     }, 'favorites:get');

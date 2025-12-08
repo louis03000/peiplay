@@ -13,23 +13,46 @@ export async function GET() {
 
     const now = new Date();
     const announcements = await db.query(async (client) => {
-      return await client.announcement.findMany({
+      // 優化策略：
+      // 1. 使用 select 而不是 include，只查詢必要欄位
+      // 2. 先查詢所有活躍公告，然後在應用層過濾過期（避免 OR 條件影響索引）
+      // 3. 限制結果數量，避免載入過多資料
+      // 4. 使用索引優化的排序
+      
+      // 先查詢所有活躍公告（使用 isActive 索引）
+      const allAnnouncements = await client.announcement.findMany({
         where: {
           isActive: true,
-          OR: [
-            { expiresAt: null },
-            { expiresAt: { gt: now } }
-          ]
         },
-        include: {
+        select: {
+          id: true,
+          title: true,
+          content: true,
+          type: true,
+          expiresAt: true,
+          createdAt: true,
           creator: {
-            select: { name: true }
+            select: {
+              name: true
+            }
           }
         },
-        orderBy: { createdAt: 'desc' }
+        // 使用 createdAt DESC 排序，利用索引
+        orderBy: { createdAt: 'desc' },
+        // 限制結果數量，避免載入過多資料
+        take: 50,
       });
-    });
 
+      // 在應用層過濾過期公告（避免 OR 條件影響索引使用）
+      const validAnnouncements = allAnnouncements.filter(announcement => {
+        if (!announcement.expiresAt) return true;
+        return new Date(announcement.expiresAt) > now;
+      });
+
+      return validAnnouncements;
+    }, 'announcements:get');
+
+    // 在應用層格式化資料，減少資料庫處理
     const formattedAnnouncements = announcements.map(announcement => ({
       id: announcement.id,
       title: announcement.title,
