@@ -17,63 +17,34 @@ export async function GET() {
     }
 
     const favorites = await db.query(async (client) => {
-      // 優化策略：使用批量查詢而非 JOIN
-      // 1. 先查詢 customer（使用 userId 索引）
-      // 2. 查詢 favoritePartner（不 JOIN Partner，速度更快）
-      // 3. 批量查詢所有 Partner（只查詢一次 Partner 表）
-      // 4. 在應用層合併資料
-      // 這樣可以同時擁有功能和速度
+      // 優化策略：使用單一 SQL JOIN 查詢，取代多次查詢
+      // 這樣可以減少網路往返和查詢開銷，大幅提升效能
       
-      const customer = await client.customer.findUnique({
-        where: { userId: session.user.id },
-        select: { id: true },
-      });
+      const results = await client.$queryRaw<Array<{
+        id: string;
+        partnerId: string;
+        partnerName: string | null;
+        createdAt: Date;
+      }>>`
+        SELECT 
+          fp.id,
+          fp."partnerId",
+          p.name as "partnerName",
+          fp."createdAt"
+        FROM "FavoritePartner" fp
+        INNER JOIN "Customer" c ON fp."customerId" = c.id
+        LEFT JOIN "Partner" p ON fp."partnerId" = p.id
+        WHERE c."userId" = ${session.user.id}
+        ORDER BY fp."createdAt" DESC
+        LIMIT 50
+      `;
 
-      if (!customer) {
-        return [];
-      }
-
-      // 第一步：查詢最愛（不 JOIN Partner，速度更快）
-      const favoriteRows = await client.favoritePartner.findMany({
-        where: { customerId: customer.id },
-        select: {
-          id: true,
-          partnerId: true,
-          createdAt: true,
-          // 不 JOIN Partner，只獲取 partnerId
-        },
-        // 使用 createdAt DESC 排序，利用索引
-        orderBy: { createdAt: 'desc' },
-        // 減少為 50 筆，提升速度
-        take: 50,
-      });
-
-      // 如果沒有最愛，直接返回空陣列
-      if (favoriteRows.length === 0) {
-        return [];
-      }
-
-      // 第二步：批量查詢所有 Partner（只查詢一次，比 JOIN 快）
-      const partnerIds = favoriteRows.map(f => f.partnerId);
-      const partners = await client.partner.findMany({
-        where: {
-          id: { in: partnerIds },
-        },
-        select: {
-          id: true,
-          name: true,
-        },
-      });
-
-      // 建立 partnerId -> partner 的映射
-      const partnerMap = new Map(partners.map(p => [p.id, p]));
-
-      // 第三步：在應用層合併資料
-      return favoriteRows.map((f) => ({
-        id: f.id,
-        partnerId: f.partnerId,
-        partnerName: partnerMap.get(f.partnerId)?.name || '未知夥伴',
-        createdAt: f.createdAt,
+      // 轉換結果格式
+      return results.map((row) => ({
+        id: row.id,
+        partnerId: row.partnerId,
+        partnerName: row.partnerName || '未知夥伴',
+        createdAt: row.createdAt,
       }));
     }, 'favorites:get');
 

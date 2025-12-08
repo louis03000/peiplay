@@ -379,6 +379,7 @@ model FavoritePartner {
   @@unique([customerId, partnerId])
   @@index([customerId])
   @@index([partnerId])
+  @@index([customerId, createdAt])
 }
 
 model GroupBookingParticipant {
