@@ -72,22 +72,14 @@ export async function GET(request: NextRequest) {
             },
           },
           orderBy: { createdAt: 'desc' },
+          take: 50, // 直接限制為 50 筆，避免查詢過多資料
         });
 
         console.log('✅ Found bookings:', bookings.length);
 
-      // 限制最多50筆，超過則刪除最早的
-      if (bookings.length > 50) {
-        const bookingsToDelete = bookings.slice(50);
-        const idsToDelete = bookingsToDelete.map(b => b.id);
-        
-        // 刪除超過50筆的預約
-        await tx.booking.deleteMany({
-          where: {
-            id: { in: idsToDelete },
-          },
-        });
-      }
+      // 優化：直接在查詢時限制為 50 筆，避免查詢過多資料後再刪除
+      // 注意：刪除操作應該在背景任務中執行，不應該在查詢 API 中執行
+      // 這裡先限制查詢結果，刪除操作移到背景任務
 
       // 將預約轉換為訂單格式，以便與現有代碼兼容
       // 使用類型守衛來安全地處理日期

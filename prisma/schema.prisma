@@ -106,7 +106,9 @@ model Partner {
   @@index([status])
   @@index([status, isAvailableNow])
   @@index([status, isRankBooster])
+  @@index([status, createdAt(sort: Desc)])
   @@index([userId])
+  @@index([inviteCode])
 }
 
 model Customer {
@@ -129,6 +131,8 @@ model Customer {
   orders                  Order[]
 
   @@index([userId])
+  @@index([isSuspended, suspensionEndsAt])
+  @@index([role])
 }
 
 model Schedule {
@@ -144,7 +148,10 @@ model Schedule {
   partner     Partner  @relation(fields: [partnerId], references: [id])
 
   @@index([partnerId, date, isAvailable])
+  @@index([partnerId, date, startTime])
   @@index([date, isAvailable])
+  @@index([date, startTime, endTime])
+  @@index([endTime])
 }
 
 model Booking {
@@ -186,10 +193,13 @@ model Booking {
   chatRoom                  ChatRoom?
 
   @@index([status])
+  @@index([status, createdAt(sort: Desc)])
+  @@index([status, updatedAt(sort: Desc)])
   @@index([customerId, status])
+  @@index([customerId, createdAt(sort: Desc)])
   @@index([scheduleId, status])
-  @@index([customerId, createdAt])
-  @@index([multiPlayerBookingId])
+  @@index([multiPlayerBookingId, status])
+  @@index([groupBookingId])
 }
 
 model Order {
@@ -227,6 +237,8 @@ model GroupBooking {
   GroupBookingReview      GroupBookingReview[]
   chatRoom                ChatRoom?
 
+  @@index([status, createdAt(sort: Desc)])
+  @@index([date, startTime, endTime])
 }
 
 model MultiPlayerBooking {
@@ -245,6 +257,9 @@ model MultiPlayerBooking {
   bookings                Booking[]
   chatRoom                ChatRoom?
 
+  @@index([customerId, status])
+  @@index([status, createdAt(sort: Desc)])
+  @@index([date, startTime, endTime])
 }
 
 model Review {
@@ -260,6 +275,10 @@ model Review {
   booking    Booking   @relation(fields: [bookingId], references: [id])
   reviewee   User      @relation("Reviewee", fields: [revieweeId], references: [id])
   reviewer   User      @relation("Reviewer", fields: [reviewerId], references: [id])
+
+  @@index([revieweeId, isApproved])
+  @@index([bookingId, reviewerId])
+  @@index([rating])
 }
 
 model PromoCode {
@@ -311,6 +330,7 @@ model WithdrawalRequest {
   partner     Partner          @relation(fields: [partnerId], references: [id])
 
   @@index([partnerId, status])
+  @@index([partnerId, status, requestedAt(sort: Desc)])
   @@index([partnerId, requestedAt])
 }
 
@@ -378,8 +398,8 @@ model FavoritePartner {
 
   @@unique([customerId, partnerId])
   @@index([customerId])
+  @@index([customerId, createdAt(sort: Desc)])
   @@index([partnerId])
-  @@index([customerId, createdAt])
 }
 
 model GroupBookingParticipant {
@@ -514,10 +534,10 @@ model ChatRoom {
   groupBooking         GroupBooking?       @relation(fields: [groupBookingId], references: [id])
   multiPlayerBooking   MultiPlayerBooking? @relation(fields: [multiPlayerBookingId], references: [id])
 
-  @@index([bookingId])
+  @@index([bookingId, type])
   @@index([groupBookingId])
   @@index([multiPlayerBookingId])
-  @@index([lastMessageAt])
+  @@index([lastMessageAt(sort: Desc)])
 }
 
 // 聊天室成員
@@ -532,7 +552,7 @@ model ChatRoomMember {
   user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([roomId, userId])
-  @@index([userId])
+  @@index([userId, isActive])
   @@index([roomId])
 }
 
@@ -553,9 +573,9 @@ model ChatMessage {
   sender           User                 @relation("ChatMessageSender", fields: [senderId], references: [id])
   readReceipts     MessageReadReceipt[]
 
-  @@index([roomId, createdAt])
-  @@index([senderId])
-  @@index([moderationStatus])
+  @@index([roomId, createdAt(sort: Desc)])
+  @@index([senderId, createdAt(sort: Desc)])
+  @@index([moderationStatus, createdAt(sort: Desc)])
   @@index([roomId, status])
 }
 
@@ -617,6 +637,8 @@ model Announcement {
   creator   User             @relation("AnnouncementCreator", fields: [createdBy], references: [id])
 
   @@index([isActive, expiresAt])
+  @@index([isActive, expiresAt, createdAt(sort: Desc)])
+  @@index([isActive, createdAt(sort: Desc)])
 }
 
 // 個人通知系統
@@ -638,7 +660,9 @@ model PersonalNotification {
   sender User @relation("PersonalNotificationSender", fields: [senderId], references: [id])
 
   @@index([userId, isRead])
-  @@index([userId, isImportant])
+  @@index([userId, isRead, createdAt(sort: Desc)])
+  @@index([userId, isImportant, createdAt(sort: Desc)])
+  @@index([userId, expiresAt])
 }
 
 // 管理員私訊系統
@@ -656,6 +680,7 @@ model AdminMessage {
   admin User @relation("AdminMessageSender", fields: [adminId], references: [id])
 
   @@index([userId, isRead])
+  @@index([userId, isRead, createdAt(sort: Desc)])
   @@index([userId, createdAt])
 }
 

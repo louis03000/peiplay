@@ -94,9 +94,10 @@ export async function GET(request: NextRequest) {
         }
 
         // 優化：如果篩選「現在有空」，排除有活躍預約的夥伴
-        // 使用更高效的查詢方式
+        // 使用更高效的查詢方式 - 直接查詢有活躍預約的 partnerId
         if (availableNow) {
-          // 優化：直接查詢有活躍預約的 partnerId，使用索引
+          // 使用更高效的查詢方式 - 直接查詢有活躍預約的 partnerId
+          // 使用 Prisma 查詢而非 raw query，確保類型安全
           const busySchedules = await client.schedule.findMany({
             where: {
               bookings: {
@@ -109,18 +110,16 @@ export async function GET(request: NextRequest) {
             select: {
               partnerId: true,
             },
-            // 限制查詢數量，避免載入過多資料
-            take: 200,
+            distinct: ['partnerId'],
+            take: 200, // 限制查詢數量
           })
 
-          const busyPartnerIds = Array.from(
-            new Set(busySchedules.map((s) => s.partnerId))
-          )
+          const partnerIds = busySchedules.map((s) => s.partnerId)
 
           // 排除有活躍預約的夥伴
-          if (busyPartnerIds.length > 0) {
+          if (partnerIds.length > 0) {
             partnerWhere.id = {
-              notIn: busyPartnerIds,
+              notIn: partnerIds,
             }
           }
         }
@@ -151,25 +150,8 @@ export async function GET(request: NextRequest) {
               where: {
                 isAvailable: true,
                 date: scheduleDateFilter,
-                // 只載入沒有活躍預約的時段（一對一關係使用 is/isNot）
-                OR: [
-                  { bookings: { is: null } }, // 沒有預約
-                  {
-                    bookings: {
-                      isNot: {
-                        status: {
-                          in: [
-                            BookingStatus.PENDING,
-                            BookingStatus.CONFIRMED,
-                            BookingStatus.PENDING_PAYMENT,
-                            BookingStatus.PARTNER_ACCEPTED,
-                            BookingStatus.PAID_WAITING_PARTNER_CONFIRMATION,
-                          ],
-                        },
-                      },
-                    },
-                  },
-                ],
+                // 優化：先查詢所有可用時段，然後在應用層過濾有活躍預約的
+                // 這樣可以避免 OR 條件影響索引使用
               },
               select: {
                 id: true,
@@ -189,6 +171,7 @@ export async function GET(request: NextRequest) {
           },
           orderBy: { createdAt: 'desc' },
           take: 50, // 減少為 50 筆，提升速度
+          // 使用索引優化的排序
         })
       },
       'partners:list'
@@ -206,15 +189,22 @@ export async function GET(request: NextRequest) {
         }
         images = images.slice(0, 8)
 
-        // 時段已經在資料庫層面過濾過了，這裡只需要簡單映射
-        const availableSchedules = partner.schedules.map((schedule) => ({
-          id: schedule.id,
-          date: schedule.date,
-          startTime: schedule.startTime,
-          endTime: schedule.endTime,
-          isAvailable: schedule.isAvailable,
-          bookings: schedule.bookings,
-        }))
+        // 時段過濾：排除有活躍預約的時段（在應用層過濾，避免 OR 條件影響索引）
+        const availableSchedules = partner.schedules
+          .filter((schedule) => {
+            // 如果沒有預約，或預約狀態不是活躍狀態，則可用
+            if (!schedule.bookings) return true
+            const status = schedule.bookings.status
+            return !ACTIVE_BOOKING_STATUSES.has(status as BookingStatus)
+          })
+          .map((schedule) => ({
+            id: schedule.id,
+            date: schedule.date,
+            startTime: schedule.startTime,
+            endTime: schedule.endTime,
+            isAvailable: schedule.isAvailable,
+            bookings: schedule.bookings,
+          }))
 
         // When no additional filters, hide partners without schedules unless marked availableNow
         if (!rankBooster && !availableNow) {

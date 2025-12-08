@@ -207,18 +207,22 @@ export async function GET(request: Request) {
           // 而是在後續的 JavaScript 邏輯中進行大小寫不敏感的匹配
           // 這樣可以確保不會因為大小寫問題而漏掉夥伴
         },
-        include: {
+        select: {
+          id: true,
+          name: true,
+          games: true,
+          halfHourlyRate: true,
+          coverImage: true,
+          images: true,
+          isRankBooster: true,
+          allowGroupBooking: true,
           user: {
             select: {
               email: true,
               discord: true,
               isSuspended: true,
               suspensionEndsAt: true,
-              reviewsReceived: {
-                select: {
-                  rating: true
-                }
-              }
+              // 移除 reviewsReceived - 如果需要評分，可以通過其他 API 獲取
             }
           },
           schedules: {
@@ -229,16 +233,24 @@ export async function GET(request: Request) {
               },
               isAvailable: true
             },
-            include: {
+            select: {
+              id: true,
+              date: true,
+              startTime: true,
+              endTime: true,
+              isAvailable: true,
               bookings: {
                 select: {
                   id: true,
                   status: true,
                 }
               }
-            }
+            },
+            orderBy: [{ date: 'asc' }, { startTime: 'asc' }],
+            take: 100, // 限制每個 partner 最多載入 100 個時段
           }
-        }
+        },
+        take: 100, // 限制最多 100 個夥伴
       })
 
       const queryTime = Date.now() - performanceStartTime
