@@ -364,10 +364,9 @@ export async function GET(request: Request) {
           }
           
           // 計算平均星等
-          const reviews = partner.user?.reviewsReceived || [];
-          const averageRating = reviews.length > 0 
-            ? reviews.reduce((sum: number, review: any) => sum + review.rating, 0) / reviews.length
-            : 0;
+          // 注意：reviewsReceived 已移除以優化效能，如果需要評分可以通過其他 API 獲取
+          // 暫時設為 0，或可以通過單獨的 API 查詢評分
+          const averageRating = 0;
           
           // 找到符合時段的 schedule
           // 檢查搜尋的時段是否完全包含在夥伴的可用時段內
@@ -453,7 +452,7 @@ export async function GET(request: Request) {
           return {
             ...partner,
             averageRating: Math.round(averageRating * 10) / 10,
-            totalReviews: reviews.length,
+            totalReviews: 0, // 已移除以優化效能，如果需要可以通過其他 API 獲取
             matchingSchedule: {
               id: matchingSchedule.id,
               startTime: matchingSchedule.startTime,

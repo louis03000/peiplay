@@ -14,7 +14,7 @@ type ScheduleOutput = {
   startTime: Date
   endTime: Date
   isAvailable: boolean
-  bookings: { status: string } | null
+  bookings: { status: BookingStatus } | null
 }
 
 type PartnerRecord = {
@@ -48,7 +48,7 @@ function parseDateRange(start?: string | null, end?: string | null) {
   return { gte: startDate, lt: endDate }
 }
 
-const ACTIVE_BOOKING_STATUSES = new Set([
+const ACTIVE_BOOKING_STATUSES: Set<BookingStatus> = new Set([
   BookingStatus.PENDING,
   BookingStatus.CONFIRMED,
   BookingStatus.PENDING_PAYMENT,
@@ -195,7 +195,7 @@ export async function GET(request: NextRequest) {
             // 如果沒有預約，或預約狀態不是活躍狀態，則可用
             if (!schedule.bookings) return true
             const status = schedule.bookings.status
-            return !ACTIVE_BOOKING_STATUSES.has(status as BookingStatus)
+            return !ACTIVE_BOOKING_STATUSES.has(status)
           })
           .map((schedule) => ({
             id: schedule.id,
