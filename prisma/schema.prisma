@@ -50,6 +50,9 @@ model User {
   personalNotificationsSent     PersonalNotification[] @relation("PersonalNotificationSender")
   adminMessagesReceived         AdminMessage[]         @relation("AdminMessageReceiver")
   adminMessagesSent             AdminMessage[]         @relation("AdminMessageSender")
+
+  @@index([isSuspended, suspensionEndsAt])
+  @@index([role])
 }
 
 model Partner {
@@ -121,7 +124,7 @@ model Customer {
   lineId                  String?                   @unique
   userId                  String                    @unique
   violationCount          Int                       @default(0)
-  violations              Json?                     // 違規詳情陣列 [{time, reason, bookingId}]
+  violations              Json? // 違規詳情陣列 [{time, reason, bookingId}]
   bookings                Booking[]
   multiPlayerBookings     MultiPlayerBooking[]
   user                    User                      @relation(fields: [userId], references: [id])
@@ -131,8 +134,6 @@ model Customer {
   orders                  Order[]
 
   @@index([userId])
-  @@index([isSuspended, suspensionEndsAt])
-  @@index([role])
 }
 
 model Schedule {
@@ -155,15 +156,15 @@ model Schedule {
 }
 
 model Booking {
-  id                        String            @id @default(cuid())
+  id                        String              @id @default(cuid())
   customerId                String
-  scheduleId                String            @unique
-  status                    BookingStatus     @default(PENDING)
-  createdAt                 DateTime          @default(now())
-  updatedAt                 DateTime          @updatedAt
-  reminderSent              Boolean           @default(false)
+  scheduleId                String              @unique
+  status                    BookingStatus       @default(PENDING)
+  createdAt                 DateTime            @default(now())
+  updatedAt                 DateTime            @updatedAt
+  reminderSent              Boolean             @default(false)
   rejectReason              String?
-  discountAmount            Float             @default(0)
+  discountAmount            Float               @default(0)
   finalAmount               Float
   originalAmount            Float
   promoCode                 String?
@@ -173,20 +174,20 @@ model Booking {
   discordEarlyTextChannelId String?
   discordTextChannelId      String?
   discordVoiceChannelId     String?
-  extensionButtonShown      Boolean           @default(false)
-  ratingCompleted           Boolean           @default(false)
-  textChannelCleaned        Boolean           @default(false)
+  extensionButtonShown      Boolean             @default(false)
+  ratingCompleted           Boolean             @default(false)
+  textChannelCleaned        Boolean             @default(false)
   partnerResponseDeadline   DateTime?
-  isWaitingPartnerResponse  Boolean           @default(false)
-  serviceType               String            @default("GAMING")
+  isWaitingPartnerResponse  Boolean             @default(false)
+  serviceType               String              @default("GAMING")
   groupBookingId            String?
   isGroupBooking            Boolean?
   multiPlayerBookingId      String?
   isMultiPlayerBooking      Boolean?
-  customer                  Customer          @relation(fields: [customerId], references: [id])
-  groupBooking              GroupBooking?     @relation(fields: [groupBookingId], references: [id])
+  customer                  Customer            @relation(fields: [customerId], references: [id])
+  groupBooking              GroupBooking?       @relation(fields: [groupBookingId], references: [id])
   multiPlayerBooking        MultiPlayerBooking? @relation(fields: [multiPlayerBookingId], references: [id])
-  schedule                  Schedule          @relation(fields: [scheduleId], references: [id])
+  schedule                  Schedule            @relation(fields: [scheduleId], references: [id])
   orders                    Order[]
   referralEarnings          ReferralEarning[]
   reviews                   Review[]
@@ -242,20 +243,20 @@ model GroupBooking {
 }
 
 model MultiPlayerBooking {
-  id                      String                    @id @default(cuid())
-  customerId              String
-  date                    DateTime
-  startTime               DateTime
-  endTime                 DateTime
-  games                   String[]                  @default([])
-  status                  MultiPlayerBookingStatus  @default(PENDING)
-  totalAmount             Float                     @default(0)
-  createdAt               DateTime                  @default(now())
-  updatedAt               DateTime                  @updatedAt
-  lastAdjustmentAt        DateTime?                // 最後調整時間
-  customer                Customer                  @relation(fields: [customerId], references: [id])
-  bookings                Booking[]
-  chatRoom                ChatRoom?
+  id               String                   @id @default(cuid())
+  customerId       String
+  date             DateTime
+  startTime        DateTime
+  endTime          DateTime
+  games            String[]                 @default([])
+  status           MultiPlayerBookingStatus @default(PENDING)
+  totalAmount      Float                    @default(0)
+  createdAt        DateTime                 @default(now())
+  updatedAt        DateTime                 @updatedAt
+  lastAdjustmentAt DateTime? // 最後調整時間
+  customer         Customer                 @relation(fields: [customerId], references: [id])
+  bookings         Booking[]
+  chatRoom         ChatRoom?
 
   @@index([customerId, status])
   @@index([status, createdAt(sort: Desc)])
@@ -293,7 +294,7 @@ model PromoCode {
   validUntil   DateTime?
   isActive     Boolean       @default(true)
   description  String?
-  partnerId    String?       // 如果設置，此優惠碼只能用於特定夥伴
+  partnerId    String? // 如果設置，此優惠碼只能用於特定夥伴
   partner      Partner?      @relation(fields: [partnerId], references: [id])
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
@@ -302,14 +303,14 @@ model PromoCode {
 }
 
 model RankingHistory {
-  id           String   @id @default(cuid())
+  id            String   @id @default(cuid())
   weekStartDate DateTime // 週的開始日期（週一）
-  partnerId    String
-  rank         Int      // 排名（1-10有獎勵）
-  totalMinutes Int      // 該週的總時長（分鐘）
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  partner      Partner  @relation(fields: [partnerId], references: [id])
+  partnerId     String
+  rank          Int // 排名（1-10有獎勵）
+  totalMinutes  Int // 該週的總時長（分鐘）
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  partner       Partner  @relation(fields: [partnerId], references: [id])
 
   @@unique([weekStartDate, partnerId])
   @@index([weekStartDate])
