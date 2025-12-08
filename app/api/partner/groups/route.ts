@@ -77,6 +77,19 @@ export async function POST(request: Request) {
     }
 
     const data = await request.json()
+    
+    // 詳細記錄接收到的原始資料
+    console.log('🔍 接收到的原始資料:', JSON.stringify(data, null, 2))
+    console.log('🔍 資料型別檢查:', {
+      title: { value: data.title, type: typeof data.title },
+      date: { value: data.date, type: typeof data.date },
+      startTime: { value: data.startTime, type: typeof data.startTime },
+      endTime: { value: data.endTime, type: typeof data.endTime },
+      pricePerPerson: { value: data.pricePerPerson, type: typeof data.pricePerPerson },
+      maxParticipants: { value: data.maxParticipants, type: typeof data.maxParticipants },
+      games: { value: data.games, type: typeof data.games, isArray: Array.isArray(data.games) },
+    })
+    
     if (!data.title || !data.date || !data.startTime || !data.endTime || !data.pricePerPerson) {
       return NextResponse.json({
         error: '缺少必要欄位',
@@ -84,14 +97,62 @@ export async function POST(request: Request) {
       }, { status: 400 })
     }
 
-    console.log('🔍 開始創建群組預約，資料:', {
-      title: data.title,
-      date: data.date,
-      startTime: data.startTime,
-      endTime: data.endTime,
-      pricePerPerson: data.pricePerPerson,
-      maxParticipants: data.maxParticipants,
-      games: data.games,
+    // 驗證和轉換資料型別
+    const title = String(data.title).trim()
+    const dateStr = String(data.date).trim()
+    const startTimeStr = String(data.startTime).trim()
+    const endTimeStr = String(data.endTime).trim()
+    
+    // 確保 pricePerPerson 是數字
+    const pricePerPerson = typeof data.pricePerPerson === 'number' 
+      ? data.pricePerPerson 
+      : parseFloat(String(data.pricePerPerson))
+    
+    if (isNaN(pricePerPerson) || pricePerPerson <= 0) {
+      console.error('❌ pricePerPerson 無效:', data.pricePerPerson)
+      return NextResponse.json({
+        error: '每人費用必須是大於0的數字',
+        details: `收到的值: ${data.pricePerPerson}, 型別: ${typeof data.pricePerPerson}`,
+      }, { status: 400 })
+    }
+    
+    // 確保 maxParticipants 是整數
+    const maxParticipants = typeof data.maxParticipants === 'number'
+      ? Math.floor(data.maxParticipants)
+      : parseInt(String(data.maxParticipants || 4), 10)
+    
+    if (isNaN(maxParticipants) || maxParticipants < 2 || maxParticipants > 9) {
+      console.error('❌ maxParticipants 無效:', data.maxParticipants)
+      return NextResponse.json({
+        error: '最大參與人數必須在2到9人之間',
+        details: `收到的值: ${data.maxParticipants}, 型別: ${typeof data.maxParticipants}`,
+      }, { status: 400 })
+    }
+    
+    // 確保 games 是字串陣列
+    let games: string[] = []
+    if (Array.isArray(data.games)) {
+      games = data.games
+        .map((g: any) => String(g).trim())
+        .filter((g: string) => g.length > 0)
+        .slice(0, 10) // 最多10個
+    } else if (data.games && typeof data.games === 'string') {
+      // 如果是字串，嘗試分割
+      games = data.games.split(',').map((g: string) => g.trim()).filter((g: string) => g.length > 0).slice(0, 10)
+    }
+    
+    // 處理 description（可選）
+    const description = data.description ? String(data.description).trim() : null
+
+    console.log('🔍 開始創建群組預約，處理後的資料:', {
+      title,
+      dateStr,
+      startTimeStr,
+      endTimeStr,
+      pricePerPerson,
+      maxParticipants,
+      games,
+      description,
     })
 
     const result = await db.query(async (client) => {
@@ -109,28 +170,53 @@ export async function POST(request: Request) {
         return { type: 'USER_NOT_FOUND' } as const
       }
 
-      const startTime = new Date(`${data.date}T${normalizeTime(data.startTime)}`)
-      const endTime = new Date(`${data.date}T${normalizeTime(data.endTime)}`)
+      // 轉換日期時間格式
+      // 前端送來的格式：date = "2025-12-04", startTime = "22:00"
+      // 需要組合成 ISO 格式：2025-12-04T22:00:00
+      const normalizedStartTime = normalizeTime(startTimeStr)
+      const normalizedEndTime = normalizeTime(endTimeStr)
+      
+      // 組合成完整的 ISO 日期時間字串
+      const startDateTimeStr = `${dateStr}T${normalizedStartTime}`
+      const endDateTimeStr = `${dateStr}T${normalizedEndTime}`
+      
+      console.log('🔍 日期時間組合:', {
+        dateStr,
+        startTimeStr,
+        endTimeStr,
+        normalizedStartTime,
+        normalizedEndTime,
+        startDateTimeStr,
+        endDateTimeStr,
+      })
+      
+      // 創建 Date 對象
+      const startTime = new Date(startDateTimeStr)
+      const endTime = new Date(endDateTimeStr)
+      
+      console.log('🔍 創建的 Date 對象:', {
+        startTime: startTime.toISOString(),
+        endTime: endTime.toISOString(),
+        startTimeValid: !isNaN(startTime.getTime()),
+        endTimeValid: !isNaN(endTime.getTime()),
+      })
 
       if (isNaN(startTime.getTime()) || isNaN(endTime.getTime())) {
-        console.log('❌ 日期時間格式錯誤')
+        console.error('❌ 日期時間格式錯誤:', {
+          startDateTimeStr,
+          endDateTimeStr,
+          startTime: startTime.toString(),
+          endTime: endTime.toString(),
+        })
         return { type: 'INVALID_DATETIME' } as const
       }
 
       if (endTime <= startTime) {
-        console.log('❌ 結束時間必須晚於開始時間')
+        console.error('❌ 結束時間必須晚於開始時間:', {
+          startTime: startTime.toISOString(),
+          endTime: endTime.toISOString(),
+        })
         return { type: 'END_BEFORE_START' } as const
-      }
-
-      if (data.pricePerPerson <= 0) {
-        console.log('❌ 每人費用必須大於0')
-        return { type: 'INVALID_PRICE' } as const
-      }
-
-      const maxParticipants = data.maxParticipants || 4
-      if (maxParticipants < 2 || maxParticipants > 9) {
-        console.log('❌ 最大參與人數必須在2到9人之間')
-        return { type: 'INVALID_PARTICIPANTS' } as const
       }
 
       console.log('🔍 開始事務...')
@@ -182,42 +268,71 @@ export async function POST(request: Request) {
           console.log('🔍 生成群組預約ID:', groupBookingId)
 
           // 創建群組預約
-          console.log('🔍 創建群組預約，資料:', {
+          const createData = {
             id: groupBookingId,
-            title: data.title.trim(),
-            startTime: startTime.toISOString(),
-            endTime: endTime.toISOString(),
-            maxParticipants,
-            pricePerPerson: parseFloat(data.pricePerPerson),
-            initiatorId: partner.id,
+            type: 'PARTNER_INITIATED' as const,
+            title: title || null,
+            description: description || null,
+            date: startTime, // DateTime
+            startTime: startTime, // DateTime
+            endTime: endTime, // DateTime
+            maxParticipants: maxParticipants, // Int
+            currentParticipants: 0, // Int
+            pricePerPerson: pricePerPerson, // Float
+            status: 'ACTIVE' as const,
+            initiatorId: partner.id, // String
+            initiatorType: 'PARTNER', // String
+            games: games, // String[]
+          }
+          
+          console.log('🔍 準備創建群組預約，Prisma 資料:', {
+            ...createData,
+            date: createData.date.toISOString(),
+            startTime: createData.startTime.toISOString(),
+            endTime: createData.endTime.toISOString(),
           })
+          console.log('🔍 資料型別驗證:', {
+            id: typeof createData.id,
+            type: typeof createData.type,
+            title: typeof createData.title,
+            description: typeof createData.description,
+            date: createData.date instanceof Date,
+            startTime: createData.startTime instanceof Date,
+            endTime: createData.endTime instanceof Date,
+            maxParticipants: typeof createData.maxParticipants,
+            currentParticipants: typeof createData.currentParticipants,
+            pricePerPerson: typeof createData.pricePerPerson,
+            status: typeof createData.status,
+            initiatorId: typeof createData.initiatorId,
+            initiatorType: typeof createData.initiatorType,
+            games: Array.isArray(createData.games),
+          })
+          
           let groupBooking
           try {
             groupBooking = await tx.groupBooking.create({
-              data: {
-                id: groupBookingId,
-                type: 'PARTNER_INITIATED',
-                title: data.title.trim(),
-                description: data.description ? data.description.trim() : null,
-                date: startTime,
-                startTime,
-                endTime,
-                maxParticipants,
-                currentParticipants: 0,
-                pricePerPerson: parseFloat(data.pricePerPerson),
-                status: 'ACTIVE',
-                initiatorId: partner.id,
-                initiatorType: 'PARTNER',
-                games: Array.isArray(data.games) ? data.games.filter((g: any) => g && typeof g === 'string') : [],
-              },
+              data: createData,
             })
             console.log('✅ 群組預約創建成功:', groupBooking.id)
           } catch (createError: any) {
-            console.error('❌ 創建群組預約失敗:', {
+            console.error('❌ 創建群組預約失敗 - Prisma 錯誤:', {
               code: createError?.code,
               message: createError?.message,
               meta: createError?.meta,
+              name: createError?.name,
+              stack: createError?.stack,
             })
+            console.error('❌ 嘗試創建的資料:', JSON.stringify(createData, null, 2))
+            
+            // 如果是 Prisma 驗證錯誤，提供更詳細的錯誤訊息
+            if (createError?.code === 'P2009' || createError?.code === 'P2012') {
+              console.error('❌ Prisma 驗證錯誤詳情:', {
+                code: createError.code,
+                message: createError.message,
+                meta: createError.meta,
+              })
+            }
+            
             throw createError
           }
 
@@ -361,24 +476,92 @@ export async function POST(request: Request) {
       details: '結果格式不正確，請檢查伺服器日誌',
     }, { status: 500 })
   } catch (error) {
-    console.error('❌ 創建群組預約失敗:', error)
+    console.error('❌ 創建群組預約失敗 - 外層 catch:', error)
     console.error('錯誤詳情:', {
       message: error instanceof Error ? error.message : 'Unknown error',
       stack: error instanceof Error ? error.stack : undefined,
       name: error instanceof Error ? error.name : undefined,
     })
+    
+    // 如果是 Prisma 錯誤，提供更詳細的錯誤訊息
+    if (error && typeof error === 'object' && 'code' in error) {
+      const prismaError = error as any
+      console.error('❌ Prisma 錯誤代碼:', prismaError.code)
+      console.error('❌ Prisma 錯誤訊息:', prismaError.message)
+      console.error('❌ Prisma 錯誤 meta:', JSON.stringify(prismaError.meta, null, 2))
+      
+      // 根據錯誤代碼返回更詳細的錯誤訊息
+      if (prismaError.code === 'P2009') {
+        return NextResponse.json({
+          error: '資料型別不符合',
+          details: prismaError.message,
+          code: prismaError.code,
+        }, { status: 400 })
+      }
+      if (prismaError.code === 'P2012') {
+        return NextResponse.json({
+          error: '缺少必填欄位',
+          details: prismaError.message,
+          code: prismaError.code,
+        }, { status: 400 })
+      }
+      if (prismaError.code === 'P2002') {
+        return NextResponse.json({
+          error: '資料已存在',
+          details: prismaError.message,
+          code: prismaError.code,
+        }, { status: 409 })
+      }
+    }
+    
     return createErrorResponse(error, 'partner:groups:post')
   }
 }
 
-function normalizeTime(value: string) {
+function normalizeTime(value: string): string {
+  if (!value || typeof value !== 'string') {
+    throw new Error(`無效的時間格式: ${value}`)
+  }
+  
+  // 處理 ISO 格式：2025-12-04T22:00:00 或 2025-12-04T22:00:00Z
   if (value.includes('T')) {
     const timePart = value.split('T')[1]?.split('Z')[0]?.split('+')[0]
     value = timePart || value
   }
+  
+  // 處理 "上午 10:00" 或 "下午 22:00" 格式
+  if (value.includes('上午') || value.includes('下午')) {
+    const isPM = value.includes('下午')
+    const timeMatch = value.match(/(\d{1,2}):(\d{2})/)
+    if (timeMatch) {
+      let hour = parseInt(timeMatch[1], 10)
+      const minute = timeMatch[2]
+      if (isPM && hour !== 12) {
+        hour += 12
+      } else if (!isPM && hour === 12) {
+        hour = 0
+      }
+      value = `${String(hour).padStart(2, '0')}:${minute}`
+    }
+  }
+  
+  // 處理標準時間格式：HH:MM
   const parts = value.split(':')
   if (parts.length === 2) {
-    return `${value}:00`
+    const hour = parseInt(parts[0], 10)
+    const minute = parseInt(parts[1], 10)
+    
+    if (isNaN(hour) || isNaN(minute) || hour < 0 || hour > 23 || minute < 0 || minute > 59) {
+      throw new Error(`無效的時間格式: ${value}`)
+    }
+    
+    return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}:00`
   }
-  return value
+  
+  // 如果已經是完整格式（HH:MM:SS），直接返回
+  if (parts.length === 3) {
+    return value
+  }
+  
+  throw new Error(`無法解析的時間格式: ${value}`)
 }

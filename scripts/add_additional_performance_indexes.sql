@@ -13,7 +13,8 @@ CREATE INDEX IF NOT EXISTS "ChatMessage_roomId_moderationStatus_createdAt_idx" O
 
 -- ChatMessage 表：優化按發送者和審查狀態查詢
 -- 用於批量查詢未讀訊息
-CREATE INDEX IF NOT EXISTS "ChatMessage_senderId_moderationStatus_idx" ON "ChatMessage"("senderId", "moderationStatus");
+-- 已移除：ChatMessage_senderId_moderationStatus_idx（不常見的查詢模式）
+-- CREATE INDEX IF NOT EXISTS "ChatMessage_senderId_moderationStatus_idx" ON "ChatMessage"("senderId", "moderationStatus");
 
 -- ChatRoom 表：優化按最後訊息時間排序
 -- 用於聊天室列表排序
@@ -61,7 +62,8 @@ CREATE INDEX IF NOT EXISTS "Notification_userId_isRead_createdAt_idx" ON "Notifi
 CREATE INDEX IF NOT EXISTS "PersonalNotification_userId_isRead_createdAt_idx" ON "PersonalNotification"("userId", "isRead", "createdAt" DESC);
 
 -- 優化查詢重要通知
-CREATE INDEX IF NOT EXISTS "PersonalNotification_userId_isImportant_createdAt_idx" ON "PersonalNotification"("userId", "isImportant", "createdAt" DESC);
+-- 已移除：PersonalNotification_userId_isImportant_createdAt_idx（如果使用率低，請先檢查使用情況）
+-- CREATE INDEX IF NOT EXISTS "PersonalNotification_userId_isImportant_createdAt_idx" ON "PersonalNotification"("userId", "isImportant", "createdAt" DESC);
 
 -- ========== AdminMessage 表優化 ==========
 
@@ -74,16 +76,19 @@ CREATE INDEX IF NOT EXISTS "AdminMessage_userId_isRead_createdAt_idx" ON "AdminM
 CREATE INDEX IF NOT EXISTS "Review_isApproved_createdAt_desc_idx" ON "Review"("isApproved", "createdAt" DESC);
 
 -- 優化查詢特定用戶收到的評價
-CREATE INDEX IF NOT EXISTS "Review_revieweeId_isApproved_createdAt_idx" ON "Review"("revieweeId", "isApproved", "createdAt" DESC);
+-- 已移除：Review_revieweeId_isApproved_createdAt_idx（如果使用率低，請先檢查使用情況）
+-- CREATE INDEX IF NOT EXISTS "Review_revieweeId_isApproved_createdAt_idx" ON "Review"("revieweeId", "isApproved", "createdAt" DESC);
 
 -- ========== GroupBooking 表優化 ==========
 
 -- 優化查詢活躍的群組預約（按時間排序）
+-- 注意：此索引已取代 GroupBooking_status_idx 和 GroupBooking_date_startTime_idx
 CREATE INDEX IF NOT EXISTS "GroupBooking_status_date_startTime_idx" ON "GroupBooking"("status", "date", "startTime");
 
 -- ========== MultiPlayerBooking 表優化 ==========
 
 -- 優化查詢客戶的多人預約（按時間排序）
+-- 注意：此索引已取代 MultiPlayerBooking_customerId_idx、MultiPlayerBooking_status_idx 和 MultiPlayerBooking_date_startTime_idx
 CREATE INDEX IF NOT EXISTS "MultiPlayerBooking_customerId_status_createdAt_idx" ON "MultiPlayerBooking"("customerId", "status", "createdAt" DESC);
 
 -- ========== Order 表優化 ==========
@@ -92,5 +97,6 @@ CREATE INDEX IF NOT EXISTS "MultiPlayerBooking_customerId_status_createdAt_idx" 
 CREATE INDEX IF NOT EXISTS "Order_customerId_createdAt_desc_idx" ON "Order"("customerId", "createdAt" DESC);
 
 -- 優化查詢特定預約的訂單
-CREATE INDEX IF NOT EXISTS "Order_bookingId_createdAt_idx" ON "Order"("bookingId", "createdAt" DESC);
+-- 已移除：Order_bookingId_createdAt_idx（bookingId 通常通過 Booking 關聯查詢，不需要單獨索引）
+-- CREATE INDEX IF NOT EXISTS "Order_bookingId_createdAt_idx" ON "Order"("bookingId", "createdAt" DESC);
 
