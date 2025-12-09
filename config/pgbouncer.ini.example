@@ -1,0 +1,113 @@
+# ============================================
+# PgBouncer Configuration for PeiPlay
+# ============================================
+# 此為範例配置檔，請根據實際環境調整
+# 檔案位置：/etc/pgbouncer/pgbouncer.ini
+# ============================================
+
+[databases]
+# 資料庫連線設定
+peiplay = host=localhost port=5432 dbname=peiplay
+
+[pgbouncer]
+# ============================================
+# 連線設定
+# ============================================
+listen_addr = 0.0.0.0
+listen_port = 6432
+auth_type = md5
+auth_file = /etc/pgbouncer/userlist.txt
+
+# ============================================
+# 連線池設定（關鍵）
+# ============================================
+# max_client_conn: 允許的最大客戶端連線數
+# 建議值：根據應用伺服器數量 * 每個伺服器的 worker 數
+# 例如：4 個 Node.js worker * 10 = 40，加上緩衝 = 100
+max_client_conn = 100
+
+# default_pool_size: 每個資料庫的預設連線池大小
+# 建議值：PostgreSQL max_connections 的 25-50%
+# 例如：PostgreSQL max_connections = 100，則設為 25-50
+default_pool_size = 25
+
+# min_pool_size: 最小連線池大小（保持最小連線數）
+min_pool_size = 5
+
+# reserve_pool_size: 保留連線池大小（給管理員使用）
+reserve_pool_size = 5
+
+# reserve_pool_timeout: 保留連線池超時時間（秒）
+reserve_pool_timeout = 3
+
+# max_db_connections: 單一資料庫的最大連線數
+# 建議值：default_pool_size * 2
+max_db_connections = 50
+
+# max_user_connections: 單一用戶的最大連線數
+max_user_connections = 25
+
+# ============================================
+# Pooling Mode（重要！）
+# ============================================
+# session: 每個客戶端會話使用一個連線（不推薦，效能較差）
+# transaction: 每個交易使用一個連線（推薦，效能最佳）
+# statement: 每個語句使用一個連線（最激進，可能有問題）
+pool_mode = transaction
+
+# ============================================
+# 連線超時設定
+# ============================================
+# server_connect_timeout: 連線到 PostgreSQL 的超時時間（秒）
+server_connect_timeout = 15
+
+# server_login_retry: 登入失敗後重試延遲（秒）
+server_login_retry = 15
+
+# query_timeout: 查詢超時時間（秒，0 = 無限制）
+query_timeout = 0
+
+# query_wait_timeout: 查詢等待超時時間（秒）
+query_wait_timeout = 120
+
+# client_idle_timeout: 客戶端空閒超時時間（秒）
+client_idle_timeout = 0
+
+# server_idle_timeout: 伺服器連線空閒超時時間（秒）
+server_idle_timeout = 600
+
+# ============================================
+# 日誌設定
+# ============================================
+logfile = /var/log/pgbouncer/pgbouncer.log
+pidfile = /var/run/pgbouncer/pgbouncer.pid
+admin_users = postgres
+stats_users = postgres
+
+# 日誌級別：1=verbose, 2=notice, 3=warning
+verbose = 2
+
+# ============================================
+# 安全設定
+# ============================================
+# ignore_startup_parameters: 忽略的啟動參數（用於相容性）
+ignore_startup_parameters = extra_float_digits
+
+# ============================================
+# 監控與統計
+# ============================================
+# 啟用統計資訊收集
+stats_period = 60
+
+# ============================================
+# 範例：userlist.txt 格式
+# ============================================
+# "username" "md5_hash_of_password"
+# 生成方式：
+# echo -n "passwordusername" | md5sum
+# 或使用 pgbouncer 提供的工具：
+# pgbouncer -d -R pgbouncer.ini
+# 然後在 psql 中執行：
+# SHOW USERS;
+# ============================================
+

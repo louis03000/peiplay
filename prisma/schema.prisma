@@ -50,9 +50,19 @@ model User {
   personalNotificationsSent     PersonalNotification[] @relation("PersonalNotificationSender")
   adminMessagesReceived         AdminMessage[]         @relation("AdminMessageReceiver")
   adminMessagesSent             AdminMessage[]         @relation("AdminMessageSender")
+  kyc                           KYC?
+  logEntries                    LogEntry[]             @relation("LogEntryActor")
+  kycReviewed                   KYC[]                  @relation("KYCReviewer")
+  partnerVerificationsReviewed  PartnerVerification[]  @relation("PartnerVerificationReviewer")
+  refundRequestsCreated         RefundRequest[]        @relation("RefundRequestUser")
+  refundRequestsProcessed       RefundRequest[]        @relation("RefundRequestAdmin")
+  supportTickets                SupportTicket[]        @relation("SupportTicketUser")
+  supportMessages               SupportMessage[]       @relation("SupportMessageSender")
 
   @@index([isSuspended, suspensionEndsAt])
   @@index([role])
+  @@index([email])
+  @@index([phone])
 }
 
 model Partner {
@@ -105,6 +115,10 @@ model Partner {
   withdrawalRequests      WithdrawalRequest[]
   promoCodes              PromoCode[]
   rankingHistories        RankingHistory[]
+  verification            PartnerVerification?
+  refundRequests          RefundRequest[]           @relation("RefundRequestPartner")
+  supportTickets          SupportTicket[]           @relation("SupportTicketPartner")
+  bookings                Booking[]                 @relation("BookingPartner")
 
   @@index([status])
   @@index([status, isAvailableNow])
@@ -112,6 +126,7 @@ model Partner {
   @@index([status, createdAt(sort: Desc)])
   @@index([userId])
   @@index([inviteCode])
+  @@index([name])
 }
 
 model Customer {
@@ -158,6 +173,7 @@ model Schedule {
 model Booking {
   id                        String              @id @default(cuid())
   customerId                String
+  partnerId                 String // 直接關聯，優化查詢
   scheduleId                String              @unique
   status                    BookingStatus       @default(PENDING)
   createdAt                 DateTime            @default(now())
@@ -185,6 +201,7 @@ model Booking {
   multiPlayerBookingId      String?
   isMultiPlayerBooking      Boolean?
   customer                  Customer            @relation(fields: [customerId], references: [id])
+  partner                   Partner             @relation("BookingPartner", fields: [partnerId], references: [id])
   groupBooking              GroupBooking?       @relation(fields: [groupBookingId], references: [id])
   multiPlayerBooking        MultiPlayerBooking? @relation(fields: [multiPlayerBookingId], references: [id])
   schedule                  Schedule            @relation(fields: [scheduleId], references: [id])
@@ -192,6 +209,9 @@ model Booking {
   referralEarnings          ReferralEarning[]
   reviews                   Review[]
   chatRoom                  ChatRoom?
+  payments                  Payment[]
+  refundRequests            RefundRequest[]
+  supportTickets            SupportTicket[]     @relation("SupportTicketBooking")
 
   @@index([status])
   @@index([status, createdAt(sort: Desc)])
@@ -201,6 +221,7 @@ model Booking {
   @@index([scheduleId, status])
   @@index([multiPlayerBookingId, status])
   @@index([groupBookingId])
+  @@index([partnerId, createdAt])
 }
 
 model Order {
@@ -211,6 +232,166 @@ model Order {
   createdAt  DateTime @default(now())
   booking    Booking  @relation(fields: [bookingId], references: [id])
   customer   Customer @relation(fields: [customerId], references: [id])
+
+  @@index([customerId])
+  @@index([bookingId])
+  @@index([createdAt])
+}
+
+// KYC 驗證模型
+model KYC {
+  id           String    @id @default(cuid())
+  userId       String    @unique
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  idNumberHash String? // 加密或 hash 後的身分證號碼，不存明文
+  idFrontUrl   String? // 身分證正面 signed URL
+  idBackUrl    String? // 身分證反面 signed URL
+  selfieUrl    String? // 自拍照 signed URL
+  videoUrl     String? // 影片驗證 signed URL
+  status       KYCStatus @default(PENDING)
+  reviewerId   String?
+  reviewer     User?     @relation("KYCReviewer", fields: [reviewerId], references: [id])
+  reviewerNote String?
+  reviewedAt   DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([status])
+  @@index([userId])
+  @@index([status, createdAt])
+}
+
+// 陪玩者驗證模型（與 KYC 分開）
+model PartnerVerification {
+  id           String             @id @default(cuid())
+  partnerId    String             @unique
+  partner      Partner            @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  idFrontUrl   String? // 身分證正面 signed URL
+  idBackUrl    String? // 身分證反面 signed URL
+  selfieUrl    String? // 自拍照 signed URL
+  videoUrl     String? // 影片驗證 signed URL
+  status       VerificationStatus @default(PENDING)
+  reviewerId   String?
+  reviewer     User?              @relation("PartnerVerificationReviewer", fields: [reviewerId], references: [id])
+  reviewerNote String?
+  reviewedAt   DateTime?
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+
+  @@index([status])
+  @@index([partnerId])
+  @@index([status, createdAt])
+}
+
+// 支付記錄模型
+model Payment {
+  id             String        @id @default(cuid())
+  bookingId      String
+  booking        Booking       @relation(fields: [bookingId], references: [id])
+  provider       String // LINE_PAY, CREDIT_CARD, etc.
+  providerId     String // 支付提供商的交易 ID
+  amountCents    Int // 金額（分）
+  currency       String        @default("TWD")
+  status         PaymentStatus
+  rawResponse    Json? // 支付提供商的原始回應
+  idempotencyKey String?       @unique // 防止重複處理
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@index([providerId])
+  @@index([bookingId])
+  @@index([status])
+  @@index([status, createdAt])
+  @@index([idempotencyKey])
+}
+
+// 退款請求模型
+model RefundRequest {
+  id                String       @id @default(cuid())
+  bookingId         String
+  booking           Booking      @relation(fields: [bookingId], references: [id])
+  userId            String
+  user              User         @relation("RefundRequestUser", fields: [userId], references: [id])
+  partnerId         String?
+  partner           Partner?     @relation("RefundRequestPartner", fields: [partnerId], references: [id])
+  reason            String
+  evidence          Json? // 證據（圖片 URL、說明等）
+  amountCents       Int // 退款金額（分）
+  status            RefundStatus @default(PENDING)
+  partnerResponse   String? // 陪玩者回應
+  partnerResponseAt DateTime?
+  adminDecision     String? // 管理員決策
+  adminDecisionAt   DateTime?
+  adminId           String? // 處理的管理員 ID
+  admin             User?        @relation("RefundRequestAdmin", fields: [adminId], references: [id])
+  idempotencyKey    String?      @unique // 防止重複退款
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  @@index([bookingId])
+  @@index([userId])
+  @@index([partnerId])
+  @@index([status])
+  @@index([status, createdAt])
+  @@index([idempotencyKey])
+}
+
+// 支援票證模型
+model SupportTicket {
+  id        String           @id @default(cuid())
+  userId    String
+  user      User             @relation("SupportTicketUser", fields: [userId], references: [id])
+  partnerId String?
+  partner   Partner?         @relation("SupportTicketPartner", fields: [partnerId], references: [id])
+  bookingId String?
+  booking   Booking?         @relation("SupportTicketBooking", fields: [bookingId], references: [id])
+  subject   String
+  message   String
+  status    TicketStatus     @default(OPEN)
+  messages  SupportMessage[]
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  @@index([userId])
+  @@index([partnerId])
+  @@index([bookingId])
+  @@index([status])
+  @@index([status, createdAt])
+}
+
+// 支援訊息模型
+model SupportMessage {
+  id        String        @id @default(cuid())
+  ticketId  String
+  ticket    SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  senderId  String
+  sender    User          @relation("SupportMessageSender", fields: [senderId], references: [id])
+  message   String
+  createdAt DateTime      @default(now())
+
+  @@index([ticketId])
+  @@index([senderId])
+  @@index([ticketId, createdAt])
+}
+
+// 審計日誌模型（通用）
+model LogEntry {
+  id           String   @id @default(cuid())
+  actorId      String?
+  actor        User?    @relation("LogEntryActor", fields: [actorId], references: [id])
+  action       String // 操作類型：CREATE_BOOKING, APPROVE_KYC, etc.
+  resourceType String // 資源類型：Booking, KYC, Payment, etc.
+  resourceId   String? // 資源 ID
+  payload      Json? // 操作詳情
+  ipAddress    String?
+  userAgent    String?
+  createdAt    DateTime @default(now())
+
+  @@index([actorId])
+  @@index([action])
+  @@index([resourceType, resourceId])
+  @@index([createdAt])
+  @@index([action, createdAt])
 }
 
 model GroupBooking {
@@ -511,6 +692,47 @@ enum IdVerificationStatus {
   PENDING
   APPROVED
   REJECTED
+}
+
+enum KYCStatus {
+  PENDING
+  IN_REVIEW
+  APPROVED
+  REJECTED
+}
+
+enum VerificationStatus {
+  PENDING
+  IN_REVIEW
+  APPROVED
+  REJECTED
+}
+
+enum PaymentStatus {
+  PENDING
+  PROCESSING
+  SUCCEEDED
+  FAILED
+  REFUNDED
+  CANCELLED
+}
+
+enum RefundStatus {
+  PENDING
+  PARTNER_RESPONDED
+  ADMIN_REVIEWING
+  APPROVED
+  REJECTED
+  PROCESSING
+  COMPLETED
+  CANCELLED
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
 }
 
 enum AnnouncementType {
