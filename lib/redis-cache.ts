@@ -317,7 +317,7 @@ export function withCache<T extends (...args: any[]) => Promise<any>>(
   ) {
     const method = descriptor.value!;
 
-    descriptor.value = async function (...args: Parameters<T>) {
+    descriptor.value = (async function (this: any, ...args: Parameters<T>) {
       const key = keyGenerator(...args);
       const cached = await Cache.get(key);
       if (cached !== null) {
@@ -327,7 +327,7 @@ export function withCache<T extends (...args: any[]) => Promise<any>>(
       const result = await method.apply(this, args);
       await Cache.set(key, result, ttlSeconds);
       return result;
-    } as T;
+    }) as T;
   };
 }
 
