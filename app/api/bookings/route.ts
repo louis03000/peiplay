@@ -155,6 +155,7 @@ export async function POST(request: Request) {
           // 只設置數據庫中確實存在的字段，避免設置不存在的字段
           const bookingData: any = {
             customerId: customer.id,
+            partnerId: schedule.partnerId,
             scheduleId,
             status: BookingStatus.PAID_WAITING_PARTNER_CONFIRMATION,
             originalAmount,

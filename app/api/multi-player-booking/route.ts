@@ -244,6 +244,7 @@ export async function POST(request: Request) {
             const booking = await tx.booking.create({
               data: {
                 customerId: customer.id,
+                partnerId: partner.partnerId,
                 scheduleId: partner.scheduleId,
                 status: BookingStatus.PAID_WAITING_PARTNER_CONFIRMATION,
                 originalAmount: partner.amount,

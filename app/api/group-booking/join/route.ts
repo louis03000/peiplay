@@ -239,6 +239,7 @@ export async function POST(request: Request) {
             data: {
               id: `booking-${Date.now()}`,
               customerId: customer.id,
+              partnerId: groupBooking.initiatorId,
               scheduleId: schedule.id,
               status: 'CONFIRMED',
               originalAmount: groupBooking.pricePerPerson || 0,
