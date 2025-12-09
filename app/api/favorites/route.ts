@@ -17,33 +17,43 @@ export async function GET() {
     }
 
     const favorites = await db.query(async (client) => {
-      // 優化策略：使用單一 SQL JOIN 查詢，取代多次查詢
-      // 這樣可以減少網路往返和查詢開銷，大幅提升效能
-      
-      const results = await client.$queryRaw<Array<{
-        id: string;
-        partnerId: string;
-        partnerName: string | null;
-        createdAt: Date;
-      }>>`
-        SELECT 
-          fp.id,
-          fp."partnerId",
-          p.name as "partnerName",
-          fp."createdAt"
-        FROM "FavoritePartner" fp
-        INNER JOIN "Customer" c ON fp."customerId" = c.id
-        LEFT JOIN "Partner" p ON fp."partnerId" = p.id
-        WHERE c."userId" = ${session.user.id}
-        ORDER BY fp."createdAt" DESC
-        LIMIT 50
-      `;
+      // 優化策略 1: 先快速獲取 customerId（使用 userId 索引）
+      const customer = await client.customer.findUnique({
+        where: { userId: session.user.id },
+        select: { id: true }, // 只選擇 id，減少資料傳輸
+      });
 
-      // 轉換結果格式
+      if (!customer) {
+        return [];
+      }
+
+      // 優化策略 2: 快速檢查是否有 favorites（使用 count，非常快）
+      const favoriteCount = await client.favoritePartner.count({
+        where: { customerId: customer.id },
+      });
+
+      // 如果沒有 favorites，直接返回，避免後續查詢
+      if (favoriteCount === 0) {
+        return [];
+      }
+
+      // 優化策略 3: 只查詢必要的欄位，不需要 JOIN Partner 表
+      // booking page 只需要 partnerId，不需要 partnerName
+      const results = await client.favoritePartner.findMany({
+        where: { customerId: customer.id },
+        select: {
+          id: true,
+          partnerId: true,
+          createdAt: true,
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 50, // LIMIT 50
+      });
+
+      // 轉換結果格式（保持向後兼容）
       return results.map((row) => ({
         id: row.id,
         partnerId: row.partnerId,
-        partnerName: row.partnerName || '未知夥伴',
         createdAt: row.createdAt,
       }));
     }, 'favorites:get');

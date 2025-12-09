@@ -146,18 +146,20 @@ function BookingWizardContent() {
 
   // 移除無用的金幣餘額獲取
 
-  // 獲取用戶的最愛列表
+  // 獲取用戶的最愛列表（延遲加載，不阻塞頁面渲染）
   useEffect(() => {
-    const fetchFavorites = async () => {
-      // 等待 session 載入完成
-      if (sessionStatus === "loading") return;
+    // 等待 session 載入完成
+    if (sessionStatus === "loading") return;
 
-      // 如果未登入，清空最愛列表
-      if (sessionStatus === "unauthenticated" || !session?.user) {
-        setFavoritePartnerIds(new Set());
-        return;
-      }
+    // 如果未登入，清空最愛列表
+    if (sessionStatus === "unauthenticated" || !session?.user) {
+      setFavoritePartnerIds(new Set());
+      return;
+    }
 
+    // 延遲加載 favorites，讓頁面先渲染
+    // 使用 requestIdleCallback 如果可用，否則使用 setTimeout
+    const loadFavorites = async () => {
       setLoadingFavorites(true);
       try {
         const res = await fetch("/api/favorites", {
@@ -182,7 +184,13 @@ function BookingWizardContent() {
       }
     };
 
-    fetchFavorites();
+    // 優先使用 requestIdleCallback（瀏覽器空閒時執行）
+    if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+      (window as any).requestIdleCallback(loadFavorites, { timeout: 2000 });
+    } else {
+      // 降級方案：延遲 100ms 後執行，讓頁面先渲染
+      setTimeout(loadFavorites, 100);
+    }
   }, [session, sessionStatus]);
 
   // 處理切換最愛
