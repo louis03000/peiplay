@@ -6,19 +6,43 @@
  * - Cache invalidation 策略
  * - TTL 管理
  * - Cache key 命名規範
+ * 
+ * 注意：如果未安裝 redis 套件，所有 cache 操作將自動降級為無操作（no-op）
  */
 
-import { createClient, RedisClientType } from 'redis';
-
 // Redis client singleton
-let redisClient: RedisClientType | null = null;
+let redisClient: any = null;
+let redisModule: any = null;
+
+/**
+ * 動態載入 Redis 模組（如果可用）
+ */
+function loadRedisModule() {
+  if (redisModule) {
+    return redisModule;
+  }
+
+  try {
+    redisModule = require('redis');
+    return redisModule;
+  } catch (error) {
+    // Redis 未安裝，返回 null
+    return null;
+  }
+}
 
 /**
  * 初始化 Redis 客戶端
  */
-export function getRedisClient(): RedisClientType | null {
+export function getRedisClient(): any | null {
   if (redisClient) {
     return redisClient;
+  }
+
+  const redis = loadRedisModule();
+  if (!redis) {
+    // Redis 未安裝，靜默返回 null
+    return null;
   }
 
   const redisUrl = process.env.REDIS_URL;
@@ -28,10 +52,10 @@ export function getRedisClient(): RedisClientType | null {
   }
 
   try {
-    redisClient = createClient({
+    redisClient = redis.createClient({
       url: redisUrl,
       socket: {
-        reconnectStrategy: (retries) => {
+        reconnectStrategy: (retries: number) => {
           if (retries > 10) {
             console.error('❌ Redis connection failed after 10 retries');
             return new Error('Redis connection failed');
@@ -41,7 +65,7 @@ export function getRedisClient(): RedisClientType | null {
       },
     });
 
-    redisClient.on('error', (err) => {
+    redisClient.on('error', (err: any) => {
       console.error('❌ Redis Client Error:', err);
     });
 
@@ -50,7 +74,7 @@ export function getRedisClient(): RedisClientType | null {
     });
 
     // 非同步連接（不阻塞）
-    redisClient.connect().catch((err) => {
+    redisClient.connect().catch((err: any) => {
       console.error('❌ Redis connection failed:', err);
       redisClient = null;
     });
