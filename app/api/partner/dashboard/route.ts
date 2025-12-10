@@ -45,7 +45,7 @@ export async function GET() {
               endTime: true,
               isAvailable: true,
               bookings: {
-                // bookings 是一對一關係（Booking?），不是數組
+                // bookings 是一對一關係（Booking?），直接選擇需要的字段
                 select: {
                   id: true,
                   status: true,
@@ -67,9 +67,10 @@ export async function GET() {
         // 如果 bookings 存在且狀態不是已取消或已拒絕，表示已被預約
         // bookings 是一對一關係（Booking?），是單個對象或 null
         const booking = schedule.bookings
-        const isBooked = !!booking && 
+        const isBooked = !!(booking && 
+          booking.status && 
           booking.status !== 'CANCELLED' && 
-          booking.status !== 'REJECTED'
+          booking.status !== 'REJECTED')
 
         return {
           id: schedule.id,
@@ -157,6 +158,14 @@ export async function GET() {
 
     return NextResponse.json({ partner: result.partner, schedules: result.schedules, groups: result.groups })
   } catch (error) {
+    console.error('❌ Dashboard API 外層錯誤:', error)
+    console.error('錯誤詳情:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+      name: error instanceof Error ? error.name : undefined,
+      code: (error as any)?.code,
+      meta: (error as any)?.meta,
+    })
     return createErrorResponse(error, 'partner:dashboard:get')
   }
 }
