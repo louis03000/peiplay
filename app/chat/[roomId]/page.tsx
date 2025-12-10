@@ -53,7 +53,9 @@ export default function ChatRoomPage() {
   const messagesContainerRef = useRef<HTMLDivElement>(null);
 
   // 檢查是否是免費聊天室（沒有關聯booking）
-  const isFreeChat = room && !room.bookingId && !room.groupBookingId && !room.multiPlayerBookingId;
+  const isFreeChat = Boolean(
+    room && !room.bookingId && !room.groupBookingId && !room.multiPlayerBookingId
+  );
   const FREE_CHAT_LIMIT = 5;
 
   const {
