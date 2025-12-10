@@ -735,7 +735,7 @@ function BookingWizardContent() {
                 </div>
               </div>
 
-              {/* 群組預約和多人陪玩按鈕 */}
+              {/* 群組預約按鈕 */}
               <div className="mb-6 flex flex-col sm:flex-row gap-4 justify-center items-center">
                 <a
                   href="/booking/group"

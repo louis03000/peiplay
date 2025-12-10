@@ -15,56 +15,78 @@ export async function GET() {
     }
 
     const result = await db.query(async (client) => {
-      const partner = await client.partner.findUnique({ where: { userId: session.user.id } })
-      if (!partner) {
-        return { type: 'NOT_PARTNER' } as const
-      }
+      try {
+        const partner = await client.partner.findUnique({ where: { userId: session.user.id } })
+        if (!partner) {
+          return { type: 'NOT_PARTNER' } as const
+        }
 
-      const groupBookings = await client.groupBooking.findMany({
-        where: {
-          initiatorId: partner.id,
-          initiatorType: 'PARTNER',
-          status: 'ACTIVE',
-        },
-        select: {
-          id: true,
-          title: true,
-          description: true,
-          maxParticipants: true,
-          pricePerPerson: true,
-          status: true,
-          games: true,
-          startTime: true,
-          endTime: true,
-          _count: {
-            select: { GroupBookingParticipant: true },
+        const groupBookings = await client.groupBooking.findMany({
+          where: {
+            initiatorId: partner.id,
+            initiatorType: 'PARTNER',
+            status: 'ACTIVE',
           },
-        },
-        orderBy: { startTime: 'asc' },
-      })
+          select: {
+            id: true,
+            title: true,
+            description: true,
+            maxParticipants: true,
+            pricePerPerson: true,
+            status: true,
+            games: true,
+            startTime: true,
+            endTime: true,
+            _count: {
+              select: { GroupBookingParticipant: true },
+            },
+          },
+          orderBy: { startTime: 'asc' },
+        })
 
-      const groups = groupBookings.map((group) => ({
-        id: group.id,
-        title: group.title,
-        description: group.description,
-        maxParticipants: group.maxParticipants,
-        currentParticipants: group._count.GroupBookingParticipant,
-        pricePerPerson: group.pricePerPerson,
-        status: group.status,
-        games: group.games || [],
-        startTime: group.startTime instanceof Date ? group.startTime.toISOString() : group.startTime,
-        endTime: group.endTime instanceof Date ? group.endTime.toISOString() : group.endTime,
-      }))
+        const groups = groupBookings.map((group) => ({
+          id: group.id,
+          title: group.title,
+          description: group.description,
+          maxParticipants: group.maxParticipants,
+          currentParticipants: group._count.GroupBookingParticipant,
+          pricePerPerson: group.pricePerPerson,
+          status: group.status,
+          games: group.games || [],
+          startTime: group.startTime instanceof Date ? group.startTime.toISOString() : group.startTime,
+          endTime: group.endTime instanceof Date ? group.endTime.toISOString() : group.endTime,
+        }))
 
-      return { type: 'SUCCESS', groups }
+        return { type: 'SUCCESS', groups }
+      } catch (queryError: any) {
+        console.error('❌ 查詢群組預約時發生錯誤:', {
+          message: queryError?.message,
+          code: queryError?.code,
+          meta: queryError?.meta,
+        });
+        throw queryError;
+      }
     }, 'partner:groups:get')
 
-    if (result.type === 'NOT_PARTNER') {
-      return NextResponse.json({ error: '夥伴資料不存在' }, { status: 404 })
+    if (result && typeof result === 'object' && 'type' in result) {
+      if (result.type === 'NOT_PARTNER') {
+        return NextResponse.json({ error: '夥伴資料不存在' }, { status: 404 })
+      }
+      if (result.type === 'SUCCESS') {
+        return NextResponse.json(result.groups)
+      }
     }
 
-    return NextResponse.json(result.groups)
+    // 如果結果格式不正確
+    console.error('❌ 結果格式不正確:', result);
+    return NextResponse.json({ error: '資料庫操作失敗' }, { status: 500 })
   } catch (error) {
+    console.error('❌ 獲取群組預約失敗:', error);
+    console.error('錯誤詳情:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+      name: error instanceof Error ? error.name : undefined,
+    });
     return createErrorResponse(error, 'partner:groups:get')
   }
 }

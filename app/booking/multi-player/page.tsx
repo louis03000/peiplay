@@ -27,7 +27,6 @@ interface MultiPlayerBooking {
   games: string[]
   status: string
   totalAmount: number
-  lastAdjustmentAt?: string
   bookings: Array<{
     id: string
     status: string
@@ -66,9 +65,9 @@ function MultiPlayerBookingContent() {
   const [selectedStartTime, setSelectedStartTime] = useState('')
   const [selectedEndTime, setSelectedEndTime] = useState('')
   const [selectedGames, setSelectedGames] = useState<string[]>([])
-  const [selectedDuration, setSelectedDuration] = useState<number | null>(null) // 選中的時長（小時）
+  const [selectedDuration, setSelectedDuration] = useState<number | null>(null)
 
-  // 可用的遊戲列表（從夥伴中提取）
+  // 可用的遊戲列表
   const [availableGames, setAvailableGames] = useState<string[]>([])
   const [otherGame, setOtherGame] = useState('')
   const [showOtherInput, setShowOtherInput] = useState(false)
@@ -83,7 +82,6 @@ function MultiPlayerBookingContent() {
       const endDate = new Date(startDate.getTime() + hours * 60 * 60 * 1000)
       const endHours = endDate.getHours().toString().padStart(2, '0')
       const endMinutes = endDate.getMinutes().toString().padStart(2, '0')
-      // 確保結束時間也是每半小時
       const roundedMinutes = parseInt(endMinutes) < 30 ? '00' : '30'
       setSelectedEndTime(`${endHours}:${roundedMinutes}`)
     }
@@ -98,7 +96,6 @@ function MultiPlayerBookingContent() {
       const endDate = new Date(startDate.getTime() + selectedDuration * 60 * 60 * 1000)
       const endHours = endDate.getHours().toString().padStart(2, '0')
       const endMinutes = endDate.getMinutes().toString().padStart(2, '0')
-      // 確保結束時間也是每半小時
       const roundedMinutes = parseInt(endMinutes) < 30 ? '00' : '30'
       setSelectedEndTime(`${endHours}:${roundedMinutes}`)
     }
@@ -144,23 +141,12 @@ function MultiPlayerBookingContent() {
         setViolationCount(data.violationCount || 0)
       }
     } catch (error) {
-      // 如果 API 不存在，忽略錯誤
       console.log('無法載入違規次數')
     }
   }
 
   const searchPartners = async () => {
-    console.log('🔵 ========== 前端開始搜索 ==========')
-    console.log('🔵 選擇的參數:', {
-      selectedDate,
-      selectedStartTime,
-      selectedEndTime,
-      selectedGames,
-      otherGame
-    })
-    
     if (!selectedDate || !selectedStartTime || !selectedEndTime) {
-      console.log('❌ 缺少必要參數')
       alert('請選擇日期和時間')
       return
     }
@@ -170,15 +156,7 @@ function MultiPlayerBookingContent() {
     const twoHoursLater = new Date(now.getTime() + 2 * 60 * 60 * 1000)
     const selectedStartDateTime = new Date(`${selectedDate}T${selectedStartTime}:00`)
     
-    console.log('🔵 時間檢查:', {
-      now: now.toISOString(),
-      twoHoursLater: twoHoursLater.toISOString(),
-      selectedStartDateTime: selectedStartDateTime.toISOString(),
-      isValid: selectedStartDateTime > twoHoursLater
-    })
-    
     if (selectedStartDateTime <= twoHoursLater) {
-      console.log('❌ 時段太早')
       alert('預約時段必須在現在時間的2小時之後')
       return
     }
@@ -201,49 +179,15 @@ function MultiPlayerBookingContent() {
         params.append('games', allGames.join(','))
       }
 
-      const apiUrl = `/api/partners/search-for-multi-player?${params}`
-      console.log('🔍 前端發送搜索請求:', {
-        url: apiUrl,
-        date: selectedDate,
-        startTime: selectedStartTime,
-        endTime: selectedEndTime,
-        games: allGames
-      })
-
-      const response = await fetch(apiUrl)
-      console.log('📡 API 響應狀態:', response.status, response.statusText)
+      const response = await fetch(`/api/partners/search-for-multi-player?${params}`)
       
       if (!response.ok) {
-        const errorText = await response.text()
-        console.error('❌ API 錯誤響應:', errorText)
-        try {
-          const error = JSON.parse(errorText)
-          console.error('❌ 解析後的錯誤:', error)
-          
-          // 顯示詳細的錯誤訊息
-          let errorMessage = error.error || '搜尋失敗'
-          if (error.details) {
-            errorMessage += `\n\n詳細資訊：${JSON.stringify(error.details, null, 2)}`
-          }
-          if (error.message) {
-            errorMessage += `\n\n訊息：${error.message}`
-          }
-          if (error.received) {
-            errorMessage += `\n\n接收到的參數：${JSON.stringify(error.received, null, 2)}`
-          }
-          
-          alert(errorMessage)
-        } catch (e) {
-          console.error('❌ 無法解析錯誤響應:', e)
-          alert(`搜尋失敗: ${response.status} ${response.statusText}\n\n請檢查瀏覽器 Console 查看詳細錯誤訊息`)
-        }
+        const error = await response.json()
+        alert(error.error || '搜尋失敗')
         return
       }
       
       const data = await response.json()
-      console.log('🔍 搜索結果:', data)
-      console.log('🔍 結果數量:', Array.isArray(data) ? data.length : 0)
-      
       const partnersList = Array.isArray(data) ? data : []
       setPartners(partnersList)
       
@@ -257,9 +201,7 @@ function MultiPlayerBookingContent() {
       setAvailableGames(Array.from(gamesSet))
       
       if (partnersList.length === 0) {
-        // 顯示更詳細的訊息，幫助用戶理解為什麼沒有找到夥伴
-        const searchInfo = `日期：${selectedDate}\n開始時間：${selectedStartTime}\n結束時間：${selectedEndTime}${allGames.length > 0 ? `\n遊戲：${allGames.join(', ')}` : ''}`
-        alert(`沒有找到符合條件的夥伴\n\n搜尋條件：\n${searchInfo}\n\n可能的原因：\n1. 該時段沒有可用的夥伴\n2. 選擇的遊戲沒有匹配的夥伴\n3. 時段已被預約\n\n建議：\n- 嘗試選擇其他時段\n- 移除遊戲篩選條件\n- 選擇更長的時間範圍`)
+        alert('沒有找到符合條件的夥伴')
       }
     } catch (error) {
       console.error('搜尋夥伴失敗:', error)
@@ -315,9 +257,9 @@ function MultiPlayerBookingContent() {
       })
 
       if (response.ok) {
-        const data = await response.json()
         alert('多人陪玩群組創建成功！')
         setSelectedPartners(new Set())
+        setPartners([])
         loadMyBookings()
         loadViolationCount()
       } else {
@@ -327,58 +269,6 @@ function MultiPlayerBookingContent() {
     } catch (error) {
       console.error('創建多人陪玩群組失敗:', error)
       alert('創建失敗，請重試')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const removePartner = async (bookingId: string, reason: string) => {
-    if (!reason || reason.trim().length === 0) {
-      alert('請提供移除理由')
-      return
-    }
-
-    const booking = myBookings.find(b => b.bookings.some(book => book.id === bookingId))
-    if (!booking) return
-
-    // 檢查調整期限
-    const now = new Date()
-    const thirtyMinutesBeforeStart = new Date(new Date(booking.startTime).getTime() - 30 * 60 * 1000)
-    
-    if (now >= thirtyMinutesBeforeStart) {
-      alert('時段開始前30分鐘無法再調整')
-      return
-    }
-
-    if (!confirm('確定要移除這位夥伴嗎？移除已同意的夥伴會被記錄違規。')) {
-      return
-    }
-
-    try {
-      setLoading(true)
-      const response = await fetch(`/api/multi-player-booking/${booking.id}/remove-partner`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          bookingId,
-          reason: reason.trim(),
-        }),
-      })
-
-      if (response.ok) {
-        const data = await response.json()
-        alert(data.message || '已移除夥伴')
-        loadMyBookings()
-        loadViolationCount()
-      } else {
-        const error = await response.json()
-        alert(error.error || '移除失敗')
-      }
-    } catch (error) {
-      console.error('移除夥伴失敗:', error)
-      alert('移除失敗，請重試')
     } finally {
       setLoading(false)
     }
@@ -436,9 +326,7 @@ function MultiPlayerBookingContent() {
               : 'bg-yellow-50 border border-yellow-200'
           }`}>
             <div className="flex items-start">
-              <span className="text-2xl mr-3">
-                {violationCount >= 3 ? '⚠️' : '⚠️'}
-              </span>
+              <span className="text-2xl mr-3">⚠️</span>
               <div>
                 <h3 className={`font-semibold ${
                   violationCount >= 3 ? 'text-red-800' : 'text-yellow-800'
@@ -481,7 +369,7 @@ function MultiPlayerBookingContent() {
                 value={selectedStartTime}
                 onChange={(e) => {
                   setSelectedStartTime(e.target.value)
-                  setSelectedDuration(null) // 清除時長選擇，讓用戶手動調整
+                  setSelectedDuration(null)
                 }}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 text-gray-900"
               >
@@ -504,7 +392,7 @@ function MultiPlayerBookingContent() {
                 value={selectedEndTime}
                 onChange={(e) => {
                   setSelectedEndTime(e.target.value)
-                  setSelectedDuration(null) // 清除時長選擇
+                  setSelectedDuration(null)
                 }}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 text-gray-900"
               >
@@ -628,7 +516,6 @@ function MultiPlayerBookingContent() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {partners.map((partner) => {
                 if (!partner.matchingSchedule || !partner.matchingSchedule.id) {
-                  console.warn('⚠️ 夥伴缺少 matchingSchedule:', partner)
                   return null
                 }
                 const isSelected = selectedPartners.has(partner.matchingSchedule.id)
@@ -766,30 +653,6 @@ function MultiPlayerBookingContent() {
                           <p className="text-sm font-medium text-gray-900">
                             ${b.originalAmount.toFixed(0)}
                           </p>
-                          {(b.status === 'CONFIRMED' || b.status === 'PARTNER_ACCEPTED') && (
-                            <button
-                              onClick={() => {
-                                const reason = prompt('請提供移除理由：')
-                                if (reason) {
-                                  removePartner(b.id, reason)
-                                }
-                              }}
-                              className="text-xs text-red-600 hover:text-red-800 mt-1"
-                            >
-                              移除
-                            </button>
-                          )}
-                          {(b.status === 'REJECTED' || b.status === 'PAID_WAITING_PARTNER_CONFIRMATION') && (
-                            <button
-                              onClick={() => {
-                                const reason = prompt('請提供移除理由（可選）：')
-                                removePartner(b.id, reason || '用戶主動移除')
-                              }}
-                              className="text-xs text-gray-600 hover:text-gray-800 mt-1"
-                            >
-                              移除
-                            </button>
-                          )}
                         </div>
                       </div>
                     ))}

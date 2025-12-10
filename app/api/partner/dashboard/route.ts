@@ -87,7 +87,7 @@ export async function GET() {
       // 如果需要在這裡執行，可以改為異步執行，不阻塞主查詢
       // await client.groupBooking.updateMany({...}).catch(...)
 
-      // 優化：簡化 groupBookings 查詢，移除 try-catch（如果 games 欄位不存在，直接不查詢）
+      // 查詢群組預約
       const groupBookings = await client.groupBooking.findMany({
         where: {
           initiatorId: partner.id,
@@ -104,7 +104,7 @@ export async function GET() {
           startTime: true,
           endTime: true,
           status: true,
-          // 優化：如果 games 欄位可能不存在，可以移除或使用可選欄位
+          games: true, // 添加 games 字段
           _count: {
             select: {
               GroupBookingParticipant: true,

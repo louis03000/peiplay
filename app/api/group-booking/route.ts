@@ -184,103 +184,155 @@ export async function GET(request: Request) {
     const status = searchParams.get('status');
 
     const result = await db.query(async (client) => {
-      // 構建查詢條件
-      const where: any = {};
-      if (partnerId) {
-        where.initiatorId = partnerId;
-        where.initiatorType = 'PARTNER';
-      }
-      if (status) {
-        where.status = status;
-      }
+      try {
+        // 構建查詢條件
+        const where: any = {};
+        if (partnerId) {
+          where.initiatorId = partnerId;
+          where.initiatorType = 'PARTNER';
+        }
+        if (status) {
+          where.status = status;
+        }
 
-      // 查詢群組預約
-      const groupBookings = await client.groupBooking.findMany({
-      where,
-      include: {
-        GroupBookingParticipant: {
-          include: {
-            Partner: {
-              include: {
-                user: true
+        // 查詢群組預約
+        const groupBookings = await client.groupBooking.findMany({
+          where,
+          select: {
+            id: true,
+            type: true,
+            title: true,
+            description: true,
+            date: true,
+            startTime: true,
+            endTime: true,
+            maxParticipants: true,
+            currentParticipants: true,
+            pricePerPerson: true,
+            status: true,
+            games: true,
+            createdAt: true,
+            initiatorId: true,
+            initiatorType: true,
+            GroupBookingParticipant: {
+              select: {
+                id: true,
+                partnerId: true,
+                customerId: true,
+                Partner: {
+                  select: {
+                    id: true,
+                    name: true,
+                    user: {
+                      select: {
+                        id: true,
+                        name: true
+                      }
+                    }
+                  }
+                },
+                Customer: {
+                  select: {
+                    id: true,
+                    user: {
+                      select: {
+                        id: true,
+                        name: true,
+                        email: true
+                      }
+                    }
+                  }
+                }
               }
             },
-            Customer: {
-              include: {
-                user: true
+            bookings: {
+              select: {
+                id: true,
+                customer: {
+                  select: {
+                    id: true,
+                    user: {
+                      select: {
+                        id: true,
+                        name: true,
+                        email: true
+                      }
+                    }
+                  }
+                }
               }
             }
-          }
-        },
-        bookings: {
-          include: {
-            customer: {
-              include: {
-                user: true
+          },
+          orderBy: { createdAt: 'desc' }
+        });
+
+        console.log("📊 找到群組預約:", groupBookings.length);
+
+        // 格式化返回數據
+        const formattedGroupBookings = groupBookings.map(group => {
+          // 找到發起者夥伴
+          const initiatorParticipant = group.GroupBookingParticipant.find(p => p.partnerId === group.initiatorId);
+          const initiatorPartner = initiatorParticipant?.Partner;
+          
+          return {
+            id: group.id,
+            partnerId: group.initiatorId,
+            title: group.title,
+            description: group.description,
+            maxParticipants: group.maxParticipants,
+            currentParticipants: group.GroupBookingParticipant.length,
+            pricePerPerson: group.pricePerPerson,
+            games: group.games || [],
+            startTime: group.startTime instanceof Date ? group.startTime.toISOString() : group.startTime,
+            endTime: group.endTime instanceof Date ? group.endTime.toISOString() : group.endTime,
+            status: group.status,
+            createdAt: group.createdAt instanceof Date ? group.createdAt.toISOString() : group.createdAt,
+            partner: initiatorPartner ? {
+              id: initiatorPartner.id,
+              name: initiatorPartner.name,
+              user: {
+                name: initiatorPartner.user.name
               }
-            }
-          }
-        }
-      },
-      orderBy: { createdAt: 'desc' }
-    });
+            } : {
+              id: group.initiatorId,
+              name: '未知夥伴',
+              user: {
+                name: '未知用戶'
+              }
+            },
+            bookings: group.bookings.map(booking => ({
+              id: booking.id,
+              customer: {
+                id: booking.customer.id,
+                user: {
+                  name: booking.customer.user.name,
+                  email: booking.customer.user.email
+                }
+              }
+            }))
+          };
+        });
 
-      console.log("📊 找到群組預約:", groupBookings.length);
-
-      // 格式化返回數據
-      const formattedGroupBookings = groupBookings.map(group => {
-      // 找到發起者夥伴
-      const initiatorPartner = group.GroupBookingParticipant.find(p => p.partnerId === group.initiatorId)?.Partner;
-      
-      return {
-        id: group.id,
-        partnerId: group.initiatorId,
-        title: group.title,
-        description: group.description,
-        maxParticipants: group.maxParticipants,
-        currentParticipants: group.GroupBookingParticipant.length,
-        pricePerPerson: group.pricePerPerson,
-        games: group.games || [],
-        startTime: group.startTime.toISOString(),
-        endTime: group.endTime.toISOString(),
-        status: group.status,
-        createdAt: group.createdAt.toISOString(),
-        partner: initiatorPartner ? {
-          id: initiatorPartner.id,
-          name: initiatorPartner.name,
-          user: {
-            name: initiatorPartner.user.name
-          }
-        } : {
-          id: group.initiatorId,
-          name: '未知夥伴',
-          user: {
-            name: '未知用戶'
-          }
-        },
-        bookings: group.bookings.map(booking => ({
-          id: booking.id,
-          customer: {
-            id: booking.customer.id,
-            user: {
-              name: booking.customer.user.name,
-              email: booking.customer.user.email
-            }
-          }
-        }))
-      };
-    });
-
-      return formattedGroupBookings;
+        return formattedGroupBookings;
+      } catch (queryError: any) {
+        console.error('❌ 查詢群組預約時發生錯誤:', {
+          message: queryError?.message,
+          code: queryError?.code,
+          meta: queryError?.meta,
+        });
+        throw queryError;
+      }
     }, 'group-booking:GET');
 
     return NextResponse.json(result);
 
   } catch (error) {
-    console.error('獲取群組預約失敗:', error);
-    return NextResponse.json({ 
-      error: '獲取群組預約失敗',
-      details: error instanceof Error ? error.message : 'Unknown error'
-    }, { status: 500 });
+    console.error('❌ 獲取群組預約失敗:', error);
+    console.error('錯誤詳情:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+      name: error instanceof Error ? error.name : undefined,
+    });
+    return createErrorResponse(error, 'group-booking:GET');
   }
 }

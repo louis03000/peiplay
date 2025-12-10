@@ -15,26 +15,16 @@ export const runtime = 'nodejs'
  */
 export async function POST(request: Request) {
   try {
-    console.log('🔵 開始創建多人陪玩群組...')
     const session = await getServerSession(authOptions)
     if (!session?.user?.id) {
       return NextResponse.json({ error: '請先登入' }, { status: 401 })
     }
 
     const body = await request.json()
-    console.log('📥 接收到的請求數據:', { 
-      date: body.date, 
-      startTime: body.startTime, 
-      endTime: body.endTime,
-      games: body.games,
-      partnerScheduleIds: body.partnerScheduleIds 
-    })
-
     const { date, startTime, endTime, games, partnerScheduleIds } = body
 
     // 驗證必要參數
     if (!date || !startTime || !endTime || !Array.isArray(partnerScheduleIds) || partnerScheduleIds.length === 0) {
-      console.log('❌ 缺少必要參數')
       return NextResponse.json({ error: '缺少必要參數' }, { status: 400 })
     }
 
@@ -42,7 +32,6 @@ export async function POST(request: Request) {
     const now = new Date()
     const twoHoursLater = new Date(now.getTime() + 2 * 60 * 60 * 1000)
     
-    // 確保時間格式正確
     const startTimeStr = startTime.includes(':') ? startTime : `${startTime.slice(0, 2)}:${startTime.slice(2)}`
     const endTimeStr = endTime.includes(':') ? endTime : `${endTime.slice(0, 2)}:${endTime.slice(2)}`
     
@@ -54,8 +43,7 @@ export async function POST(request: Request) {
     
     if (selectedStartTime <= twoHoursLater) {
       return NextResponse.json({ 
-        error: '預約時段必須在現在時間的2小時之後',
-        minTime: twoHoursLater.toISOString()
+        error: '預約時段必須在現在時間的2小時之後'
       }, { status: 400 })
     }
 
@@ -70,7 +58,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: '結束時間必須晚於開始時間' }, { status: 400 })
     }
 
-    console.log('🔍 開始查詢客戶資料...')
     const result = await db.query(async (client) => {
       // 查找客戶資料
       const customer = await client.customer.findUnique({
@@ -88,17 +75,14 @@ export async function POST(request: Request) {
       })
 
       if (!customer) {
-        console.log('❌ 客戶資料不存在')
         return { type: 'NO_CUSTOMER' } as const
       }
 
-      // 檢查違規次數（滿3次停權）
+      // 檢查違規次數
       if (customer.violationCount >= 3) {
-        console.log('❌ 帳號已被停權')
         return { type: 'SUSPENDED' } as const
       }
 
-      console.log('✅ 客戶資料驗證通過，開始事務...')
       return await client.$transaction(async (tx) => {
         // 驗證所有夥伴的時段並計算總費用
         const partnerData: Array<{
@@ -106,14 +90,12 @@ export async function POST(request: Request) {
           partnerId: string
           partnerName: string
           partnerEmail: string
-          schedule: any
           amount: number
         }> = []
 
         let totalAmount = 0
 
         for (const scheduleId of partnerScheduleIds) {
-          console.log(`🔍 查詢時段 ${scheduleId}...`)
           const schedule = await tx.schedule.findUnique({
             where: { id: scheduleId },
             include: {
@@ -137,11 +119,8 @@ export async function POST(request: Request) {
           })
 
           if (!schedule) {
-            console.log(`❌ 時段 ${scheduleId} 不存在`)
             throw new Error(`時段 ${scheduleId} 不存在`)
           }
-          
-          console.log(`✅ 時段 ${scheduleId} 找到，開始驗證...`)
 
           // 檢查時段是否可用
           if (!schedule.isAvailable) {
@@ -149,7 +128,6 @@ export async function POST(request: Request) {
           }
 
           // 檢查時段是否已被預約
-          // 注意：Schedule.bookings 是單個對象（Booking?），不是數組
           if (schedule.bookings && 
               schedule.bookings.status !== 'CANCELLED' && 
               schedule.bookings.status !== 'REJECTED') {
@@ -166,7 +144,6 @@ export async function POST(request: Request) {
           }
 
           // 檢查時間衝突
-          // 確保時間是 Date 對象
           const conflictStartTime = schedule.startTime instanceof Date ? schedule.startTime : new Date(schedule.startTime)
           const conflictEndTime = schedule.endTime instanceof Date ? schedule.endTime : new Date(schedule.endTime)
           const conflict = await checkTimeConflict(
@@ -182,7 +159,6 @@ export async function POST(request: Request) {
           }
 
           // 計算費用
-          // 確保時間是 Date 對象
           const scheduleStartTime = schedule.startTime instanceof Date ? schedule.startTime : new Date(schedule.startTime)
           const scheduleEndTime = schedule.endTime instanceof Date ? schedule.endTime : new Date(schedule.endTime)
           const durationHours = (scheduleEndTime.getTime() - scheduleStartTime.getTime()) / (1000 * 60 * 60)
@@ -194,18 +170,11 @@ export async function POST(request: Request) {
             partnerId: schedule.partnerId,
             partnerName: schedule.partner.user.name || '夥伴',
             partnerEmail: schedule.partner.user.email,
-            schedule,
             amount,
           })
         }
 
         // 創建多人陪玩群組
-        console.log('📝 創建多人陪玩群組記錄...', {
-          customerId: customer.id,
-          startTime: startDateTime.toISOString(),
-          endTime: endDateTime.toISOString(),
-          totalAmount
-        })
         const multiPlayerBooking = await tx.multiPlayerBooking.create({
           data: {
             customerId: customer.id,
@@ -217,7 +186,6 @@ export async function POST(request: Request) {
             totalAmount,
           },
         })
-        console.log('✅ 多人陪玩群組創建成功:', multiPlayerBooking.id)
 
         // 為每個夥伴創建 booking
         const bookingRecords: Array<{
@@ -227,46 +195,27 @@ export async function POST(request: Request) {
           amount: number
         }> = []
 
-        console.log(`📝 開始為 ${partnerData.length} 位夥伴創建預約...`)
         for (const partner of partnerData) {
-          try {
-            console.log(`📝 創建預約: 夥伴 ${partner.partnerName}, 時段 ${partner.scheduleId}`)
-            console.log('📝 預約數據:', {
+          const booking = await tx.booking.create({
+            data: {
               customerId: customer.id,
+              partnerId: partner.partnerId,
               scheduleId: partner.scheduleId,
               status: BookingStatus.PAID_WAITING_PARTNER_CONFIRMATION,
               originalAmount: partner.amount,
               finalAmount: partner.amount,
               isMultiPlayerBooking: true,
               multiPlayerBookingId: multiPlayerBooking.id,
-            })
-            
-            const booking = await tx.booking.create({
-              data: {
-                customerId: customer.id,
-                partnerId: partner.partnerId,
-                scheduleId: partner.scheduleId,
-                status: BookingStatus.PAID_WAITING_PARTNER_CONFIRMATION,
-                originalAmount: partner.amount,
-                finalAmount: partner.amount,
-                isMultiPlayerBooking: true,
-                multiPlayerBookingId: multiPlayerBooking.id,
-              },
-            })
-            console.log(`✅ 預約創建成功: ${booking.id}`)
+            },
+          })
 
-            bookingRecords.push({
-              bookingId: booking.id,
-              partnerEmail: partner.partnerEmail,
-              partnerName: partner.partnerName,
-              amount: partner.amount,
-            })
-          } catch (bookingError) {
-            console.error(`❌ 創建預約失敗 (夥伴 ${partner.partnerName}):`, bookingError)
-            throw bookingError
-          }
+          bookingRecords.push({
+            bookingId: booking.id,
+            partnerEmail: partner.partnerEmail,
+            partnerName: partner.partnerName,
+            amount: partner.amount,
+          })
         }
-        console.log('✅ 所有預約創建完成')
 
         return {
           type: 'SUCCESS' as const,
@@ -275,8 +224,8 @@ export async function POST(request: Request) {
           customer,
         }
       }, {
-        maxWait: 10000, // 等待事務開始的最大時間（10秒）
-        timeout: 20000, // 事務執行的最大時間（20秒）
+        maxWait: 10000,
+        timeout: 20000,
       })
     }, 'multi-player-booking:create')
 
@@ -304,7 +253,7 @@ export async function POST(request: Request) {
           customerEmail: result.customer.user.email,
         }
       ).catch((error) => {
-        console.error('❌ Email 發送失敗:', error)
+        console.error('Email 發送失敗:', error)
       })
     }
 
@@ -324,19 +273,7 @@ export async function POST(request: Request) {
       })),
     })
   } catch (error) {
-    console.error('❌ 創建多人陪玩群組失敗:', error)
-    console.error('❌ 錯誤詳情:', {
-      message: error instanceof Error ? error.message : 'Unknown error',
-      stack: error instanceof Error ? error.stack : undefined,
-      name: error instanceof Error ? error.name : undefined,
-    })
-    
-    // 如果是 Prisma 錯誤，輸出更多詳情
-    if (error && typeof error === 'object' && 'code' in error) {
-      console.error('❌ Prisma 錯誤代碼:', (error as any).code)
-      console.error('❌ Prisma 錯誤詳情:', (error as any).meta)
-    }
-    
+    console.error('創建多人陪玩群組失敗:', error)
     return createErrorResponse(error, 'multi-player-booking:create')
   }
 }
@@ -387,8 +324,6 @@ export async function GET(request: Request) {
           orderBy: { createdAt: 'desc' },
         })
       } catch (dbError: any) {
-        // 如果表不存在，返回空数组而不是错误
-        // 檢查多種可能的錯誤格式
         const errorMessage = dbError?.message || ''
         const errorCode = dbError?.code || ''
         
@@ -397,11 +332,8 @@ export async function GET(request: Request) {
             errorMessage.includes('MultiPlayerBooking') ||
             errorCode === 'P2021' ||
             errorCode === 'P1001') {
-          // 靜默處理：表不存在時返回空列表，不記錄錯誤
-          // 這不會影響搜尋功能，因為搜尋 API 不使用這個表
           return []
         }
-        // 其他錯誤才拋出
         throw dbError
       }
     }, 'multi-player-booking:list')
@@ -412,7 +344,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json({ multiPlayerBookings: result })
   } catch (error) {
-    console.error('❌ 獲取多人陪玩群組列表失敗:', error)
+    console.error('獲取多人陪玩群組列表失敗:', error)
     return createErrorResponse(error, 'multi-player-booking:list')
   }
 }
