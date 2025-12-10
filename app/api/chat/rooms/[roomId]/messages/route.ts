@@ -120,6 +120,34 @@ export async function POST(
         throw new Error('無權限訪問此聊天室');
       }
 
+      // 檢查是否是免費聊天室並驗證消息限制
+      const room = await (client as any).chatRoom.findUnique({
+        where: { id: roomId },
+        select: {
+          bookingId: true,
+          groupBookingId: true,
+          multiPlayerBookingId: true,
+        },
+      });
+
+      const isFreeChat =
+        !room?.bookingId && !room?.groupBookingId && !room?.multiPlayerBookingId;
+
+      if (isFreeChat) {
+        // 計算用戶已發送的消息數量
+        const userMessageCount = await (client as any).chatMessage.count({
+          where: {
+            roomId,
+            senderId: session.user.id,
+          },
+        });
+
+        const FREE_CHAT_LIMIT = 5;
+        if (userMessageCount >= FREE_CHAT_LIMIT) {
+          throw new Error(`免費聊天句數上限為${FREE_CHAT_LIMIT}句，您已達到上限`);
+        }
+      }
+
       // 簡單的內容審查（關鍵字過濾）
       const blockedKeywords = ['垃圾', 'spam'];
       const hasBlockedKeyword = blockedKeywords.some((keyword) =>

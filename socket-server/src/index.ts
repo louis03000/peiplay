@@ -131,6 +131,42 @@ io.on('connection', (socket) => {
       return;
     }
 
+    // Check free chat limit
+    try {
+      const room = await prisma.chatRoom.findUnique({
+        where: { id: roomId },
+        select: {
+          bookingId: true,
+          groupBookingId: true,
+          multiPlayerBookingId: true,
+        },
+      });
+
+      const isFreeChat =
+        !room?.bookingId && !room?.groupBookingId && !room?.multiPlayerBookingId;
+
+      if (isFreeChat) {
+        // Count user's sent messages
+        const userMessageCount = await prisma.chatMessage.count({
+          where: {
+            roomId,
+            senderId: userId,
+          },
+        });
+
+        const FREE_CHAT_LIMIT = 5;
+        if (userMessageCount >= FREE_CHAT_LIMIT) {
+          socket.emit('error', {
+            message: `免費聊天句數上限為${FREE_CHAT_LIMIT}句，您已達到上限`,
+          });
+          return;
+        }
+      }
+    } catch (error) {
+      console.error('Error checking free chat limit:', error);
+      // Continue if check fails (don't block message)
+    }
+
     // Content moderation
     const moderationResult = await moderateMessage(content);
 

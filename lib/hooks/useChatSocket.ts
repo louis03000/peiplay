@@ -165,51 +165,91 @@ export function useChatSocket({ roomId, enabled = true }: UseChatSocketOptions) 
 
   // 發送訊息（如果 WebSocket 不可用，回退到 API）
   const sendMessage = useCallback(
-    async (content: string) => {
-      if (!roomId || !content.trim()) return;
+    async (content: string): Promise<void> => {
+      if (!roomId || !content.trim()) {
+        throw new Error('訊息內容不能為空');
+      }
 
       // 如果 WebSocket 已連接，使用 WebSocket 發送
       if (socketRef.current?.connected) {
-        socketRef.current.emit('message:send', {
-          roomId,
-          content: content.trim(),
+        return new Promise((resolve, reject) => {
+          let resolved = false;
+          const trimmedContent = content.trim();
+
+          // 設置錯誤監聽器（一次性）
+          const errorHandler = (error: { message: string }) => {
+            if (resolved) return;
+            resolved = true;
+            socketRef.current?.off('error', errorHandler);
+            socketRef.current?.off('message:new', messageHandler);
+            reject(new Error(error.message));
+          };
+
+          // 設置成功監聽器（當收到新消息時表示成功）
+          const messageHandler = (message: ChatMessage) => {
+            if (resolved) return;
+            // 檢查是否是我們剛發送的消息
+            if (message.senderId === session?.user?.id && message.content === trimmedContent) {
+              resolved = true;
+              socketRef.current?.off('error', errorHandler);
+              socketRef.current?.off('message:new', messageHandler);
+              resolve();
+            }
+          };
+
+          socketRef.current.once('error', errorHandler);
+          socketRef.current.once('message:new', messageHandler);
+
+          // 發送消息
+          socketRef.current.emit('message:send', {
+            roomId,
+            content: trimmedContent,
+          });
+
+          // 設置超時（5秒）
+          setTimeout(() => {
+            if (!resolved) {
+              resolved = true;
+              socketRef.current?.off('error', errorHandler);
+              socketRef.current?.off('message:new', messageHandler);
+              resolve(); // 即使沒有確認也resolve，因為消息可能已經發送
+            }
+          }, 5000);
         });
-        return;
       }
 
       // 否則使用 API 發送（後備方案）
-      try {
-        const res = await fetch(`/api/chat/rooms/${roomId}/messages`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ content: content.trim() }),
-        });
+      const res = await fetch(`/api/chat/rooms/${roomId}/messages`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: content.trim() }),
+      });
 
-        if (res.ok) {
-          const data = await res.json();
-          // 將訊息添加到本地狀態（模擬 WebSocket 接收）
-          setMessages((prev) => {
-            if (prev.some((m) => m.id === data.message.id)) {
-              return prev;
-            }
-            return [...prev, {
-              id: data.message.id,
-              roomId: data.message.roomId,
-              senderId: data.message.senderId,
-              sender: data.message.sender,
-              content: data.message.content,
-              contentType: data.message.contentType,
-              status: data.message.status,
-              moderationStatus: data.message.moderationStatus,
-              createdAt: data.message.createdAt,
-            }];
-          });
-        }
-      } catch (error) {
-        console.error('Failed to send message via API:', error);
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || '發送訊息失敗');
       }
+
+      const data = await res.json();
+      // 將訊息添加到本地狀態（模擬 WebSocket 接收）
+      setMessages((prev) => {
+        if (prev.some((m) => m.id === data.message.id)) {
+          return prev;
+        }
+        return [...prev, {
+          id: data.message.id,
+          roomId: data.message.roomId,
+          senderId: data.message.senderId,
+          sender: data.message.sender,
+          content: data.message.content,
+          contentType: data.message.contentType,
+          status: data.message.status,
+          moderationStatus: data.message.moderationStatus,
+          createdAt: data.message.createdAt,
+        }];
+      });
     },
-    [roomId]
+    [roomId, session?.user?.id]
   );
 
   // 開始輸入（typing indicator）

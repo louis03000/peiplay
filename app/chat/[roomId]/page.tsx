@@ -27,6 +27,9 @@ interface ChatMessage {
 interface ChatRoom {
   id: string;
   type: 'ONE_ON_ONE' | 'GROUP';
+  bookingId: string | null;
+  groupBookingId: string | null;
+  multiPlayerBookingId: string | null;
   members: Array<{
     id: string;
     name: string | null;
@@ -45,8 +48,13 @@ export default function ChatRoomPage() {
   const [loading, setLoading] = useState(true);
   const [messageInput, setMessageInput] = useState('');
   const [sending, setSending] = useState(false);
+  const [userMessageCount, setUserMessageCount] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
+
+  // 檢查是否是免費聊天室（沒有關聯booking）
+  const isFreeChat = room && !room.bookingId && !room.groupBookingId && !room.multiPlayerBookingId;
+  const FREE_CHAT_LIMIT = 5;
 
   const {
     messages: socketMessages,
@@ -71,14 +79,37 @@ export default function ChatRoomPage() {
           fetch(`/api/chat/rooms/${roomId}/messages?limit=50`),
         ]);
 
+        let roomData: any = null;
         if (roomRes.ok) {
-          const roomData = await roomRes.json();
+          roomData = await roomRes.json();
           setRoom(roomData.room);
         }
 
         if (messagesRes.ok) {
           const messagesData = await messagesRes.json();
-          // 歷史訊息會通過 Socket.IO 同步，這裡只是初始載入
+          // 計算用戶已發送的消息數量（僅計算免費聊天室）
+          if (session?.user?.id && messagesData.messages) {
+            const currentRoom = roomData?.room || room;
+            const isFreeChatRoom =
+              currentRoom &&
+              !currentRoom.bookingId &&
+              !currentRoom.groupBookingId &&
+              !currentRoom.multiPlayerBookingId;
+
+            if (isFreeChatRoom) {
+              const userSentCount = messagesData.messages.filter(
+                (msg: ChatMessage) => msg.senderId === session.user.id
+              ).length;
+              setUserMessageCount(userSentCount);
+            } else {
+              setUserMessageCount(0);
+            }
+          }
+        }
+      } catch (error: any) {
+        // 如果是免費聊天限制錯誤，顯示提示
+        if (error?.message?.includes('免費聊天句數上限')) {
+          alert(error.message);
         }
       } catch (error) {
         console.error('Error loading room:', error);
@@ -110,20 +141,49 @@ export default function ChatRoomPage() {
       if (unreadMessageIds.length > 0) {
         markAsRead(unreadMessageIds);
       }
+
+      // 更新用戶發送的消息數量（僅免費聊天室）
+      if (isFreeChat) {
+        const userSentCount = socketMessages.filter(
+          (msg) => msg.senderId === session.user.id
+        ).length;
+        setUserMessageCount(userSentCount);
+      }
     }
-  }, [socketMessages, session?.user?.id, markAsRead]);
+  }, [socketMessages, session?.user?.id, markAsRead, isFreeChat]);
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!messageInput.trim() || sending) return;
 
+    // 檢查免費聊天室的消息限制
+    if (isFreeChat && userMessageCount >= FREE_CHAT_LIMIT) {
+      alert(`免費聊天句數上限為${FREE_CHAT_LIMIT}句，您已達到上限`);
+      return;
+    }
+
     setSending(true);
     try {
-      sendMessage(messageInput);
+      await sendMessage(messageInput);
       setMessageInput('');
       stopTyping();
-    } catch (error) {
+      // 更新消息計數（實際計數會從socket消息更新）
+      if (isFreeChat) {
+        setUserMessageCount((prev) => prev + 1);
+      }
+    } catch (error: any) {
       console.error('Error sending message:', error);
+      // 如果是免費聊天限制錯誤，顯示提示
+      if (error?.message?.includes('免費聊天句數上限')) {
+        alert(error.message);
+        // 重置計數為實際值
+        if (isFreeChat && session?.user?.id) {
+          const actualCount = socketMessages.filter(
+            (msg) => msg.senderId === session.user.id
+          ).length;
+          setUserMessageCount(actualCount);
+        }
+      }
     } finally {
       setSending(false);
     }
@@ -188,6 +248,19 @@ export default function ChatRoomPage() {
     <div className="flex flex-col h-screen bg-gray-50">
       {/* Header */}
       <div className="bg-white border-b border-gray-200 px-4 py-3">
+        {/* 免費聊天提示 */}
+        {isFreeChat && (
+          <div className="mb-2 bg-purple-50 border border-purple-200 rounded-lg px-3 py-2">
+            <p className="text-sm text-purple-800 font-medium">
+              免費聊天句數上限為5句
+              {userMessageCount > 0 && (
+                <span className="ml-2 text-purple-600">
+                  （已使用 {userMessageCount}/{FREE_CHAT_LIMIT} 句）
+                </span>
+              )}
+            </p>
+          </div>
+        )}
         <div className="flex items-center justify-between">
           <div className="flex items-center">
             <button
@@ -304,13 +377,22 @@ export default function ChatRoomPage() {
             value={messageInput}
             onChange={handleInputChange}
             onBlur={stopTyping}
-            placeholder="輸入訊息..."
+            placeholder={
+              isFreeChat && userMessageCount >= FREE_CHAT_LIMIT
+                ? '已達到免費聊天上限'
+                : '輸入訊息...'
+            }
             className="flex-1 border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            disabled={!isConnected || sending}
+            disabled={!isConnected || sending || (isFreeChat && userMessageCount >= FREE_CHAT_LIMIT)}
           />
           <button
             type="submit"
-            disabled={!messageInput.trim() || !isConnected || sending}
+            disabled={
+              !messageInput.trim() ||
+              !isConnected ||
+              sending ||
+              (isFreeChat && userMessageCount >= FREE_CHAT_LIMIT)
+            }
             className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {sending ? '發送中...' : '發送'}

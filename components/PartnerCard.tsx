@@ -2,7 +2,7 @@
 
 import { useState, useCallback, memo, useMemo, useEffect } from 'react'
 import SecureImage from './SecureImage'
-import { FaBolt, FaCrown, FaMedal, FaTrophy, FaComments, FaHeart, FaStar, FaQuoteLeft, FaQuoteRight } from 'react-icons/fa'
+import { FaBolt, FaCrown, FaMedal, FaTrophy, FaComments, FaHeart, FaStar, FaQuoteLeft, FaQuoteRight, FaPaperPlane } from 'react-icons/fa'
 
 interface Partner {
   id: string
@@ -38,6 +38,7 @@ const PartnerCard = memo(function PartnerCard({ partner, onQuickBook, showNextSt
   const [isTogglingFavorite, setIsTogglingFavorite] = useState(false)
   const [touchStart, setTouchStart] = useState<number | null>(null)
   const [touchEnd, setTouchEnd] = useState<number | null>(null)
+  const [isCreatingChat, setIsCreatingChat] = useState(false)
 
   // 獲取要顯示的圖片陣列：優先使用 images，如果沒有則使用 coverImage
   // 顯示順序：封面照 → 段位證明圖片，最多8張
@@ -134,6 +135,36 @@ const PartnerCard = memo(function PartnerCard({ partner, onQuickBook, showNextSt
       setIsTogglingFavorite(false)
     }
   }, [onToggleFavorite, partner.id, isTogglingFavorite])
+
+  const handleChatClick = useCallback(async (e: React.MouseEvent) => {
+    e.stopPropagation() // 防止觸發卡片點擊事件
+    if (isCreatingChat) return
+
+    setIsCreatingChat(true)
+    try {
+      // 創建或獲取免費聊天室
+      const response = await fetch('/api/chat/rooms/free-chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ partnerId: partner.id }),
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        alert(error.error || '無法創建聊天室，請先登入')
+        return
+      }
+
+      const data = await response.json()
+      // 跳轉到聊天室
+      window.location.href = `/chat/${data.roomId}`
+    } catch (error) {
+      console.error('Error creating chat room:', error)
+      alert('無法創建聊天室，請稍後再試')
+    } finally {
+      setIsCreatingChat(false)
+    }
+  }, [partner.id, isCreatingChat])
 
   return (
     <div 
@@ -316,7 +347,7 @@ const PartnerCard = memo(function PartnerCard({ partner, onQuickBook, showNextSt
             </div>
 
             {/* 按鈕區域 */}
-            <div className="flex gap-1.5">
+            <div className="flex gap-1.5 relative">
               {partner.isAvailableNow && onQuickBook && (
                 <button
                   onClick={() => onQuickBook(partner.id)}
@@ -336,6 +367,16 @@ const PartnerCard = memo(function PartnerCard({ partner, onQuickBook, showNextSt
                 <FaComments className="text-xs" />
                 <span className="hidden sm:inline">查看詳情</span>
                 <span className="sm:hidden">詳情</span>
+              </button>
+
+              {/* 聊天按鈕 - 位於右下角 */}
+              <button
+                onClick={handleChatClick}
+                disabled={isCreatingChat}
+                className="absolute bottom-0 right-0 bg-purple-500 hover:bg-purple-600 text-white p-2 rounded-lg text-xs font-medium transition-colors flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
+                title="提前聊天（免費5句）"
+              >
+                <FaPaperPlane className="text-xs" />
               </button>
             </div>
           </div>
