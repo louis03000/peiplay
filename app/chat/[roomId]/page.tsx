@@ -384,13 +384,12 @@ export default function ChatRoomPage() {
                 : '輸入訊息...'
             }
             className="flex-1 border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            disabled={!isConnected || sending || (isFreeChat && userMessageCount >= FREE_CHAT_LIMIT)}
+            disabled={sending || (isFreeChat && userMessageCount >= FREE_CHAT_LIMIT)}
           />
           <button
             type="submit"
             disabled={
               !messageInput.trim() ||
-              !isConnected ||
               sending ||
               (isFreeChat && userMessageCount >= FREE_CHAT_LIMIT)
             }
@@ -400,7 +399,9 @@ export default function ChatRoomPage() {
           </button>
         </div>
         {!isConnected && (
-          <p className="mt-2 text-xs text-red-600">連接中斷，請重新整理頁面</p>
+          <p className="mt-2 text-xs text-yellow-600">
+            ⚠️ 即時連線不可用，訊息將通過 API 發送（功能正常）
+          </p>
         )}
       </form>
     </div>
