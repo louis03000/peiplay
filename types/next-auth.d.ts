@@ -15,6 +15,8 @@ declare module 'next-auth' {
       phone?: string | null
       birthday?: string | null
       discord?: string | null
+      partnerId?: string | null
+      partnerStatus?: string | null
     }
   }
 
@@ -30,5 +32,7 @@ declare module 'next-auth' {
     phone?: string | null
     birthday?: string | null
     discord?: string | null
+    partnerId?: string | null
+    partnerStatus?: string | null
   }
 } 

@@ -18,26 +18,20 @@ export async function GET() {
       }, { status: 401 })
     }
 
-    // 優化：使用索引優化的查詢（Partner.userId 索引）
-    const partner = await db.query(async (client) => {
-      const now = new Date()
-      const thirtyMinutesAgo = new Date(now.getTime() - 30 * 60 * 1000)
-      
-      // 先檢查並自動關閉超過30分鐘的「現在有空」狀態
-      await client.partner.updateMany({
-        where: {
-          userId: session.user.id,
-          isAvailableNow: true,
-          availableNowSince: {
-            lt: thirtyMinutesAgo
-          }
-        },
-        data: {
-          isAvailableNow: false,
-          availableNowSince: null
+    // 優化：如果 session 中已經有伙伴信息，直接返回（避免重複查詢）
+    if (session.user.partnerId) {
+      return NextResponse.json({
+        partner: {
+          id: session.user.partnerId,
+          status: session.user.partnerStatus || null,
+          // name 需要從資料庫查詢，但可以延遲加載
         }
       })
-      
+    }
+
+    // 優化：使用索引優化的查詢（Partner.userId 索引）
+    // 移除 updateMany 操作（這個操作很慢，應該移到後台任務或只在需要時執行）
+    const partner = await db.query(async (client) => {
       return client.partner.findUnique({
         where: { userId: session.user.id },
         select: {

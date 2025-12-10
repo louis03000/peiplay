@@ -18,6 +18,8 @@ declare module 'next-auth' {
     twoFactorSecret?: string | null
     isTwoFactorEnabled?: boolean
     provider: string
+    partnerId?: string | null
+    partnerStatus?: string | null
   }
 
   interface Session {
@@ -95,9 +97,14 @@ export const authOptions: NextAuthOptions = {
     async session({ session, token }) {
       // 確保 session.user 一定存在
       session.user = session.user || {};
-        session.user.id = token.sub as string;
-        session.user.role = token.role as UserRole;
-        session.user.provider = token.provider as string;
+      session.user.id = token.sub as string;
+      session.user.role = token.role as UserRole;
+      session.user.provider = token.provider as string;
+      // 添加伙伴信息到 session（如果存在）
+      if (token.partnerId) {
+        session.user.partnerId = token.partnerId as string;
+        session.user.partnerStatus = token.partnerStatus as string | null;
+      }
       return session;
     },
     async jwt({ token, user, account, profile }) {
@@ -107,6 +114,7 @@ export const authOptions: NextAuthOptions = {
         token.provider = account?.provider;
         token.role = user.role;
       }
+      
       // 只在沒有 role 時才查 DB
       if (!token.role && token.sub) {
         try {
@@ -123,6 +131,36 @@ export const authOptions: NextAuthOptions = {
           token.role = 'CUSTOMER';
         }
       }
+      
+      // 優化：一次性獲取伙伴信息並緩存到 token 中（避免每個頁面重複查詢）
+      // 只在沒有 partnerId 時才查詢，並且每5分鐘刷新一次
+      if (token.sub && (!token.partnerId || !token.partnerInfoTimestamp || Date.now() - (token.partnerInfoTimestamp as number) > 5 * 60 * 1000)) {
+        try {
+          await ensureConnection();
+          
+          // 快速查詢伙伴信息（只查詢必要欄位）
+          const partner = await prisma.partner.findUnique({
+            where: { userId: token.sub as string },
+            select: {
+              id: true,
+              status: true,
+            },
+          });
+          
+          if (partner) {
+            token.partnerId = partner.id;
+            token.partnerStatus = partner.status;
+          } else {
+            token.partnerId = null;
+            token.partnerStatus = null;
+          }
+          token.partnerInfoTimestamp = Date.now();
+        } catch (error) {
+          console.error('JWT callback partner query error:', error);
+          // 查詢失敗時不清除現有信息，避免頻繁查詢
+        }
+      }
+      
       return token;
     },
     async signIn({ user, account, profile }) {

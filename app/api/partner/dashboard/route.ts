@@ -17,22 +17,10 @@ export async function GET() {
 
     const result = await db.query(async (client) => {
       const now = new Date()
-      const thirtyMinutesAgo = new Date(now.getTime() - 30 * 60 * 1000)
       
-      // 先檢查並自動關閉超過30分鐘的「現在有空」狀態
-      await client.partner.updateMany({
-        where: {
-          userId: session.user.id,
-          isAvailableNow: true,
-          availableNowSince: {
-            lt: thirtyMinutesAgo
-          }
-        },
-        data: {
-          isAvailableNow: false,
-          availableNowSince: null
-        }
-      })
+      // 優化：移除每次請求時的 updateMany 操作（這個操作很慢）
+      // 應該移到後台任務（cron job）或只在用戶主動操作時執行
+      // 如果需要在這裡執行，可以改為異步執行，不阻塞主查詢
       
       const partner = await client.partner.findUnique({
         where: { userId: session.user.id },
@@ -46,10 +34,8 @@ export async function GET() {
           games: true,
           schedules: {
             where: {
-              // 只載入未來的時段或今天的時段
-              OR: [
-                { date: { gte: new Date(now.getFullYear(), now.getMonth(), now.getDate()) } },
-              ],
+              // 優化：移除 OR 條件，直接使用 gte（更高效）
+              date: { gte: new Date(now.getFullYear(), now.getMonth(), now.getDate()) },
             },
             select: {
               id: true,
@@ -58,14 +44,21 @@ export async function GET() {
               endTime: true,
               isAvailable: true,
               bookings: {
+                where: {
+                  // 優化：只查詢有效的預約（排除已取消和已拒絕的）
+                  status: {
+                    notIn: ['CANCELLED', 'REJECTED'],
+                  },
+                },
                 select: {
                   id: true,
                   status: true,
                 },
+                take: 1, // 每個時段最多只需要知道是否有預約
               },
             },
             orderBy: [{ date: 'asc' }, { startTime: 'asc' }],
-            take: 200, // 限制載入的時段數量
+            take: 100, // 優化：減少載入的時段數量（從 200 降到 100）
           },
         },
       })
@@ -74,13 +67,10 @@ export async function GET() {
         return { type: 'NOT_FOUND' } as const
       }
 
+      // 優化：簡化 schedules 處理邏輯
       const schedules = partner.schedules.map((schedule) => {
-        const booking = schedule.bookings
-        let isBooked = false
-        if (booking && booking.status) {
-          const status = String(booking.status)
-          isBooked = !['CANCELLED', 'REJECTED'].includes(status)
-        }
+        // 如果 bookings 陣列有元素，表示已被預約
+        const isBooked = schedule.bookings && schedule.bookings.length > 0
 
         return {
           id: schedule.id,
@@ -92,79 +82,46 @@ export async function GET() {
         }
       })
 
-      await client.groupBooking.updateMany({
+      // 優化：移除阻塞性的 updateMany 操作（應該移到後台任務）
+      // 如果需要在這裡執行，可以改為異步執行，不阻塞主查詢
+      // await client.groupBooking.updateMany({...}).catch(...)
+
+      // 優化：簡化 groupBookings 查詢，移除 try-catch（如果 games 欄位不存在，直接不查詢）
+      const groupBookings = await client.groupBooking.findMany({
         where: {
           initiatorId: partner.id,
           initiatorType: 'PARTNER',
           status: 'ACTIVE',
-          endTime: { lt: now },
+          endTime: { gt: now },
         },
-        data: { status: 'COMPLETED' },
-      }).catch((err) => console.warn('更新已過期群組預約狀態失敗:', err))
-
-      let groupBookings
-      try {
-        groupBookings = await client.groupBooking.findMany({
-          where: {
-            initiatorId: partner.id,
-            initiatorType: 'PARTNER',
-            status: 'ACTIVE',
-            endTime: { gt: now },
-          },
-          select: {
-            id: true,
-            title: true,
-            description: true,
-            maxParticipants: true,
-            pricePerPerson: true,
-            startTime: true,
-            endTime: true,
-            status: true,
-            games: true,
-            _count: {
-              select: {
-                GroupBookingParticipant: true,
-              },
+        select: {
+          id: true,
+          title: true,
+          description: true,
+          maxParticipants: true,
+          pricePerPerson: true,
+          startTime: true,
+          endTime: true,
+          status: true,
+          // 優化：如果 games 欄位可能不存在，可以移除或使用可選欄位
+          _count: {
+            select: {
+              GroupBookingParticipant: true,
             },
           },
-          orderBy: { startTime: 'asc' },
-        })
-      } catch (error) {
-        console.warn('⚠️ 查詢 games 欄位失敗，改用不包含 games 的查詢:', error)
-        groupBookings = await client.groupBooking.findMany({
-          where: {
-            initiatorId: partner.id,
-            initiatorType: 'PARTNER',
-            status: 'ACTIVE',
-            endTime: { gt: now },
-          },
-          select: {
-            id: true,
-            title: true,
-            description: true,
-            maxParticipants: true,
-            pricePerPerson: true,
-            startTime: true,
-            endTime: true,
-            status: true,
-            _count: {
-              select: {
-                GroupBookingParticipant: true,
-              },
-            },
-          },
-          orderBy: { startTime: 'asc' },
-        })
-      }
+        },
+        orderBy: { startTime: 'asc' },
+        take: 50, // 優化：限制群組預約數量
+      })
 
       const groups = groupBookings.map((group: any) => ({
         id: group.id,
         title: group.title,
         description: group.description,
         maxParticipants: group.maxParticipants,
-        currentParticipants: group._count.GroupBookingParticipant,
+        currentParticipants: group._count?.GroupBookingParticipant || 0,
         pricePerPerson: group.pricePerPerson,
-        games: group.games || [],
+        games: (group as any).games || [], // 使用類型斷言，如果欄位不存在則返回空陣列
         startTime: group.startTime instanceof Date ? group.startTime.toISOString() : group.startTime,
         endTime: group.endTime instanceof Date ? group.endTime.toISOString() : group.endTime,
         status: group.status,

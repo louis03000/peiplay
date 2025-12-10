@@ -16,21 +16,25 @@ export default function Navbar() {
 
   useEffect(() => {
     if (session?.user?.id && status === 'authenticated') {
-      // 清除可能過時的緩存，強制重新檢查
-      if (typeof window !== 'undefined') {
-        // 檢查緩存是否過期（超過5分鐘）
-        const cachedTimestamp = sessionStorage.getItem(`partner_status_timestamp_${session.user.id}`)
-        if (cachedTimestamp) {
-          const cacheAge = Date.now() - parseInt(cachedTimestamp)
-          if (cacheAge > 5 * 60 * 1000) {
-            // 緩存過期，清除它
-            sessionStorage.removeItem(`partner_status_${session.user.id}`)
-            sessionStorage.removeItem(`partner_status_timestamp_${session.user.id}`)
-          }
+      // 優化：優先使用 session 中的伙伴信息（避免每次頁面都查詢 API）
+      if (session.user.partnerId) {
+        const isApproved = session.user.partnerStatus === 'APPROVED'
+        setHasPartner(isApproved)
+        setIsPartner(true)
+        setPartnerLoading(false)
+        
+        // 緩存到 sessionStorage（用於其他組件）
+        if (typeof window !== 'undefined') {
+          sessionStorage.setItem(`partner_status_${session.user.id}`, session.user.partnerStatus || '')
+          sessionStorage.setItem(`partner_status_timestamp_${session.user.id}`, Date.now().toString())
         }
+        
+        // 在背景更新（每5分鐘更新一次 session 中的信息）
+        checkPartnerStatusBackground()
+        return
       }
-
-      // 先檢查本地緩存（僅在客戶端）
+      
+      // 如果 session 中沒有伙伴信息，檢查本地緩存
       const cachedPartnerStatus = typeof window !== 'undefined' 
         ? sessionStorage.getItem(`partner_status_${session.user.id}`)
         : null
@@ -53,6 +57,7 @@ export default function Navbar() {
         }
       }
       
+      // 沒有緩存時才查詢 API
       setPartnerLoading(true)
       checkPartnerStatus()
     } else {

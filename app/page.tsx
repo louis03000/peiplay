@@ -48,6 +48,13 @@ export default function HomePage() {
   }, [session, status]);
 
   const checkPartnerStatus = async () => {
+    // 優化：優先使用 session 中的伙伴信息
+    if (session?.user?.partnerId) {
+      setIsPartner(session.user.partnerStatus === 'APPROVED');
+      return;
+    }
+    
+    // 如果 session 中沒有，才查詢 API
     try {
       const res = await fetch('/api/partners/self');
       if (res.ok) {
