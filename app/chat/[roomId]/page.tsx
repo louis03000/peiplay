@@ -30,11 +30,15 @@ interface ChatRoom {
   bookingId: string | null;
   groupBookingId: string | null;
   multiPlayerBookingId: string | null;
-  members: Array<{
+  members?: Array<{
     id: string;
-    name: string | null;
-    email: string;
-    role: string;
+    userId: string;
+    user: {
+      id: string;
+      name: string | null;
+      email: string;
+      role: string;
+    };
   }>;
 }
 
@@ -45,10 +49,12 @@ export default function ChatRoomPage() {
   const roomId = params.roomId as string;
 
   const [room, setRoom] = useState<ChatRoom | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false); // 改为 false，立即显示 UI
+  const [loadingMessages, setLoadingMessages] = useState(false); // 单独的状态用于消息加载
   const [messageInput, setMessageInput] = useState('');
   const [sending, setSending] = useState(false);
   const [userMessageCount, setUserMessageCount] = useState(0);
+  const [optimisticMessages, setOptimisticMessages] = useState<ChatMessage[]>([]); // 樂觀更新的消息
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
 
@@ -69,29 +75,52 @@ export default function ChatRoomPage() {
     markAsRead,
   } = useChatSocket({ roomId, enabled: !!roomId });
 
-  // 載入聊天室資訊和歷史訊息
+  // 載入聊天室資訊（優先，快速顯示）
   useEffect(() => {
     if (!roomId) return;
 
-    const loadRoom = async () => {
+    const loadRoomInfo = async () => {
       try {
-        setLoading(true);
-        const [roomRes, messagesRes] = await Promise.all([
-          fetch(`/api/chat/rooms/${roomId}`),
-          fetch(`/api/chat/rooms/${roomId}/messages?limit=50`),
-        ]);
-
-        let roomData: any = null;
+        const roomRes = await fetch(`/api/chat/rooms/${roomId}`);
         if (roomRes.ok) {
-          roomData = await roomRes.json();
+          const roomData = await roomRes.json();
           setRoom(roomData.room);
+          
+          // 計算免費聊天句數（如果需要的話，先從房間信息判斷）
+          const currentRoom = roomData.room;
+          const isFreeChatRoom =
+            currentRoom &&
+            !currentRoom.bookingId &&
+            !currentRoom.groupBookingId &&
+            !currentRoom.multiPlayerBookingId;
+          
+          if (isFreeChatRoom && session?.user?.id) {
+            // 先設置為0，等消息加載後再更新
+            setUserMessageCount(0);
+          }
         }
+      } catch (error: any) {
+        console.error('Error loading room:', error);
+      }
+    };
 
+    loadRoomInfo();
+  }, [roomId, session?.user?.id]);
+
+  // 載入歷史訊息（後台加載，不阻塞 UI）
+  useEffect(() => {
+    if (!roomId || !session?.user?.id) return;
+
+    const loadMessages = async () => {
+      try {
+        setLoadingMessages(true);
+        const messagesRes = await fetch(`/api/chat/rooms/${roomId}/messages?limit=20`); // 減少到20條，加快加載
+        
         if (messagesRes.ok) {
           const messagesData = await messagesRes.json();
           // 計算用戶已發送的消息數量（僅計算免費聊天室）
-          if (session?.user?.id && messagesData.messages) {
-            const currentRoom = roomData?.room || room;
+          if (messagesData.messages) {
+            const currentRoom = room;
             const isFreeChatRoom =
               currentRoom &&
               !currentRoom.bookingId &&
@@ -103,24 +132,20 @@ export default function ChatRoomPage() {
                 (msg: ChatMessage) => msg.senderId === session.user.id
               ).length;
               setUserMessageCount(userSentCount);
-            } else {
-              setUserMessageCount(0);
             }
           }
         }
       } catch (error: any) {
-        console.error('Error loading room:', error);
-        // 如果是免費聊天限制錯誤，顯示提示
-        if (error?.message?.includes('免費聊天句數上限')) {
-          alert(error.message);
-        }
+        console.error('Error loading messages:', error);
       } finally {
-        setLoading(false);
+        setLoadingMessages(false);
       }
     };
 
-    loadRoom();
-  }, [roomId]);
+    // 延遲加載消息，讓 UI 先顯示
+    const timer = setTimeout(loadMessages, 100);
+    return () => clearTimeout(timer);
+  }, [roomId, room, session?.user?.id]);
 
   // 滾動到底部
   useEffect(() => {
@@ -146,7 +171,7 @@ export default function ChatRoomPage() {
       // 更新用戶發送的消息數量（僅免費聊天室）
       if (isFreeChat) {
         const userSentCount = socketMessages.filter(
-          (msg) => msg.senderId === session.user.id
+          (msg) => msg.senderId === session.user.id && !msg.id.startsWith('temp-')
         ).length;
         setUserMessageCount(userSentCount);
       }
@@ -163,31 +188,68 @@ export default function ChatRoomPage() {
       return;
     }
 
+    const trimmedContent = messageInput.trim();
+    if (!trimmedContent) return;
+
     setSending(true);
-    try {
-      await sendMessage(messageInput);
-      setMessageInput('');
-      stopTyping();
-      // 更新消息計數（實際計數會從socket消息更新）
-      if (isFreeChat) {
-        setUserMessageCount((prev) => prev + 1);
-      }
-    } catch (error: any) {
-      console.error('Error sending message:', error);
-      // 如果是免費聊天限制錯誤，顯示提示
-      if (error?.message?.includes('免費聊天句數上限')) {
-        alert(error.message);
-        // 重置計數為實際值
-        if (isFreeChat && session?.user?.id) {
-          const actualCount = socketMessages.filter(
-            (msg) => msg.senderId === session.user.id
-          ).length;
-          setUserMessageCount(actualCount);
-        }
-      }
-    } finally {
-      setSending(false);
+    // 樂觀更新：立即清空輸入框並顯示消息
+    setMessageInput('');
+    stopTyping();
+
+    // 創建樂觀更新的臨時消息
+    const tempId = `temp-${Date.now()}`;
+    const optimisticMessage: ChatMessage = {
+      id: tempId,
+      roomId,
+      senderId: session?.user?.id || '',
+      sender: {
+        id: session?.user?.id || '',
+        name: session?.user?.name || null,
+        email: session?.user?.email || '',
+        role: session?.user?.role || 'USER',
+      },
+      content: trimmedContent,
+      contentType: 'TEXT',
+      status: 'SENT',
+      moderationStatus: 'APPROVED',
+      createdAt: new Date().toISOString(),
+    };
+
+    // 立即顯示樂觀更新的消息
+    setOptimisticMessages((prev) => [...prev, optimisticMessage]);
+
+    // 更新消息計數（樂觀更新）
+    if (isFreeChat) {
+      setUserMessageCount((prev) => prev + 1);
     }
+
+    // 異步發送，不阻塞 UI
+    sendMessage(trimmedContent)
+      .then(() => {
+        // 發送成功，移除樂觀更新的消息（實際消息會通過 socket 或 API 返回）
+        setOptimisticMessages((prev) => prev.filter((m) => m.id !== tempId));
+      })
+      .catch((error: any) => {
+        console.error('Error sending message:', error);
+        // 發送失敗，移除樂觀更新的消息並恢復輸入
+        setOptimisticMessages((prev) => prev.filter((m) => m.id !== tempId));
+        setMessageInput(trimmedContent); // 恢復輸入內容
+
+        // 如果是免費聊天限制錯誤，顯示提示
+        if (error?.message?.includes('免費聊天句數上限')) {
+          alert(error.message);
+          // 重置計數為實際值
+          if (isFreeChat && session?.user?.id) {
+            const actualCount = socketMessages.filter(
+              (msg) => msg.senderId === session.user.id && !msg.id.startsWith('temp-')
+            ).length;
+            setUserMessageCount(actualCount);
+          }
+        }
+      })
+      .finally(() => {
+        setSending(false);
+      });
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -200,10 +262,12 @@ export default function ChatRoomPage() {
   };
 
   const getRoomTitle = () => {
-    if (!room) return '聊天室';
-    if (room.type === 'ONE_ON_ONE') {
-      const otherMember = room.members.find((m) => m.id !== session?.user?.id);
-      return otherMember?.name || otherMember?.email || '未知用戶';
+    if (!room) {
+      return roomId ? '載入中...' : '聊天室';
+    }
+    if (room.type === 'ONE_ON_ONE' && room.members) {
+      const otherMember = room.members.find((m) => m.user?.id !== session?.user?.id);
+      return otherMember?.user?.name || otherMember?.user?.email || '未知用戶';
     }
     return '群組聊天';
   };
@@ -212,24 +276,14 @@ export default function ChatRoomPage() {
     if (typingUsers.length === 0) return null;
     if (typingUsers.length === 1) {
       const userId = typingUsers[0];
-      const user = room?.members.find((m) => m.id === userId);
-      return `${user?.name || '有人'} 正在輸入...`;
+      const user = room?.members?.find((m) => m.user?.id === userId);
+      return `${user?.user?.name || '有人'} 正在輸入...`;
     }
     return '多人正在輸入...';
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">載入中...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!room) {
+  // 只在房間 ID 無效時顯示錯誤，否則立即顯示 UI
+  if (!roomId) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
@@ -294,17 +348,25 @@ export default function ChatRoomPage() {
         ref={messagesContainerRef}
         className="flex-1 overflow-y-auto px-4 py-4 space-y-4"
       >
-        {socketMessages
+        {loadingMessages && socketMessages.length === 0 && optimisticMessages.length === 0 && (
+          <div className="flex items-center justify-center py-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            <p className="ml-3 text-gray-600 text-sm">載入訊息中...</p>
+          </div>
+        )}
+        {/* 合併實際消息和樂觀更新的消息 */}
+        {[...socketMessages, ...optimisticMessages]
           .filter((msg) => msg.moderationStatus !== 'REJECTED')
-          .map((message, index) => {
+          .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+          .map((message, index, allMessages) => {
             const isOwn = message.senderId === session?.user?.id;
             const showAvatar =
               index === 0 ||
-              socketMessages[index - 1]?.senderId !== message.senderId;
+              allMessages[index - 1]?.senderId !== message.senderId;
             const showDate =
               index === 0 ||
               new Date(message.createdAt).getDate() !==
-                new Date(socketMessages[index - 1].createdAt).getDate();
+                new Date(allMessages[index - 1].createdAt).getDate();
 
             return (
               <div key={message.id}>

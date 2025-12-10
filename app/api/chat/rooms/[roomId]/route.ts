@@ -44,12 +44,25 @@ export async function GET(
         throw new Error('無權限訪問此聊天室');
       }
 
-      // 獲取聊天室詳情
+      // 獲取聊天室詳情（優化：只加載必要數據）
       const room = await client.chatRoom.findUnique({
         where: { id: roomId },
-        include: {
+        select: {
+          id: true,
+          type: true,
+          bookingId: true,
+          groupBookingId: true,
+          multiPlayerBookingId: true,
+          createdAt: true,
+          updatedAt: true,
+          lastMessageAt: true,
           members: {
-            include: {
+            select: {
+              id: true,
+              userId: true,
+              joinedAt: true,
+              lastReadAt: true,
+              isActive: true,
               user: {
                 select: {
                   id: true,
@@ -60,62 +73,7 @@ export async function GET(
               },
             },
           },
-          booking: {
-            include: {
-              customer: {
-                include: {
-                  user: {
-                    select: {
-                      id: true,
-                      name: true,
-                    },
-                  },
-                },
-              },
-              schedule: {
-                include: {
-                  partner: {
-                    include: {
-                      user: {
-                        select: {
-                          id: true,
-                          name: true,
-                        },
-                      },
-                    },
-                  },
-                },
-              },
-            },
-          },
-          groupBooking: {
-            include: {
-              GroupBookingParticipant: {
-                include: {
-                  Customer: {
-                    include: {
-                      user: {
-                        select: {
-                          id: true,
-                          name: true,
-                        },
-                      },
-                    },
-                  },
-                  Partner: {
-                    include: {
-                      user: {
-                        select: {
-                          id: true,
-                          name: true,
-                        },
-                      },
-                    },
-                  },
-                },
-              },
-            },
-          },
+          // 只在需要時加載 booking 和 groupBooking（延遲加載）
         },
       });
 

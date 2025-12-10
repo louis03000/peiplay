@@ -106,81 +106,89 @@ export async function POST(
     }
 
     const result = await db.query(async (client) => {
-      // 驗證用戶是否有權限
-      const membership = await (client as any).chatRoomMember.findUnique({
-        where: {
-          roomId_userId: {
-            roomId,
-            userId: session.user.id,
+      // 優化：並行查詢 membership 和 room 信息
+      const [membership, room] = await Promise.all([
+        (client as any).chatRoomMember.findUnique({
+          where: {
+            roomId_userId: {
+              roomId,
+              userId: session.user.id,
+            },
           },
-        },
-      });
+        }),
+        (client as any).chatRoom.findUnique({
+          where: { id: roomId },
+          select: {
+            bookingId: true,
+            groupBookingId: true,
+            multiPlayerBookingId: true,
+          },
+        }),
+      ]);
 
       if (!membership) {
         throw new Error('無權限訪問此聊天室');
       }
 
-      // 檢查是否是免費聊天室並驗證消息限制
-      const room = await (client as any).chatRoom.findUnique({
-        where: { id: roomId },
-        select: {
-          bookingId: true,
-          groupBookingId: true,
-          multiPlayerBookingId: true,
-        },
-      });
-
       const isFreeChat =
         !room?.bookingId && !room?.groupBookingId && !room?.multiPlayerBookingId;
 
-      if (isFreeChat) {
-        // 計算用戶已發送的消息數量
-        const userMessageCount = await (client as any).chatMessage.count({
-          where: {
-            roomId,
-            senderId: session.user.id,
-          },
-        });
-
-        const FREE_CHAT_LIMIT = 5;
-        if (userMessageCount >= FREE_CHAT_LIMIT) {
-          throw new Error(`免費聊天句數上限為${FREE_CHAT_LIMIT}句，您已達到上限`);
-        }
-      }
-
-      // 簡單的內容審查（關鍵字過濾）
+      // 簡單的內容審查（關鍵字過濾）- 同步執行，不等待
       const blockedKeywords = ['垃圾', 'spam'];
       const hasBlockedKeyword = blockedKeywords.some((keyword) =>
         content.toLowerCase().includes(keyword.toLowerCase())
       );
 
-      // 創建訊息
-      const message = await (client as any).chatMessage.create({
-        data: {
-          roomId,
-          senderId: session.user.id,
-          content: content.trim(),
-          contentType: 'TEXT',
-          status: 'SENT',
-          moderationStatus: hasBlockedKeyword ? 'FLAGGED' : 'APPROVED',
-        },
-        include: {
-          sender: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-              role: true,
+      // 如果是免費聊天，檢查限制（優化：只在需要時查詢）
+      if (isFreeChat) {
+        // 優化：使用索引查詢，只計算最近的5條消息
+        const recentMessages = await (client as any).chatMessage.findMany({
+          where: {
+            roomId,
+            senderId: session.user.id,
+          },
+          select: { id: true },
+          orderBy: { createdAt: 'desc' },
+          take: 5, // 只查詢最近5條，不需要全部計數
+        });
+
+        const FREE_CHAT_LIMIT = 5;
+        if (recentMessages.length >= FREE_CHAT_LIMIT) {
+          throw new Error(`免費聊天句數上限為${FREE_CHAT_LIMIT}句，您已達到上限`);
+        }
+      }
+
+      // 優化：並行創建訊息和更新房間時間
+      const [message] = await Promise.all([
+        (client as any).chatMessage.create({
+          data: {
+            roomId,
+            senderId: session.user.id,
+            content: content.trim(),
+            contentType: 'TEXT',
+            status: 'SENT',
+            moderationStatus: hasBlockedKeyword ? 'FLAGGED' : 'APPROVED',
+          },
+          include: {
+            sender: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                role: true,
+              },
             },
           },
-        },
-      });
-
-      // 更新聊天室最後訊息時間
-      await (client as any).chatRoom.update({
-        where: { id: roomId },
-        data: { lastMessageAt: new Date() },
-      });
+        }),
+        // 更新聊天室最後訊息時間（不等待完成）
+        (client as any).chatRoom.update({
+          where: { id: roomId },
+          data: { lastMessageAt: new Date() },
+        }).catch((err: any) => {
+          // 忽略更新錯誤，不影響消息發送
+          console.error('Failed to update lastMessageAt:', err);
+        }),
+      ]);
 
       return {
         id: message.id,
