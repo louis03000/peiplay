@@ -54,7 +54,8 @@ export async function GET() {
                   id: true,
                   status: true,
                 },
-                take: 1, // 每個時段最多只需要知道是否有預約
+                // 注意：Prisma 的嵌套 select 不支持 take，但由於我們已經過濾了狀態，
+                // 每個時段通常只有0或1個有效預約，所以不需要限制數量
               },
             },
             orderBy: [{ date: 'asc' }, { startTime: 'asc' }],
