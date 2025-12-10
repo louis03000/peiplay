@@ -171,7 +171,8 @@ export function useChatSocket({ roomId, enabled = true }: UseChatSocketOptions) 
       }
 
       // 如果 WebSocket 已連接，使用 WebSocket 發送
-      if (socketRef.current?.connected) {
+      const socket = socketRef.current;
+      if (socket?.connected) {
         return new Promise((resolve, reject) => {
           let resolved = false;
           const trimmedContent = content.trim();
@@ -180,8 +181,8 @@ export function useChatSocket({ roomId, enabled = true }: UseChatSocketOptions) 
           const errorHandler = (error: { message: string }) => {
             if (resolved) return;
             resolved = true;
-            socketRef.current?.off('error', errorHandler);
-            socketRef.current?.off('message:new', messageHandler);
+            socket.off('error', errorHandler);
+            socket.off('message:new', messageHandler);
             reject(new Error(error.message));
           };
 
@@ -191,17 +192,17 @@ export function useChatSocket({ roomId, enabled = true }: UseChatSocketOptions) 
             // 檢查是否是我們剛發送的消息
             if (message.senderId === session?.user?.id && message.content === trimmedContent) {
               resolved = true;
-              socketRef.current?.off('error', errorHandler);
-              socketRef.current?.off('message:new', messageHandler);
+              socket.off('error', errorHandler);
+              socket.off('message:new', messageHandler);
               resolve();
             }
           };
 
-          socketRef.current.once('error', errorHandler);
-          socketRef.current.once('message:new', messageHandler);
+          socket.once('error', errorHandler);
+          socket.once('message:new', messageHandler);
 
           // 發送消息
-          socketRef.current.emit('message:send', {
+          socket.emit('message:send', {
             roomId,
             content: trimmedContent,
           });
@@ -210,8 +211,8 @@ export function useChatSocket({ roomId, enabled = true }: UseChatSocketOptions) 
           setTimeout(() => {
             if (!resolved) {
               resolved = true;
-              socketRef.current?.off('error', errorHandler);
-              socketRef.current?.off('message:new', messageHandler);
+              socket.off('error', errorHandler);
+              socket.off('message:new', messageHandler);
               resolve(); // 即使沒有確認也resolve，因為消息可能已經發送
             }
           }, 5000);
