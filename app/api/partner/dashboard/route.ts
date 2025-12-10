@@ -16,13 +16,14 @@ export async function GET() {
     }
 
     const result = await db.query(async (client) => {
-      const now = new Date()
-      
-      // 優化：移除每次請求時的 updateMany 操作（這個操作很慢）
-      // 應該移到後台任務（cron job）或只在用戶主動操作時執行
-      // 如果需要在這裡執行，可以改為異步執行，不阻塞主查詢
-      
-      const partner = await client.partner.findUnique({
+      try {
+        const now = new Date()
+        
+        // 優化：移除每次請求時的 updateMany 操作（這個操作很慢）
+        // 應該移到後台任務（cron job）或只在用戶主動操作時執行
+        // 如果需要在這裡執行，可以改為異步執行，不阻塞主查詢
+        
+        const partner = await client.partner.findUnique({
         where: { userId: session.user.id },
         select: {
           id: true,
@@ -44,18 +45,11 @@ export async function GET() {
               endTime: true,
               isAvailable: true,
               bookings: {
-                where: {
-                  // 優化：只查詢有效的預約（排除已取消和已拒絕的）
-                  status: {
-                    notIn: ['CANCELLED', 'REJECTED'],
-                  },
-                },
+                // bookings 是一對一關係（Booking?），不是數組
                 select: {
                   id: true,
                   status: true,
                 },
-                // 注意：Prisma 的嵌套 select 不支持 take，但由於我們已經過濾了狀態，
-                // 每個時段通常只有0或1個有效預約，所以不需要限制數量
               },
             },
             orderBy: [{ date: 'asc' }, { startTime: 'asc' }],
@@ -70,8 +64,12 @@ export async function GET() {
 
       // 優化：簡化 schedules 處理邏輯
       const schedules = partner.schedules.map((schedule) => {
-        // 如果 bookings 存在，表示已被預約（一對一關係，bookings 是單個對象或 null）
-        const isBooked = !!schedule.bookings
+        // 如果 bookings 存在且狀態不是已取消或已拒絕，表示已被預約
+        // bookings 是一對一關係（Booking?），是單個對象或 null
+        const booking = schedule.bookings
+        const isBooked = !!booking && 
+          booking.status !== 'CANCELLED' && 
+          booking.status !== 'REJECTED'
 
         return {
           id: schedule.id,
@@ -142,6 +140,15 @@ export async function GET() {
         schedules,
         groups,
       } as const
+      } catch (queryError: any) {
+        console.error('❌ Dashboard 查詢時發生錯誤:', {
+          message: queryError?.message,
+          code: queryError?.code,
+          meta: queryError?.meta,
+          stack: queryError?.stack,
+        });
+        throw queryError;
+      }
     }, 'partner:dashboard:get')
 
     if (result.type === 'NOT_FOUND') {
