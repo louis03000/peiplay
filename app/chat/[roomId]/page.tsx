@@ -150,7 +150,7 @@ export default function ChatRoomPage() {
   // 滾動到底部
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [socketMessages, typingUsers]);
+  }, [socketMessages, typingUsers, optimisticMessages]);
 
   // 標記已讀
   useEffect(() => {
@@ -226,8 +226,12 @@ export default function ChatRoomPage() {
     // 異步發送，不阻塞 UI
     sendMessage(trimmedContent)
       .then(() => {
-        // 發送成功，移除樂觀更新的消息（實際消息會通過 socket 或 API 返回）
-        setOptimisticMessages((prev) => prev.filter((m) => m.id !== tempId));
+        // 發送成功，移除樂觀更新的消息
+        // 實際消息會通過 socket 或 API 返回並添加到 socketMessages
+        // 延遲移除，確保實際消息已經到達
+        setTimeout(() => {
+          setOptimisticMessages((prev) => prev.filter((m) => m.id !== tempId));
+        }, 1000); // 給足夠時間讓消息通過API或socket返回
       })
       .catch((error: any) => {
         console.error('Error sending message:', error);
@@ -235,7 +239,7 @@ export default function ChatRoomPage() {
         setOptimisticMessages((prev) => prev.filter((m) => m.id !== tempId));
         setMessageInput(trimmedContent); // 恢復輸入內容
 
-        // 如果是免費聊天限制錯誤，顯示提示
+        // 如果是免費聊天限制錯誤，顯示提示並回退計數
         if (error?.message?.includes('免費聊天句數上限')) {
           alert(error.message);
           // 重置計數為實際值
@@ -244,6 +248,11 @@ export default function ChatRoomPage() {
               (msg) => msg.senderId === session.user.id && !msg.id.startsWith('temp-')
             ).length;
             setUserMessageCount(actualCount);
+          }
+        } else {
+          // 其他錯誤，回退計數
+          if (isFreeChat) {
+            setUserMessageCount((prev) => Math.max(0, prev - 1));
           }
         }
       })
@@ -308,11 +317,9 @@ export default function ChatRoomPage() {
           <div className="mb-2 bg-purple-50 border border-purple-200 rounded-lg px-3 py-2">
             <p className="text-sm text-purple-800 font-medium">
               免費聊天句數上限為5句
-              {userMessageCount > 0 && (
-                <span className="ml-2 text-purple-600">
-                  （已使用 {userMessageCount}/{FREE_CHAT_LIMIT} 句）
-                </span>
-              )}
+              <span className="ml-2 text-purple-600">
+                （已使用 {userMessageCount}/{FREE_CHAT_LIMIT} 句）
+              </span>
             </p>
           </div>
         )}
