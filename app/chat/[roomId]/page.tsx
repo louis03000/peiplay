@@ -107,12 +107,11 @@ export default function ChatRoomPage() {
           }
         }
       } catch (error: any) {
+        console.error('Error loading room:', error);
         // 如果是免費聊天限制錯誤，顯示提示
         if (error?.message?.includes('免費聊天句數上限')) {
           alert(error.message);
         }
-      } catch (error) {
-        console.error('Error loading room:', error);
       } finally {
         setLoading(false);
       }
