@@ -52,7 +52,7 @@ export async function GET() {
           currentParticipants: group._count.GroupBookingParticipant,
           pricePerPerson: group.pricePerPerson,
           status: group.status,
-          games: group.games || [],
+          games: (group as any).games || [], // 使用類型斷言，因為數據庫中可能還沒有這個字段
           startTime: group.startTime instanceof Date ? group.startTime.toISOString() : group.startTime,
           endTime: group.endTime instanceof Date ? group.endTime.toISOString() : group.endTime,
         }))
