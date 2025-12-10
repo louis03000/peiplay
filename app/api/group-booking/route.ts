@@ -196,6 +196,7 @@ export async function GET(request: Request) {
         }
 
         // 查詢群組預約
+        // 注意：暫時不查詢 games 字段，因為數據庫中可能還沒有這個字段
         const groupBookings = await client.groupBooking.findMany({
           where,
           select: {
@@ -210,7 +211,7 @@ export async function GET(request: Request) {
             currentParticipants: true,
             pricePerPerson: true,
             status: true,
-            games: true,
+            // games: true, // 暫時移除，因為數據庫中可能還沒有這個字段
             createdAt: true,
             initiatorId: true,
             initiatorType: true,

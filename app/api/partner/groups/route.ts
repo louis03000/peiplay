@@ -34,7 +34,7 @@ export async function GET() {
             maxParticipants: true,
             pricePerPerson: true,
             status: true,
-            games: true,
+            // games: true, // 暫時移除，因為數據庫中可能還沒有這個字段
             startTime: true,
             endTime: true,
             _count: {
@@ -290,7 +290,8 @@ export async function POST(request: Request) {
           console.log('🔍 生成群組預約ID:', groupBookingId)
 
           // 創建群組預約
-          const createData = {
+          // 注意：暫時不包含 games 字段，因為數據庫中可能還沒有這個字段
+          const createData: any = {
             id: groupBookingId,
             type: 'PARTNER_INITIATED' as const,
             title: title || null,
@@ -304,8 +305,14 @@ export async function POST(request: Request) {
             status: 'ACTIVE' as const,
             initiatorId: partner.id, // String
             initiatorType: 'PARTNER', // String
-            games: games, // String[]
+            // games: games, // 暫時移除，因為數據庫中可能還沒有這個字段
           }
+          
+          // 如果數據庫有 games 字段，可以添加
+          // 暫時註釋掉，等數據庫遷移完成後再啟用
+          // if (games.length > 0) {
+          //   createData.games = games
+          // }
           
           console.log('🔍 準備創建群組預約，Prisma 資料:', {
             ...createData,
@@ -327,7 +334,7 @@ export async function POST(request: Request) {
             status: typeof createData.status,
             initiatorId: typeof createData.initiatorId,
             initiatorType: typeof createData.initiatorType,
-            games: Array.isArray(createData.games),
+            // games: Array.isArray(createData.games), // 暫時移除，因為數據庫中可能還沒有這個字段
           })
           
           let groupBooking
@@ -409,7 +416,7 @@ export async function POST(request: Request) {
               currentParticipants: 1,
               pricePerPerson: groupBooking.pricePerPerson,
               status: groupBooking.status,
-              games: groupBooking.games || [],
+              games: (groupBooking as any).games || [], // 暫時使用類型斷言，因為數據庫中可能還沒有這個字段
               startTime: groupBooking.startTime.toISOString(),
               endTime: groupBooking.endTime.toISOString(),
             },
