@@ -70,8 +70,8 @@ export async function GET() {
 
       // 優化：簡化 schedules 處理邏輯
       const schedules = partner.schedules.map((schedule) => {
-        // 如果 bookings 陣列有元素，表示已被預約
-        const isBooked = schedule.bookings && schedule.bookings.length > 0
+        // 如果 bookings 存在，表示已被預約（一對一關係，bookings 是單個對象或 null）
+        const isBooked = !!schedule.bookings
 
         return {
           id: schedule.id,
