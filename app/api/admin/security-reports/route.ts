@@ -48,7 +48,7 @@ export async function GET(request: NextRequest) {
           // 優化：使用 select 而非 include
           id: true,
           userId: true,
-          action: true,
+          eventType: true, // 修正：欄位名稱是 eventType 而非 action
           details: true,
           ipAddress: true,
           userAgent: true,
