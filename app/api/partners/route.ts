@@ -193,7 +193,7 @@ export async function GET(request: NextRequest) {
         );
       },
       CacheTTL.SHORT // 2 分鐘快取
-    )) as unknown as PartnerRecord[]
+    )) as unknown as PartnerRecord[];
 
     const processed = partners
       .map((partner) => {
