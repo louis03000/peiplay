@@ -7,9 +7,15 @@ export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
 export async function GET(request: Request) {
+  // ========== 調試日誌開始 ==========
+  console.log('\n' + '='.repeat(80))
+  console.log('🚀 [多人陪玩搜索] API 被調用')
+  console.log('='.repeat(80))
+  
   try {
     const session = await getServerSession(authOptions)
     if (!session?.user) {
+      console.log('❌ [多人陪玩搜索] 未授權')
       return NextResponse.json({ error: '未授權' }, { status: 401 })
     }
 
@@ -18,6 +24,8 @@ export async function GET(request: Request) {
     const startTime = searchParams.get('startTime')
     const endTime = searchParams.get('endTime')
     const games = searchParams.get('games')
+    
+    console.log('📥 [多人陪玩搜索] 收到請求參數:', { date, startTime, endTime, games })
 
     // 驗證必要參數
     if (!date || !startTime || !endTime) {
@@ -336,9 +344,17 @@ export async function GET(request: Request) {
       return partnersWithAvailableSchedules
     }, 'partners/search-for-multi-player')
 
+    console.log('='.repeat(80))
+    console.log('✅ [多人陪玩搜索] API 執行完成，返回結果')
+    console.log('='.repeat(80) + '\n')
+    
     return NextResponse.json(result)
   } catch (error: any) {
-    console.error('搜索失敗:', error)
+    console.error('='.repeat(80))
+    console.error('❌ [多人陪玩搜索] 搜索失敗:', error)
+    console.error('錯誤堆疊:', error?.stack)
+    console.error('='.repeat(80) + '\n')
+    
     return NextResponse.json(
       { 
         error: '搜尋夥伴失敗',
