@@ -38,12 +38,14 @@ export async function GET(request: NextRequest) {
     const imageBuffer = await imageResponse.arrayBuffer();
     const contentType = imageResponse.headers.get('content-type') || 'image/jpeg';
 
-    // 返回圖片，並設置安全標頭
+    // 返回圖片，並設置安全標頭與快取策略
+    // 圖片通常不會變動，使用長期快取（7天）+ Stale-While-Revalidate
     return new NextResponse(imageBuffer, {
       status: 200,
       headers: {
         'Content-Type': contentType,
-        'Cache-Control': 'private, max-age=3600', // 私有緩存，1小時過期
+        // 公開快取，7天過期，背景重新驗證（stale-while-revalidate）
+        'Cache-Control': 'public, max-age=604800, stale-while-revalidate=86400',
         'X-Content-Type-Options': 'nosniff',
         'X-Frame-Options': 'DENY',
         'Referrer-Policy': 'strict-origin-when-cross-origin',

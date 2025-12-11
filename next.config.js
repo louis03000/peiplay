@@ -51,7 +51,7 @@ const nextConfig = {
   compress: true,
   // 生產環境優化
   swcMinify: true,
-  // 安全標頭
+  // 安全標頭與快取策略
   async headers() {
     return [
       {
@@ -104,6 +104,47 @@ const nextConfig = {
           },
         ],
       },
+      // 靜態資源快取：Next.js 構建產物（長期快取，使用版本號）
+      {
+        source: '/_next/static/(.*)',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=31536000, immutable',
+          },
+        ],
+      },
+      // 圖片優化快取（Next.js Image Optimization）
+      {
+        source: '/_next/image(.*)',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=31536000, immutable',
+          },
+        ],
+      },
+      // 靜態檔案快取（public 目錄下的資源）
+      {
+        source: '/(.*\\.(svg|png|jpg|jpeg|gif|webp|ico|woff|woff2|ttf|eot))',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=31536000, immutable',
+          },
+        ],
+      },
+      // 字體檔案快取
+      {
+        source: '/(.*\\.(woff|woff2|ttf|eot|otf))',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=31536000, immutable',
+          },
+        ],
+      },
+      // API 路由：預設不快取（但個別 API 可以覆蓋）
       {
         source: '/api/(.*)',
         headers: [
@@ -118,6 +159,16 @@ const nextConfig = {
           {
             key: 'X-Frame-Options',
             value: 'DENY',
+          },
+        ],
+      },
+      // 可快取的公開 API（讀取類，不涉及個人資料）
+      {
+        source: '/api/(announcements|games/list|partners/ranking|partners/average-rating)(.*)',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, s-maxage=60, stale-while-revalidate=300',
           },
         ],
       },

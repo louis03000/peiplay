@@ -41,71 +41,71 @@ export async function POST(request: Request) {
 
       const bookings: any[] = [];
 
-      // 獲取用戶作為客戶的訂單（只包含未結束的，只選擇必要欄位）
-      if (customer) {
-        const customerBookings = await client.booking.findMany({
-          where: {
-            customerId: customer.id,
-            status: {
-              in: ['CONFIRMED', 'PARTNER_ACCEPTED', 'COMPLETED', 'PAID_WAITING_PARTNER_CONFIRMATION'],
-            },
-            schedule: {
-              endTime: { gte: now }, // 只處理未結束的訂單
-            },
-          },
-          select: {
-            id: true,
-            customer: {
-              select: {
-                userId: true,
+      // 優化：並行查詢客戶和夥伴的訂單
+      const [customerBookings, partnerBookings] = await Promise.all([
+        customer
+          ? client.booking.findMany({
+              where: {
+                customerId: customer.id,
+                status: {
+                  in: ['CONFIRMED', 'PARTNER_ACCEPTED', 'COMPLETED', 'PAID_WAITING_PARTNER_CONFIRMATION'],
+                },
+                schedule: {
+                  endTime: { gte: now },
+                },
               },
-            },
-            schedule: {
               select: {
-                partner: {
+                id: true,
+                customer: {
                   select: {
                     userId: true,
                   },
                 },
+                schedule: {
+                  select: {
+                    partner: {
+                      select: {
+                        userId: true,
+                      },
+                    },
+                  },
+                },
               },
-            },
-          },
-        });
-        bookings.push(...customerBookings);
-      }
+            })
+          : Promise.resolve([]),
+        partner
+          ? client.booking.findMany({
+              where: {
+                schedule: {
+                  partnerId: partner.id,
+                  endTime: { gte: now },
+                },
+                status: {
+                  in: ['CONFIRMED', 'PARTNER_ACCEPTED', 'COMPLETED', 'PAID_WAITING_PARTNER_CONFIRMATION'],
+                },
+              },
+              select: {
+                id: true,
+                customer: {
+                  select: {
+                    userId: true,
+                  },
+                },
+                schedule: {
+                  select: {
+                    partner: {
+                      select: {
+                        userId: true,
+                      },
+                    },
+                  },
+                },
+              },
+            })
+          : Promise.resolve([]),
+      ]);
 
-      // 獲取用戶作為夥伴的訂單（只包含未結束的，只選擇必要欄位）
-      if (partner) {
-        const partnerBookings = await client.booking.findMany({
-          where: {
-            schedule: {
-              partnerId: partner.id,
-              endTime: { gte: now }, // 只處理未結束的訂單
-            },
-            status: {
-              in: ['CONFIRMED', 'PARTNER_ACCEPTED', 'COMPLETED', 'PAID_WAITING_PARTNER_CONFIRMATION'],
-            },
-          },
-          select: {
-            id: true,
-            customer: {
-              select: {
-                userId: true,
-              },
-            },
-            schedule: {
-              select: {
-                partner: {
-                  select: {
-                    userId: true,
-                  },
-                },
-              },
-            },
-          },
-        });
-        bookings.push(...partnerBookings);
-      }
+      bookings.push(...customerBookings, ...partnerBookings);
 
       // 去重（如果用戶既是客戶又是夥伴，可能會有重複）
       const uniqueBookings = Array.from(

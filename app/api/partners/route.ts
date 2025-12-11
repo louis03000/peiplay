@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db-resilience";
 import { createErrorResponse } from "@/lib/api-helpers";
 import { BookingStatus } from "@prisma/client";
+import { Cache, CacheKeys, CacheTTL, CacheInvalidation } from "@/lib/redis-cache";
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -70,8 +71,22 @@ export async function GET(request: NextRequest) {
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate())
     const scheduleDateFilter = dateRange ?? { gte: todayStart }
 
-    const partners = (await db.query(
-      async (client) => {
+    // 生成快取 key（基於查詢參數）
+    const cacheParams = {
+      startDate: startDate || '',
+      endDate: endDate || '',
+      availableNow: availableNow ? 'true' : 'false',
+      rankBooster: rankBooster ? 'true' : 'false',
+      game: game || '',
+    };
+    const cacheKey = CacheKeys.partners.list(cacheParams);
+
+    // 使用 Redis 快取（TTL: 2 分鐘，因為夥伴狀態可能頻繁變動）
+    const partners = await Cache.getOrSet(
+      cacheKey,
+      async () => {
+        return await db.query(
+          async (client) => {
         // 優化：在資料庫層面過濾被停權的用戶
         
         // 如果篩選「現在有空」，需要排除有活躍預約的夥伴
@@ -172,9 +187,12 @@ export async function GET(request: NextRequest) {
           orderBy: { createdAt: 'desc' },
           take: 50, // 減少為 50 筆，提升速度
           // 使用索引優化的排序
-        })
+        });
+          },
+          'partners:list'
+        );
       },
-      'partners:list'
+      CacheTTL.SHORT // 2 分鐘快取
     )) as unknown as PartnerRecord[]
 
     const processed = partners
@@ -240,7 +258,12 @@ export async function GET(request: NextRequest) {
       })
       .filter((partner): partner is NonNullable<typeof partner> => partner !== null)
 
-    return NextResponse.json(processed)
+    // 設定 HTTP Cache Headers（Stale-While-Revalidate 策略）
+    return NextResponse.json(processed, {
+      headers: {
+        'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300',
+      },
+    })
   } catch (error) {
     return createErrorResponse(error, 'partners:list')
   }
@@ -350,6 +373,11 @@ export async function POST(request: Request) {
 
       return { type: 'SUCCESS', partner } as const
     }, 'partners:create')
+
+    // 清除夥伴列表快取
+    if (result.type === 'SUCCESS') {
+      await CacheInvalidation.onPartnerUpdate(result.partner.id);
+    }
 
     switch (result.type) {
       case 'ALREADY_EXISTS':

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db-resilience'
 import { createErrorResponse } from '@/lib/api-helpers'
 import { getPartnerRankings } from '@/lib/ranking-helpers'
+import { Cache, CacheKeys, CacheTTL } from '@/lib/redis-cache'
 
 export const dynamic = 'force-dynamic'
 
@@ -144,7 +145,23 @@ export async function GET(request: NextRequest) {
       console.log('   - 時間篩選條件過於嚴格')
     }
 
-    return NextResponse.json(rankingData)
+    // 優化：使用 Redis 快取（排行榜不常變動）
+    const cacheKey = CacheKeys.partners.ranking() + `:${timeFilter}:${gameFilter || 'all'}`;
+    const cachedRanking = await Cache.getOrSet(
+      cacheKey,
+      async () => rankingData,
+      CacheTTL.SHORT // 2 分鐘快取
+    );
+
+    // 公開資料使用 public cache
+    return NextResponse.json(
+      cachedRanking,
+      {
+        headers: {
+          'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300',
+        },
+      }
+    )
   } catch (error) {
     return createErrorResponse(error, 'partners:ranking:get')
   }

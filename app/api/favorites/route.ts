@@ -58,7 +58,15 @@ export async function GET() {
       }));
     }, 'favorites:get');
 
-    return NextResponse.json({ favorites });
+    // 個人資料使用 private cache（只快取在用戶瀏覽器中）
+    return NextResponse.json(
+      { favorites },
+      {
+        headers: {
+          'Cache-Control': 'private, max-age=60, stale-while-revalidate=120',
+        },
+      }
+    );
   } catch (error) {
     if ((error as any)?.code === 'P2021' || (error as any)?.code === '42P01') {
       return NextResponse.json({ favorites: [] });

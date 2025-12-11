@@ -19,24 +19,48 @@ export async function GET(request: Request) {
     const limit = parseInt(searchParams.get('limit') || '50');
     const offset = parseInt(searchParams.get('offset') || '0');
 
-    const where: Record<string, unknown> = {};
+    // 優化：支援 cursor-based pagination
+    const cursor = searchParams.get('cursor');
+    const useCursorPagination = cursor || offset > 100;
 
-    if (type === 'sent') {
-      where.senderId = session.user.id;
-    } else if (type === 'received') {
-      where.receiverId = session.user.id;
-    } else {
-      where.OR = [
-        { senderId: session.user.id },
-        { receiverId: session.user.id },
-      ];
-    }
-
+    // 優化：避免 OR 條件，分別查詢後合併（提升索引使用率）
     const result = await db.query(async (client) => {
-      const [messages, unreadCount] = await Promise.all([
-        client.message.findMany({
-          where,
-          include: {
+      let messages: any[] = [];
+      
+      // 優化：使用 cursor-based pagination
+      let cursorCondition: any = {};
+      if (useCursorPagination && cursor) {
+        try {
+          const cursorData = JSON.parse(cursor);
+          cursorCondition = {
+            OR: [
+              { createdAt: { lt: new Date(cursorData.createdAt) } },
+              {
+                createdAt: new Date(cursorData.createdAt),
+                id: { lt: cursorData.id },
+              },
+            ],
+          };
+        } catch (e) {
+          console.warn('Invalid cursor format, falling back to offset');
+        }
+      }
+
+      // 優化：避免 OR 條件，分別查詢後合併
+      if (type === 'sent') {
+        messages = await client.message.findMany({
+          where: {
+            senderId: session.user.id,
+            ...cursorCondition,
+          },
+          select: {
+            // 優化：使用 select 而非 include
+            id: true,
+            senderId: true,
+            receiverId: true,
+            content: true,
+            isRead: true,
+            createdAt: true,
             sender: {
               select: {
                 id: true,
@@ -54,26 +78,166 @@ export async function GET(request: Request) {
               },
             },
           },
-          orderBy: { createdAt: 'desc' },
+          orderBy: [
+            { createdAt: 'desc' },
+            { id: 'desc' },
+          ],
           take: limit,
-          skip: offset,
-        }),
-        client.message.count({
+          ...(useCursorPagination ? {} : { skip: offset }),
+        });
+      } else if (type === 'received') {
+        messages = await client.message.findMany({
           where: {
             receiverId: session.user.id,
-            isRead: false,
+            ...cursorCondition,
           },
-        }),
-      ]);
+          select: {
+            id: true,
+            senderId: true,
+            receiverId: true,
+            content: true,
+            isRead: true,
+            createdAt: true,
+            sender: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                role: true,
+              },
+            },
+            receiver: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                role: true,
+              },
+            },
+          },
+          orderBy: [
+            { createdAt: 'desc' },
+            { id: 'desc' },
+          ],
+          take: limit,
+          ...(useCursorPagination ? {} : { skip: offset }),
+        });
+      } else {
+        // 優化：分別查詢後合併，避免 OR 條件
+        const [sentMessages, receivedMessages] = await Promise.all([
+          client.message.findMany({
+            where: {
+              senderId: session.user.id,
+              ...cursorCondition,
+            },
+            select: {
+              id: true,
+              senderId: true,
+              receiverId: true,
+              content: true,
+              isRead: true,
+              createdAt: true,
+              sender: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                  role: true,
+                },
+              },
+              receiver: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                  role: true,
+                },
+              },
+            },
+            orderBy: [
+              { createdAt: 'desc' },
+              { id: 'desc' },
+            ],
+            take: limit,
+            ...(useCursorPagination ? {} : { skip: offset }),
+          }),
+          client.message.findMany({
+            where: {
+              receiverId: session.user.id,
+              ...cursorCondition,
+            },
+            select: {
+              id: true,
+              senderId: true,
+              receiverId: true,
+              content: true,
+              isRead: true,
+              createdAt: true,
+              sender: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                  role: true,
+                },
+              },
+              receiver: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                  role: true,
+                },
+              },
+            },
+            orderBy: [
+              { createdAt: 'desc' },
+              { id: 'desc' },
+            ],
+            take: limit,
+            ...(useCursorPagination ? {} : { skip: offset }),
+          }),
+        ]);
+        
+        // 合併並去重，按時間排序
+        const messageMap = new Map();
+        [...sentMessages, ...receivedMessages].forEach(msg => {
+          if (!messageMap.has(msg.id)) {
+            messageMap.set(msg.id, msg);
+          }
+        });
+        messages = Array.from(messageMap.values())
+          .sort((a, b) => {
+            const timeDiff = new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+            if (timeDiff !== 0) return timeDiff;
+            return b.id.localeCompare(a.id);
+          })
+          .slice(0, limit);
+      }
+
+      const unreadCount = await client.message.count({
+        where: {
+          receiverId: session.user.id,
+          isRead: false,
+        },
+      });
 
       return { messages, unreadCount };
     }, 'messages:get');
 
-    return NextResponse.json({
-      messages: result.messages,
-      unreadCount: result.unreadCount,
-      hasMore: result.messages.length === limit,
-    });
+    // 個人資料使用 private cache
+    return NextResponse.json(
+      {
+        messages: result.messages,
+        unreadCount: result.unreadCount,
+        hasMore: result.messages.length === limit,
+      },
+      {
+        headers: {
+          'Cache-Control': 'private, max-age=30, stale-while-revalidate=60',
+        },
+      }
+    );
   } catch (error) {
     return createErrorResponse(error, 'messages:get');
   }

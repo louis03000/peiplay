@@ -73,6 +73,7 @@ export default function ChatPage() {
   const [error, setError] = useState('');
   const [messageInput, setMessageInput] = useState('');
   const [sending, setSending] = useState(false);
+  const [loadedHistoryMessages, setLoadedHistoryMessages] = useState<ChatMessage[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
 
@@ -103,17 +104,11 @@ export default function ChatPage() {
     try {
       setLoading(true);
       
-      // 並行執行：同時創建聊天室和載入聊天室列表
-      const [createRes, roomsRes] = await Promise.allSettled([
-        fetch('/api/chat/rooms/create-for-my-bookings', {
-          method: 'POST',
-        }),
-        fetch('/api/chat/rooms'),
-      ]);
+      // 優先載入聊天室列表（快速顯示）
+      const roomsRes = await fetch('/api/chat/rooms');
       
-      // 處理聊天室列表（優先）
-      if (roomsRes.status === 'fulfilled' && roomsRes.value.ok) {
-        const data = await roomsRes.value.json();
+      if (roomsRes.ok) {
+        const data = await roomsRes.json();
         const loadedRooms = data.rooms || [];
         setRooms(loadedRooms);
         
@@ -131,21 +126,24 @@ export default function ChatPage() {
         setError('載入聊天室失敗');
       }
       
-      // 處理創建結果（非阻塞，不影響顯示）
-      if (createRes.status === 'fulfilled' && createRes.value.ok) {
-        const createData = await createRes.value.json();
-        if (createData.created > 0) {
-          // 如果有新創建的聊天室，重新載入列表（在背景執行）
-          fetch('/api/chat/rooms')
-            .then((res) => res.json())
-            .then((data) => {
-              setRooms(data.rooms || []);
-            })
-            .catch(() => {
-              // 忽略錯誤，不影響用戶體驗
-            });
-        }
-      }
+      // 在背景異步創建聊天室（不阻塞 UI）
+      fetch('/api/chat/rooms/create-for-my-bookings', {
+        method: 'POST',
+      })
+        .then((res) => res.ok && res.json())
+        .then((createData) => {
+          if (createData?.created > 0) {
+            // 如果有新創建的聊天室，重新載入列表
+            return fetch('/api/chat/rooms')
+              .then((res) => res.json())
+              .then((data) => {
+                setRooms(data.rooms || []);
+              });
+          }
+        })
+        .catch(() => {
+          // 忽略錯誤，不影響用戶體驗
+        });
     } catch (err) {
       console.error('Error loading rooms:', err);
       setError('載入聊天室失敗');
@@ -201,6 +199,43 @@ export default function ChatPage() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [socketMessages, typingUsers]);
+
+  // 載入歷史訊息（當選擇聊天室時）
+  useEffect(() => {
+    if (!selectedRoomId || !session?.user?.id) {
+      setLoadedHistoryMessages([]);
+      return;
+    }
+
+    const loadMessages = async () => {
+      try {
+        const messagesRes = await fetch(`/api/chat/rooms/${selectedRoomId}/messages?limit=50`);
+        
+        if (messagesRes.ok) {
+          const messagesData = await messagesRes.json();
+          if (messagesData.messages && Array.isArray(messagesData.messages)) {
+            // 將歷史消息轉換為 ChatMessage 格式
+            const formattedMessages: ChatMessage[] = messagesData.messages.map((msg: any) => ({
+              id: msg.id,
+              roomId: msg.roomId,
+              senderId: msg.senderId,
+              sender: msg.sender,
+              content: msg.content,
+              contentType: msg.contentType || 'TEXT',
+              status: msg.status || 'SENT',
+              moderationStatus: msg.moderationStatus || 'APPROVED',
+              createdAt: msg.createdAt,
+            }));
+            setLoadedHistoryMessages(formattedMessages);
+          }
+        }
+      } catch (error: any) {
+        console.error('Error loading messages:', error);
+      }
+    };
+
+    loadMessages();
+  }, [selectedRoomId, session?.user?.id]);
 
   // 標記已讀
   useEffect(() => {
@@ -379,17 +414,32 @@ export default function ChatPage() {
               ref={messagesContainerRef}
               className="flex-1 overflow-y-auto px-4 py-4 space-y-4"
             >
-              {socketMessages
-                .filter((msg) => msg.moderationStatus !== 'REJECTED')
-                .map((message, index) => {
+              {(() => {
+                // 合併歷史消息和 socket 消息，去重
+                const allMessagesMap = new Map<string, ChatMessage>();
+                
+                // 先添加歷史消息
+                loadedHistoryMessages.forEach(msg => {
+                  allMessagesMap.set(msg.id, msg);
+                });
+                
+                // 再添加 socket 消息（會覆蓋重複的歷史消息）
+                socketMessages.forEach(msg => {
+                  allMessagesMap.set(msg.id, msg);
+                });
+                
+                return Array.from(allMessagesMap.values())
+                  .filter((msg) => msg.moderationStatus !== 'REJECTED')
+                  .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+              })().map((message, index, allMessages) => {
                   const isOwn = message.senderId === session?.user?.id;
                   const showAvatar =
                     index === 0 ||
-                    socketMessages[index - 1]?.senderId !== message.senderId;
+                    allMessages[index - 1]?.senderId !== message.senderId;
                   const showDate =
                     index === 0 ||
                     new Date(message.createdAt).getDate() !==
-                      new Date(socketMessages[index - 1].createdAt).getDate();
+                      new Date(allMessages[index - 1].createdAt).getDate();
 
                   return (
                     <div key={message.id}>

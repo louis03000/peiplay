@@ -108,18 +108,34 @@ export default function ChatRoomPage() {
   }, [roomId, session?.user?.id]);
 
   // 載入歷史訊息（後台加載，不阻塞 UI）
+  const [loadedHistoryMessages, setLoadedHistoryMessages] = useState<ChatMessage[]>([]);
+  
   useEffect(() => {
     if (!roomId || !session?.user?.id) return;
 
     const loadMessages = async () => {
       try {
         setLoadingMessages(true);
-        const messagesRes = await fetch(`/api/chat/rooms/${roomId}/messages?limit=20`); // 減少到20條，加快加載
+        const messagesRes = await fetch(`/api/chat/rooms/${roomId}/messages?limit=50`); // 增加到50條，確保消息不丟失
         
         if (messagesRes.ok) {
           const messagesData = await messagesRes.json();
-          // 計算用戶已發送的消息數量（僅計算免費聊天室）
-          if (messagesData.messages) {
+          if (messagesData.messages && Array.isArray(messagesData.messages)) {
+            // 將歷史消息轉換為 ChatMessage 格式
+            const formattedMessages: ChatMessage[] = messagesData.messages.map((msg: any) => ({
+              id: msg.id,
+              roomId: msg.roomId,
+              senderId: msg.senderId,
+              sender: msg.sender,
+              content: msg.content,
+              contentType: msg.contentType || 'TEXT',
+              status: msg.status || 'SENT',
+              moderationStatus: msg.moderationStatus || 'APPROVED',
+              createdAt: msg.createdAt,
+            }));
+            setLoadedHistoryMessages(formattedMessages);
+            
+            // 計算用戶已發送的消息數量（僅計算免費聊天室）
             const currentRoom = room;
             const isFreeChatRoom =
               currentRoom &&
@@ -128,7 +144,7 @@ export default function ChatRoomPage() {
               !currentRoom.multiPlayerBookingId;
 
             if (isFreeChatRoom) {
-              const userSentCount = messagesData.messages.filter(
+              const userSentCount = formattedMessages.filter(
                 (msg: ChatMessage) => msg.senderId === session.user.id
               ).length;
               setUserMessageCount(userSentCount);
@@ -142,9 +158,8 @@ export default function ChatRoomPage() {
       }
     };
 
-    // 延遲加載消息，讓 UI 先顯示
-    const timer = setTimeout(loadMessages, 100);
-    return () => clearTimeout(timer);
+    // 立即加載消息，確保不丟失
+    loadMessages();
   }, [roomId, room, session?.user?.id]);
 
   // 滾動到底部
@@ -170,7 +185,9 @@ export default function ChatRoomPage() {
 
       // 更新用戶發送的消息數量（僅免費聊天室）
       if (isFreeChat) {
-        const userSentCount = socketMessages.filter(
+        // 合併歷史消息和 socket 消息來計算
+        const allMessages = [...loadedHistoryMessages, ...socketMessages];
+        const userSentCount = allMessages.filter(
           (msg) => msg.senderId === session.user.id && !msg.id.startsWith('temp-')
         ).length;
         setUserMessageCount(userSentCount);
@@ -244,7 +261,8 @@ export default function ChatRoomPage() {
           alert(error.message);
           // 重置計數為實際值
           if (isFreeChat && session?.user?.id) {
-            const actualCount = socketMessages.filter(
+            const allMessages = [...loadedHistoryMessages, ...socketMessages];
+            const actualCount = allMessages.filter(
               (msg) => msg.senderId === session.user.id && !msg.id.startsWith('temp-')
             ).length;
             setUserMessageCount(actualCount);
@@ -355,17 +373,36 @@ export default function ChatRoomPage() {
         ref={messagesContainerRef}
         className="flex-1 overflow-y-auto px-4 py-4 space-y-4"
       >
-        {loadingMessages && socketMessages.length === 0 && optimisticMessages.length === 0 && (
+        {loadingMessages && loadedHistoryMessages.length === 0 && socketMessages.length === 0 && optimisticMessages.length === 0 && (
           <div className="flex items-center justify-center py-8">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
             <p className="ml-3 text-gray-600 text-sm">載入訊息中...</p>
           </div>
         )}
-        {/* 合併實際消息和樂觀更新的消息 */}
-        {[...socketMessages, ...optimisticMessages]
-          .filter((msg) => msg.moderationStatus !== 'REJECTED')
-          .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
-          .map((message, index, allMessages) => {
+        {/* 合併歷史消息、實際消息和樂觀更新的消息 */}
+        {(() => {
+          // 合併所有消息，去重
+          const allMessagesMap = new Map<string, ChatMessage>();
+          
+          // 先添加歷史消息
+          loadedHistoryMessages.forEach(msg => {
+            allMessagesMap.set(msg.id, msg);
+          });
+          
+          // 再添加 socket 消息（會覆蓋重複的歷史消息）
+          socketMessages.forEach(msg => {
+            allMessagesMap.set(msg.id, msg);
+          });
+          
+          // 最後添加樂觀更新的消息（臨時消息）
+          optimisticMessages.forEach(msg => {
+            allMessagesMap.set(msg.id, msg);
+          });
+          
+          return Array.from(allMessagesMap.values())
+            .filter((msg) => msg.moderationStatus !== 'REJECTED')
+            .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+        })().map((message, index, allMessages) => {
             const isOwn = message.senderId === session?.user?.id;
             const showAvatar =
               index === 0 ||

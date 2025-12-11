@@ -102,6 +102,7 @@ export const CacheKeys = {
     detail: (id: string) => `partners:detail:${id}`,
     verified: () => 'partners:verified',
     homepage: () => 'partners:homepage',
+    ranking: () => 'partners:ranking',
   },
 
   // Bookings

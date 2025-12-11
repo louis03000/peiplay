@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db-resilience';
+import { Cache, CacheKeys, CacheTTL } from '@/lib/redis-cache';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,7 +16,11 @@ export async function GET(request: Request) {
       );
     }
 
-    const result = await db.query(async (client) => {
+    // 優化：使用 Redis 快取（評價不常變動）
+    const result = await Cache.getOrSet(
+      CacheKeys.reviews.partner(partnerId) + ':average',
+      async () => {
+        return await db.query(async (client) => {
       // 獲取該夥伴的所有已審核評價
       const reviews = await client.review.findMany({
       where: {
@@ -75,11 +80,22 @@ export async function GET(request: Request) {
         averageRating,
         totalReviews: reviews.length,
         ratingBreakdown,
-        recentReviews
-      };
-    }, 'partners/average-rating')
+          recentReviews
+        };
+      }, 'partners/average-rating')
+    },
+    CacheTTL.MEDIUM // 5 分鐘快取
+  )
 
-    return NextResponse.json(result)
+    // 公開資料使用 public cache
+    return NextResponse.json(
+      result,
+      {
+        headers: {
+          'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600',
+        },
+      }
+    )
 
   } catch (error) {
     console.error('Error fetching partner average rating:', error);

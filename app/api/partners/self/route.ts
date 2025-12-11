@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db-resilience'
 import { createErrorResponse } from '@/lib/api-helpers'
+import { CacheInvalidation } from '@/lib/redis-cache'
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -46,7 +47,15 @@ export async function GET() {
       return NextResponse.json({ partner: null })
     }
 
-    return NextResponse.json({ partner })
+    // 個人資料使用 private cache（只快取在用戶瀏覽器中）
+    return NextResponse.json(
+      { partner },
+      {
+        headers: {
+          'Cache-Control': 'private, max-age=60, stale-while-revalidate=120',
+        },
+      }
+    )
   } catch (error) {
     return createErrorResponse(error, 'partners:self:get')
   }
@@ -105,6 +114,11 @@ export async function PATCH(request: Request) {
 
       return { type: 'SUCCESS', partner: updatedPartner } as const
     }, 'partners:self:update')
+
+    // 清除相關快取
+    if (result.type === 'SUCCESS') {
+      await CacheInvalidation.onPartnerUpdate(result.partner.id);
+    }
 
     if (result.type === 'NOT_FOUND') {
       return NextResponse.json({ error: '找不到夥伴資料' }, { status: 404 })

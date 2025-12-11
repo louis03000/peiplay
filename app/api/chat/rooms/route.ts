@@ -29,24 +29,36 @@ export async function GET(request: Request) {
 
         const now = new Date();
         
-        // 獲取用戶參與的所有聊天室，過濾掉已結束的訂單聊天室
+        // 獲取用戶參與的所有聊天室，包含：
+        // 1. 免費聊天室（所有 bookingId 都為 null）
+        // 2. 未結束的訂單聊天室
+        // 3. 群組聊天室
         const memberships = await chatRoomMember.findMany({
         where: {
           userId: session.user.id,
           isActive: true,
-          // 只包含未結束的訂單聊天室或群組聊天室
           OR: [
             {
+              // 免費聊天室（所有 booking 相關 ID 都為 null）
               room: {
-                groupBookingId: { not: null }, // 群組聊天室
+                bookingId: null,
+                groupBookingId: null,
+                multiPlayerBookingId: null,
               },
             },
             {
+              // 群組聊天室
+              room: {
+                groupBookingId: { not: null },
+              },
+            },
+            {
+              // 未結束的訂單聊天室
               room: {
                 bookingId: { not: null },
                 booking: {
                   schedule: {
-                    endTime: { gte: now }, // 未結束的訂單
+                    endTime: { gte: now },
                   },
                 },
               },
@@ -82,9 +94,12 @@ export async function GET(request: Request) {
                 },
               },
               booking: {
-                include: {
+                select: {
+                  id: true,
+                  status: true,
                   customer: {
-                    include: {
+                    select: {
+                      userId: true,
                       user: {
                         select: {
                           id: true,
@@ -94,9 +109,10 @@ export async function GET(request: Request) {
                     },
                   },
                   schedule: {
-                    include: {
+                    select: {
                       partner: {
-                        include: {
+                        select: {
+                          userId: true,
                           user: {
                             select: {
                               id: true,
@@ -110,11 +126,13 @@ export async function GET(request: Request) {
                 },
               },
               groupBooking: {
-                include: {
+                select: {
+                  id: true,
                   GroupBookingParticipant: {
-                    include: {
+                    select: {
                       Customer: {
-                        include: {
+                        select: {
+                          userId: true,
                           user: {
                             select: {
                               id: true,
@@ -137,48 +155,59 @@ export async function GET(request: Request) {
         },
       });
 
-      // 批量查詢未讀訊息數（避免 N+1 問題）
+      // 優化：批量查詢未讀訊息數（只查詢有 lastMessageAt 的房間，減少查詢量）
       const roomIds = memberships.map((m: any) => m.roomId);
-      const lastReadMap = new Map<string, Date>(
-        memberships.map((m: any) => {
+      const lastReadMap = new Map<string, Date>();
+      
+      // 只處理有 lastMessageAt 的房間（有消息的房間才需要計算未讀數）
+      memberships.forEach((m: any) => {
+        if (m.room.lastMessageAt) {
           const readAt = m.lastReadAt || m.joinedAt;
-          // 確保轉換為 Date 對象
           const readDate = readAt instanceof Date 
             ? readAt 
             : readAt 
               ? new Date(readAt as string | number)
-              : new Date();
-          return [m.roomId, readDate];
-        })
-      );
-
-      // 批量查詢所有未讀訊息
-      const unreadMessages = await (client as any).chatMessage.findMany({
-        where: {
-          roomId: { in: roomIds },
-          senderId: { not: session.user.id },
-          moderationStatus: { not: 'REJECTED' },
-        },
-        select: {
-          roomId: true,
-          createdAt: true,
-        },
-      });
-
-      // 計算每個聊天室的未讀數
-      const unreadCountMap = new Map<string, number>();
-      unreadMessages.forEach((msg: any) => {
-        const lastReadDate = lastReadMap.get(msg.roomId);
-        if (lastReadDate) {
-          const messageDate = new Date(msg.createdAt);
-          if (messageDate > lastReadDate) {
-            unreadCountMap.set(
-              msg.roomId,
-              (unreadCountMap.get(msg.roomId) || 0) + 1
-            );
-          }
+              : new Date(0); // 如果沒有讀取時間，從最早開始計算
+          lastReadMap.set(m.roomId, readDate);
         }
       });
+
+      // 只查詢有 lastMessageAt 的房間的未讀訊息（優化查詢）
+      const roomsWithMessages = roomIds.filter((id) => {
+        const membership = memberships.find((m: any) => m.roomId === id);
+        return membership?.room.lastMessageAt;
+      });
+
+      const unreadCountMap = new Map<string, number>();
+      
+      if (roomsWithMessages.length > 0) {
+        // 批量查詢所有未讀訊息（只查詢有消息的房間）
+        const unreadMessages = await (client as any).chatMessage.findMany({
+          where: {
+            roomId: { in: roomsWithMessages },
+            senderId: { not: session.user.id },
+            moderationStatus: { not: 'REJECTED' },
+          },
+          select: {
+            roomId: true,
+            createdAt: true,
+          },
+        });
+
+        // 計算每個聊天室的未讀數
+        unreadMessages.forEach((msg: any) => {
+          const lastReadDate = lastReadMap.get(msg.roomId);
+          if (lastReadDate) {
+            const messageDate = new Date(msg.createdAt);
+            if (messageDate > lastReadDate) {
+              unreadCountMap.set(
+                msg.roomId,
+                (unreadCountMap.get(msg.roomId) || 0) + 1
+              );
+            }
+          }
+        });
+      }
 
       // 構建返回結果
       const rooms = memberships.map((membership: any) => ({

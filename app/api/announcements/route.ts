@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { db } from '@/lib/db-resilience';
+import { Cache, CacheKeys, CacheTTL } from '@/lib/redis-cache';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -12,7 +13,12 @@ export async function GET() {
     console.log('✅ announcements GET api triggered');
 
     const now = new Date();
-    const announcements = await db.query(async (client) => {
+    
+    // 使用 Redis 快取（TTL: 2 分鐘，因為公告可能頻繁更新）
+    const announcements = await Cache.getOrSet(
+      CacheKeys.stats.platform() + ':announcements',
+      async () => {
+        return await db.query(async (client) => {
       // 優化策略：
       // 1. 使用 select 而不是 include，只查詢必要欄位
       // 2. 先查詢所有活躍公告，然後在應用層過濾過期（避免 OR 條件影響索引）
@@ -49,8 +55,11 @@ export async function GET() {
         return new Date(announcement.expiresAt) > now;
       });
 
-      return validAnnouncements;
-    }, 'announcements:get');
+          return validAnnouncements;
+        }, 'announcements:get');
+      },
+      CacheTTL.SHORT // 2 分鐘快取
+    );
 
     // 在應用層格式化資料，減少資料庫處理
     const formattedAnnouncements = announcements.map(announcement => ({
@@ -66,7 +75,16 @@ export async function GET() {
     }));
 
     console.log(`📊 找到 ${formattedAnnouncements.length} 筆活躍公告`);
-    return NextResponse.json({ announcements: formattedAnnouncements });
+    
+    // 設定 HTTP Cache Headers（Stale-While-Revalidate 策略）
+    return NextResponse.json(
+      { announcements: formattedAnnouncements },
+      {
+        headers: {
+          'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300',
+        },
+      }
+    );
 
   } catch (error) {
     console.error('❌ 獲取公告失敗:', error);
@@ -112,6 +130,9 @@ export async function POST(request: Request) {
         }
       });
     });
+
+    // 清除公告快取
+    await Cache.delete(CacheKeys.stats.platform() + ':announcements');
 
     console.log(`✅ 公告創建成功: ${announcement.id}`);
     return NextResponse.json({

@@ -58,7 +58,16 @@ export async function GET(
 
       const messages = await (client as any).chatMessage.findMany({
         where,
-        include: {
+        select: {
+          // 優化：使用 select 而非 include
+          id: true,
+          roomId: true,
+          senderId: true,
+          content: true,
+          contentType: true,
+          status: true,
+          moderationStatus: true,
+          createdAt: true,
           sender: {
             select: {
               id: true,
@@ -68,7 +77,10 @@ export async function GET(
             },
           },
         },
-        orderBy: { createdAt: 'desc' },
+        orderBy: [
+          { createdAt: 'desc' },
+          { id: 'desc' }, // 確保排序穩定
+        ],
         take: limit,
       });
 
@@ -76,7 +88,15 @@ export async function GET(
       return messages.reverse();
     }, 'chat:rooms:roomId:messages:get');
 
-    return NextResponse.json({ messages: result });
+    // 個人聊天訊息使用 private cache
+    return NextResponse.json(
+      { messages: result },
+      {
+        headers: {
+          'Cache-Control': 'private, max-age=10, stale-while-revalidate=30',
+        },
+      }
+    );
   } catch (error) {
     return createErrorResponse(error, 'chat:rooms:roomId:messages:get');
   }

@@ -35,8 +35,14 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status'); // PENDING, FLAGGED, REJECTED
     const roomId = searchParams.get('roomId');
-    const limit = parseInt(searchParams.get('limit') || '50');
+    const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 100);
+    
+    // 優化：支援 cursor-based pagination（避免大偏移量效能問題）
+    const cursor = searchParams.get('cursor'); // JSON: {createdAt: '...', id: '...'}
     const offset = parseInt(searchParams.get('offset') || '0');
+    
+    // 如果 offset > 100，建議使用 cursor pagination
+    const useCursorPagination = cursor || offset > 100;
 
     const result = await db.query(async (client) => {
       const where: any = {};
@@ -49,17 +55,43 @@ export async function GET(request: Request) {
         where.roomId = roomId;
       }
 
+      // 優化：使用 cursor-based pagination 避免大偏移量效能問題
+      let cursorCondition: any = {};
+      if (useCursorPagination && cursor) {
+        try {
+          const cursorData = JSON.parse(cursor);
+          cursorCondition = {
+            OR: [
+              { createdAt: { lt: new Date(cursorData.createdAt) } },
+              {
+                createdAt: new Date(cursorData.createdAt),
+                id: { lt: cursorData.id },
+              },
+            ],
+          };
+        } catch (e) {
+          // 如果 cursor 格式錯誤，回退到 offset
+          console.warn('Invalid cursor format, falling back to offset');
+        }
+      }
+
       // 獲取需要審查的訊息
       const messages = await client.chatMessage.findMany({
         where: {
           ...where,
+          ...cursorCondition,
           OR: [
             { moderationStatus: 'FLAGGED' },
             { moderationStatus: 'PENDING' },
             { moderationStatus: 'REJECTED' },
           ],
         },
-        include: {
+        select: {
+          // 優化：使用 select 而非 include，只查詢必要欄位
+          id: true,
+          content: true,
+          moderationStatus: true,
+          createdAt: true,
           sender: {
             select: {
               id: true,
@@ -69,9 +101,10 @@ export async function GET(request: Request) {
             },
           },
           room: {
-            include: {
+            select: {
+              id: true,
               members: {
-                include: {
+                select: {
                   user: {
                     select: {
                       id: true,
@@ -96,9 +129,12 @@ export async function GET(request: Request) {
             },
           },
         },
-        orderBy: { createdAt: 'desc' },
+        orderBy: [
+          { createdAt: 'desc' },
+          { id: 'desc' }, // 確保排序穩定
+        ],
         take: limit,
-        skip: offset,
+        ...(useCursorPagination ? {} : { skip: offset }), // 僅在非 cursor pagination 時使用 skip
       });
 
       // 獲取統計資訊

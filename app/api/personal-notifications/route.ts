@@ -115,7 +115,15 @@ export async function GET() {
     // 直接返回，已經包含 sender 資訊
     const formattedNotifications = notifications;
 
-    return NextResponse.json({ notifications: formattedNotifications });
+    // 個人通知使用 private cache（只快取在用戶瀏覽器中）
+    return NextResponse.json(
+      { notifications: formattedNotifications },
+      {
+        headers: {
+          'Cache-Control': 'private, max-age=30, stale-while-revalidate=60',
+        },
+      }
+    );
   } catch (error) {
     return createErrorResponse(error, 'notifications:list');
   }

@@ -17,8 +17,12 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const type = searchParams.get('type');
     const unreadOnly = searchParams.get('unreadOnly') === 'true';
-    const limit = parseInt(searchParams.get('limit') || '50');
+    const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 100);
     const offset = parseInt(searchParams.get('offset') || '0');
+    
+    // 優化：支援 cursor-based pagination
+    const cursor = searchParams.get('cursor');
+    const useCursorPagination = cursor || offset > 100;
 
     const where: Record<string, unknown> = {
       userId: session.user.id,
@@ -33,12 +37,48 @@ export async function GET(request: Request) {
     }
 
     const result = await db.query(async (client) => {
+      // 優化：使用 cursor-based pagination
+      let cursorCondition: any = {};
+      if (useCursorPagination && cursor) {
+        try {
+          const cursorData = JSON.parse(cursor);
+          cursorCondition = {
+            OR: [
+              { createdAt: { lt: new Date(cursorData.createdAt) } },
+              {
+                createdAt: new Date(cursorData.createdAt),
+                id: { lt: cursorData.id },
+              },
+            ],
+          };
+        } catch (e) {
+          console.warn('Invalid cursor format, falling back to offset');
+        }
+      }
+
       const [notifications, unreadCount] = await Promise.all([
         client.notification.findMany({
-          where,
-          orderBy: { createdAt: 'desc' },
+          where: {
+            ...where,
+            ...cursorCondition,
+          },
+          select: {
+            // 優化：使用 select 只查詢必要欄位
+            id: true,
+            userId: true,
+            title: true,
+            content: true,
+            type: true,
+            isRead: true,
+            createdAt: true,
+            data: true,
+          },
+          orderBy: [
+            { createdAt: 'desc' },
+            { id: 'desc' }, // 確保排序穩定
+          ],
           take: limit,
-          skip: offset,
+          ...(useCursorPagination ? {} : { skip: offset }),
         }),
         client.notification.count({
           where: {
@@ -51,11 +91,19 @@ export async function GET(request: Request) {
       return { notifications, unreadCount };
     }, 'notifications:get');
 
-    return NextResponse.json({
-      notifications: result.notifications,
-      unreadCount: result.unreadCount,
-      hasMore: result.notifications.length === limit,
-    });
+    // 個人資料使用 private cache
+    return NextResponse.json(
+      {
+        notifications: result.notifications,
+        unreadCount: result.unreadCount,
+        hasMore: result.notifications.length === limit,
+      },
+      {
+        headers: {
+          'Cache-Control': 'private, max-age=30, stale-while-revalidate=60',
+        },
+      }
+    );
   } catch (error) {
     return createErrorResponse(error, 'notifications:get');
   }
