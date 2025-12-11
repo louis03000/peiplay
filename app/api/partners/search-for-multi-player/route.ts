@@ -177,7 +177,7 @@ export async function GET(request: Request) {
             const scheduleEnd = new Date(schedule.endTime)
             const scheduleDate = new Date(schedule.date)
             
-            // 檢查日期是否匹配（使用 UTC 日期比較，更寬鬆的匹配）
+            // 檢查日期是否匹配（使用 UTC 日期比較）
             const scheduleDateUTC = `${scheduleDate.getUTCFullYear()}-${String(scheduleDate.getUTCMonth() + 1).padStart(2, '0')}-${String(scheduleDate.getUTCDate()).padStart(2, '0')}`
             const searchDateUTC = `${startDateTime.getUTCFullYear()}-${String(startDateTime.getUTCMonth() + 1).padStart(2, '0')}-${String(startDateTime.getUTCDate()).padStart(2, '0')}`
             const isDateMatch = scheduleDateUTC === searchDateUTC
@@ -185,15 +185,30 @@ export async function GET(request: Request) {
             if (!isDateMatch) return false
             
             // 檢查時間：搜尋的時段必須完全包含在夥伴的時段內
-            // 使用 getTime() 進行時間戳比較，確保時區一致
-            const scheduleStartTime = scheduleStart.getTime()
-            const scheduleEndTime = scheduleEnd.getTime()
-            const searchStartTime = startDateTime.getTime()
-            const searchEndTime = endDateTime.getTime()
+            // 將 schedule 的時間轉換為與搜索日期相同的日期，然後比較時間部分
+            // 這樣可以確保日期一致，只比較時間
+            const scheduleStartOnSearchDate = new Date(Date.UTC(
+              startDateTime.getUTCFullYear(),
+              startDateTime.getUTCMonth(),
+              startDateTime.getUTCDate(),
+              scheduleStart.getUTCHours(),
+              scheduleStart.getUTCMinutes(),
+              0,
+              0
+            ))
+            const scheduleEndOnSearchDate = new Date(Date.UTC(
+              startDateTime.getUTCFullYear(),
+              startDateTime.getUTCMonth(),
+              startDateTime.getUTCDate(),
+              scheduleEnd.getUTCHours(),
+              scheduleEnd.getUTCMinutes(),
+              0,
+              0
+            ))
             
             // 夥伴的時段開始時間 <= 搜尋開始時間 且 夥伴的時段結束時間 >= 搜尋結束時間
-            const isTimeContained = scheduleStartTime <= searchStartTime && 
-                                   scheduleEndTime >= searchEndTime
+            const isTimeContained = scheduleStartOnSearchDate.getTime() <= startDateTime.getTime() && 
+                                   scheduleEndOnSearchDate.getTime() >= endDateTime.getTime()
             
             // 檢查是否有活躍的預約（bookings 是一對一關係，可能是 null 或單個對象）
             // 只排除真正活躍的預約狀態
