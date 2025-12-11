@@ -126,7 +126,7 @@ const nextConfig = {
       },
       // 靜態檔案快取（public 目錄下的資源）
       {
-        source: '/(.*\\.(svg|png|jpg|jpeg|gif|webp|ico|woff|woff2|ttf|eot))',
+        source: '/:path*\\.(svg|png|jpg|jpeg|gif|webp|ico|woff|woff2|ttf|eot)',
         headers: [
           {
             key: 'Cache-Control',
@@ -136,7 +136,7 @@ const nextConfig = {
       },
       // 字體檔案快取
       {
-        source: '/(.*\\.(woff|woff2|ttf|eot|otf))',
+        source: '/:path*\\.(woff|woff2|ttf|eot|otf)',
         headers: [
           {
             key: 'Cache-Control',
