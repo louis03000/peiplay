@@ -173,7 +173,7 @@ export async function GET(request: Request) {
       });
 
       // 只查詢有 lastMessageAt 的房間的未讀訊息（優化查詢）
-      const roomsWithMessages = roomIds.filter((id) => {
+      const roomsWithMessages = roomIds.filter((id: string) => {
         const membership = memberships.find((m: any) => m.roomId === id);
         return membership?.room.lastMessageAt;
       });
