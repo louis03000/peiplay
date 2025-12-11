@@ -291,6 +291,7 @@ export async function POST(request: Request) {
           }
 
           // 使用原始 SQL 創建群組預約
+          // 注意：需要將字符串轉換為正確的枚舉類型
           await tx.$executeRaw`
             INSERT INTO "GroupBooking" (
               "id", "type", "title", "description", "date", "startTime", "endTime",
@@ -298,7 +299,7 @@ export async function POST(request: Request) {
               "initiatorId", "initiatorType", "createdAt", "updatedAt"
             ) VALUES (
               ${groupBookingId}::text,
-              ${'PARTNER_INITIATED'}::text,
+              ${'PARTNER_INITIATED'}::"GroupBookingType",
               ${title || null},
               ${description || null},
               ${startTime}::timestamp,
@@ -307,7 +308,7 @@ export async function POST(request: Request) {
               ${maxParticipants}::integer,
               ${0}::integer,
               ${pricePerPerson}::double precision,
-              ${'ACTIVE'}::text,
+              ${'ACTIVE'}::"GroupBookingStatus",
               ${partner.id}::text,
               ${'PARTNER'}::text,
               NOW(),
