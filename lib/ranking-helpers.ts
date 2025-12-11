@@ -210,7 +210,10 @@ export async function getPartnerLastWeekRank(partnerId: string): Promise<number 
         return rankingHistory?.rank || null
       } catch (error: any) {
         // 如果表不存在或其他錯誤，返回 null（使用默認費率）
-        console.warn('⚠️ RankingHistory 表查詢失敗，使用默認費率:', error?.message || error)
+        // 只在開發環境輸出警告，避免生產環境日誌污染
+        if (process.env.NODE_ENV === 'development') {
+          console.warn('⚠️ RankingHistory 表查詢失敗，使用默認費率:', error?.message || error)
+        }
         return null
       }
     }, 'ranking:get-last-week-rank')
@@ -218,7 +221,10 @@ export async function getPartnerLastWeekRank(partnerId: string): Promise<number 
     return result
   } catch (error: any) {
     // 如果查詢失敗，返回 null（使用默認費率）
-    console.warn('⚠️ 獲取上一週排名失敗，使用默認費率:', error?.message || error)
+    // 只在開發環境輸出警告，避免生產環境日誌污染
+    if (process.env.NODE_ENV === 'development') {
+      console.warn('⚠️ 獲取上一週排名失敗，使用默認費率:', error?.message || error)
+    }
     return null
   }
 }

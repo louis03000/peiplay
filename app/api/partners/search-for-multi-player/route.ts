@@ -52,7 +52,7 @@ export async function GET(request: Request) {
       }, { status: 400 })
     }
 
-    // 創建時間對象
+    // 創建時間對象（使用 UTC 以確保時區一致）
     const [startHour, startMinute] = startTime.split(':').map(Number)
     const [endHour, endMinute] = endTime.split(':').map(Number)
     const [year, month, day] = normalizedDate.split('-').map(Number)
@@ -62,8 +62,9 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: '時間或日期解析失敗' }, { status: 400 })
     }
     
-    const startDateTime = new Date(year, month - 1, day, startHour, startMinute, 0, 0)
-    const endDateTime = new Date(year, month - 1, day, endHour, endMinute, 0, 0)
+    // 使用 UTC 時間創建，確保與數據庫時區一致
+    const startDateTime = new Date(Date.UTC(year, month - 1, day, startHour, startMinute, 0, 0))
+    const endDateTime = new Date(Date.UTC(year, month - 1, day, endHour, endMinute, 0, 0))
     
     if (isNaN(startDateTime.getTime()) || isNaN(endDateTime.getTime())) {
       return NextResponse.json({ error: '時間對象創建失敗' }, { status: 400 })
@@ -175,7 +176,7 @@ export async function GET(request: Request) {
             const scheduleEnd = new Date(schedule.endTime)
             const scheduleDate = new Date(schedule.date)
             
-            // 檢查日期是否匹配
+            // 檢查日期是否匹配（使用 UTC 日期比較，更寬鬆的匹配）
             const scheduleDateUTC = `${scheduleDate.getUTCFullYear()}-${String(scheduleDate.getUTCMonth() + 1).padStart(2, '0')}-${String(scheduleDate.getUTCDate()).padStart(2, '0')}`
             const searchDateUTC = `${startDateTime.getUTCFullYear()}-${String(startDateTime.getUTCMonth() + 1).padStart(2, '0')}-${String(startDateTime.getUTCDate()).padStart(2, '0')}`
             const isDateMatch = scheduleDateUTC === searchDateUTC
@@ -183,15 +184,27 @@ export async function GET(request: Request) {
             if (!isDateMatch) return false
             
             // 檢查時間：搜尋的時段必須完全包含在夥伴的時段內
-            const isTimeContained = scheduleStart.getTime() <= startDateTime.getTime() && 
-                                   scheduleEnd.getTime() >= endDateTime.getTime()
+            // 使用 getTime() 進行時間戳比較，確保時區一致
+            const scheduleStartTime = scheduleStart.getTime()
+            const scheduleEndTime = scheduleEnd.getTime()
+            const searchStartTime = startDateTime.getTime()
+            const searchEndTime = endDateTime.getTime()
             
-            // 檢查是否有活躍的預約
+            // 夥伴的時段開始時間 <= 搜尋開始時間 且 夥伴的時段結束時間 >= 搜尋結束時間
+            const isTimeContained = scheduleStartTime <= searchStartTime && 
+                                   scheduleEndTime >= searchEndTime
+            
+            // 檢查是否有活躍的預約（bookings 是一對一關係，可能是 null 或單個對象）
+            // 只排除真正活躍的預約狀態
             const hasActiveBooking = schedule.bookings && 
               schedule.bookings.status !== 'CANCELLED' && 
-              schedule.bookings.status !== 'REJECTED'
+              schedule.bookings.status !== 'REJECTED' &&
+              schedule.bookings.status !== 'COMPLETED'
             
-            return isDateMatch && isTimeContained && schedule.isAvailable && !hasActiveBooking
+            // 確保所有條件都滿足
+            const isAvailable = schedule.isAvailable && !hasActiveBooking
+            
+            return isDateMatch && isTimeContained && isAvailable
           })
           
           if (!matchingSchedule) return null

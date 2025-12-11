@@ -248,5 +248,6 @@ export const authOptions: NextAuthOptions = {
     strategy: 'jwt',
     maxAge: 30 * 24 * 60 * 60, // 30 days
   },
-  debug: true,
+  // 只在開發環境啟用 debug，避免生產環境警告
+  debug: process.env.NODE_ENV === 'development',
 } 

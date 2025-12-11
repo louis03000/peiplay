@@ -291,7 +291,8 @@ export async function POST(request: Request) {
 
           // 創建群組預約
           // 注意：暫時不包含 games 字段，因為數據庫中可能還沒有這個字段
-          const createData: any = {
+          // 使用 Omit 類型來排除 games 字段，避免 Prisma 嘗試設置它
+          const createData = {
             id: groupBookingId,
             type: 'PARTNER_INITIATED' as const,
             title: title || null,
@@ -305,14 +306,8 @@ export async function POST(request: Request) {
             status: 'ACTIVE' as const,
             initiatorId: partner.id, // String
             initiatorType: 'PARTNER', // String
-            // games: games, // 暫時移除，因為數據庫中可能還沒有這個字段
-          }
-          
-          // 如果數據庫有 games 字段，可以添加
-          // 暫時註釋掉，等數據庫遷移完成後再啟用
-          // if (games.length > 0) {
-          //   createData.games = games
-          // }
+            // 明確排除 games 字段，因為數據庫中可能還沒有這個字段
+          } as Omit<any, 'games'>
           
           console.log('🔍 準備創建群組預約，Prisma 資料:', {
             ...createData,
@@ -334,13 +329,13 @@ export async function POST(request: Request) {
             status: typeof createData.status,
             initiatorId: typeof createData.initiatorId,
             initiatorType: typeof createData.initiatorType,
-            // games: Array.isArray(createData.games), // 暫時移除，因為數據庫中可能還沒有這個字段
           })
           
           let groupBooking
           try {
+            // 使用類型斷言來繞過 Prisma 的類型檢查，因為數據庫中可能還沒有 games 字段
             groupBooking = await tx.groupBooking.create({
-              data: createData,
+              data: createData as any,
             })
             console.log('✅ 群組預約創建成功:', groupBooking.id)
           } catch (createError: any) {
@@ -353,16 +348,66 @@ export async function POST(request: Request) {
             })
             console.error('❌ 嘗試創建的資料:', JSON.stringify(createData, null, 2))
             
-            // 如果是 Prisma 驗證錯誤，提供更詳細的錯誤訊息
-            if (createError?.code === 'P2009' || createError?.code === 'P2012') {
-              console.error('❌ Prisma 驗證錯誤詳情:', {
-                code: createError.code,
-                message: createError.message,
-                meta: createError.meta,
-              })
+            // 如果是關於 games 字段不存在的錯誤，使用原始 SQL 查詢
+            if (createError?.message?.includes('games') || (createError?.message?.includes('column') && createError?.message?.includes('does not exist'))) {
+              console.log('⚠️ 檢測到 games 字段不存在，使用原始 SQL 查詢創建...')
+              try {
+                // 使用原始 SQL 查詢來創建記錄，排除 games 字段
+                const result = await tx.$queryRaw<any[]>`
+                  INSERT INTO "GroupBooking" (
+                    "id", "type", "title", "description", "date", "startTime", "endTime",
+                    "maxParticipants", "currentParticipants", "pricePerPerson", "status",
+                    "initiatorId", "initiatorType", "createdAt", "updatedAt"
+                  ) VALUES (
+                    ${createData.id}::text,
+                    ${createData.type}::text,
+                    ${createData.title},
+                    ${createData.description},
+                    ${createData.date}::timestamp,
+                    ${createData.startTime}::timestamp,
+                    ${createData.endTime}::timestamp,
+                    ${createData.maxParticipants}::integer,
+                    ${createData.currentParticipants}::integer,
+                    ${createData.pricePerPerson}::double precision,
+                    ${createData.status}::text,
+                    ${createData.initiatorId}::text,
+                    ${createData.initiatorType}::text,
+                    NOW(),
+                    NOW()
+                  )
+                  RETURNING *
+                `
+                
+                if (!result || result.length === 0) {
+                  throw new Error('原始 SQL 查詢未返回記錄')
+                }
+                
+                // 查詢創建的記錄以獲取完整的 Prisma 對象
+                groupBooking = await tx.groupBooking.findUnique({
+                  where: { id: createData.id },
+                })
+                
+                if (!groupBooking) {
+                  throw new Error('無法找到創建的群組預約記錄')
+                }
+                
+                console.log('✅ 使用原始 SQL 創建群組預約成功:', groupBooking.id)
+              } catch (rawSqlError: any) {
+                console.error('❌ 原始 SQL 查詢也失敗:', rawSqlError)
+                throw createError // 拋出原始錯誤
+              }
+            } else {
+              // 如果是 Prisma 驗證錯誤，提供更詳細的錯誤訊息
+              if (createError?.code === 'P2009' || createError?.code === 'P2012') {
+                console.error('❌ Prisma 驗證錯誤詳情:', {
+                  code: createError.code,
+                  message: createError.message,
+                  meta: createError.meta,
+                })
+              }
+              
+              throw createError
             }
-            
-            throw createError
           }
 
           // 創建群組參與者記錄

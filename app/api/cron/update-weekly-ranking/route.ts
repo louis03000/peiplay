@@ -35,7 +35,10 @@ export async function GET(request: NextRequest) {
       })
 
       if (existingRanking) {
-        console.log(`⚠️ 上一週的排名已經存在，跳過更新`)
+        // 只在開發環境輸出日誌
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`⚠️ 上一週的排名已經存在，跳過更新`)
+        }
         return {
           message: '上一週的排名已經存在',
           weekStartDate: lastWeekStart.toISOString(),
