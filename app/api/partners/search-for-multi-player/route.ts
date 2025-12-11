@@ -79,12 +79,31 @@ export async function GET(request: Request) {
       ? games.split(',').map(g => g.trim().toLowerCase()).filter(g => g.length > 0)
       : []
 
+    // 調試日誌：搜索參數
+    console.log('🔍 [多人陪玩搜索] 搜索參數:', {
+      date: normalizedDate,
+      startTime,
+      endTime,
+      games: gameList,
+      startDateTime: startDateTime.toISOString(),
+      endDateTime: endDateTime.toISOString(),
+      startDateTimeUTC: `${startDateTime.getUTCFullYear()}-${String(startDateTime.getUTCMonth() + 1).padStart(2, '0')}-${String(startDateTime.getUTCDate()).padStart(2, '0')} ${String(startDateTime.getUTCHours()).padStart(2, '0')}:${String(startDateTime.getUTCMinutes()).padStart(2, '0')}`,
+      endDateTimeUTC: `${endDateTime.getUTCFullYear()}-${String(endDateTime.getUTCMonth() + 1).padStart(2, '0')}-${String(endDateTime.getUTCDate()).padStart(2, '0')} ${String(endDateTime.getUTCHours()).padStart(2, '0')}:${String(endDateTime.getUTCMinutes()).padStart(2, '0')}`,
+    })
+
     const result = await db.query(async (client) => {
       // 查詢日期範圍（擴大範圍以確保不遺漏）
       const dateStartUTC = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0))
       const dateEndUTC = new Date(Date.UTC(year, month - 1, day, 23, 59, 59, 999))
       const expandedDateStart = new Date(dateStartUTC.getTime() - 24 * 60 * 60 * 1000)
       const expandedDateEnd = new Date(dateEndUTC.getTime() + 24 * 60 * 60 * 1000)
+
+      console.log('📅 [多人陪玩搜索] 查詢日期範圍:', {
+        dateStartUTC: dateStartUTC.toISOString(),
+        dateEndUTC: dateEndUTC.toISOString(),
+        expandedDateStart: expandedDateStart.toISOString(),
+        expandedDateEnd: expandedDateEnd.toISOString(),
+      })
 
       // 查詢已批准且開啟群組預約的夥伴
       const partners = await client.partner.findMany({
@@ -142,6 +161,17 @@ export async function GET(request: Request) {
         take: 100,
       })
 
+      console.log(`📊 [多人陪玩搜索] 查詢結果: 找到 ${partners.length} 個開啟群組預約的夥伴`)
+      if (partners.length > 0) {
+        console.log('👥 [多人陪玩搜索] 夥伴列表:', partners.map(p => ({
+          id: p.id,
+          name: p.name,
+          allowGroupBooking: true, // 已經篩選過
+          schedulesCount: p.schedules.length,
+          games: p.games,
+        })))
+      }
+
       // 過濾被停權的夥伴
       const availablePartners = partners.filter(partner => {
         if (!partner.user) return false
@@ -157,6 +187,8 @@ export async function GET(request: Request) {
         return true
       })
 
+      console.log(`✅ [多人陪玩搜索] 停權篩選後: ${availablePartners.length} 個可用夥伴`)
+
       // 找到符合條件的夥伴
       const partnersWithAvailableSchedules = availablePartners
         .map(partner => {
@@ -167,11 +199,17 @@ export async function GET(request: Request) {
               partnerGames.some(partnerGame => partnerGame === searchGame)
             )
             if (!hasMatchingGame) {
+              console.log(`🎮 [多人陪玩搜索] 夥伴 ${partner.name} (${partner.id}) 被遊戲篩選排除:`, {
+                partnerGames,
+                searchGames: gameList,
+              })
               return null
             }
           }
           
           // 找到符合時段的 schedule
+          console.log(`🔎 [多人陪玩搜索] 檢查夥伴 ${partner.name} (${partner.id}) 的 ${partner.schedules.length} 個時段`)
+          
           const matchingSchedule = partner.schedules.find(schedule => {
             const scheduleStart = new Date(schedule.startTime)
             const scheduleEnd = new Date(schedule.endTime)
@@ -182,7 +220,15 @@ export async function GET(request: Request) {
             const searchDateUTC = `${startDateTime.getUTCFullYear()}-${String(startDateTime.getUTCMonth() + 1).padStart(2, '0')}-${String(startDateTime.getUTCDate()).padStart(2, '0')}`
             const isDateMatch = scheduleDateUTC === searchDateUTC
             
-            if (!isDateMatch) return false
+            if (!isDateMatch) {
+              console.log(`📅 [多人陪玩搜索] 時段 ${schedule.id} 日期不匹配:`, {
+                scheduleDate: scheduleDate.toISOString(),
+                scheduleDateUTC,
+                searchDateUTC,
+                isDateMatch,
+              })
+              return false
+            }
             
             // 檢查時間：搜尋的時段必須完全包含在夥伴的時段內
             // 將 schedule 的時間轉換為與搜索日期相同的日期，然後比較時間部分
@@ -220,10 +266,39 @@ export async function GET(request: Request) {
             // 確保所有條件都滿足
             const isAvailable = schedule.isAvailable && !hasActiveBooking
             
+            const matchResult = {
+              scheduleId: schedule.id,
+              scheduleDate: scheduleDate.toISOString(),
+              scheduleStart: scheduleStart.toISOString(),
+              scheduleEnd: scheduleEnd.toISOString(),
+              scheduleStartOnSearchDate: scheduleStartOnSearchDate.toISOString(),
+              scheduleEndOnSearchDate: scheduleEndOnSearchDate.toISOString(),
+              searchStart: startDateTime.toISOString(),
+              searchEnd: endDateTime.toISOString(),
+              isDateMatch,
+              isTimeContained,
+              scheduleIsAvailable: schedule.isAvailable,
+              hasActiveBooking: !!hasActiveBooking,
+              bookingStatus: schedule.bookings?.status || null,
+              isAvailable,
+              finalMatch: isDateMatch && isTimeContained && isAvailable,
+            }
+            
+            console.log(`⏰ [多人陪玩搜索] 時段 ${schedule.id} 匹配檢查:`, matchResult)
+            
             return isDateMatch && isTimeContained && isAvailable
           })
           
-          if (!matchingSchedule) return null
+          if (!matchingSchedule) {
+            console.log(`❌ [多人陪玩搜索] 夥伴 ${partner.name} (${partner.id}) 沒有符合條件的時段`)
+            return null
+          }
+          
+          console.log(`✅ [多人陪玩搜索] 夥伴 ${partner.name} (${partner.id}) 找到匹配時段:`, {
+            scheduleId: matchingSchedule.id,
+            startTime: matchingSchedule.startTime,
+            endTime: matchingSchedule.endTime,
+          })
           
           return {
             id: partner.id,
@@ -242,6 +317,21 @@ export async function GET(request: Request) {
         })
         .filter(partner => partner !== null)
         .filter(partner => partner!.matchingSchedule !== null && partner!.matchingSchedule !== undefined)
+
+      console.log(`🎯 [多人陪玩搜索] 最終結果: 找到 ${partnersWithAvailableSchedules.length} 個符合條件的夥伴`)
+      if (partnersWithAvailableSchedules.length > 0) {
+        console.log('✅ [多人陪玩搜索] 匹配的夥伴:', partnersWithAvailableSchedules.map(p => ({
+          id: p.id,
+          name: p.name,
+          matchingSchedule: p.matchingSchedule,
+        })))
+      } else {
+        console.log('⚠️ [多人陪玩搜索] 沒有找到符合條件的夥伴，可能的原因:')
+        console.log('  - 沒有夥伴開啟群組預約')
+        console.log('  - 夥伴在該日期沒有可用時段')
+        console.log('  - 時段時間不匹配')
+        console.log('  - 時段已被預約')
+      }
 
       return partnersWithAvailableSchedules
     }, 'partners/search-for-multi-player')
