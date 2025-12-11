@@ -86,10 +86,11 @@ export async function GET(request: Request) {
       const expandedDateStart = new Date(dateStartUTC.getTime() - 24 * 60 * 60 * 1000)
       const expandedDateEnd = new Date(dateEndUTC.getTime() + 24 * 60 * 60 * 1000)
 
-      // 查詢已批准的夥伴
+      // 查詢已批准且開啟群組預約的夥伴
       const partners = await client.partner.findMany({
         where: {
           status: 'APPROVED',
+          allowGroupBooking: true, // 只查詢開啟群組預約的夥伴
           schedules: {
             some: {
               date: {
