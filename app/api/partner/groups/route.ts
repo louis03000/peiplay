@@ -340,9 +340,26 @@ export async function POST(request: Request) {
             data: { allowGroupBooking: true },
           })
 
-          // 查詢創建的記錄
+          // 查詢創建的記錄（使用 select 排除 games 字段，因為數據庫中可能還沒有這個字段）
           const groupBooking = await tx.groupBooking.findUnique({
             where: { id: groupBookingId },
+            select: {
+              id: true,
+              title: true,
+              description: true,
+              date: true,
+              startTime: true,
+              endTime: true,
+              maxParticipants: true,
+              currentParticipants: true,
+              pricePerPerson: true,
+              status: true,
+              initiatorId: true,
+              initiatorType: true,
+              createdAt: true,
+              updatedAt: true,
+              // 明確排除 games 字段
+            },
           })
 
           if (!groupBooking) {
@@ -359,9 +376,13 @@ export async function POST(request: Request) {
               currentParticipants: 1,
               pricePerPerson: groupBooking.pricePerPerson,
               status: groupBooking.status,
-              games: [],
-              startTime: groupBooking.startTime.toISOString(),
-              endTime: groupBooking.endTime.toISOString(),
+              games: [], // 返回空數組，因為數據庫中沒有這個字段
+              startTime: groupBooking.startTime instanceof Date 
+                ? groupBooking.startTime.toISOString() 
+                : String(groupBooking.startTime),
+              endTime: groupBooking.endTime instanceof Date 
+                ? groupBooking.endTime.toISOString() 
+                : String(groupBooking.endTime),
             },
           }
         })
