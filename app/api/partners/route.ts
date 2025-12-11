@@ -82,112 +82,112 @@ export async function GET(request: NextRequest) {
     const cacheKey = CacheKeys.partners.list(cacheParams);
 
     // 使用 Redis 快取（TTL: 2 分鐘，因為夥伴狀態可能頻繁變動）
-    const partners = await Cache.getOrSet(
+    const partners = (await Cache.getOrSet(
       cacheKey,
       async () => {
         return await db.query(
           async (client) => {
-        // 優化：在資料庫層面過濾被停權的用戶
-        
-        // 如果篩選「現在有空」，需要排除有活躍預約的夥伴
-        let partnerWhere: any = {
-          status: 'APPROVED',
-          ...(rankBooster ? { isRankBooster: true } : {}),
-          ...(availableNow ? { isAvailableNow: true } : {}),
-          // 過濾被停權的用戶
-          user: {
-            OR: [
-              { isSuspended: false },
-              {
-                isSuspended: true,
-                suspensionEndsAt: {
-                  lte: now, // 停權已過期
-                },
+            // 優化：在資料庫層面過濾被停權的用戶
+            
+            // 如果篩選「現在有空」，需要排除有活躍預約的夥伴
+            let partnerWhere: any = {
+              status: 'APPROVED',
+              ...(rankBooster ? { isRankBooster: true } : {}),
+              ...(availableNow ? { isAvailableNow: true } : {}),
+              // 過濾被停權的用戶
+              user: {
+                OR: [
+                  { isSuspended: false },
+                  {
+                    isSuspended: true,
+                    suspensionEndsAt: {
+                      lte: now, // 停權已過期
+                    },
+                  },
+                ],
               },
-            ],
-          },
-        }
-
-        // 優化：如果篩選「現在有空」，排除有活躍預約的夥伴
-        // 使用更高效的查詢方式 - 直接查詢有活躍預約的 partnerId
-        if (availableNow) {
-          // 使用更高效的查詢方式 - 直接查詢有活躍預約的 partnerId
-          // 使用 Prisma 查詢而非 raw query，確保類型安全
-          const busySchedules = await client.schedule.findMany({
-            where: {
-              bookings: {
-                status: {
-                  in: Array.from(ACTIVE_BOOKING_STATUSES),
-                },
-              },
-              endTime: { gte: now }, // 預約尚未結束
-            },
-            select: {
-              partnerId: true,
-            },
-            distinct: ['partnerId'],
-            take: 200, // 限制查詢數量
-          })
-
-          const partnerIds = busySchedules.map((s) => s.partnerId)
-
-          // 排除有活躍預約的夥伴
-          if (partnerIds.length > 0) {
-            partnerWhere.id = {
-              notIn: partnerIds,
             }
-          }
-        }
-        
-        return client.partner.findMany({
-          where: partnerWhere,
-          select: {
-            id: true,
-            name: true,
-            games: true,
-            halfHourlyRate: true,
-            coverImage: true,
-            images: true,
-            rankBoosterImages: true,
-            isAvailableNow: true,
-            isRankBooster: true,
-            allowGroupBooking: true,
-            rankBoosterNote: true,
-            rankBoosterRank: true,
-            customerMessage: true,
-            user: {
-              select: {
-                isSuspended: true,
-                suspensionEndsAt: true,
-              },
-            },
-            schedules: {
-              where: {
-                isAvailable: true,
-                date: scheduleDateFilter,
-                // 優化：先查詢所有可用時段，然後在應用層過濾有活躍預約的
-                // 這樣可以避免 OR 條件影響索引使用
-              },
+
+            // 優化：如果篩選「現在有空」，排除有活躍預約的夥伴
+            // 使用更高效的查詢方式 - 直接查詢有活躍預約的 partnerId
+            if (availableNow) {
+              // 使用更高效的查詢方式 - 直接查詢有活躍預約的 partnerId
+              // 使用 Prisma 查詢而非 raw query，確保類型安全
+              const busySchedules = await client.schedule.findMany({
+                where: {
+                  bookings: {
+                    status: {
+                      in: Array.from(ACTIVE_BOOKING_STATUSES),
+                    },
+                  },
+                  endTime: { gte: now }, // 預約尚未結束
+                },
+                select: {
+                  partnerId: true,
+                },
+                distinct: ['partnerId'],
+                take: 200, // 限制查詢數量
+              })
+
+              const partnerIds = busySchedules.map((s) => s.partnerId)
+
+              // 排除有活躍預約的夥伴
+              if (partnerIds.length > 0) {
+                partnerWhere.id = {
+                  notIn: partnerIds,
+                }
+              }
+            }
+            
+            return client.partner.findMany({
+              where: partnerWhere,
               select: {
                 id: true,
-                date: true,
-                startTime: true,
-                endTime: true,
-                isAvailable: true,
-                bookings: {
+                name: true,
+                games: true,
+                halfHourlyRate: true,
+                coverImage: true,
+                images: true,
+                rankBoosterImages: true,
+                isAvailableNow: true,
+                isRankBooster: true,
+                allowGroupBooking: true,
+                rankBoosterNote: true,
+                rankBoosterRank: true,
+                customerMessage: true,
+                user: {
                   select: {
-                    status: true,
+                    isSuspended: true,
+                    suspensionEndsAt: true,
                   },
                 },
+                schedules: {
+                  where: {
+                    isAvailable: true,
+                    date: scheduleDateFilter,
+                    // 優化：先查詢所有可用時段，然後在應用層過濾有活躍預約的
+                    // 這樣可以避免 OR 條件影響索引使用
+                  },
+                  select: {
+                    id: true,
+                    date: true,
+                    startTime: true,
+                    endTime: true,
+                    isAvailable: true,
+                    bookings: {
+                      select: {
+                        status: true,
+                      },
+                    },
+                  },
+                  orderBy: [{ date: 'asc' }, { startTime: 'asc' }],
+                  take: 50, // 限制每個 partner 最多載入 50 個時段
+                },
               },
-              orderBy: [{ date: 'asc' }, { startTime: 'asc' }],
-              take: 50, // 限制每個 partner 最多載入 50 個時段
-            },
-          },
-          orderBy: { createdAt: 'desc' },
-          take: 50, // 減少為 50 筆，提升速度
-          // 使用索引優化的排序
-        });
+              orderBy: { createdAt: 'desc' },
+              take: 50, // 減少為 50 筆，提升速度
+              // 使用索引優化的排序
+            });
           },
           'partners:list'
         );
