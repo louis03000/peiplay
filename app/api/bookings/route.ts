@@ -222,6 +222,16 @@ export async function POST(request: Request) {
                 throw new Error(`資料庫欄位不存在: ${createError?.message}`);
               }
               
+              if (createError?.code === 'P2022') {
+                // Value out of range or type mismatch
+                console.error('P2022 錯誤詳情:', {
+                  message: createError?.message,
+                  meta: createError?.meta,
+                  bookingData,
+                });
+                throw new Error(`資料值不符合欄位類型: ${createError?.message || '請檢查資料格式'}`);
+              }
+              
               // 處理事務超時錯誤
               if (createError?.code === 'P2024' || createError?.code === 'P1008' || createError?.code === 'P1017') {
                 throw new Error(`資料庫操作超時，請稍後再試`);

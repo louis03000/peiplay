@@ -162,6 +162,18 @@ function handlePrismaError(
         { status: 503 }
       )
 
+    // 值超出範圍或類型不匹配
+    case 'P2022':
+      return NextResponse.json(
+        {
+          error: '資料值不符合欄位類型或超出範圍',
+          code: 'VALUE_OUT_OF_RANGE',
+          details: isDevelopment ? error.message : undefined,
+          meta: isDevelopment ? error.meta : undefined,
+        },
+        { status: 400 }
+      )
+
     // 其他 Prisma 錯誤
     default:
       console.error(`❌ 未處理的 Prisma 錯誤代碼: ${error.code}`)
