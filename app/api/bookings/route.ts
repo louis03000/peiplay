@@ -64,162 +64,201 @@ export async function POST(request: Request) {
 
       console.log('🔍 開始創建預約，scheduleIds:', scheduleIds)
       
-      const entries = await client.$transaction(async (tx) => {
-        const records: Array<{
-          bookingId: string;
-          partnerEmail: string;
-          partnerName: string;
-          customerName: string;
-          customerEmail: string;
-          startTime: Date;
-          endTime: Date;
-          durationHours: number;
-          totalCost: number;
-        }> = [];
+      let entries;
+      try {
+        entries = await client.$transaction(async (tx) => {
+          const records: Array<{
+            bookingId: string;
+            partnerEmail: string;
+            partnerName: string;
+            customerName: string;
+            customerEmail: string;
+            startTime: Date;
+            endTime: Date;
+            durationHours: number;
+            totalCost: number;
+          }> = [];
 
-        for (const scheduleId of scheduleIds) {
-          console.log(`🔍 處理時段 ${scheduleId}...`)
-          
-          let schedule;
-          try {
-            // 只選擇必要的欄位，減少查詢時間
-            schedule = await tx.schedule.findUnique({
-              where: { id: scheduleId },
-              select: {
-                id: true,
-                partnerId: true,
-                startTime: true,
-                endTime: true,
-                partner: {
-                  select: {
-                    halfHourlyRate: true,
-                    user: {
-                      select: {
-                        email: true,
-                        name: true,
+          for (const scheduleId of scheduleIds) {
+            console.log(`🔍 處理時段 ${scheduleId}...`)
+            
+            let schedule;
+            try {
+              // 只選擇必要的欄位，減少查詢時間
+              schedule = await tx.schedule.findUnique({
+                where: { id: scheduleId },
+                select: {
+                  id: true,
+                  partnerId: true,
+                  startTime: true,
+                  endTime: true,
+                  partner: {
+                    select: {
+                      halfHourlyRate: true,
+                      user: {
+                        select: {
+                          email: true,
+                          name: true,
+                        },
                       },
                     },
                   },
                 },
-              },
-            });
-          } catch (scheduleError: any) {
-            console.error(`❌ 查詢時段失敗 (${scheduleId}):`, {
-              code: scheduleError?.code,
-              message: scheduleError?.message,
-              meta: scheduleError?.meta,
-            });
-            throw new Error(`查詢時段失敗: ${scheduleError?.message || '未知錯誤'}`);
-          }
+              });
+            } catch (scheduleError: any) {
+              console.error(`❌ 查詢時段失敗 (${scheduleId}):`, {
+                code: scheduleError?.code,
+                message: scheduleError?.message,
+                meta: scheduleError?.meta,
+                stack: scheduleError?.stack,
+              });
+              throw new Error(`查詢時段失敗: ${scheduleError?.message || '未知錯誤'}`);
+            }
 
-          if (!schedule) {
-            console.log(`❌ 時段不存在: ${scheduleId}`)
-            throw new Error(`時段不存在: ${scheduleId}`);
-          }
-          
-          console.log(`✅ 時段找到: ${scheduleId}, 夥伴: ${schedule.partner.user.name}`)
-
-          const conflict = await checkTimeConflict(
-            schedule.partnerId,
-            schedule.startTime,
-            schedule.endTime,
-            undefined,
-            tx
-          );
-
-          if (conflict.hasConflict) {
-            const conflictTimes = conflict.conflicts
-              .map((c) => `${new Date(c.startTime).toLocaleString('zh-TW')} - ${new Date(c.endTime).toLocaleString('zh-TW')}`)
-              .join(', ');
-
-            throw new Error(`時間衝突！該夥伴在以下時段已有預約：${conflictTimes}`);
-          }
-
-          const durationHours =
-            (schedule.endTime.getTime() - schedule.startTime.getTime()) / (1000 * 60 * 60);
-          const originalAmount = durationHours * schedule.partner.halfHourlyRate * 2;
-
-          console.log(`🔍 創建預約記錄，時段: ${scheduleId}`)
-          
-          // 檢查時段是否已被預約（scheduleId 是 unique，只能有一個 booking）
-          const existingBooking = await tx.booking.findUnique({
-            where: { scheduleId },
-            select: { id: true, status: true },
-          });
-          
-          if (existingBooking) {
-            console.log(`❌ 時段 ${scheduleId} 已被預約，bookingId: ${existingBooking.id}, status: ${existingBooking.status}`)
-            throw new Error(`時段已被預約（預約編號: ${existingBooking.id}）`);
-          }
-          
-          // 只設置數據庫中確實存在的字段，避免設置不存在的字段
-          const bookingData: any = {
-            customerId: customer.id,
-            partnerId: schedule.partnerId,
-            scheduleId,
-            status: BookingStatus.PAID_WAITING_PARTNER_CONFIRMATION,
-            originalAmount,
-            finalAmount: originalAmount,
-          };
-          
-          console.log(`📝 準備創建預約，資料:`, bookingData)
-          
-          let booking;
-          try {
-            booking = await tx.booking.create({
-              data: bookingData,
-            });
-            console.log(`✅ 預約創建成功: ${booking.id}`)
-          } catch (createError: any) {
-            console.error(`❌ 創建預約失敗 (時段: ${scheduleId}):`, {
-              code: createError?.code,
-              message: createError?.message,
-              meta: createError?.meta,
-              stack: createError?.stack,
-            });
+            if (!schedule) {
+              console.log(`❌ 時段不存在: ${scheduleId}`)
+              throw new Error(`時段不存在: ${scheduleId}`);
+            }
             
-            // 處理 Prisma 特定錯誤
-            if (createError?.code === 'P2002') {
-              // Unique constraint violation - scheduleId 已被使用
-              const target = createError?.meta?.target as string[] || [];
-              if (target.includes('scheduleId')) {
-                throw new Error(`時段已被預約，請選擇其他時段`);
+            console.log(`✅ 時段找到: ${scheduleId}, 夥伴: ${schedule.partner.user.name}`)
+
+            // 檢查時間衝突
+            let conflict;
+            try {
+              conflict = await checkTimeConflict(
+                schedule.partnerId,
+                schedule.startTime,
+                schedule.endTime,
+                undefined,
+                tx
+              );
+            } catch (conflictError: any) {
+              console.error(`❌ 檢查時間衝突失敗 (${scheduleId}):`, {
+                code: conflictError?.code,
+                message: conflictError?.message,
+                stack: conflictError?.stack,
+              });
+              throw new Error(`檢查時間衝突失敗: ${conflictError?.message || '未知錯誤'}`);
+            }
+
+            if (conflict.hasConflict) {
+              const conflictTimes = conflict.conflicts
+                .map((c) => `${new Date(c.startTime).toLocaleString('zh-TW')} - ${new Date(c.endTime).toLocaleString('zh-TW')}`)
+                .join(', ');
+
+              throw new Error(`時間衝突！該夥伴在以下時段已有預約：${conflictTimes}`);
+            }
+
+            const durationHours =
+              (schedule.endTime.getTime() - schedule.startTime.getTime()) / (1000 * 60 * 60);
+            const originalAmount = durationHours * schedule.partner.halfHourlyRate * 2;
+
+            console.log(`🔍 創建預約記錄，時段: ${scheduleId}`)
+            
+            // 檢查時段是否已被預約（scheduleId 是 unique，只能有一個 booking）
+            let existingBooking;
+            try {
+              existingBooking = await tx.booking.findUnique({
+                where: { scheduleId },
+                select: { id: true, status: true },
+              });
+            } catch (checkError: any) {
+              console.error(`❌ 檢查現有預約失敗 (${scheduleId}):`, {
+                code: checkError?.code,
+                message: checkError?.message,
+                stack: checkError?.stack,
+              });
+              throw new Error(`檢查現有預約失敗: ${checkError?.message || '未知錯誤'}`);
+            }
+            
+            if (existingBooking) {
+              console.log(`❌ 時段 ${scheduleId} 已被預約，bookingId: ${existingBooking.id}, status: ${existingBooking.status}`)
+              throw new Error(`時段已被預約（預約編號: ${existingBooking.id}）`);
+            }
+            
+            // 只設置數據庫中確實存在的字段，避免設置不存在的字段
+            const bookingData: any = {
+              customerId: customer.id,
+              partnerId: schedule.partnerId,
+              scheduleId,
+              status: BookingStatus.PAID_WAITING_PARTNER_CONFIRMATION,
+              originalAmount,
+              finalAmount: originalAmount,
+            };
+            
+            console.log(`📝 準備創建預約，資料:`, bookingData)
+            
+            let booking;
+            try {
+              booking = await tx.booking.create({
+                data: bookingData,
+              });
+              console.log(`✅ 預約創建成功: ${booking.id}`)
+            } catch (createError: any) {
+              console.error(`❌ 創建預約失敗 (時段: ${scheduleId}):`, {
+                code: createError?.code,
+                message: createError?.message,
+                meta: createError?.meta,
+                stack: createError?.stack,
+              });
+              
+              // 處理 Prisma 特定錯誤
+              if (createError?.code === 'P2002') {
+                // Unique constraint violation - scheduleId 已被使用
+                const target = createError?.meta?.target as string[] || [];
+                if (target.includes('scheduleId')) {
+                  throw new Error(`時段已被預約，請選擇其他時段`);
+                }
+                throw new Error(`資料衝突: ${target.join(', ')}`);
               }
-              throw new Error(`資料衝突: ${target.join(', ')}`);
+              
+              if (createError?.code === 'P2003') {
+                // Foreign key constraint violation
+                throw new Error(`關聯資料錯誤: ${createError?.message}`);
+              }
+              
+              if (createError?.code === 'P2036') {
+                // Column does not exist
+                throw new Error(`資料庫欄位不存在: ${createError?.message}`);
+              }
+              
+              // 處理事務超時錯誤
+              if (createError?.code === 'P2024' || createError?.code === 'P1008' || createError?.code === 'P1017') {
+                throw new Error(`資料庫操作超時，請稍後再試`);
+              }
+              
+              // 重新拋出錯誤，讓外層處理
+              throw createError;
             }
-            
-            if (createError?.code === 'P2003') {
-              // Foreign key constraint violation
-              throw new Error(`關聯資料錯誤: ${createError?.message}`);
-            }
-            
-            if (createError?.code === 'P2036') {
-              // Column does not exist
-              throw new Error(`資料庫欄位不存在: ${createError?.message}`);
-            }
-            
-            // 重新拋出錯誤，讓外層處理
-            throw createError;
+
+            records.push({
+              bookingId: booking.id,
+              partnerEmail: schedule.partner.user.email,
+              partnerName: schedule.partner.user.name || '夥伴',
+              customerName: customer.user.name || '客戶',
+              customerEmail: customer.user.email,
+              startTime: schedule.startTime,
+              endTime: schedule.endTime,
+              durationHours,
+              totalCost: originalAmount,
+            });
           }
 
-          records.push({
-            bookingId: booking.id,
-            partnerEmail: schedule.partner.user.email,
-            partnerName: schedule.partner.user.name || '夥伴',
-            customerName: customer.user.name || '客戶',
-            customerEmail: customer.user.email,
-            startTime: schedule.startTime,
-            endTime: schedule.endTime,
-            durationHours,
-            totalCost: originalAmount,
-          });
-        }
-
-        return records;
-      }, {
-        maxWait: 10000, // 等待事務開始的最大時間（10秒）
-        timeout: 20000, // 事務執行的最大時間（20秒）
-      });
+          return records;
+        }, {
+          maxWait: 10000, // 等待事務開始的最大時間（10秒）
+          timeout: 20000, // 事務執行的最大時間（20秒）
+        });
+      } catch (transactionError: any) {
+        console.error('❌ 事務執行失敗:', {
+          code: transactionError?.code,
+          message: transactionError?.message,
+          meta: transactionError?.meta,
+          stack: transactionError?.stack,
+          name: transactionError?.name,
+        });
+        throw transactionError;
+      }
 
       console.log('✅ 所有預約創建完成，共', entries.length, '筆')
       return { type: 'SUCCESS', customer, entries } as const;
@@ -283,8 +322,36 @@ export async function POST(request: Request) {
           }, { status: 409 });
         }
       }
+      
+      // 處理資料庫連接和超時錯誤
+      if (['P1001', 'P1002', 'P1008', 'P1017', 'P2024'].includes(error.code)) {
+        return NextResponse.json({
+          error: '資料庫連接失敗，請稍後再試',
+          code: 'DB_CONNECTION_ERROR',
+          details: process.env.NODE_ENV === 'development' ? error.message : undefined,
+        }, { status: 503 });
+      }
     }
     
+    // 處理一般錯誤訊息
+    const errorMessage = error instanceof Error ? error.message : '資料庫操作失敗';
+    
+    // 如果是已知的業務邏輯錯誤，返回 400 或 409
+    if (errorMessage.includes('時段已被預約') || errorMessage.includes('時間衝突')) {
+      return NextResponse.json({
+        error: errorMessage,
+        code: 'BOOKING_CONFLICT',
+      }, { status: 409 });
+    }
+    
+    if (errorMessage.includes('時段不存在') || errorMessage.includes('找不到')) {
+      return NextResponse.json({
+        error: errorMessage,
+        code: 'NOT_FOUND',
+      }, { status: 404 });
+    }
+    
+    // 其他錯誤使用標準錯誤處理
     return createErrorResponse(error, 'bookings:create');
   }
 }
