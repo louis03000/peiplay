@@ -53,15 +53,21 @@ CREATE INDEX IF NOT EXISTS "Booking_partnerId_idx" ON "Booking"("partnerId");
 CREATE INDEX IF NOT EXISTS "Booking_partnerId_createdAt_idx" ON "Booking"("partnerId", "createdAt" DESC);
 ```
 
-### 方法 2：使用 API 端點
+### 方法 2：使用 API 端點（最快速）⭐
 
-1. 設置環境變數 `FIX_DB_SECRET`（可選，用於安全）
-2. 訪問或使用 curl：
+**直接在瀏覽器中訪問：**
+
+```
+https://peiplay.vercel.app/api/fix-database?secret=temporary-fix-secret
+```
+
+或者使用 curl：
 
 ```bash
-curl -X POST https://peiplay.vercel.app/api/fix-database \
-  -H "Authorization: Bearer temporary-fix-secret"
+curl https://peiplay.vercel.app/api/fix-database?secret=temporary-fix-secret
 ```
+
+**注意：** 修復完成後，建議刪除或保護此端點。
 
 ### 方法 3：使用 psql（本地）
 
