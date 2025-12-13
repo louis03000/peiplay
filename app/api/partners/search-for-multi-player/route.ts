@@ -24,8 +24,17 @@ export async function GET(request: Request) {
     const startTime = searchParams.get('startTime')
     const endTime = searchParams.get('endTime')
     const games = searchParams.get('games')
+    const debug = searchParams.get('debug') === 'true' // 調試模式
     
-    console.log('📥 [多人陪玩搜索] 收到請求參數:', { date, startTime, endTime, games })
+    console.log('📥 [多人陪玩搜索] 收到請求參數:', { date, startTime, endTime, games, debug })
+    
+    // 調試信息收集器
+    const debugInfo: any = {
+      requestParams: { date, startTime, endTime, games },
+      steps: [],
+      partners: [],
+      finalResult: null,
+    }
 
     // 驗證必要參數
     if (!date || !startTime || !endTime) {
@@ -112,6 +121,16 @@ export async function GET(request: Request) {
         expandedDateStart: expandedDateStart.toISOString(),
         expandedDateEnd: expandedDateEnd.toISOString(),
       })
+      
+      if (debug) {
+        debugInfo.steps.push({
+          step: '查詢日期範圍',
+          dateStartUTC: dateStartUTC.toISOString(),
+          dateEndUTC: dateEndUTC.toISOString(),
+          expandedDateStart: expandedDateStart.toISOString(),
+          expandedDateEnd: expandedDateEnd.toISOString(),
+        })
+      }
 
       // 查詢已批准且開啟群組預約的夥伴
       const partners = await client.partner.findMany({
@@ -179,6 +198,28 @@ export async function GET(request: Request) {
           games: p.games,
         })))
       }
+      
+      if (debug) {
+        debugInfo.steps.push({
+          step: '數據庫查詢結果',
+          partnersFound: partners.length,
+          partners: partners.map(p => ({
+            id: p.id,
+            name: p.name,
+            schedulesCount: p.schedules.length,
+            games: p.games,
+            schedules: p.schedules.map(s => ({
+              id: s.id,
+              date: s.date,
+              startTime: s.startTime,
+              endTime: s.endTime,
+              isAvailable: s.isAvailable,
+              hasBooking: !!s.bookings,
+              bookingStatus: s.bookings?.status || null,
+            })),
+          })),
+        })
+      }
 
       // 過濾被停權的夥伴
       const availablePartners = partners.filter(partner => {
@@ -196,6 +237,13 @@ export async function GET(request: Request) {
       })
 
       console.log(`✅ [多人陪玩搜索] 停權篩選後: ${availablePartners.length} 個可用夥伴`)
+      
+      if (debug) {
+        debugInfo.steps.push({
+          step: '停權篩選',
+          partnersAfterSuspensionFilter: availablePartners.length,
+        })
+      }
 
       // 找到符合條件的夥伴
       const partnersWithAvailableSchedules = availablePartners
@@ -235,6 +283,25 @@ export async function GET(request: Request) {
                 searchDateUTC,
                 isDateMatch,
               })
+              
+              if (debug) {
+                const partnerDebug = debugInfo.partners.find((p: any) => p.partnerId === partner.id) || {
+                  partnerId: partner.id,
+                  partnerName: partner.name,
+                  scheduleChecks: [],
+                }
+                if (!debugInfo.partners.find((p: any) => p.partnerId === partner.id)) {
+                  debugInfo.partners.push(partnerDebug)
+                }
+                partnerDebug.scheduleChecks.push({
+                  scheduleId: schedule.id,
+                  reason: '日期不匹配',
+                  scheduleDate: scheduleDate.toISOString(),
+                  scheduleDateUTC,
+                  searchDateUTC,
+                })
+              }
+              
               return false
             }
             
@@ -294,11 +361,31 @@ export async function GET(request: Request) {
             
             console.log(`⏰ [多人陪玩搜索] 時段 ${schedule.id} 匹配檢查:`, matchResult)
             
+            if (debug) {
+              const partnerDebug = debugInfo.partners.find((p: any) => p.partnerId === partner.id) || {
+                partnerId: partner.id,
+                partnerName: partner.name,
+                scheduleChecks: [],
+              }
+              if (!debugInfo.partners.find((p: any) => p.partnerId === partner.id)) {
+                debugInfo.partners.push(partnerDebug)
+              }
+              partnerDebug.scheduleChecks.push(matchResult)
+            }
+            
             return isDateMatch && isTimeContained && isAvailable
           })
           
           if (!matchingSchedule) {
             console.log(`❌ [多人陪玩搜索] 夥伴 ${partner.name} (${partner.id}) 沒有符合條件的時段`)
+            
+            if (debug) {
+              const partnerDebug = debugInfo.partners.find((p: any) => p.partnerId === partner.id)
+              if (partnerDebug) {
+                partnerDebug.finalStatus = '沒有符合條件的時段'
+              }
+            }
+            
             return null
           }
           
@@ -307,6 +394,18 @@ export async function GET(request: Request) {
             startTime: matchingSchedule.startTime,
             endTime: matchingSchedule.endTime,
           })
+          
+          if (debug) {
+            const partnerDebug = debugInfo.partners.find((p: any) => p.partnerId === partner.id)
+            if (partnerDebug) {
+              partnerDebug.finalStatus = '匹配成功'
+              partnerDebug.matchingSchedule = {
+                id: matchingSchedule.id,
+                startTime: matchingSchedule.startTime,
+                endTime: matchingSchedule.endTime,
+              }
+            }
+          }
           
           return {
             id: partner.id,
@@ -340,6 +439,22 @@ export async function GET(request: Request) {
         console.log('  - 時段時間不匹配')
         console.log('  - 時段已被預約')
       }
+      
+      if (debug) {
+        debugInfo.finalResult = {
+          partnersFound: partnersWithAvailableSchedules.length,
+          partners: partnersWithAvailableSchedules,
+        }
+        debugInfo.searchParams = {
+          normalizedDate,
+          startTime,
+          endTime,
+          startDateTime: startDateTime.toISOString(),
+          endDateTime: endDateTime.toISOString(),
+          startDateTimeUTC: `${startDateTime.getUTCFullYear()}-${String(startDateTime.getUTCMonth() + 1).padStart(2, '0')}-${String(startDateTime.getUTCDate()).padStart(2, '0')} ${String(startDateTime.getUTCHours()).padStart(2, '0')}:${String(startDateTime.getUTCMinutes()).padStart(2, '0')}`,
+          endDateTimeUTC: `${endDateTime.getUTCFullYear()}-${String(endDateTime.getUTCMonth() + 1).padStart(2, '0')}-${String(endDateTime.getUTCDate()).padStart(2, '0')} ${String(endDateTime.getUTCHours()).padStart(2, '0')}:${String(endDateTime.getUTCMinutes()).padStart(2, '0')}`,
+        }
+      }
 
       return partnersWithAvailableSchedules
     }, 'partners/search-for-multi-player')
@@ -347,6 +462,14 @@ export async function GET(request: Request) {
     console.log('='.repeat(80))
     console.log('✅ [多人陪玩搜索] API 執行完成，返回結果')
     console.log('='.repeat(80) + '\n')
+    
+    // 如果啟用調試模式，將調試信息一起返回
+    if (debug) {
+      return NextResponse.json({
+        partners: result,
+        debug: debugInfo,
+      })
+    }
     
     return NextResponse.json(result)
   } catch (error: any) {

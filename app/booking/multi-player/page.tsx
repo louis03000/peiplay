@@ -178,6 +178,13 @@ function MultiPlayerBookingContent() {
       if (allGames.length > 0) {
         params.append('games', allGames.join(','))
       }
+      
+      // 添加調試模式（從 URL 參數或 localStorage 讀取）
+      const urlParams = new URLSearchParams(window.location.search)
+      const debugMode = urlParams.get('debug') === 'true' || localStorage.getItem('multiPlayerDebug') === 'true'
+      if (debugMode) {
+        params.append('debug', 'true')
+      }
 
       const response = await fetch(`/api/partners/search-for-multi-player?${params}`)
       
@@ -188,7 +195,52 @@ function MultiPlayerBookingContent() {
       }
       
       const data = await response.json()
-      const partnersList = Array.isArray(data) ? data : []
+      
+      // 處理調試模式響應
+      let partnersList: any[] = []
+      let debugInfo: any = null
+      
+      if (debugMode && data.debug) {
+        // 調試模式：顯示詳細信息
+        debugInfo = data.debug
+        partnersList = Array.isArray(data.partners) ? data.partners : []
+        
+        // 在控制台顯示調試信息
+        console.group('🔍 [多人陪玩搜索] 調試信息')
+        console.log('📥 請求參數:', debugInfo.requestParams)
+        console.log('📊 查詢步驟:', debugInfo.steps)
+        console.log('👥 夥伴詳情:', debugInfo.partners)
+        console.log('🎯 最終結果:', debugInfo.finalResult)
+        console.groupEnd()
+        
+        // 顯示調試信息彈窗
+        const debugMessage = `
+🔍 調試信息：
+
+📥 請求參數:
+- 日期: ${debugInfo.requestParams.date}
+- 時間: ${debugInfo.requestParams.startTime} - ${debugInfo.requestParams.endTime}
+- 遊戲: ${debugInfo.requestParams.games || '無'}
+
+📊 查詢步驟:
+${debugInfo.steps.map((step: any, i: number) => `  ${i + 1}. ${step.step}: ${JSON.stringify(step, null, 2)}`).join('\n')}
+
+👥 找到的夥伴: ${debugInfo.partners.length} 個
+${debugInfo.partners.map((p: any) => `  - ${p.partnerName} (${p.partnerId}): ${p.finalStatus || '檢查中'}`).join('\n')}
+
+🎯 最終匹配: ${debugInfo.finalResult?.partnersFound || 0} 個夥伴
+        `.trim()
+        
+        console.log(debugMessage)
+        
+        // 如果沒有找到夥伴，顯示詳細原因
+        if (partnersList.length === 0) {
+          alert(`沒有找到符合條件的夥伴\n\n調試信息已輸出到瀏覽器控制台（按 F12 查看）\n\n${debugMessage}`)
+        }
+      } else {
+        partnersList = Array.isArray(data) ? data : []
+      }
+      
       setPartners(partnersList)
       
       // 提取所有遊戲
@@ -200,7 +252,7 @@ function MultiPlayerBookingContent() {
       })
       setAvailableGames(Array.from(gamesSet))
       
-      if (partnersList.length === 0) {
+      if (partnersList.length === 0 && !debugMode) {
         alert('沒有找到符合條件的夥伴')
       }
     } catch (error) {
