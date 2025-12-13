@@ -126,46 +126,113 @@ export class InputValidator {
 
 // 安全日誌記錄
 export class SecurityLogger {
-  static logSecurityEvent(
-    userId: string,
+  /**
+   * 記錄安全事件到資料庫
+   * 
+   * @param userId - 用戶 ID，可為 null（系統事件）
+   * @param eventType - 事件類型（SecurityEventType enum）
+   * @param details - 事件詳情（會轉為 JSON 字串）
+   * @param request - 可選的請求對象（用於獲取 IP 和 User Agent）
+   */
+  static async logSecurityEvent(
+    userId: string | null,
     eventType: string,
     details: Record<string, any>,
     request?: NextRequest
-  ) {
-    const logEntry = {
-      timestamp: new Date().toISOString(),
-      userId,
-      eventType,
-      details,
-      ip: request?.ip || request?.headers.get('x-forwarded-for') || 'unknown',
-      userAgent: request?.headers.get('user-agent') || 'unknown',
+  ): Promise<void> {
+    const ip = request?.ip || request?.headers.get('x-forwarded-for') || 'unknown';
+    const userAgent = request?.headers.get('user-agent') || 'unknown';
+
+    try {
+      // 寫入 SecurityLog 資料表
+      const { prisma } = await import('./prisma');
+      
+      await prisma.securityLog.create({
+        data: {
+          userId: userId || null,
+          eventType: eventType as any, // SecurityEventType enum
+          details: JSON.stringify(details),
+          ipAddress: ip,
+          userAgent,
+        },
+      });
+
+      // 同時記錄到控制台（開發環境）
+      if (process.env.NODE_ENV === 'development') {
+        console.log('🔒 Security Event:', {
+          userId: userId || 'system',
+          eventType,
+          details,
+          ip,
+          userAgent,
+        });
+      }
+    } catch (error) {
+      // 記錄失敗不應該影響主要流程，但需要記錄錯誤
+      console.error('❌ Failed to log security event:', error);
+      
+      // 在生產環境中，可以考慮發送到外部日誌服務（如 Sentry）
+      if (process.env.NODE_ENV === 'production') {
+        // TODO: 整合外部日誌服務
+        console.error('Security log failed:', {
+          userId: userId || 'system',
+          eventType,
+          error: error instanceof Error ? error.message : 'Unknown error',
+        });
+      }
     }
-    
-    // 記錄到控制台（生產環境中應該記錄到安全的日誌系統）
-    console.log('🔒 Security Event:', JSON.stringify(logEntry, null, 2))
-    
-    // TODO: 在生產環境中，這裡應該將日誌發送到安全的日誌服務
-    // 例如：Winston, LogRocket, 或自定義的日誌 API
   }
 
-  static logFailedLogin(email: string, ip: string, userAgent: string) {
-    this.logSecurityEvent('anonymous', 'FAILED_LOGIN', {
-      email: email.substring(0, 3) + '***', // 部分隱藏 email
-      attemptCount: 1, // 這裡應該從資料庫查詢實際嘗試次數
-    })
+  static async logFailedLogin(
+    email: string,
+    ip: string,
+    userAgent: string,
+    userId: string | null = null
+  ): Promise<void> {
+    await this.logSecurityEvent(
+      userId,
+      'LOGIN_FAILED',
+      {
+        email: email.substring(0, 3) + '***', // 部分隱藏 email
+        timestamp: new Date().toISOString(),
+      },
+      undefined // 手動提供 IP 和 User Agent
+    );
   }
 
-  static logSuccessfulLogin(userId: string, email: string, ip: string) {
-    this.logSecurityEvent(userId, 'SUCCESSFUL_LOGIN', {
-      email: email.substring(0, 3) + '***',
-    })
+  static async logSuccessfulLogin(
+    userId: string,
+    email: string,
+    ip: string,
+    userAgent?: string
+  ): Promise<void> {
+    await this.logSecurityEvent(
+      userId,
+      'LOGIN_SUCCESS',
+      {
+        email: email.substring(0, 3) + '***',
+        timestamp: new Date().toISOString(),
+      },
+      undefined
+    );
   }
 
-  static logSuspiciousActivity(userId: string, activity: string, details: Record<string, any>) {
-    this.logSecurityEvent(userId, 'SUSPICIOUS_ACTIVITY', {
-      activity,
-      ...details,
-    })
+  static async logSuspiciousActivity(
+    userId: string | null,
+    activity: string,
+    details: Record<string, any>,
+    request?: NextRequest
+  ): Promise<void> {
+    await this.logSecurityEvent(
+      userId,
+      'SUSPICIOUS_ACTIVITY',
+      {
+        activity,
+        ...details,
+        timestamp: new Date().toISOString(),
+      },
+      request
+    );
   }
 }
 

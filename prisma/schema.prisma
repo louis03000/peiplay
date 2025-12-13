@@ -21,6 +21,7 @@ model User {
   lockUntil                     DateTime?
   loginAttempts                 Int                    @default(0)
   twoFactorSecret               String?
+  recoveryCodes                 String?                // JSON array of hashed recovery codes
   discord                       String?
   isSuspended                   Boolean                @default(false)
   suspensionEndsAt              DateTime?
@@ -556,18 +557,29 @@ model ReferralEarning {
 }
 
 model SecurityLog {
-  id        String            @id @default(cuid())
-  userId    String
+  id        String             @id @default(cuid())
+  userId    String?            // 可為 null（系統事件可能沒有用戶）
   eventType SecurityEventType
   details   String
   ipAddress String
   userAgent String
-  timestamp DateTime          @default(now())
-  user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  timestamp DateTime           @default(now())
+  user      User?              @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, timestamp])
   @@index([eventType, timestamp])
   @@index([ipAddress, timestamp])
+}
+
+model PasswordHistory {
+  id        String   @id @default(cuid())
+  userId    String
+  passwordHash String // 密碼 hash（用於檢查重複使用）
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([userId, passwordHash])
 }
 
 model FavoritePartner {
@@ -661,6 +673,10 @@ enum SecurityEventType {
   EMAIL_VERIFIED
   TWO_FACTOR_ENABLED
   TWO_FACTOR_DISABLED
+  RATE_LIMIT_EXCEEDED
+  CSRF_TOKEN_INVALID
+  MFA_VERIFICATION_FAILED
+  PASSWORD_BREACHED_CHECK
 }
 
 enum GroupBookingStatus {

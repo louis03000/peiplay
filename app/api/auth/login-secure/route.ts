@@ -1,11 +1,22 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db-resilience'
-import { SecurityEnhanced, RateLimiter, InputValidator, SecurityLogger } from '@/lib/security-enhanced'
+import { SecurityEnhanced, InputValidator, SecurityLogger } from '@/lib/security-enhanced'
+import { withRateLimit } from '@/lib/middleware-rate-limit'
+import { generateCSRFToken, setCSRFTokenCookie } from '@/lib/csrf-protection'
 
 export const dynamic = 'force-dynamic';
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
+    // 速率限制檢查（5 次 / 分鐘）
+    const rateLimitResult = await withRateLimit(request, { 
+      preset: 'AUTH',
+      endpoint: '/api/auth/login-secure'
+    });
+    if (!rateLimitResult.allowed) {
+      return rateLimitResult.response!;
+    }
+
     const data = await request.json()
     const { email, password } = data
 
@@ -23,25 +34,6 @@ export async function POST(request: Request) {
     const ipAddress = request.headers.get('x-forwarded-for') || 'unknown';
     const userAgent = request.headers.get('user-agent') || 'unknown';
 
-    // 檢查登入頻率限制
-    const rateLimitCheck = RateLimiter.checkRateLimit(ipAddress, 5, 15 * 60 * 1000); // 15分鐘內最多5次嘗試
-    if (!rateLimitCheck.allowed) {
-      SecurityLogger.logSecurityEvent('anonymous', 'LOGIN_RATE_LIMIT_EXCEEDED', {
-        ipAddress,
-        userAgent,
-        email: sanitizedEmail.substring(0, 3) + '***',
-        remainingAttempts: rateLimitCheck.remainingAttempts
-      });
-      
-      return NextResponse.json(
-        { 
-          error: '登入嘗試過於頻繁，請稍後再試',
-          remainingAttempts: rateLimitCheck.remainingAttempts
-        },
-        { status: 429 }
-      )
-    }
-
     return await db.query(async (client) => {
       // 查找用戶
       const user = await client.user.findUnique({
@@ -49,24 +41,16 @@ export async function POST(request: Request) {
       })
 
       if (!user) {
-        SecurityLogger.logSecurityEvent('anonymous', 'LOGIN_FAILED', {
-          event: 'USER_NOT_FOUND',
-          ipAddress,
-          userAgent,
-          email: sanitizedEmail.substring(0, 3) + '***',
-        });
+        await SecurityLogger.logFailedLogin(sanitizedEmail, ipAddress, userAgent, null);
         
         throw new Error('Email 或密碼錯誤')
       }
 
       // 檢查用戶是否被鎖定
       if (user.lockUntil && user.lockUntil > new Date()) {
-        SecurityLogger.logSecurityEvent(user.id, 'LOGIN_FAILED', {
-          event: 'ACCOUNT_LOCKED',
-          ipAddress,
-          userAgent,
+        await SecurityLogger.logSuspiciousActivity(user.id, 'ACCOUNT_LOCKED', {
           lockUntil: user.lockUntil,
-        });
+        }, request);
         
         throw new Error('帳戶已被鎖定，請稍後再試')
       }
@@ -87,15 +71,42 @@ export async function POST(request: Request) {
           },
         });
 
-        SecurityLogger.logSecurityEvent(user.id, 'LOGIN_FAILED', {
-          event: 'INVALID_PASSWORD',
-          ipAddress,
-          userAgent,
-          attemptCount: newLoginAttempts,
-          locked: shouldLock,
-        });
+        await SecurityLogger.logFailedLogin(user.email, ipAddress, userAgent, user.id);
 
         throw new Error(`Email 或密碼錯誤|${Math.max(0, 5 - newLoginAttempts)}`)
+      }
+
+      // 檢查是否需要 MFA 驗證
+      const { requiresMFA } = await import('@/lib/mfa-service');
+      const needsMFA = await requiresMFA(user.id);
+
+      // 如果管理員未啟用 MFA，強制要求啟用
+      if (user.role === 'ADMIN' && !user.isTwoFactorEnabled) {
+        return NextResponse.json({
+          message: '管理員帳號必須啟用雙因素認證',
+          requireMFA: true,
+          requireMFASetup: true,
+          userId: user.id,
+        }, { status: 200 });
+      }
+
+      // 如果已啟用 MFA，需要驗證碼
+      if (needsMFA) {
+        // 重置失敗次數（但未完成 MFA 驗證）
+        await client.user.update({
+          where: { id: user.id },
+          data: {
+            loginAttempts: 0,
+            lockUntil: null,
+          },
+        });
+
+        return NextResponse.json({
+          message: '需要雙因素認證',
+          requireMFA: true,
+          requireMFASetup: false,
+          userId: user.id,
+        }, { status: 200 });
       }
 
       // 登入成功，重置失敗次數
@@ -108,16 +119,11 @@ export async function POST(request: Request) {
       });
 
       // 記錄成功登入
-      SecurityLogger.logSecurityEvent(user.id, 'LOGIN_SUCCESS', {
-        event: 'LOGIN_SUCCESS',
-        ipAddress,
-        userAgent,
-      });
+      await SecurityLogger.logSuccessfulLogin(user.id, user.email, ipAddress, userAgent);
 
-      // 重置速率限制
-      RateLimiter.resetRateLimit(ipAddress);
-
-      return NextResponse.json({
+      // 生成並設置 CSRF token
+      const csrfToken = generateCSRFToken();
+      const response = NextResponse.json({
         message: '登入成功',
         user: {
           id: user.id,
@@ -125,7 +131,10 @@ export async function POST(request: Request) {
           name: user.name,
           role: user.role,
         },
-      })
+      });
+
+      // 設置 CSRF token cookie
+      return setCSRFTokenCookie(response, csrfToken);
     }, 'auth/login-secure')
 
   } catch (error) {

@@ -242,8 +242,8 @@ export default function RankingPage() {
                             {Math.floor(partner.totalMinutes / 60)} 小時 {partner.totalMinutes % 60} 分鐘
                           </span>
                         </div>
-                        {/* 只對登入的夥伴顯示自己的獎勵信息 */}
-                        {partner.rank <= 10 && currentPartnerId === partner.id && (
+                        {/* 只有夥伴身分才能看到排名前10的獎勵信息 */}
+                        {partner.rank <= 10 && session?.user?.partnerId && (
                           <div className={`px-3 py-1 rounded-full text-xs font-semibold ${
                             partner.rank === 1 
                               ? 'bg-yellow-100 text-yellow-800' 

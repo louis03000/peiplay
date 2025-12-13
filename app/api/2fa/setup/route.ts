@@ -6,7 +6,7 @@ import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db-resilience'
 import speakeasy from 'speakeasy'
 import QRCode from 'qrcode'
-import type { Prisma } from '@prisma/client'
+import { setupMFA } from '@/lib/mfa-service'
 
 export async function GET() {
   try {
@@ -34,12 +34,13 @@ export async function GET() {
 
       const qrCode = await QRCode.toDataURL(secret.otpauth_url!)
 
+      // 暫時儲存 secret（未啟用）
       await client.user.update({
         where: { id: user.id },
         data: {
           twoFactorSecret: secret.base32,
           isTwoFactorEnabled: false // Will be enabled after verification
-        } as Prisma.UserUpdateInput
+        }
       })
 
       return {

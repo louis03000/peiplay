@@ -2,11 +2,10 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db-resilience'
-import speakeasy from 'speakeasy'
-import type { Prisma } from '@prisma/client'
-
+import { verifyTOTPToken, setupMFA } from '@/lib/mfa-service'
 
 export const dynamic = 'force-dynamic';
+
 export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions)
@@ -22,7 +21,7 @@ export async function POST(request: Request) {
     const result = await db.query(async (client) => {
       const user = await client.user.findUnique({
         where: { email: session.user.email }
-      }) as { id: string; twoFactorSecret: string | null } | null
+      }) as { id: string; twoFactorSecret: string | null; isTwoFactorEnabled: boolean } | null
 
       if (!user) {
         throw new Error('User not found')
@@ -32,20 +31,22 @@ export async function POST(request: Request) {
         throw new Error('2FA not set up')
       }
 
-      const verified = speakeasy.totp.verify({
-        secret: user.twoFactorSecret,
-        encoding: 'base32',
-        token
-      })
+      // 驗證 TOTP token
+      const verified = verifyTOTPToken(user.twoFactorSecret, token)
 
       if (!verified) {
         throw new Error('Invalid token')
       }
 
-      await client.user.update({
-        where: { id: user.id },
-        data: { isTwoFactorEnabled: true } as Prisma.UserUncheckedUpdateInput
-      })
+      // 如果尚未啟用，現在啟用並生成 recovery codes
+      if (!user.isTwoFactorEnabled) {
+        const { recoveryCodes } = await setupMFA(user.id, user.twoFactorSecret);
+        return { 
+          success: true, 
+          recoveryCodes, // 返回 recovery codes 給用戶保存
+          message: '2FA 已啟用，請保存您的 recovery codes'
+        }
+      }
 
       return { success: true }
     }, '2fa/verify')
@@ -64,4 +65,4 @@ export async function POST(request: Request) {
       { status }
     )
   }
-} 
+}

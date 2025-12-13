@@ -2,42 +2,26 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { SecurityEnhanced } from '@/lib/security-enhanced';
+import { RedisRateLimiter, RateLimitConfig, RateLimitPresets } from '@/lib/rate-limit-redis';
 
 export class APISecurity {
-  // 檢查 API 請求的頻率限制
+  // 檢查 API 請求的頻率限制（使用 Redis）
   static async checkRateLimit(
     request: NextRequest,
-    identifier: string,
-    maxRequests: number = 100,
-    windowMs: number = 15 * 60 * 1000 // 15 分鐘
-  ): Promise<{ allowed: boolean; remaining: number; resetTime: number }> {
-    // 這裡應該實現 Redis 或記憶體快取的頻率限制
-    // 為了演示，我們使用簡化版本
-    
-    const now = Date.now();
-    const windowStart = now - windowMs;
-    
-    // 實際應用中應該從快取或資料庫獲取請求記錄
-    // 這裡簡化為總是允許，但記錄請求
-    
-    return {
-      allowed: true,
-      remaining: maxRequests - 1,
-      resetTime: now + windowMs,
-    };
+    userId: string | null,
+    config: RateLimitConfig,
+    endpoint?: string
+  ): Promise<{ allowed: boolean; remaining: number; resetTime: number; limit: number }> {
+    return await RedisRateLimiter.check(request, userId, config, endpoint);
   }
 
-  // 驗證 CSRF 令牌
-  static validateCSRFToken(request: NextRequest): boolean {
-    const csrfToken = request.headers.get('x-csrf-token');
-    const sessionToken = request.headers.get('x-session-token');
-    
-    if (!csrfToken || !sessionToken) {
-      return false;
-    }
-    
-    // CSRF 驗證暫時跳過，使用基本驗證
-    return csrfToken === sessionToken;
+  // 驗證 CSRF 令牌（使用新的 CSRF 防護機制）
+  static async validateCSRFToken(request: NextRequest): Promise<{
+    valid: boolean;
+    response?: NextResponse;
+  }> {
+    const { validateCSRF } = await import('./csrf-protection');
+    return await validateCSRF(request);
   }
 
   // 檢查請求來源
@@ -129,23 +113,29 @@ export class APISecurity {
     }
 
     // 2. 檢查 CSRF 令牌
-    if (requireCSRF && !this.validateCSRFToken(request)) {
-      return {
-        allowed: false,
-        response: NextResponse.json(
-          { error: '無效的 CSRF 令牌' },
-          { status: 403 }
-        )
-      };
+    if (requireCSRF) {
+      const csrfResult = await this.validateCSRFToken(request);
+      if (!csrfResult.valid) {
+        return {
+          allowed: false,
+          response: csrfResult.response,
+        };
+      }
     }
 
     // 3. 檢查頻率限制
     const ipAddress = request.headers.get('x-forwarded-for') || 'unknown';
+    const userId = session?.user?.id || null;
+    const rateLimitConfig: RateLimitConfig = {
+      maxRequests: rateLimit.maxRequests,
+      windowMs: rateLimit.windowMs,
+      identifier: userId ? 'both' : 'ip', // 有 userId 時同時檢查 IP 和 UserID
+    };
     const rateLimitCheck = await this.checkRateLimit(
       request,
-      ipAddress,
-      rateLimit.maxRequests,
-      rateLimit.windowMs
+      userId,
+      rateLimitConfig,
+      request.nextUrl.pathname
     );
 
     if (!rateLimitCheck.allowed) {

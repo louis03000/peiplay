@@ -58,6 +58,20 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: '密碼不能只包含英文字母' }, { status: 400 })
     }
 
+    // 檢查密碼是否在洩露列表中
+    const { validatePasswordWithBreachCheck } = await import('@/lib/password-breach-check');
+    const breachCheck = await validatePasswordWithBreachCheck(newPassword);
+    if (!breachCheck.valid) {
+      return NextResponse.json(
+        { 
+          error: breachCheck.error || '密碼不符合安全要求',
+          breached: breachCheck.breached,
+          breachCount: breachCheck.breachCount,
+        },
+        { status: 400 }
+      )
+    }
+
     const user = await db.query(async (client) => {
       return client.user.findUnique({
         where: { id: session.user.id },
@@ -85,17 +99,20 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: '新密碼不能與目前密碼相同' }, { status: 400 })
     }
 
-    const hashedNewPassword = await hash(newPassword, 12)
+    // 檢查新密碼是否在歷史記錄中
+    const { isPasswordInHistory, updatePasswordWithHistory } = await import('@/lib/password-history');
+    const hashedNewPassword = await hash(newPassword, 12);
+    
+    const inHistory = await isPasswordInHistory(user.id, hashedNewPassword);
+    if (inHistory) {
+      return NextResponse.json(
+        { error: '不能使用最近使用過的密碼，請選擇不同的密碼' },
+        { status: 400 }
+      )
+    }
 
-    await db.query(async (client) => {
-      await client.user.update({
-        where: { id: user.id },
-        data: {
-          password: hashedNewPassword,
-          updatedAt: new Date(),
-        },
-      })
-    }, 'user:change-password:update')
+    // 更新密碼並記錄歷史
+    await updatePasswordWithHistory(user.id, hashedNewPassword);
 
     SecurityLogger.logSecurityEvent('PASSWORD_CHANGED', {
       userId: user.id,

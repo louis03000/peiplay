@@ -1,13 +1,23 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db-resilience'
 import { SecurityEnhanced } from '@/lib/security-enhanced'
 import { sendEmailVerificationCode } from '@/lib/email'
 import { InputValidator } from '@/lib/security'
+import { withRateLimit } from '@/lib/middleware-rate-limit'
 
 export const dynamic = 'force-dynamic';
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
+    // 速率限制檢查（3 次 / 小時）
+    const rateLimitResult = await withRateLimit(request, { 
+      preset: 'REGISTER',
+      endpoint: '/api/auth/register-secure'
+    });
+    if (!rateLimitResult.allowed) {
+      return rateLimitResult.response!;
+    }
+
     const data = await request.json()
     const { email, password, name, birthday, phone, discord } = data
 
@@ -29,7 +39,7 @@ export async function POST(request: Request) {
       )
     }
 
-    // 增強密碼強度檢查
+    // 增強密碼強度檢查 + 洩露檢查
     const passwordValidation = SecurityEnhanced.validatePassword(sanitizedData.password);
     if (!passwordValidation.isValid) {
       return NextResponse.json(
@@ -38,7 +48,18 @@ export async function POST(request: Request) {
       )
     }
 
-    // 密碼強度檢查已完成，繼續其他驗證
+    // 檢查密碼是否在洩露列表中
+    const breachCheck = await validatePasswordWithBreachCheck(sanitizedData.password);
+    if (!breachCheck.valid) {
+      return NextResponse.json(
+        { 
+          error: breachCheck.error || '密碼不符合安全要求',
+          breached: breachCheck.breached,
+          breachCount: breachCheck.breachCount,
+        },
+        { status: 400 }
+      )
+    }
 
     // 驗證電話號碼
     if (sanitizedData.phone && !InputValidator.isValidPhone(sanitizedData.phone)) {
