@@ -73,7 +73,7 @@ export async function POST(request: Request) {
           comment: true,
           isApproved: true,
           createdAt: true,
-          updatedAt: true,
+          approvedAt: true,
           reviewer: {
             select: {
               id: true,
@@ -137,7 +137,7 @@ export async function GET(request: Request) {
               comment: true,
               isApproved: true,
               createdAt: true,
-              updatedAt: true,
+              approvedAt: true,
               reviewer: {
                 select: {
                   id: true,
@@ -179,7 +179,7 @@ export async function GET(request: Request) {
               comment: true,
               isApproved: true,
               createdAt: true,
-              updatedAt: true,
+              approvedAt: true,
               reviewer: {
                 select: {
                   id: true,
@@ -234,7 +234,7 @@ export async function GET(request: Request) {
             comment: true,
             isApproved: true,
             createdAt: true,
-            updatedAt: true,
+            approvedAt: true,
             reviewer: {
               select: {
                 id: true,

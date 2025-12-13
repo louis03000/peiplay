@@ -31,7 +31,7 @@ export async function GET() {
           comment: true,
           isApproved: true,
           createdAt: true,
-          updatedAt: true,
+          approvedAt: true,
           reviewer: {
             select: {
               id: true,
