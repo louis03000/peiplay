@@ -123,7 +123,22 @@ export class APISecurity {
       }
     }
 
-    // 3. 檢查頻率限制
+    // 3. 檢查身份驗證（先獲取 session，用於速率限制）
+    let session = null;
+    if (requireAuth) {
+      session = await getServerSession(authOptions);
+      if (!session?.user?.id) {
+        return {
+          allowed: false,
+          response: NextResponse.json(
+            { error: '需要身份驗證' },
+            { status: 401 }
+          )
+        };
+      }
+    }
+
+    // 4. 檢查頻率限制
     const ipAddress = request.headers.get('x-forwarded-for') || 'unknown';
     const userId = session?.user?.id || null;
     const rateLimitConfig: RateLimitConfig = {
@@ -149,21 +164,6 @@ export class APISecurity {
           { status: 429 }
         )
       };
-    }
-
-    // 4. 檢查身份驗證
-    let session = null;
-    if (requireAuth) {
-      session = await getServerSession(authOptions);
-      if (!session?.user?.id) {
-        return {
-          allowed: false,
-          response: NextResponse.json(
-            { error: '需要身份驗證' },
-            { status: 401 }
-          )
-        };
-      }
     }
 
     // 5. 記錄安全事件（如果需要）
