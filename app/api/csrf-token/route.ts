@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
   }
 
   // 檢查是否已有 token
-  let token = getCSRFToken(request);
+  let token = await getCSRFToken(request);
   
   // 如果沒有 token，生成新的
   if (!token) {
