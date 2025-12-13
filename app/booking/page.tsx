@@ -352,17 +352,17 @@ function BookingWizardContent() {
   // 搜尋過濾 - 使用 useMemo 優化，使用防抖搜尋，並將收藏的夥伴放在最上面
   const filteredPartners: Partner[] = useMemo(() => {
     const filtered = partners.filter((p) => {
+      // 所有篩選條件都應該疊加（AND 邏輯）
       // 純聊天篩選
       if (onlyChat && !p.supportsChatOnly) return false;
+      
+      // 現在有空篩選
+      if (onlyAvailable && !p.isAvailableNow) return false;
+      
+      // 上分高手篩選
+      if (onlyRankBooster && !p.isRankBooster) return false;
 
-      if (onlyAvailable && onlyRankBooster) {
-        return p.isAvailableNow && p.isRankBooster;
-      } else if (onlyAvailable) {
-        return p.isAvailableNow;
-      } else if (onlyRankBooster) {
-        return p.isRankBooster;
-      }
-
+      // 所有條件都通過
       return true;
     });
 

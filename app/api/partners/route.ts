@@ -32,6 +32,8 @@ type PartnerRecord = {
   rankBoosterNote: string | null
   rankBoosterRank: string | null
   customerMessage: string | null
+  supportsChatOnly: boolean
+  chatOnlyRate: number | null
   user: {
     isSuspended: boolean
     suspensionEndsAt: Date | null
@@ -155,6 +157,8 @@ export async function GET(request: NextRequest) {
                 rankBoosterNote: true,
                 rankBoosterRank: true,
                 customerMessage: true,
+                supportsChatOnly: true,
+                chatOnlyRate: true,
                 user: {
                   select: {
                     isSuspended: true,
@@ -251,6 +255,8 @@ export async function GET(request: NextRequest) {
           rankBoosterNote: partner.rankBoosterNote,
           rankBoosterRank: partner.rankBoosterRank,
           customerMessage: partner.customerMessage,
+          supportsChatOnly: partner.supportsChatOnly,
+          chatOnlyRate: partner.chatOnlyRate,
           user: partner.user,
           images,
           schedules: availableSchedules,
