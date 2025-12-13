@@ -181,8 +181,12 @@ export async function GET(request: Request) {
                 }
               }
             },
-            orderBy: [{ date: 'asc' }, { startTime: 'asc' }],
-            take: 100,
+            orderBy: [
+              // 優先排序：搜索日期當天的時段排在前面
+              { date: 'asc' },
+              { startTime: 'asc' }
+            ],
+            take: 200, // 增加數量以確保不遺漏
           }
         },
         take: 100,
@@ -196,6 +200,15 @@ export async function GET(request: Request) {
           allowGroupBooking: true, // 已經篩選過
           schedulesCount: p.schedules.length,
           games: p.games,
+          schedules: p.schedules.map(s => ({
+            id: s.id,
+            date: s.date,
+            startTime: s.startTime,
+            endTime: s.endTime,
+            dateUTC: `${new Date(s.date).getUTCFullYear()}-${String(new Date(s.date).getUTCMonth() + 1).padStart(2, '0')}-${String(new Date(s.date).getUTCDate()).padStart(2, '0')}`,
+            startTimeUTC: `${new Date(s.startTime).getUTCFullYear()}-${String(new Date(s.startTime).getUTCMonth() + 1).padStart(2, '0')}-${String(new Date(s.startTime).getUTCDate()).padStart(2, '0')} ${String(new Date(s.startTime).getUTCHours()).padStart(2, '0')}:${String(new Date(s.startTime).getUTCMinutes()).padStart(2, '0')}`,
+            endTimeUTC: `${new Date(s.endTime).getUTCFullYear()}-${String(new Date(s.endTime).getUTCMonth() + 1).padStart(2, '0')}-${String(new Date(s.endTime).getUTCDate()).padStart(2, '0')} ${String(new Date(s.endTime).getUTCHours()).padStart(2, '0')}:${String(new Date(s.endTime).getUTCMinutes()).padStart(2, '0')}`,
+          })),
         })))
       }
       
