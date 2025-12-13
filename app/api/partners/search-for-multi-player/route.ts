@@ -282,52 +282,96 @@ export async function GET(request: Request) {
 
       // 找到符合條件的夥伴
       // 先進行遊戲篩選（在時段檢查之前）
-      const gameFilteredPartners = gameList.length > 0
-        ? availablePartners.filter(partner => {
-            const partnerGames = (partner.games || []).map((g: string) => g.toLowerCase().trim())
-            const normalizedGameList = gameList.map(g => g.toLowerCase().trim())
-            
-            // 檢查夥伴是否至少有一個遊戲與搜索的遊戲匹配（完全匹配）
-            const hasMatchingGame = normalizedGameList.some(searchGame => 
-              partnerGames.includes(searchGame)
-            )
-            
-            if (!hasMatchingGame) {
-              console.log(`🎮 [多人陪玩搜索] 夥伴 ${partner.name} (${partner.id}) 被遊戲篩選排除:`, {
-                partnerGames,
-                searchGames: normalizedGameList,
-                reason: '夥伴沒有匹配的遊戲',
-              })
-              return false
-            }
-            
-            // 記錄通過遊戲篩選的日誌
-            console.log(`✅ [多人陪玩搜索] 夥伴 ${partner.name} (${partner.id}) 通過遊戲篩選:`, {
-              partnerGames,
-              searchGames: normalizedGameList,
-              matchingGames: normalizedGameList.filter(g => partnerGames.includes(g)),
-            })
-            return true
-          })
-        : availablePartners
+      const gameFilteredPartners: typeof availablePartners = []
+      const gameFilteredOut: typeof availablePartners = []
       
-      console.log(`🎮 [多人陪玩搜索] 遊戲篩選結果: ${availablePartners.length} -> ${gameFilteredPartners.length} 個夥伴`)
+      // 遊戲匹配函數：支援多選遊戲（預留擴充）
+      const matchGames = (partnerGames: string[], searchGames: string[]): boolean => {
+        if (!searchGames || searchGames.length === 0) return true
+        const normalizedPartnerGames = partnerGames.map(g => g.toLowerCase().trim())
+        const normalizedSearchGames = searchGames.map(g => g.toLowerCase().trim())
+        return normalizedSearchGames.some(searchGame => 
+          normalizedPartnerGames.includes(searchGame)
+        )
+      }
+      
+      // 對每個伙伴進行遊戲篩選
+      for (const partner of availablePartners) {
+        const partnerGames = partner.games || []
+        const gameMatch = matchGames(partnerGames, gameList)
+        
+        // 記錄遊戲檢查結果到 debug
+        if (debug) {
+          const partnerDebug = {
+            partnerId: partner.id,
+            partnerName: partner.name,
+            scheduleChecks: [],
+            gameCheck: {
+              searchGames: gameList,
+              partnerGames: partnerGames,
+              isMatch: gameMatch,
+            },
+          }
+          debugInfo.partners.push(partnerDebug)
+        }
+        
+        if (gameList.length > 0 && !gameMatch) {
+          // 遊戲不符合，直接跳過，不進入 schedule matching
+          console.log(`🎮 [多人陪玩搜索] 夥伴 ${partner.name} (${partner.id}) 被遊戲篩選排除:`, {
+            partnerGames,
+            searchGames: gameList,
+            reason: '夥伴沒有匹配的遊戲',
+          })
+          
+          if (debug) {
+            const partnerDebug = debugInfo.partners.find((p: any) => p.partnerId === partner.id)!
+            partnerDebug.finalStatus = '遊戲不符合'
+            partnerDebug.gameFilterReason = {
+              requiredGames: gameList,
+              partnerGames: partnerGames,
+              missingGames: gameList.filter(g => !partnerGames.map(pg => pg.toLowerCase().trim()).includes(g.toLowerCase().trim())),
+            }
+          }
+          
+          gameFilteredOut.push(partner)
+          continue
+        }
+        
+        // 通過遊戲篩選
+        if (gameList.length > 0) {
+          console.log(`✅ [多人陪玩搜索] 夥伴 ${partner.name} (${partner.id}) 通過遊戲篩選:`, {
+            partnerGames,
+            searchGames: gameList,
+            matchingGames: gameList.filter(g => partnerGames.map(pg => pg.toLowerCase().trim()).includes(g.toLowerCase().trim())),
+          })
+        }
+        
+        gameFilteredPartners.push(partner)
+      }
+      
+      console.log(`🎮 [多人陪玩搜索] 遊戲篩選結果: ${availablePartners.length} -> ${gameFilteredPartners.length} 個夥伴 (排除 ${gameFilteredOut.length} 個)`)
       
       // 然後檢查時段
       const partnersWithAvailableSchedules = gameFilteredPartners
         .map(partner => {
-          // 找到符合時段的 schedule
+          // 找到符合時段的 schedule（遊戲篩選已通過）
           console.log(`🔎 [多人陪玩搜索] 檢查夥伴 ${partner.name} (${partner.id}) 的 ${partner.schedules.length} 個時段`)
           
-          // 初始化夥伴調試信息
+          // 確保 debug 信息已存在（遊戲篩選階段已創建，這裡只確保存在）
           if (debug) {
-            const partnerDebug = debugInfo.partners.find((p: any) => p.partnerId === partner.id) || {
-              partnerId: partner.id,
-              partnerName: partner.name,
-              scheduleChecks: [],
-            }
-            if (!debugInfo.partners.find((p: any) => p.partnerId === partner.id)) {
-              debugInfo.partners.push(partnerDebug)
+            const partnerDebug = debugInfo.partners.find((p: any) => p.partnerId === partner.id)
+            if (!partnerDebug) {
+              // 如果不存在（理論上不應該發生，因為遊戲篩選階段已創建），創建一個
+              debugInfo.partners.push({
+                partnerId: partner.id,
+                partnerName: partner.name,
+                scheduleChecks: [],
+                gameCheck: {
+                  searchGames: gameList,
+                  partnerGames: partner.games || [],
+                  isMatch: true,
+                },
+              })
             }
           }
           
