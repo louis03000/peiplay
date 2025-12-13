@@ -6,6 +6,13 @@ import { authOptions } from '@/lib/auth'
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
+import dayjs from 'dayjs'
+import utc from 'dayjs/plugin/utc'
+import timezone from 'dayjs/plugin/timezone'
+
+dayjs.extend(utc)
+dayjs.extend(timezone)
+
 export async function GET(request: Request) {
   // ========== 調試日誌開始 ==========
   console.log('\n' + '='.repeat(80))
@@ -64,34 +71,46 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: '時間或日期解析失敗' }, { status: 400 })
     }
     
-    // 重要：前端傳來的是本地時間（台灣 UTC+8）
-    // 需要將本地時間轉換為 UTC 時間戳進行比較
-    // 使用 Date 構造函數創建本地時間，然後取其 UTC 時間戳
-    // new Date(year, month, day, hour, minute) 會創建本地時間，內部存儲為 UTC
-    const startDateTimeLocal = new Date(year, month - 1, day, startHour, startMinute, 0, 0)
-    const endDateTimeLocal = new Date(year, month - 1, day, endHour, endMinute, 0, 0)
+    // 重要：前端傳來的是台灣本地時間（UTC+8）
+    // 使用 dayjs 正確將台灣時間轉換為 UTC 時間戳
+    const dateTimeString = `${normalizedDate} ${startTime}`
+    const endDateTimeString = `${normalizedDate} ${endTime}`
     
-    if (isNaN(startDateTimeLocal.getTime()) || isNaN(endDateTimeLocal.getTime())) {
+    const startDateTimeUTC = dayjs
+      .tz(dateTimeString, 'Asia/Taipei')
+      .utc()
+      .toDate()
+    
+    const endDateTimeUTC = dayjs
+      .tz(endDateTimeString, 'Asia/Taipei')
+      .utc()
+      .toDate()
+    
+    if (!startDateTimeUTC || !endDateTimeUTC || isNaN(startDateTimeUTC.getTime()) || isNaN(endDateTimeUTC.getTime())) {
       return NextResponse.json({ error: '時間對象創建失敗' }, { status: 400 })
     }
     
-    if (endDateTimeLocal <= startDateTimeLocal) {
+    if (endDateTimeUTC <= startDateTimeUTC) {
       return NextResponse.json({ error: '結束時間必須晚於開始時間' }, { status: 400 })
     }
     
-    // 檢查時段是否在「現在+2小時」之後
-    const now = new Date()
-    const twoHoursLater = new Date(now.getTime() + 2 * 60 * 60 * 1000)
+    // 檢查時段是否在「現在+2小時」之後（使用台灣時間檢查）
+    const now = dayjs().tz('Asia/Taipei')
+    const twoHoursLater = now.add(2, 'hour')
+    const searchStartTaipei = dayjs.tz(dateTimeString, 'Asia/Taipei')
     
-    if (startDateTimeLocal <= twoHoursLater) {
+    if (searchStartTaipei.isBefore(twoHoursLater)) {
       return NextResponse.json({ 
         error: '預約時段必須在現在時間的2小時之後'
       }, { status: 400 })
     }
     
-    // 使用 UTC 時間戳進行比較（startDateTimeLocal 內部已經是 UTC，直接使用）
-    const startDateTimeUTC = startDateTimeLocal
-    const endDateTimeUTC = endDateTimeLocal
+    // 調試：驗證時間轉換是否正確
+    console.log('⏰ [多人陪玩搜索] 時間轉換驗證:', {
+      input: `${normalizedDate} ${startTime}`,
+      searchStartUTC: startDateTimeUTC.toISOString(),
+      taipeiView: dayjs(startDateTimeUTC).tz('Asia/Taipei').format('YYYY-MM-DD HH:mm'),
+    })
 
     // 解析遊戲列表
     const gameList = games 
