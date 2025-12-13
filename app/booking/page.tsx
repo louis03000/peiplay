@@ -353,8 +353,16 @@ function BookingWizardContent() {
   const filteredPartners: Partner[] = useMemo(() => {
     const filtered = partners.filter((p) => {
       // 所有篩選條件都應該疊加（AND 邏輯）
-      // 純聊天篩選
-      if (onlyChat && !p.supportsChatOnly) return false;
+      // 純聊天篩選：檢查 supportsChatOnly 欄位或 games 陣列中是否包含 'chat' 或 '純聊天'
+      if (onlyChat) {
+        const hasChatOnly = p.supportsChatOnly === true;
+        const hasChatInGames = p.games?.some(game => 
+          game.toLowerCase() === 'chat' || 
+          game === '純聊天' || 
+          game.toLowerCase().includes('chat')
+        );
+        if (!hasChatOnly && !hasChatInGames) return false;
+      }
       
       // 現在有空篩選
       if (onlyAvailable && !p.isAvailableNow) return false;

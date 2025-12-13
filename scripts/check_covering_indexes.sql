@@ -112,3 +112,4 @@ ORDER BY pg_relation_size(indexrelid) DESC;
 -- 3. 只對頻繁讀取的查詢建立覆蓋索引
 -- 4. 定期檢查索引使用情況，刪除未使用的索引
 
+

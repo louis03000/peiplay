@@ -124,3 +124,4 @@ class RatingViewSimple(View):
 
 
 
+

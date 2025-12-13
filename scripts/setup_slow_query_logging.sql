@@ -152,3 +152,4 @@ ORDER BY pg_relation_size(indexrelid) DESC;
 -- 5. 在生產環境中，建議將 log_min_duration_statement 設為 500-1000ms
 -- 6. 可以使用 log_rotation_age 和 log_rotation_size 自動輪轉日誌
 
+

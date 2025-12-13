@@ -73,3 +73,4 @@ CREATE INDEX IF NOT EXISTS "RankingHistory_weekStartDate_rank_idx" ON "RankingHi
 - RankingHistory 表是可選的，如果不存在，系統會使用默認費率
 - 所有警告現在只在開發環境顯示，生產環境保持乾淨
 
+
