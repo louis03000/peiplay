@@ -330,19 +330,26 @@ export async function GET(request: Request) {
             const searchStartLocalTime = `${String(startDateTime.getHours()).padStart(2, '0')}:${String(startDateTime.getMinutes()).padStart(2, '0')}`
             const searchEndLocalTime = `${String(endDateTime.getHours()).padStart(2, '0')}:${String(endDateTime.getMinutes()).padStart(2, '0')}`
             
+            // 計算 scheduleStart 和 scheduleEnd 的實際本地日期（用於正確顯示時段）
+            const scheduleStartDateLocal = `${scheduleStart.getFullYear()}-${String(scheduleStart.getMonth() + 1).padStart(2, '0')}-${String(scheduleStart.getDate()).padStart(2, '0')}`
+            const scheduleEndDateLocal = `${scheduleEnd.getFullYear()}-${String(scheduleEnd.getMonth() + 1).padStart(2, '0')}-${String(scheduleEnd.getDate()).padStart(2, '0')}`
+            
             if (!isDateMatch) {
               console.log(`📅 [多人陪玩搜索] 時段 ${schedule.id} 日期不匹配:`, {
                 scheduleDate: scheduleDate.toISOString(),
                 scheduleDateLocal,
+                scheduleStartDateLocal,
+                scheduleEndDateLocal,
                 searchDateLocal,
                 isDateMatch,
               })
               
               if (debug) {
                 const partnerDebug = debugInfo.partners.find((p: any) => p.partnerId === partner.id)!
-                // 組合後的時段（使用本地日期 + 本地時間）
-                const scheduleStartCombinedLocal = `${scheduleDateLocal} ${scheduleStartLocalTime}`
-                const scheduleEndCombinedLocal = `${scheduleDateLocal} ${scheduleEndLocalTime}`
+                // 組合後的時段（使用實際的本地日期 + 本地時間，而不是 schedule.date）
+                // 因為 schedule.startTime 和 schedule.date 可能對應不同的日期
+                const scheduleStartCombinedLocal = `${scheduleStartDateLocal} ${scheduleStartLocalTime}`
+                const scheduleEndCombinedLocal = `${scheduleEndDateLocal} ${scheduleEndLocalTime}`
                 
                 partnerDebug.scheduleChecks.push({
                   scheduleId: schedule.id,
