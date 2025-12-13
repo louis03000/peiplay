@@ -91,6 +91,8 @@ function BookingWizardContent() {
   const [loadingFavorites, setLoadingFavorites] = useState(false);
   const [partnersError, setPartnersError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
+  const [partnerSchedules, setPartnerSchedules] = useState<Map<string, Partner['schedules']>>(new Map());
+  const [loadingSchedules, setLoadingSchedules] = useState(false);
 
   // 處理翻面功能
   const handleCardFlip = (partnerId: string) => {
@@ -146,52 +148,7 @@ function BookingWizardContent() {
 
   // 移除無用的金幣餘額獲取
 
-  // 獲取用戶的最愛列表（延遲加載，不阻塞頁面渲染）
-  useEffect(() => {
-    // 等待 session 載入完成
-    if (sessionStatus === "loading") return;
-
-    // 如果未登入，清空最愛列表
-    if (sessionStatus === "unauthenticated" || !session?.user) {
-      setFavoritePartnerIds(new Set());
-      return;
-    }
-
-    // 延遲加載 favorites，讓頁面先渲染
-    // 使用 requestIdleCallback 如果可用，否則使用 setTimeout
-    const loadFavorites = async () => {
-      setLoadingFavorites(true);
-      try {
-        const res = await fetch("/api/favorites", {
-          cache: "no-store",
-        });
-        if (res.ok) {
-          const data = await res.json();
-          const favoriteIds = new Set<string>(
-            (data.favorites || []).map(
-              (f: { partnerId: string }) => f.partnerId,
-            ),
-          );
-          setFavoritePartnerIds(favoriteIds);
-          console.log("✅ 已載入最愛列表:", Array.from(favoriteIds));
-        } else {
-          console.error("獲取最愛列表失敗:", res.status, await res.text());
-        }
-      } catch (error) {
-        console.error("Failed to fetch favorites:", error);
-      } finally {
-        setLoadingFavorites(false);
-      }
-    };
-
-    // 優先使用 requestIdleCallback（瀏覽器空閒時執行）
-    if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
-      (window as any).requestIdleCallback(loadFavorites, { timeout: 2000 });
-    } else {
-      // 降級方案：延遲 100ms 後執行，讓頁面先渲染
-      setTimeout(loadFavorites, 100);
-    }
-  }, [session, sessionStatus]);
+  // 注意：favorites 現在在 fetchData 中並行載入，這裡不再需要單獨的 useEffect
 
   // 處理切換最愛
   const handleToggleFavorite = async (partnerId: string) => {
@@ -278,62 +235,72 @@ function BookingWizardContent() {
     }
   }, [searchParams, partners]);
 
-  // 優化夥伴資料獲取，添加錯誤處理和重試機制
+  // 優化：使用輕量級 API + 並行請求
   useEffect(() => {
-    const fetchPartners = async (isRetry: boolean = false) => {
+    const fetchData = async (isRetry: boolean = false) => {
       if (!isRetry) {
         setLoading(true);
         setPartnersError(null);
       }
 
       try {
-        let url = "/api/partners";
+        // 構建 partners API URL（使用輕量級 API，不查時段）
+        let partnersUrl = "/api/partners/list";
         const params = [];
         if (onlyAvailable) params.push("availableNow=true");
         if (onlyRankBooster) params.push("rankBooster=true");
+        if (params.length > 0) partnersUrl += "?" + params.join("&");
 
-        // 只查詢未來7天，減少資料傳輸量，加快載入速度
-        const now = new Date();
-        const endDate = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000); // 7天後
-        params.push(`startDate=${now.toISOString()}`);
-        params.push(`endDate=${endDate.toISOString()}`);
+        // 並行請求：partners + favorites（如果已登入）
+        const requests: Promise<any>[] = [
+          fetch(partnersUrl, {
+            cache: "force-cache", // 使用快取
+            headers: {
+              "Cache-Control": "max-age=30",
+            },
+          }).then(res => res.json()),
+        ];
 
-        if (params.length > 0) url += "?" + params.join("&");
-
-        const res = await fetch(url, {
-          cache: "no-store",
-          headers: {
-            "Cache-Control": "no-cache",
-          },
-        });
-
-        const data = await res.json();
-
-        if (!res.ok) {
-          // API 返回錯誤
-          const errorMessage = data?.error || `載入失敗 (${res.status})`;
-          setPartnersError(errorMessage);
-          setPartners([]);
-          console.error("API error:", errorMessage, data);
-          return;
+        // 如果已登入，同時請求 favorites
+        if (sessionStatus === "authenticated" && session?.user) {
+          requests.push(
+            fetch("/api/favorites", {
+              cache: "force-cache",
+              headers: {
+                "Cache-Control": "max-age=30",
+              },
+            }).then(res => res.json())
+          );
         }
 
-        // 成功獲取資料
-        if (Array.isArray(data)) {
-          setPartners(data);
-          setPartnersError(null); // 清除錯誤
-          setRetryCount(0); // 重置重試計數
-        } else if (data?.partners && Array.isArray(data.partners)) {
-          // 如果返回的是 { partners: [...] } 格式
-          setPartners(data.partners);
+        // 並行執行所有請求
+        const results = await Promise.all(requests);
+        const partnersData = results[0];
+        const favoritesData = results[1];
+
+        // 處理 partners 資料
+        if (Array.isArray(partnersData)) {
+          setPartners(partnersData);
+          setPartnersError(null);
+          setRetryCount(0);
+        } else if (partnersData?.partners && Array.isArray(partnersData.partners)) {
+          setPartners(partnersData.partners);
           setPartnersError(null);
           setRetryCount(0);
         } else {
           setPartners([]);
-          setPartnersError(null); // 沒有夥伴不是錯誤
+          setPartnersError(null);
+        }
+
+        // 處理 favorites 資料
+        if (favoritesData?.favorites) {
+          const favoriteIds = new Set<string>(
+            favoritesData.favorites.map((f: { partnerId: string }) => f.partnerId)
+          );
+          setFavoritePartnerIds(favoriteIds);
         }
       } catch (error) {
-        console.error("Failed to fetch partners:", error);
+        console.error("Failed to fetch data:", error);
         setPartnersError("網路錯誤，請檢查網路連線後重試");
         setPartners([]);
       } finally {
@@ -341,8 +308,8 @@ function BookingWizardContent() {
       }
     };
 
-    fetchPartners();
-  }, [onlyAvailable, onlyRankBooster, retryCount]);
+    fetchData();
+  }, [onlyAvailable, onlyRankBooster, retryCount, sessionStatus, session]);
 
   // 手動重試函數
   const handleRetry = () => {
@@ -393,12 +360,13 @@ function BookingWizardContent() {
     );
   }, []);
 
-  // 優化日期選擇邏輯
+  // 優化日期選擇邏輯（使用載入的時段）
   const availableDates = useMemo(() => {
     if (!selectedPartner) return [];
+    const schedules = partnerSchedules.get(selectedPartner.id) || [];
     const dateSet = new Set<string>();
     const now = new Date();
-    selectedPartner.schedules.forEach((s) => {
+    schedules.forEach((s) => {
       if (!s.isAvailable) return;
       if (new Date(s.startTime) <= now) return;
       const d = new Date(s.date);
@@ -422,7 +390,8 @@ function BookingWizardContent() {
     const now = new Date();
 
     // 遍歷所有時段，收集有效預約
-    selectedPartner.schedules.forEach((schedule) => {
+    const schedules = partnerSchedules.get(selectedPartner.id) || [];
+    schedules.forEach((schedule) => {
       // 只考慮同一天的時段
       const scheduleDate = new Date(schedule.date);
       if (!isSameDay(scheduleDate, selectedDate)) return;
@@ -457,7 +426,7 @@ function BookingWizardContent() {
     };
 
     const seenTimeSlots = new Set<string>();
-    const uniqueSchedules = selectedPartner.schedules.filter((schedule) => {
+    const uniqueSchedules = schedules.filter((schedule) => {
       // 基本檢查：時段必須可用
       if (!schedule.isAvailable) return false;
 
@@ -605,17 +574,58 @@ function BookingWizardContent() {
     }
   };
 
+  // 載入夥伴時段
+  const loadPartnerSchedules = useCallback(async (partnerId: string) => {
+    // 如果已經載入過，直接返回
+    if (partnerSchedules.has(partnerId)) {
+      return;
+    }
+
+    setLoadingSchedules(true);
+    try {
+      const now = new Date();
+      const endDate = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000); // 7天後
+      const url = `/api/partners/${partnerId}/schedules?startDate=${now.toISOString()}&endDate=${endDate.toISOString()}`;
+      
+      const res = await fetch(url, {
+        cache: "force-cache",
+        headers: {
+          "Cache-Control": "max-age=30",
+        },
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setPartnerSchedules(prev => {
+          const newMap = new Map(prev);
+          newMap.set(partnerId, data.schedules || []);
+          return newMap;
+        });
+      }
+    } catch (error) {
+      console.error("Failed to load schedules:", error);
+    } finally {
+      setLoadingSchedules(false);
+    }
+  }, [partnerSchedules]);
+
   const handlePartnerSelect = useCallback(
-    (partner: Partner) => {
+    async (partner: Partner) => {
       setSelectedPartner(partner);
       setSelectedDate(null);
       setSelectedTimes([]);
       setSelectedDuration(1); // 重置預約時長
+      
+      // 載入時段（如果還沒有載入）
+      if (!onlyAvailable) {
+        await loadPartnerSchedules(partner.id);
+      }
+      
       if (onlyAvailable) {
         setStep(1); // 直接跳到選擇時長步驟
       }
     },
-    [onlyAvailable],
+    [onlyAvailable, loadPartnerSchedules],
   );
 
   const handleDateSelect = useCallback((date: Date) => {

@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db-resilience";
 import { createErrorResponse } from "@/lib/api-helpers";
+import { Cache } from "@/lib/redis-cache";
 import { randomBytes } from "crypto";
 
 export const dynamic = 'force-dynamic';
@@ -58,12 +59,29 @@ export async function GET() {
       }));
     }, 'favorites:get');
 
+    // 使用 Redis 快取（TTL: 30 秒）
+    const cacheKey = `favorites:${session.user.id}`;
+    const cached = await Cache.get(cacheKey);
+    if (cached) {
+      return NextResponse.json(
+        { favorites: cached },
+        {
+          headers: {
+            'Cache-Control': 'private, max-age=30, stale-while-revalidate=60',
+          },
+        }
+      );
+    }
+
+    // 快取結果
+    await Cache.set(cacheKey, favorites, 30); // 30 秒快取
+
     // 個人資料使用 private cache（只快取在用戶瀏覽器中）
     return NextResponse.json(
       { favorites },
       {
         headers: {
-          'Cache-Control': 'private, max-age=60, stale-while-revalidate=120',
+          'Cache-Control': 'private, max-age=30, stale-while-revalidate=60',
         },
       }
     );
