@@ -78,7 +78,15 @@ export async function GET() {
       return NextResponse.json({ error: '客戶資料不存在' }, { status: 404 });
     }
 
-    return NextResponse.json({ bookings: result });
+    // 個人資料使用 private cache（只在用戶瀏覽器中快取）
+    return NextResponse.json(
+      { bookings: result },
+      {
+        headers: {
+          'Cache-Control': 'private, max-age=30, stale-while-revalidate=60',
+        },
+      }
+    );
   } catch (error) {
     return createErrorResponse(error, 'bookings:me');
   }

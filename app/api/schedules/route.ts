@@ -70,7 +70,12 @@ export async function GET(request: NextRequest) {
       'schedules:list'
     )
 
-    return NextResponse.json(schedules)
+    // 時段資料變動頻繁，使用較短的 private cache
+    return NextResponse.json(schedules, {
+      headers: {
+        'Cache-Control': 'private, max-age=10, stale-while-revalidate=30',
+      },
+    })
   } catch (error) {
     return createErrorResponse(error, 'schedules:list')
   }

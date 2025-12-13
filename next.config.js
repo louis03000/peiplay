@@ -41,7 +41,9 @@ const nextConfig = {
     contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
     // 性能優化
     formats: ['image/webp', 'image/avif'],
-    minimumCacheTTL: 60,
+    // 增加圖片快取時間（30天），減少重複下載
+    // 根據用戶提供的資料，圖片應該有更長的快取時間
+    minimumCacheTTL: 2592000, // 30 天（秒）
     deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
     // 允許未優化的圖片（用於 Cloudinary）

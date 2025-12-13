@@ -29,9 +29,22 @@ export async function POST(request: Request) {
       }
 
       // 檢查預約是否存在且已完成
+      // 優化：使用 select 而非 include
       const booking = await client.booking.findUnique({
         where: { id: bookingId },
-        include: { schedule: true }
+        select: {
+          id: true,
+          status: true,
+          schedule: {
+            select: {
+              id: true,
+              partnerId: true,
+              date: true,
+              startTime: true,
+              endTime: true,
+            }
+          }
+        }
       })
 
       if (!booking) {
@@ -42,6 +55,7 @@ export async function POST(request: Request) {
         throw new Error('只能評價已完成的預約')
       }
 
+      // 優化：使用 select 而非 include
       const review = await client.review.create({
         data: {
           bookingId,
@@ -50,9 +64,29 @@ export async function POST(request: Request) {
           rating,
           comment
         },
-        include: {
-          reviewer: true,
-          reviewee: true
+        select: {
+          id: true,
+          bookingId: true,
+          reviewerId: true,
+          revieweeId: true,
+          rating: true,
+          comment: true,
+          isApproved: true,
+          createdAt: true,
+          updatedAt: true,
+          reviewer: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            }
+          },
+          reviewee: {
+            select: {
+              id: true,
+              name: true,
+            }
+          }
         }
       })
 
@@ -86,24 +120,155 @@ export async function GET(request: Request) {
     }
 
     const result = await db.query(async (client) => {
-      const reviews = await client.review.findMany({
-        where: {
-          ...(userId ? { revieweeId: userId } : {}),
-          ...(bookingId ? { bookingId } : {})
-        },
-        include: {
-          reviewer: true,
-          reviewee: true,
-          booking: {
-            include: {
-              schedule: true
+      // 優化：使用 select 而非 include，只查詢必要欄位
+      // 優化：分別查詢以利用索引，避免 OR 條件影響索引使用
+      let reviews;
+      if (userId && bookingId) {
+        // 如果兩個參數都有，分別查詢後合併去重
+        const [byUserId, byBookingId] = await Promise.all([
+          client.review.findMany({
+            where: { revieweeId: userId },
+            select: {
+              id: true,
+              bookingId: true,
+              reviewerId: true,
+              revieweeId: true,
+              rating: true,
+              comment: true,
+              isApproved: true,
+              createdAt: true,
+              updatedAt: true,
+              reviewer: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                }
+              },
+              reviewee: {
+                select: {
+                  id: true,
+                  name: true,
+                }
+              },
+              booking: {
+                select: {
+                  id: true,
+                  status: true,
+                  schedule: {
+                    select: {
+                      id: true,
+                      date: true,
+                      startTime: true,
+                      endTime: true,
+                    }
+                  }
+                }
+              }
+            },
+            orderBy: { createdAt: 'desc' }
+          }),
+          client.review.findMany({
+            where: { bookingId },
+            select: {
+              id: true,
+              bookingId: true,
+              reviewerId: true,
+              revieweeId: true,
+              rating: true,
+              comment: true,
+              isApproved: true,
+              createdAt: true,
+              updatedAt: true,
+              reviewer: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                }
+              },
+              reviewee: {
+                select: {
+                  id: true,
+                  name: true,
+                }
+              },
+              booking: {
+                select: {
+                  id: true,
+                  status: true,
+                  schedule: {
+                    select: {
+                      id: true,
+                      date: true,
+                      startTime: true,
+                      endTime: true,
+                    }
+                  }
+                }
+              }
+            },
+            orderBy: { createdAt: 'desc' }
+          })
+        ]);
+        // 合併並去重
+        const reviewMap = new Map();
+        [...byUserId, ...byBookingId].forEach(review => {
+          reviewMap.set(review.id, review);
+        });
+        reviews = Array.from(reviewMap.values()).sort((a, b) => 
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        );
+      } else {
+        reviews = await client.review.findMany({
+          where: {
+            ...(userId ? { revieweeId: userId } : {}),
+            ...(bookingId ? { bookingId } : {})
+          },
+          select: {
+            id: true,
+            bookingId: true,
+            reviewerId: true,
+            revieweeId: true,
+            rating: true,
+            comment: true,
+            isApproved: true,
+            createdAt: true,
+            updatedAt: true,
+            reviewer: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+              }
+            },
+            reviewee: {
+              select: {
+                id: true,
+                name: true,
+              }
+            },
+            booking: {
+              select: {
+                id: true,
+                status: true,
+                schedule: {
+                  select: {
+                    id: true,
+                    date: true,
+                    startTime: true,
+                    endTime: true,
+                  }
+                }
+              }
             }
-          }
-        },
-        orderBy: {
-          createdAt: 'desc'
-        }
-      })
+          },
+          orderBy: {
+            createdAt: 'desc'
+          },
+          take: 100, // 限制結果數量
+        });
+      }
 
       return { reviews }
     }, 'reviews:GET')

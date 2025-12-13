@@ -14,6 +14,7 @@ export async function GET() {
       return NextResponse.json({ error: '未授權' }, { status: 401 })
     }
 
+    // 優化：使用 select 而非 include，只查詢必要欄位，並限制結果數量
     const reviews = await db.query(async (client) => {
       return client.review.findMany({
         where: {
@@ -21,23 +22,47 @@ export async function GET() {
             not: null,
           },
         },
-        include: {
+        select: {
+          id: true,
+          bookingId: true,
+          reviewerId: true,
+          revieweeId: true,
+          rating: true,
+          comment: true,
+          isApproved: true,
+          createdAt: true,
+          updatedAt: true,
           reviewer: {
             select: {
+              id: true,
               name: true,
               email: true,
             },
           },
           reviewee: {
             select: {
+              id: true,
               name: true,
             },
           },
           booking: {
-            include: {
+            select: {
+              id: true,
+              status: true,
+              createdAt: true,
               schedule: {
-                include: {
-                  partner: true,
+                select: {
+                  id: true,
+                  date: true,
+                  startTime: true,
+                  endTime: true,
+                  partner: {
+                    select: {
+                      id: true,
+                      name: true,
+                      games: true,
+                    },
+                  },
                 },
               },
             },
@@ -46,6 +71,7 @@ export async function GET() {
         orderBy: {
           createdAt: 'desc',
         },
+        take: 100, // 限制結果數量
       })
     }, 'admin:reviews:get')
 

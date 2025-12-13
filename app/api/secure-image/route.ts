@@ -39,13 +39,15 @@ export async function GET(request: NextRequest) {
     const contentType = imageResponse.headers.get('content-type') || 'image/jpeg';
 
     // 返回圖片，並設置安全標頭與快取策略
-    // 圖片通常不會變動，使用長期快取（7天）+ Stale-While-Revalidate
+    // 圖片通常不會變動，使用長期快取（30天）+ Stale-While-Revalidate
+    // 根據用戶提供的資料，圖片應該有更長的快取時間以減少重複下載
     return new NextResponse(imageBuffer, {
       status: 200,
       headers: {
         'Content-Type': contentType,
-        // 公開快取，7天過期，背景重新驗證（stale-while-revalidate）
-        'Cache-Control': 'public, max-age=604800, stale-while-revalidate=86400',
+        // 公開快取，30天過期，背景重新驗證（stale-while-revalidate）
+        // 大幅減少圖片重複下載，特別是在首頁有多張商品圖時
+        'Cache-Control': 'public, max-age=2592000, stale-while-revalidate=604800',
         'X-Content-Type-Options': 'nosniff',
         'X-Frame-Options': 'DENY',
         'Referrer-Policy': 'strict-origin-when-cross-origin',

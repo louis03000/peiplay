@@ -209,7 +209,15 @@ export async function GET(request: NextRequest) {
         });
     }
 
-    const response = NextResponse.json({ orders });
+    // 個人資料使用 private cache（只在用戶瀏覽器中快取）
+    const response = NextResponse.json(
+      { orders },
+      {
+        headers: {
+          'Cache-Control': 'private, max-age=30, stale-while-revalidate=60',
+        },
+      }
+    );
     console.log('✅ Response created successfully');
     return response;
   } catch (error) {

@@ -67,6 +67,95 @@ export async function POST(request: Request) {
       let entries;
       try {
         entries = await client.$transaction(async (tx) => {
+          // 優化：批量查詢所有時段，避免 N+1 查詢問題
+          console.log(`🔍 批量查詢 ${scheduleIds.length} 個時段...`)
+          const schedules = await tx.schedule.findMany({
+            where: { id: { in: scheduleIds } },
+            select: {
+              id: true,
+              partnerId: true,
+              startTime: true,
+              endTime: true,
+              partner: {
+                select: {
+                  halfHourlyRate: true,
+                  user: {
+                    select: {
+                      email: true,
+                      name: true,
+                    },
+                  },
+                },
+              },
+            },
+          });
+
+          // 檢查是否所有時段都存在
+          const scheduleMap = new Map(schedules.map(s => [s.id, s]));
+          for (const scheduleId of scheduleIds) {
+            if (!scheduleMap.has(scheduleId)) {
+              throw new Error(`時段不存在: ${scheduleId}`);
+            }
+          }
+
+          // 批量查詢所有現有預約，避免 N+1 查詢
+          const existingBookings = await tx.booking.findMany({
+            where: { scheduleId: { in: scheduleIds } },
+            select: { id: true, status: true, scheduleId: true },
+          });
+          const existingBookingMap = new Map(existingBookings.map(b => [b.scheduleId, b]));
+
+          // 檢查是否有已被預約的時段
+          for (const scheduleId of scheduleIds) {
+            const existingBooking = existingBookingMap.get(scheduleId);
+            if (existingBooking) {
+              throw new Error(`時段已被預約（預約編號: ${existingBooking.id}）`);
+            }
+          }
+
+          // 批量檢查時間衝突（收集所有需要檢查的夥伴和時間）
+          const partnerTimeChecks = new Map<string, Array<{ startTime: Date; endTime: Date; scheduleId: string }>>();
+          for (const schedule of schedules) {
+            if (!partnerTimeChecks.has(schedule.partnerId)) {
+              partnerTimeChecks.set(schedule.partnerId, []);
+            }
+            partnerTimeChecks.get(schedule.partnerId)!.push({
+              startTime: schedule.startTime,
+              endTime: schedule.endTime,
+              scheduleId: schedule.id,
+            });
+          }
+
+          // 為每個夥伴檢查時間衝突
+          for (const [partnerId, timeRanges] of partnerTimeChecks) {
+            for (const timeRange of timeRanges) {
+              try {
+                const conflict = await checkTimeConflict(
+                  partnerId,
+                  timeRange.startTime,
+                  timeRange.endTime,
+                  undefined,
+                  tx
+                );
+                if (conflict.hasConflict) {
+                  const conflictTimes = conflict.conflicts
+                    .map((c) => `${new Date(c.startTime).toLocaleString('zh-TW')} - ${new Date(c.endTime).toLocaleString('zh-TW')}`)
+                    .join(', ');
+                  throw new Error(`時間衝突！該夥伴在以下時段已有預約：${conflictTimes}`);
+                }
+              } catch (conflictError: any) {
+                if (conflictError.message.includes('時間衝突')) {
+                  throw conflictError;
+                }
+                console.error(`❌ 檢查時間衝突失敗 (${timeRange.scheduleId}):`, {
+                  message: conflictError?.message,
+                  stack: conflictError?.stack,
+                });
+                throw new Error(`檢查時間衝突失敗: ${conflictError?.message || '未知錯誤'}`);
+              }
+            }
+          }
+
           const records: Array<{
             bookingId: string;
             partnerEmail: string;
@@ -79,132 +168,35 @@ export async function POST(request: Request) {
             totalCost: number;
           }> = [];
 
-          for (const scheduleId of scheduleIds) {
-            console.log(`🔍 處理時段 ${scheduleId}...`)
-            
-            let schedule;
-            try {
-              // 只選擇必要的欄位，減少查詢時間
-              schedule = await tx.schedule.findUnique({
-                where: { id: scheduleId },
-                select: {
-                  id: true,
-                  partnerId: true,
-                  startTime: true,
-                  endTime: true,
-                  partner: {
-                    select: {
-                      halfHourlyRate: true,
-                      user: {
-                        select: {
-                          email: true,
-                          name: true,
-                        },
-                      },
-                    },
-                  },
-                },
-              });
-            } catch (scheduleError: any) {
-              console.error(`❌ 查詢時段失敗 (${scheduleId}):`, {
-                code: scheduleError?.code,
-                message: scheduleError?.message,
-                meta: scheduleError?.meta,
-                stack: scheduleError?.stack,
-              });
-              throw new Error(`查詢時段失敗: ${scheduleError?.message || '未知錯誤'}`);
-            }
-
-            if (!schedule) {
-              console.log(`❌ 時段不存在: ${scheduleId}`)
-              throw new Error(`時段不存在: ${scheduleId}`);
-            }
-            
-            console.log(`✅ 時段找到: ${scheduleId}, 夥伴: ${schedule.partner.user.name}`)
-
-            // 檢查時間衝突
-            let conflict;
-            try {
-              conflict = await checkTimeConflict(
-                schedule.partnerId,
-                schedule.startTime,
-                schedule.endTime,
-                undefined,
-                tx
-              );
-            } catch (conflictError: any) {
-              console.error(`❌ 檢查時間衝突失敗 (${scheduleId}):`, {
-                code: conflictError?.code,
-                message: conflictError?.message,
-                stack: conflictError?.stack,
-              });
-              throw new Error(`檢查時間衝突失敗: ${conflictError?.message || '未知錯誤'}`);
-            }
-
-            if (conflict.hasConflict) {
-              const conflictTimes = conflict.conflicts
-                .map((c) => `${new Date(c.startTime).toLocaleString('zh-TW')} - ${new Date(c.endTime).toLocaleString('zh-TW')}`)
-                .join(', ');
-
-              throw new Error(`時間衝突！該夥伴在以下時段已有預約：${conflictTimes}`);
-            }
-
+          // 創建所有預約
+          for (const schedule of schedules) {
             const durationHours =
               (schedule.endTime.getTime() - schedule.startTime.getTime()) / (1000 * 60 * 60);
             const originalAmount = durationHours * schedule.partner.halfHourlyRate * 2;
 
-            console.log(`🔍 創建預約記錄，時段: ${scheduleId}`)
-            
-            // 檢查時段是否已被預約（scheduleId 是 unique，只能有一個 booking）
-            let existingBooking;
-            try {
-              existingBooking = await tx.booking.findUnique({
-                where: { scheduleId },
-                select: { id: true, status: true },
-              });
-            } catch (checkError: any) {
-              console.error(`❌ 檢查現有預約失敗 (${scheduleId}):`, {
-                code: checkError?.code,
-                message: checkError?.message,
-                stack: checkError?.stack,
-              });
-              throw new Error(`檢查現有預約失敗: ${checkError?.message || '未知錯誤'}`);
-            }
-            
-            if (existingBooking) {
-              console.log(`❌ 時段 ${scheduleId} 已被預約，bookingId: ${existingBooking.id}, status: ${existingBooking.status}`)
-              throw new Error(`時段已被預約（預約編號: ${existingBooking.id}）`);
-            }
-            
-            // 只設置數據庫中確實存在的字段，避免設置不存在的字段
             const bookingData: any = {
               customerId: customer.id,
               partnerId: schedule.partnerId,
-              scheduleId,
+              scheduleId: schedule.id,
               status: BookingStatus.PAID_WAITING_PARTNER_CONFIRMATION,
               originalAmount,
               finalAmount: originalAmount,
             };
-            
-            console.log(`📝 準備創建預約，資料:`, bookingData)
             
             let booking;
             try {
               booking = await tx.booking.create({
                 data: bookingData,
               });
-              console.log(`✅ 預約創建成功: ${booking.id}`)
             } catch (createError: any) {
-              console.error(`❌ 創建預約失敗 (時段: ${scheduleId}):`, {
+              console.error(`❌ 創建預約失敗 (時段: ${schedule.id}):`, {
                 code: createError?.code,
                 message: createError?.message,
                 meta: createError?.meta,
-                stack: createError?.stack,
               });
               
               // 處理 Prisma 特定錯誤
               if (createError?.code === 'P2002') {
-                // Unique constraint violation - scheduleId 已被使用
                 const target = createError?.meta?.target as string[] || [];
                 if (target.includes('scheduleId')) {
                   throw new Error(`時段已被預約，請選擇其他時段`);
@@ -213,31 +205,21 @@ export async function POST(request: Request) {
               }
               
               if (createError?.code === 'P2003') {
-                // Foreign key constraint violation
                 throw new Error(`關聯資料錯誤: ${createError?.message}`);
               }
               
               if (createError?.code === 'P2036') {
-                // Column does not exist
                 throw new Error(`資料庫欄位不存在: ${createError?.message}`);
               }
               
               if (createError?.code === 'P2022') {
-                // Value out of range or type mismatch
-                console.error('P2022 錯誤詳情:', {
-                  message: createError?.message,
-                  meta: createError?.meta,
-                  bookingData,
-                });
                 throw new Error(`資料值不符合欄位類型: ${createError?.message || '請檢查資料格式'}`);
               }
               
-              // 處理事務超時錯誤
               if (createError?.code === 'P2024' || createError?.code === 'P1008' || createError?.code === 'P1017') {
                 throw new Error(`資料庫操作超時，請稍後再試`);
               }
               
-              // 重新拋出錯誤，讓外層處理
               throw createError;
             }
 
