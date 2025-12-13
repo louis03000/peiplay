@@ -324,83 +324,12 @@ export async function GET(request: Request) {
             const searchDateLocal = `${startDateTime.getFullYear()}-${String(startDateTime.getMonth() + 1).padStart(2, '0')}-${String(startDateTime.getDate()).padStart(2, '0')}`
             const isDateMatch = scheduleDateLocal === searchDateLocal
             
-            // 提取本地時間部分（用於顯示和調試）
-            const scheduleStartLocalTime = `${String(scheduleStart.getHours()).padStart(2, '0')}:${String(scheduleStart.getMinutes()).padStart(2, '0')}`
-            const scheduleEndLocalTime = `${String(scheduleEnd.getHours()).padStart(2, '0')}:${String(scheduleEnd.getMinutes()).padStart(2, '0')}`
-            const searchStartLocalTime = `${String(startDateTime.getHours()).padStart(2, '0')}:${String(startDateTime.getMinutes()).padStart(2, '0')}`
-            const searchEndLocalTime = `${String(endDateTime.getHours()).padStart(2, '0')}:${String(endDateTime.getMinutes()).padStart(2, '0')}`
-            
-            // 計算 scheduleStart 和 scheduleEnd 的實際本地日期（用於正確顯示時段）
-            const scheduleStartDateLocal = `${scheduleStart.getFullYear()}-${String(scheduleStart.getMonth() + 1).padStart(2, '0')}-${String(scheduleStart.getDate()).padStart(2, '0')}`
-            const scheduleEndDateLocal = `${scheduleEnd.getFullYear()}-${String(scheduleEnd.getMonth() + 1).padStart(2, '0')}-${String(scheduleEnd.getDate()).padStart(2, '0')}`
-            
-            if (!isDateMatch) {
-              console.log(`📅 [多人陪玩搜索] 時段 ${schedule.id} 日期不匹配:`, {
-                scheduleDate: scheduleDate.toISOString(),
-                scheduleDateLocal,
-                scheduleStartDateLocal,
-                scheduleEndDateLocal,
-                searchDateLocal,
-                isDateMatch,
-              })
-              
-              if (debug) {
-                const partnerDebug = debugInfo.partners.find((p: any) => p.partnerId === partner.id)!
-                // 組合後的時段（使用實際的本地日期 + 本地時間，而不是 schedule.date）
-                // 因為 schedule.startTime 和 schedule.date 可能對應不同的日期
-                const scheduleStartCombinedLocal = `${scheduleStartDateLocal} ${scheduleStartLocalTime}`
-                const scheduleEndCombinedLocal = `${scheduleEndDateLocal} ${scheduleEndLocalTime}`
-                
-                partnerDebug.scheduleChecks.push({
-                  scheduleId: schedule.id,
-                  reason: '日期不匹配',
-                  scheduleDate: scheduleDate.toISOString(),
-                  scheduleDateLocal,
-                  scheduleStartCombinedLocal,
-                  scheduleEndCombinedLocal,
-                  searchDateLocal,
-                  searchStartLocal: `${searchDateLocal} ${searchStartLocalTime}`,
-                  searchEndLocal: `${searchDateLocal} ${searchEndLocalTime}`,
-                  isDateMatch: false,
-                  finalMatch: false,
-                })
-              }
-              
-              return false
-            }
-            
-            // 檢查時間：搜尋的時段必須完全包含在夥伴的時段內
-            // 重要：startTime/endTime 存儲的是完整的日期時間（UTC），但我們需要提取其本地時間部分
-            // 因為 startTime 可能是以本地時間創建的，存儲時轉換為 UTC，所以需要還原回本地時間
-            // 方法：將 startTime 轉換為本地時間，提取小時和分鐘，然後與搜索日期組合
-            const scheduleStartLocalHours = scheduleStart.getHours()    // 本地時間的小時
-            const scheduleStartLocalMinutes = scheduleStart.getMinutes() // 本地時間的分鐘
-            const scheduleEndLocalHours = scheduleEnd.getHours()        // 本地時間的小時
-            const scheduleEndLocalMinutes = scheduleEnd.getMinutes()    // 本地時間的分鐘
-            
-            // 使用 date 字段的日期（本地時間）+ startTime/endTime 的本地時間部分來組合
-            const scheduleStartOnSearchDate = new Date(
-              scheduleDate.getFullYear(),      // 使用 date 字段的年份（本地）
-              scheduleDate.getMonth(),         // 使用 date 字段的月份（本地）
-              scheduleDate.getDate(),          // 使用 date 字段的日期（本地）
-              scheduleStartLocalHours,         // 使用 startTime 的本地時間部分
-              scheduleStartLocalMinutes,       // 使用 startTime 的本地時間部分
-              0,
-              0
-            )
-            const scheduleEndOnSearchDate = new Date(
-              scheduleDate.getFullYear(),      // 使用 date 字段的年份（本地）
-              scheduleDate.getMonth(),         // 使用 date 字段的月份（本地）
-              scheduleDate.getDate(),          // 使用 date 字段的日期（本地）
-              scheduleEndLocalHours,           // 使用 endTime 的本地時間部分
-              scheduleEndLocalMinutes,         // 使用 endTime 的本地時間部分
-              0,
-              0
-            )
-            
-            // 夥伴的時段開始時間 <= 搜尋開始時間 且 夥伴的時段結束時間 >= 搜尋結束時間
-            const isTimeContained = scheduleStartOnSearchDate.getTime() <= startDateTime.getTime() && 
-                                   scheduleEndOnSearchDate.getTime() >= endDateTime.getTime()
+            // 直接比較時間戳：搜尋的時段必須完全包含在夥伴的時段內
+            // schedule.startTime 和 schedule.endTime 是 UTC 時間戳
+            // startDateTime 和 endDateTime 也是 UTC 時間戳（Date 對象內部存儲為 UTC）
+            // 條件：scheduleStart <= startDateTime 且 scheduleEnd >= endDateTime
+            const isTimeContained = scheduleStart.getTime() <= startDateTime.getTime() && 
+                                   scheduleEnd.getTime() >= endDateTime.getTime()
             
             // 檢查是否有活躍的預約（bookings 是一對一關係，可能是 null 或單個對象）
             // 只排除真正活躍的預約狀態
@@ -412,47 +341,53 @@ export async function GET(request: Request) {
             // 確保所有條件都滿足
             const isAvailable = schedule.isAvailable && !hasActiveBooking
             
-            // 組合後的時段（用於匹配的實際時段，使用本地時間）
-            const scheduleStartCombinedLocal = `${scheduleDateLocal} ${scheduleStartLocalTime}`
-            const scheduleEndCombinedLocal = `${scheduleDateLocal} ${scheduleEndLocalTime}`
+            // 提取本地時間用於顯示（僅用於調試）
+            const scheduleStartLocalTime = `${String(scheduleStart.getFullYear())}-${String(scheduleStart.getMonth() + 1).padStart(2, '0')}-${String(scheduleStart.getDate()).padStart(2, '0')} ${String(scheduleStart.getHours()).padStart(2, '0')}:${String(scheduleStart.getMinutes()).padStart(2, '0')}`
+            const scheduleEndLocalTime = `${String(scheduleEnd.getFullYear())}-${String(scheduleEnd.getMonth() + 1).padStart(2, '0')}-${String(scheduleEnd.getDate()).padStart(2, '0')} ${String(scheduleEnd.getHours()).padStart(2, '0')}:${String(scheduleEnd.getMinutes()).padStart(2, '0')}`
+            const searchStartLocalTime = `${String(startDateTime.getFullYear())}-${String(startDateTime.getMonth() + 1).padStart(2, '0')}-${String(startDateTime.getDate()).padStart(2, '0')} ${String(startDateTime.getHours()).padStart(2, '0')}:${String(startDateTime.getMinutes()).padStart(2, '0')}`
+            const searchEndLocalTime = `${String(endDateTime.getFullYear())}-${String(endDateTime.getMonth() + 1).padStart(2, '0')}-${String(endDateTime.getDate()).padStart(2, '0')} ${String(endDateTime.getHours()).padStart(2, '0')}:${String(endDateTime.getMinutes()).padStart(2, '0')}`
             
-            const matchResult = {
-              scheduleId: schedule.id,
-              // 原始数据（從數據庫讀取的，僅用於調試）
-              rawScheduleDate: scheduleDate.toISOString(),
-              rawScheduleStart: scheduleStart.toISOString(),
-              rawScheduleEnd: scheduleEnd.toISOString(),
-              // 組合後的時段（實際用於匹配的時段，本地時間）
-              scheduleDateLocal: scheduleDateLocal,
-              scheduleStartCombined: scheduleStartOnSearchDate.toISOString(),
-              scheduleEndCombined: scheduleEndOnSearchDate.toISOString(),
-              scheduleStartCombinedLocal: scheduleStartCombinedLocal,
-              scheduleEndCombinedLocal: scheduleEndCombinedLocal,
-              // 搜索时间（本地時間）
-              searchStart: startDateTime.toISOString(),
-              searchEnd: endDateTime.toISOString(),
-              searchStartLocal: `${searchDateLocal} ${searchStartLocalTime}`,
-              searchEndLocal: `${searchDateLocal} ${searchEndLocalTime}`,
-              // 时间戳比较
-              scheduleStartTimestamp: scheduleStartOnSearchDate.getTime(),
-              scheduleEndTimestamp: scheduleEndOnSearchDate.getTime(),
-              searchStartTimestamp: startDateTime.getTime(),
-              searchEndTimestamp: endDateTime.getTime(),
-              // 匹配结果
-              isDateMatch,
-              isTimeContained,
-              timeContainedDetails: {
-                startCheck: `${scheduleStartOnSearchDate.getTime()} <= ${startDateTime.getTime()} = ${scheduleStartOnSearchDate.getTime() <= startDateTime.getTime()}`,
-                endCheck: `${scheduleEndOnSearchDate.getTime()} >= ${endDateTime.getTime()} = ${scheduleEndOnSearchDate.getTime() >= endDateTime.getTime()}`,
-              },
-              scheduleIsAvailable: schedule.isAvailable,
-              hasActiveBooking: !!hasActiveBooking,
-              bookingStatus: schedule.bookings?.status || null,
-              isAvailable,
-              finalMatch: isDateMatch && isTimeContained && isAvailable,
+            const finalMatch = isDateMatch && isTimeContained && isAvailable
+            
+            if (!finalMatch) {
+              const reason = !isDateMatch ? '日期不匹配' : !isTimeContained ? '時間不包含' : !isAvailable ? '時段不可用' : '未知原因'
+              
+              console.log(`❌ [多人陪玩搜索] 時段 ${schedule.id} 不匹配:`, {
+                reason,
+                scheduleDateLocal,
+                searchDateLocal,
+                isDateMatch,
+                isTimeContained,
+                isAvailable,
+              })
+              
+              if (debug) {
+                const partnerDebug = debugInfo.partners.find((p: any) => p.partnerId === partner.id)!
+                partnerDebug.scheduleChecks.push({
+                  scheduleId: schedule.id,
+                  reason,
+                  scheduleDate: scheduleDate.toISOString(),
+                  scheduleDateLocal,
+                  scheduleStartLocal: scheduleStartLocalTime,
+                  scheduleEndLocal: scheduleEndLocalTime,
+                  searchDateLocal,
+                  searchStartLocal: searchStartLocalTime,
+                  searchEndLocal: searchEndLocalTime,
+                  isDateMatch,
+                  isTimeContained,
+                  scheduleIsAvailable: schedule.isAvailable,
+                  hasActiveBooking: !!hasActiveBooking,
+                  bookingStatus: schedule.bookings?.status || null,
+                  isAvailable,
+                  finalMatch: false,
+                })
+              }
+              
+              return false
             }
             
-            console.log(`⏰ [多人陪玩搜索] 時段 ${schedule.id} 匹配檢查:`, matchResult)
+            // 匹配成功
+            console.log(`✅ [多人陪玩搜索] 時段 ${schedule.id} 匹配成功`)
             
             if (debug) {
               const partnerDebug = debugInfo.partners.find((p: any) => p.partnerId === partner.id) || {
@@ -463,10 +398,26 @@ export async function GET(request: Request) {
               if (!debugInfo.partners.find((p: any) => p.partnerId === partner.id)) {
                 debugInfo.partners.push(partnerDebug)
               }
-              partnerDebug.scheduleChecks.push(matchResult)
+              partnerDebug.scheduleChecks.push({
+                scheduleId: schedule.id,
+                scheduleDate: scheduleDate.toISOString(),
+                scheduleDateLocal,
+                scheduleStartLocal: scheduleStartLocalTime,
+                scheduleEndLocal: scheduleEndLocalTime,
+                searchDateLocal,
+                searchStartLocal: searchStartLocalTime,
+                searchEndLocal: searchEndLocalTime,
+                isDateMatch: true,
+                isTimeContained: true,
+                scheduleIsAvailable: schedule.isAvailable,
+                hasActiveBooking: !!hasActiveBooking,
+                bookingStatus: schedule.bookings?.status || null,
+                isAvailable: true,
+                finalMatch: true,
+              })
             }
             
-            return isDateMatch && isTimeContained && isAvailable
+            return true
           })
           
           if (!matchingSchedule) {
