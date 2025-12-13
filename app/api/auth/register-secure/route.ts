@@ -4,6 +4,7 @@ import { SecurityEnhanced } from '@/lib/security-enhanced'
 import { sendEmailVerificationCode } from '@/lib/email'
 import { InputValidator } from '@/lib/security'
 import { withRateLimit } from '@/lib/middleware-rate-limit'
+import { validatePasswordWithBreachCheck } from '@/lib/password-breach-check'
 
 export const dynamic = 'force-dynamic';
 
