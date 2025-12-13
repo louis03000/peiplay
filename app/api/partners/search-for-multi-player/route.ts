@@ -281,23 +281,41 @@ export async function GET(request: Request) {
       }
 
       // 找到符合條件的夥伴
-      const partnersWithAvailableSchedules = availablePartners
-        .map(partner => {
-          // 遊戲篩選
-          if (gameList.length > 0) {
-            const partnerGames = (partner.games || []).map((g: string) => g.toLowerCase())
-            const hasMatchingGame = gameList.some(searchGame => 
-              partnerGames.some(partnerGame => partnerGame === searchGame)
+      // 先進行遊戲篩選（在時段檢查之前）
+      const gameFilteredPartners = gameList.length > 0
+        ? availablePartners.filter(partner => {
+            const partnerGames = (partner.games || []).map((g: string) => g.toLowerCase().trim())
+            const normalizedGameList = gameList.map(g => g.toLowerCase().trim())
+            
+            // 檢查夥伴是否至少有一個遊戲與搜索的遊戲匹配（完全匹配）
+            const hasMatchingGame = normalizedGameList.some(searchGame => 
+              partnerGames.includes(searchGame)
             )
+            
             if (!hasMatchingGame) {
               console.log(`🎮 [多人陪玩搜索] 夥伴 ${partner.name} (${partner.id}) 被遊戲篩選排除:`, {
                 partnerGames,
-                searchGames: gameList,
+                searchGames: normalizedGameList,
+                reason: '夥伴沒有匹配的遊戲',
               })
-              return null
+              return false
             }
-          }
-          
+            
+            // 記錄通過遊戲篩選的日誌
+            console.log(`✅ [多人陪玩搜索] 夥伴 ${partner.name} (${partner.id}) 通過遊戲篩選:`, {
+              partnerGames,
+              searchGames: normalizedGameList,
+              matchingGames: normalizedGameList.filter(g => partnerGames.includes(g)),
+            })
+            return true
+          })
+        : availablePartners
+      
+      console.log(`🎮 [多人陪玩搜索] 遊戲篩選結果: ${availablePartners.length} -> ${gameFilteredPartners.length} 個夥伴`)
+      
+      // 然後檢查時段
+      const partnersWithAvailableSchedules = gameFilteredPartners
+        .map(partner => {
           // 找到符合時段的 schedule
           console.log(`🔎 [多人陪玩搜索] 檢查夥伴 ${partner.name} (${partner.id}) 的 ${partner.schedules.length} 個時段`)
           
@@ -325,125 +343,167 @@ export async function GET(request: Request) {
             })))
           }
           
-          const matchingSchedule = partner.schedules.find(schedule => {
-            const scheduleStart = new Date(schedule.startTime)
-            const scheduleEnd = new Date(schedule.endTime)
-            
-            // 直接比較 UTC 時間戳：搜尋的時段必須完全包含在夥伴的時段內
-            // schedule.startTime 和 schedule.endTime 是 UTC 時間戳
-            // startDateTimeUTC 和 endDateTimeUTC 也是 UTC 時間戳
-            // 條件：scheduleStart <= startDateTimeUTC 且 scheduleEnd >= endDateTimeUTC
-            const isTimeContained = scheduleStart.getTime() <= startDateTimeUTC.getTime() && 
-                                   scheduleEnd.getTime() >= endDateTimeUTC.getTime()
-            
-            // 檢查是否有活躍的預約（bookings 是一對一關係，可能是 null 或單個對象）
-            // 只排除真正活躍的預約狀態
-            const hasActiveBooking = schedule.bookings && 
-              schedule.bookings.status !== 'CANCELLED' && 
-              schedule.bookings.status !== 'REJECTED' &&
-              schedule.bookings.status !== 'COMPLETED'
-            
-            // 確保所有條件都滿足
-            const isAvailable = schedule.isAvailable && !hasActiveBooking
-            
-            const finalMatch = isTimeContained && isAvailable
-            
-            // 記錄調試信息（只顯示 UTC）
-            console.log(`🔍 [多人陪玩搜索] 檢查時段 ${schedule.id} (UTC):`, {
-              scheduleStartUTC: scheduleStart.toISOString(),
-              scheduleEndUTC: scheduleEnd.toISOString(),
-              searchStartUTC: startDateTimeUTC.toISOString(),
-              searchEndUTC: endDateTimeUTC.toISOString(),
-              isTimeContained,
-              isAvailable,
-              finalMatch,
+          // 檢查多個連續 schedule 是否能覆蓋搜索區間
+          // Step 1: 過濾相關的 schedule（與搜索區間有重疊的）
+          const relevantSchedules = partner.schedules
+            .filter(schedule => {
+              const scheduleStart = new Date(schedule.startTime)
+              const scheduleEnd = new Date(schedule.endTime)
+              
+              // 檢查是否有重疊：schedule 與搜索區間有交集
+              const hasOverlap = scheduleStart.getTime() < endDateTimeUTC.getTime() && 
+                                scheduleEnd.getTime() > startDateTimeUTC.getTime()
+              
+              // 檢查是否可用（無活躍預約）
+              const hasActiveBooking = schedule.bookings && 
+                schedule.bookings.status !== 'CANCELLED' && 
+                schedule.bookings.status !== 'REJECTED' &&
+                schedule.bookings.status !== 'COMPLETED'
+              
+              const isAvailable = schedule.isAvailable && !hasActiveBooking
+              
+              return hasOverlap && isAvailable
             })
+            .map(schedule => ({
+              ...schedule,
+              startTime: new Date(schedule.startTime),
+              endTime: new Date(schedule.endTime),
+            }))
+          
+          // Step 2: 按開始時間排序
+          relevantSchedules.sort((a, b) => a.startTime.getTime() - b.startTime.getTime())
+          
+          // Step 3: 檢查是否能連續覆蓋搜索區間
+          let coveredUntil = startDateTimeUTC.getTime()
+          const searchEndTimestamp = endDateTimeUTC.getTime()
+          const matchingSchedules: typeof relevantSchedules = []
+          
+          for (const schedule of relevantSchedules) {
+            const scheduleStart = schedule.startTime.getTime()
+            const scheduleEnd = schedule.endTime.getTime()
             
-            if (!finalMatch) {
-              const reason = !isTimeContained ? '時間不包含' : !isAvailable ? '時段不可用' : '未知原因'
-              
-              if (debug) {
-                const partnerDebug = debugInfo.partners.find((p: any) => p.partnerId === partner.id)!
-                partnerDebug.scheduleChecks.push({
-                  scheduleId: schedule.id,
-                  reason,
-                  scheduleStartUTC: scheduleStart.toISOString(),
-                  scheduleEndUTC: scheduleEnd.toISOString(),
-                  searchStartUTC: startDateTimeUTC.toISOString(),
-                  searchEndUTC: endDateTimeUTC.toISOString(),
-                  isTimeContained,
-                  scheduleIsAvailable: schedule.isAvailable,
-                  hasActiveBooking: !!hasActiveBooking,
-                  bookingStatus: schedule.bookings?.status || null,
-                  isAvailable,
-                  finalMatch: false,
-                })
-              }
-              
-              return false
+            // 如果有斷層（gap），無法連續覆蓋，失敗
+            if (scheduleStart > coveredUntil) {
+              const gapMinutes = Math.round((scheduleStart - coveredUntil) / 1000 / 60)
+              console.log(`⛔ [多人陪玩搜索] 時段 ${schedule.id} 有斷層:`, {
+                scheduleStartUTC: schedule.startTime.toISOString(),
+                scheduleEndUTC: schedule.endTime.toISOString(),
+                coveredUntilUTC: new Date(coveredUntil).toISOString(),
+                gap: `${gapMinutes} 分鐘`,
+              })
+              break
             }
             
-            // 匹配成功
-            console.log(`✅ [多人陪玩搜索] 時段 ${schedule.id} 匹配成功`)
-            
-            if (debug) {
-              const partnerDebug = debugInfo.partners.find((p: any) => p.partnerId === partner.id) || {
-                partnerId: partner.id,
-                partnerName: partner.name,
-                scheduleChecks: [],
-              }
-              if (!debugInfo.partners.find((p: any) => p.partnerId === partner.id)) {
-                debugInfo.partners.push(partnerDebug)
-              }
-              partnerDebug.scheduleChecks.push({
-                scheduleId: schedule.id,
-                scheduleStartUTC: scheduleStart.toISOString(),
-                scheduleEndUTC: scheduleEnd.toISOString(),
-                searchStartUTC: startDateTimeUTC.toISOString(),
+            // 延伸可覆蓋時間
+            if (scheduleEnd > coveredUntil) {
+              coveredUntil = scheduleEnd
+              matchingSchedules.push(schedule)
+              
+              console.log(`✅ [多人陪玩搜索] 時段 ${schedule.id} 延伸覆蓋到:`, {
+                scheduleStartUTC: schedule.startTime.toISOString(),
+                scheduleEndUTC: schedule.endTime.toISOString(),
+                coveredUntilUTC: new Date(coveredUntil).toISOString(),
                 searchEndUTC: endDateTimeUTC.toISOString(),
-                isTimeContained: true,
-                scheduleIsAvailable: schedule.isAvailable,
-                hasActiveBooking: !!hasActiveBooking,
-                bookingStatus: schedule.bookings?.status || null,
-                isAvailable: true,
-                finalMatch: true,
               })
             }
             
-            return true
-          })
+            // 已完全覆蓋搜索區間
+            if (coveredUntil >= searchEndTimestamp) {
+              console.log(`🎯 [多人陪玩搜索] 夥伴 ${partner.name} 的 ${matchingSchedules.length} 個連續時段完全覆蓋搜索區間`)
+              break
+            }
+          }
           
-          if (!matchingSchedule) {
-            console.log(`❌ [多人陪玩搜索] 夥伴 ${partner.name} (${partner.id}) 沒有符合條件的時段`)
+          const isFullyCovered = coveredUntil >= searchEndTimestamp
+          
+          if (debug) {
+            const partnerDebug = debugInfo.partners.find((p: any) => p.partnerId === partner.id) || {
+              partnerId: partner.id,
+              partnerName: partner.name,
+              scheduleChecks: [],
+            }
+            if (!debugInfo.partners.find((p: any) => p.partnerId === partner.id)) {
+              debugInfo.partners.push(partnerDebug)
+            }
+            
+            // 記錄所有相關時段的檢查結果
+            relevantSchedules.forEach(schedule => {
+              const isInMatchingSet = matchingSchedules.some(s => s.id === schedule.id)
+              partnerDebug.scheduleChecks.push({
+                scheduleId: schedule.id,
+                scheduleStartUTC: schedule.startTime.toISOString(),
+                scheduleEndUTC: schedule.endTime.toISOString(),
+                searchStartUTC: startDateTimeUTC.toISOString(),
+                searchEndUTC: endDateTimeUTC.toISOString(),
+                isInMatchingSet,
+                scheduleIsAvailable: schedule.isAvailable,
+                hasActiveBooking: !!(schedule.bookings && 
+                  schedule.bookings.status !== 'CANCELLED' && 
+                  schedule.bookings.status !== 'REJECTED' &&
+                  schedule.bookings.status !== 'COMPLETED'),
+                bookingStatus: schedule.bookings?.status || null,
+                finalMatch: isInMatchingSet && isFullyCovered,
+              })
+            })
+            
+            if (!isFullyCovered) {
+              partnerDebug.coverageInfo = {
+                coveredUntilUTC: new Date(coveredUntil).toISOString(),
+                searchEndUTC: endDateTimeUTC.toISOString(),
+                gap: `${Math.round((searchEndTimestamp - coveredUntil) / 1000 / 60)} 分鐘`,
+              }
+            }
+          }
+          
+          const matchingSchedule = isFullyCovered ? matchingSchedules[0] : null
+          
+          if (!matchingSchedule || !isFullyCovered) {
+            console.log(`❌ [多人陪玩搜索] 夥伴 ${partner.name} (${partner.id}) 沒有符合條件的時段`, {
+              reason: !isFullyCovered ? '時段無法連續覆蓋搜索區間' : '無可用時段',
+              coveredUntil: new Date(coveredUntil).toISOString(),
+              searchEnd: endDateTimeUTC.toISOString(),
+              matchingSchedulesCount: matchingSchedules.length,
+            })
             
             if (debug) {
               const partnerDebug = debugInfo.partners.find((p: any) => p.partnerId === partner.id)
               if (partnerDebug) {
-                partnerDebug.finalStatus = '沒有符合條件的時段'
+                partnerDebug.finalStatus = !isFullyCovered 
+                  ? `時段無法連續覆蓋（僅覆蓋到 ${new Date(coveredUntil).toISOString()}）`
+                  : '沒有符合條件的時段'
               }
             }
             
             return null
           }
           
-          console.log(`✅ [多人陪玩搜索] 夥伴 ${partner.name} (${partner.id}) 找到匹配時段:`, {
-            scheduleId: matchingSchedule.id,
-            startTime: matchingSchedule.startTime,
-            endTime: matchingSchedule.endTime,
+          console.log(`✅ [多人陪玩搜索] 夥伴 ${partner.name} (${partner.id}) 找到匹配時段組合:`, {
+            schedulesCount: matchingSchedules.length,
+            schedules: matchingSchedules.map(s => ({
+              id: s.id,
+              startTime: s.startTime.toISOString(),
+              endTime: s.endTime.toISOString(),
+            })),
+            coveredRange: `${matchingSchedules[0].startTime.toISOString()} ~ ${new Date(coveredUntil).toISOString()}`,
           })
           
           if (debug) {
             const partnerDebug = debugInfo.partners.find((p: any) => p.partnerId === partner.id)
             if (partnerDebug) {
               partnerDebug.finalStatus = '匹配成功'
-              partnerDebug.matchingSchedule = {
-                id: matchingSchedule.id,
-                startTime: matchingSchedule.startTime,
-                endTime: matchingSchedule.endTime,
+              partnerDebug.matchingSchedules = matchingSchedules.map(s => ({
+                id: s.id,
+                startTime: s.startTime.toISOString(),
+                endTime: s.endTime.toISOString(),
+              }))
+              partnerDebug.coveredRange = {
+                start: matchingSchedules[0].startTime.toISOString(),
+                end: new Date(coveredUntil).toISOString(),
               }
             }
           }
           
+          // 返回第一個 schedule 作為代表（實際預約時會使用所有匹配的 schedules）
           return {
             id: partner.id,
             name: partner.name,
@@ -453,10 +513,16 @@ export async function GET(request: Request) {
             averageRating: 0,
             totalReviews: 0,
             matchingSchedule: {
-              id: matchingSchedule.id,
-              startTime: matchingSchedule.startTime,
-              endTime: matchingSchedule.endTime,
-            }
+              id: matchingSchedules[0].id,
+              startTime: matchingSchedules[0].startTime,
+              endTime: new Date(coveredUntil), // 使用覆蓋的結束時間
+            },
+            // 包含所有匹配的 schedules（供後續預約使用）
+            matchingSchedules: matchingSchedules.map(s => ({
+              id: s.id,
+              startTime: s.startTime,
+              endTime: s.endTime,
+            }))
           }
         })
         .filter(partner => partner !== null)
