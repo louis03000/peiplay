@@ -240,9 +240,12 @@ function MultiPlayerBookingContent() {
             if (check.hasActiveBooking) reasons.push('❌ 已有預約')
             
             // 顯示組合後的時段（實際用於匹配的時段）
-            // 優先使用組合後的時段（scheduleDate + startTime/endTime 的時間部分）
-            const displayScheduleStart = check.scheduleStartCombinedUTC || check.scheduleStartCombined
-            const displayScheduleEnd = check.scheduleEndCombinedUTC || check.scheduleEndCombined
+            // 優先使用本地時間組合後的時段（scheduleDateLocal + startTime/endTime 的本地時間部分）
+            const displayScheduleStart = check.scheduleStartCombinedLocal || check.scheduleStartCombinedUTC || check.scheduleStartCombined
+            const displayScheduleEnd = check.scheduleEndCombinedLocal || check.scheduleEndCombinedUTC || check.scheduleEndCombined
+            const displayScheduleDate = check.scheduleDateLocal || check.scheduleDateUTC || check.scheduleDate
+            const displaySearchStart = check.searchStartLocal || check.searchStartUTC || check.searchStart
+            const displaySearchEnd = check.searchEndLocal || check.searchEndUTC || check.searchEnd
             
             // 如果沒有組合後的時段，則顯示原始數據（僅用於調試）
             const fallbackStart = check.scheduleStartUTC || check.scheduleStart
@@ -250,10 +253,10 @@ function MultiPlayerBookingContent() {
             
             return `
   時段 ${idx + 1} (ID: ${check.scheduleId}):
-    - 日期: ${check.scheduleDateUTC || check.scheduleDate}
+    - 日期: ${displayScheduleDate}
     - 時段: ${displayScheduleStart || fallbackStart || 'N/A'} ~ ${displayScheduleEnd || fallbackEnd || 'N/A'}
     ${!displayScheduleStart ? `[原始數據: ${fallbackStart} ~ ${fallbackEnd}]` : ''}
-    - 搜索: ${check.searchStartUTC || check.searchStart} ~ ${check.searchEndUTC || check.searchEnd}
+    - 搜索: ${displaySearchStart} ~ ${displaySearchEnd}
     - 日期匹配: ${check.isDateMatch ? '✅' : '❌'}
     - 時間包含: ${check.isTimeContained ? '✅' : '❌'} ${check.timeContainedDetails ? `(${check.timeContainedDetails.startCheck}, ${check.timeContainedDetails.endCheck})` : ''}
     - 可用性: ${check.scheduleIsAvailable ? '✅' : '❌'}

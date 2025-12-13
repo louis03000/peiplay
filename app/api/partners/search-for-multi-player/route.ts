@@ -69,7 +69,7 @@ export async function GET(request: Request) {
       }, { status: 400 })
     }
 
-    // 創建時間對象（使用 UTC 以確保時區一致）
+    // 創建時間對象（使用本地時間，因為夥伴的時段也是以本地時間設置的）
     const [startHour, startMinute] = startTime.split(':').map(Number)
     const [endHour, endMinute] = endTime.split(':').map(Number)
     const [year, month, day] = normalizedDate.split('-').map(Number)
@@ -79,9 +79,9 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: '時間或日期解析失敗' }, { status: 400 })
     }
     
-    // 使用 UTC 時間創建，確保與數據庫時區一致
-    const startDateTime = new Date(Date.UTC(year, month - 1, day, startHour, startMinute, 0, 0))
-    const endDateTime = new Date(Date.UTC(year, month - 1, day, endHour, endMinute, 0, 0))
+    // 使用本地時間創建，與夥伴設置時段的時區一致
+    const startDateTime = new Date(year, month - 1, day, startHour, startMinute, 0, 0)
+    const endDateTime = new Date(year, month - 1, day, endHour, endMinute, 0, 0)
     
     if (isNaN(startDateTime.getTime()) || isNaN(endDateTime.getTime())) {
       return NextResponse.json({ error: '時間對象創建失敗' }, { status: 400 })
@@ -104,8 +104,8 @@ export async function GET(request: Request) {
       games: gameList,
       startDateTime: startDateTime.toISOString(),
       endDateTime: endDateTime.toISOString(),
-      startDateTimeUTC: `${startDateTime.getUTCFullYear()}-${String(startDateTime.getUTCMonth() + 1).padStart(2, '0')}-${String(startDateTime.getUTCDate()).padStart(2, '0')} ${String(startDateTime.getUTCHours()).padStart(2, '0')}:${String(startDateTime.getUTCMinutes()).padStart(2, '0')}`,
-      endDateTimeUTC: `${endDateTime.getUTCFullYear()}-${String(endDateTime.getUTCMonth() + 1).padStart(2, '0')}-${String(endDateTime.getUTCDate()).padStart(2, '0')} ${String(endDateTime.getUTCHours()).padStart(2, '0')}:${String(endDateTime.getUTCMinutes()).padStart(2, '0')}`,
+      startDateTimeLocal: `${startDateTime.getFullYear()}-${String(startDateTime.getMonth() + 1).padStart(2, '0')}-${String(startDateTime.getDate()).padStart(2, '0')} ${String(startDateTime.getHours()).padStart(2, '0')}:${String(startDateTime.getMinutes()).padStart(2, '0')}`,
+      endDateTimeLocal: `${endDateTime.getFullYear()}-${String(endDateTime.getMonth() + 1).padStart(2, '0')}-${String(endDateTime.getDate()).padStart(2, '0')} ${String(endDateTime.getHours()).padStart(2, '0')}:${String(endDateTime.getMinutes()).padStart(2, '0')}`,
     })
 
     const result = await db.query(async (client) => {
@@ -318,42 +318,42 @@ export async function GET(request: Request) {
               parsedEndTime: scheduleEnd.toISOString(),
             })
             
-            // 檢查日期是否匹配（使用 date 字段的 UTC 日期比較）
+            // 檢查日期是否匹配（使用本地日期比較）
             // 注意：date 字段是夥伴設置的日期，應該用這個來匹配
-            const scheduleDateUTC = `${scheduleDate.getUTCFullYear()}-${String(scheduleDate.getUTCMonth() + 1).padStart(2, '0')}-${String(scheduleDate.getUTCDate()).padStart(2, '0')}`
-            const searchDateUTC = `${startDateTime.getUTCFullYear()}-${String(startDateTime.getUTCMonth() + 1).padStart(2, '0')}-${String(startDateTime.getUTCDate()).padStart(2, '0')}`
-            const isDateMatch = scheduleDateUTC === searchDateUTC
+            const scheduleDateLocal = `${scheduleDate.getFullYear()}-${String(scheduleDate.getMonth() + 1).padStart(2, '0')}-${String(scheduleDate.getDate()).padStart(2, '0')}`
+            const searchDateLocal = `${startDateTime.getFullYear()}-${String(startDateTime.getMonth() + 1).padStart(2, '0')}-${String(startDateTime.getDate()).padStart(2, '0')}`
+            const isDateMatch = scheduleDateLocal === searchDateLocal
             
-            // 為調試模式準備完整的時段信息
-            const scheduleStartUTC = `${scheduleStart.getUTCFullYear()}-${String(scheduleStart.getUTCMonth() + 1).padStart(2, '0')}-${String(scheduleStart.getUTCDate()).padStart(2, '0')} ${String(scheduleStart.getUTCHours()).padStart(2, '0')}:${String(scheduleStart.getUTCMinutes()).padStart(2, '0')}`
-            const scheduleEndUTC = `${scheduleEnd.getUTCFullYear()}-${String(scheduleEnd.getUTCMonth() + 1).padStart(2, '0')}-${String(scheduleEnd.getUTCDate()).padStart(2, '0')} ${String(scheduleEnd.getUTCHours()).padStart(2, '0')}:${String(scheduleEnd.getUTCMinutes()).padStart(2, '0')}`
-            const searchStartUTC = `${startDateTime.getUTCFullYear()}-${String(startDateTime.getUTCMonth() + 1).padStart(2, '0')}-${String(startDateTime.getUTCDate()).padStart(2, '0')} ${String(startDateTime.getUTCHours()).padStart(2, '0')}:${String(startDateTime.getUTCMinutes()).padStart(2, '0')}`
-            const searchEndUTC = `${endDateTime.getUTCFullYear()}-${String(endDateTime.getUTCMonth() + 1).padStart(2, '0')}-${String(endDateTime.getUTCDate()).padStart(2, '0')} ${String(endDateTime.getUTCHours()).padStart(2, '0')}:${String(endDateTime.getUTCMinutes()).padStart(2, '0')}`
+            // 提取本地時間部分（用於顯示和調試）
+            const scheduleStartLocalTime = `${String(scheduleStart.getHours()).padStart(2, '0')}:${String(scheduleStart.getMinutes()).padStart(2, '0')}`
+            const scheduleEndLocalTime = `${String(scheduleEnd.getHours()).padStart(2, '0')}:${String(scheduleEnd.getMinutes()).padStart(2, '0')}`
+            const searchStartLocalTime = `${String(startDateTime.getHours()).padStart(2, '0')}:${String(startDateTime.getMinutes()).padStart(2, '0')}`
+            const searchEndLocalTime = `${String(endDateTime.getHours()).padStart(2, '0')}:${String(endDateTime.getMinutes()).padStart(2, '0')}`
             
             if (!isDateMatch) {
               console.log(`📅 [多人陪玩搜索] 時段 ${schedule.id} 日期不匹配:`, {
                 scheduleDate: scheduleDate.toISOString(),
-                scheduleDateUTC,
-                searchDateUTC,
+                scheduleDateLocal,
+                searchDateLocal,
                 isDateMatch,
               })
               
               if (debug) {
                 const partnerDebug = debugInfo.partners.find((p: any) => p.partnerId === partner.id)!
-                // 組合後的時段（即使日期不匹配，也顯示組合後的結果）
-                const scheduleStartCombinedUTC = `${scheduleDate.getUTCFullYear()}-${String(scheduleDate.getUTCMonth() + 1).padStart(2, '0')}-${String(scheduleDate.getUTCDate()).padStart(2, '0')} ${String(scheduleStart.getUTCHours()).padStart(2, '0')}:${String(scheduleStart.getUTCMinutes()).padStart(2, '0')}`
-                const scheduleEndCombinedUTC = `${scheduleDate.getUTCFullYear()}-${String(scheduleDate.getUTCMonth() + 1).padStart(2, '0')}-${String(scheduleDate.getUTCDate()).padStart(2, '0')} ${String(scheduleEnd.getUTCHours()).padStart(2, '0')}:${String(scheduleEnd.getUTCMinutes()).padStart(2, '0')}`
+                // 組合後的時段（使用本地日期 + 本地時間）
+                const scheduleStartCombinedLocal = `${scheduleDateLocal} ${scheduleStartLocalTime}`
+                const scheduleEndCombinedLocal = `${scheduleDateLocal} ${scheduleEndLocalTime}`
                 
                 partnerDebug.scheduleChecks.push({
                   scheduleId: schedule.id,
                   reason: '日期不匹配',
                   scheduleDate: scheduleDate.toISOString(),
-                  scheduleDateUTC,
-                  scheduleStartCombinedUTC,
-                  scheduleEndCombinedUTC,
-                  searchDateUTC,
-                  searchStartUTC,
-                  searchEndUTC,
+                  scheduleDateLocal,
+                  scheduleStartCombinedLocal,
+                  scheduleEndCombinedLocal,
+                  searchDateLocal,
+                  searchStartLocal: `${searchDateLocal} ${searchStartLocalTime}`,
+                  searchEndLocal: `${searchDateLocal} ${searchEndLocalTime}`,
                   isDateMatch: false,
                   finalMatch: false,
                 })
@@ -363,26 +363,33 @@ export async function GET(request: Request) {
             }
             
             // 檢查時間：搜尋的時段必須完全包含在夥伴的時段內
-            // 重要：使用 date 字段的日期 + startTime/endTime 的時間部分來組合
-            // 這樣可以確保使用夥伴設置的正確日期，而不是 startTime/endTime 中可能錯誤的日期
-            const scheduleStartOnSearchDate = new Date(Date.UTC(
-              scheduleDate.getUTCFullYear(),  // 使用 date 字段的年份
-              scheduleDate.getUTCMonth(),     // 使用 date 字段的月份
-              scheduleDate.getUTCDate(),      // 使用 date 字段的日期
-              scheduleStart.getUTCHours(),    // 使用 startTime 的時間部分
-              scheduleStart.getUTCMinutes(),  // 使用 startTime 的時間部分
+            // 重要：startTime/endTime 存儲的是完整的日期時間（UTC），但我們需要提取其本地時間部分
+            // 因為 startTime 可能是以本地時間創建的，存儲時轉換為 UTC，所以需要還原回本地時間
+            // 方法：將 startTime 轉換為本地時間，提取小時和分鐘，然後與搜索日期組合
+            const scheduleStartLocalHours = scheduleStart.getHours()    // 本地時間的小時
+            const scheduleStartLocalMinutes = scheduleStart.getMinutes() // 本地時間的分鐘
+            const scheduleEndLocalHours = scheduleEnd.getHours()        // 本地時間的小時
+            const scheduleEndLocalMinutes = scheduleEnd.getMinutes()    // 本地時間的分鐘
+            
+            // 使用 date 字段的日期（本地時間）+ startTime/endTime 的本地時間部分來組合
+            const scheduleStartOnSearchDate = new Date(
+              scheduleDate.getFullYear(),      // 使用 date 字段的年份（本地）
+              scheduleDate.getMonth(),         // 使用 date 字段的月份（本地）
+              scheduleDate.getDate(),          // 使用 date 字段的日期（本地）
+              scheduleStartLocalHours,         // 使用 startTime 的本地時間部分
+              scheduleStartLocalMinutes,       // 使用 startTime 的本地時間部分
               0,
               0
-            ))
-            const scheduleEndOnSearchDate = new Date(Date.UTC(
-              scheduleDate.getUTCFullYear(),  // 使用 date 字段的年份
-              scheduleDate.getUTCMonth(),     // 使用 date 字段的月份
-              scheduleDate.getUTCDate(),      // 使用 date 字段的日期
-              scheduleEnd.getUTCHours(),      // 使用 endTime 的時間部分
-              scheduleEnd.getUTCMinutes(),    // 使用 endTime 的時間部分
+            )
+            const scheduleEndOnSearchDate = new Date(
+              scheduleDate.getFullYear(),      // 使用 date 字段的年份（本地）
+              scheduleDate.getMonth(),         // 使用 date 字段的月份（本地）
+              scheduleDate.getDate(),          // 使用 date 字段的日期（本地）
+              scheduleEndLocalHours,           // 使用 endTime 的本地時間部分
+              scheduleEndLocalMinutes,         // 使用 endTime 的本地時間部分
               0,
               0
-            ))
+            )
             
             // 夥伴的時段開始時間 <= 搜尋開始時間 且 夥伴的時段結束時間 >= 搜尋結束時間
             const isTimeContained = scheduleStartOnSearchDate.getTime() <= startDateTime.getTime() && 
@@ -398,9 +405,9 @@ export async function GET(request: Request) {
             // 確保所有條件都滿足
             const isAvailable = schedule.isAvailable && !hasActiveBooking
             
-            // 組合後的時段（用於匹配的實際時段）
-            const scheduleStartCombinedUTC = `${scheduleDate.getUTCFullYear()}-${String(scheduleDate.getUTCMonth() + 1).padStart(2, '0')}-${String(scheduleDate.getUTCDate()).padStart(2, '0')} ${String(scheduleStart.getUTCHours()).padStart(2, '0')}:${String(scheduleStart.getUTCMinutes()).padStart(2, '0')}`
-            const scheduleEndCombinedUTC = `${scheduleDate.getUTCFullYear()}-${String(scheduleDate.getUTCMonth() + 1).padStart(2, '0')}-${String(scheduleDate.getUTCDate()).padStart(2, '0')} ${String(scheduleEnd.getUTCHours()).padStart(2, '0')}:${String(scheduleEnd.getUTCMinutes()).padStart(2, '0')}`
+            // 組合後的時段（用於匹配的實際時段，使用本地時間）
+            const scheduleStartCombinedLocal = `${scheduleDateLocal} ${scheduleStartLocalTime}`
+            const scheduleEndCombinedLocal = `${scheduleDateLocal} ${scheduleEndLocalTime}`
             
             const matchResult = {
               scheduleId: schedule.id,
@@ -408,17 +415,17 @@ export async function GET(request: Request) {
               rawScheduleDate: scheduleDate.toISOString(),
               rawScheduleStart: scheduleStart.toISOString(),
               rawScheduleEnd: scheduleEnd.toISOString(),
-              // 組合後的時段（實際用於匹配的時段）
-              scheduleDateUTC: scheduleDateUTC,
+              // 組合後的時段（實際用於匹配的時段，本地時間）
+              scheduleDateLocal: scheduleDateLocal,
               scheduleStartCombined: scheduleStartOnSearchDate.toISOString(),
               scheduleEndCombined: scheduleEndOnSearchDate.toISOString(),
-              scheduleStartCombinedUTC: scheduleStartCombinedUTC,
-              scheduleEndCombinedUTC: scheduleEndCombinedUTC,
-              // 搜索时间
+              scheduleStartCombinedLocal: scheduleStartCombinedLocal,
+              scheduleEndCombinedLocal: scheduleEndCombinedLocal,
+              // 搜索时间（本地時間）
               searchStart: startDateTime.toISOString(),
               searchEnd: endDateTime.toISOString(),
-              searchStartUTC: `${startDateTime.getUTCFullYear()}-${String(startDateTime.getUTCMonth() + 1).padStart(2, '0')}-${String(startDateTime.getUTCDate()).padStart(2, '0')} ${String(startDateTime.getUTCHours()).padStart(2, '0')}:${String(startDateTime.getUTCMinutes()).padStart(2, '0')}`,
-              searchEndUTC: `${endDateTime.getUTCFullYear()}-${String(endDateTime.getUTCMonth() + 1).padStart(2, '0')}-${String(endDateTime.getUTCDate()).padStart(2, '0')} ${String(endDateTime.getUTCHours()).padStart(2, '0')}:${String(endDateTime.getUTCMinutes()).padStart(2, '0')}`,
+              searchStartLocal: `${searchDateLocal} ${searchStartLocalTime}`,
+              searchEndLocal: `${searchDateLocal} ${searchEndLocalTime}`,
               // 时间戳比较
               scheduleStartTimestamp: scheduleStartOnSearchDate.getTime(),
               scheduleEndTimestamp: scheduleEndOnSearchDate.getTime(),
@@ -530,8 +537,8 @@ export async function GET(request: Request) {
           endTime,
           startDateTime: startDateTime.toISOString(),
           endDateTime: endDateTime.toISOString(),
-          startDateTimeUTC: `${startDateTime.getUTCFullYear()}-${String(startDateTime.getUTCMonth() + 1).padStart(2, '0')}-${String(startDateTime.getUTCDate()).padStart(2, '0')} ${String(startDateTime.getUTCHours()).padStart(2, '0')}:${String(startDateTime.getUTCMinutes()).padStart(2, '0')}`,
-          endDateTimeUTC: `${endDateTime.getUTCFullYear()}-${String(endDateTime.getUTCMonth() + 1).padStart(2, '0')}-${String(endDateTime.getUTCDate()).padStart(2, '0')} ${String(endDateTime.getUTCHours()).padStart(2, '0')}:${String(endDateTime.getUTCMinutes()).padStart(2, '0')}`,
+          startDateTimeLocal: `${startDateTime.getFullYear()}-${String(startDateTime.getMonth() + 1).padStart(2, '0')}-${String(startDateTime.getDate()).padStart(2, '0')} ${String(startDateTime.getHours()).padStart(2, '0')}:${String(startDateTime.getMinutes()).padStart(2, '0')}`,
+          endDateTimeLocal: `${endDateTime.getFullYear()}-${String(endDateTime.getMonth() + 1).padStart(2, '0')}-${String(endDateTime.getDate()).padStart(2, '0')} ${String(endDateTime.getHours()).padStart(2, '0')}:${String(endDateTime.getMinutes()).padStart(2, '0')}`,
         }
       }
 
