@@ -343,15 +343,33 @@ export async function GET(request: Request) {
             
             const matchResult = {
               scheduleId: schedule.id,
+              // 原始数据
               scheduleDate: scheduleDate.toISOString(),
               scheduleStart: scheduleStart.toISOString(),
               scheduleEnd: scheduleEnd.toISOString(),
+              // UTC 时间部分
+              scheduleStartUTC: `${scheduleStart.getUTCFullYear()}-${String(scheduleStart.getUTCMonth() + 1).padStart(2, '0')}-${String(scheduleStart.getUTCDate()).padStart(2, '0')} ${String(scheduleStart.getUTCHours()).padStart(2, '0')}:${String(scheduleStart.getUTCMinutes()).padStart(2, '0')}`,
+              scheduleEndUTC: `${scheduleEnd.getUTCFullYear()}-${String(scheduleEnd.getUTCMonth() + 1).padStart(2, '0')}-${String(scheduleEnd.getUTCDate()).padStart(2, '0')} ${String(scheduleEnd.getUTCHours()).padStart(2, '0')}:${String(scheduleEnd.getUTCMinutes()).padStart(2, '0')}`,
+              // 组合后的时间
               scheduleStartOnSearchDate: scheduleStartOnSearchDate.toISOString(),
               scheduleEndOnSearchDate: scheduleEndOnSearchDate.toISOString(),
+              // 搜索时间
               searchStart: startDateTime.toISOString(),
               searchEnd: endDateTime.toISOString(),
+              searchStartUTC: `${startDateTime.getUTCFullYear()}-${String(startDateTime.getUTCMonth() + 1).padStart(2, '0')}-${String(startDateTime.getUTCDate()).padStart(2, '0')} ${String(startDateTime.getUTCHours()).padStart(2, '0')}:${String(startDateTime.getUTCMinutes()).padStart(2, '0')}`,
+              searchEndUTC: `${endDateTime.getUTCFullYear()}-${String(endDateTime.getUTCMonth() + 1).padStart(2, '0')}-${String(endDateTime.getUTCDate()).padStart(2, '0')} ${String(endDateTime.getUTCHours()).padStart(2, '0')}:${String(endDateTime.getUTCMinutes()).padStart(2, '0')}`,
+              // 时间戳比较
+              scheduleStartTimestamp: scheduleStartOnSearchDate.getTime(),
+              scheduleEndTimestamp: scheduleEndOnSearchDate.getTime(),
+              searchStartTimestamp: startDateTime.getTime(),
+              searchEndTimestamp: endDateTime.getTime(),
+              // 匹配结果
               isDateMatch,
               isTimeContained,
+              timeContainedDetails: {
+                startCheck: `${scheduleStartOnSearchDate.getTime()} <= ${startDateTime.getTime()} = ${scheduleStartOnSearchDate.getTime() <= startDateTime.getTime()}`,
+                endCheck: `${scheduleEndOnSearchDate.getTime()} >= ${endDateTime.getTime()} = ${scheduleEndOnSearchDate.getTime() >= endDateTime.getTime()}`,
+              },
               scheduleIsAvailable: schedule.isAvailable,
               hasActiveBooking: !!hasActiveBooking,
               bookingStatus: schedule.bookings?.status || null,

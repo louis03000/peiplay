@@ -228,6 +228,31 @@ function MultiPlayerBookingContent() {
         console.groupEnd()
         
         // 顯示調試信息彈窗
+        const formatScheduleChecks = (partner: any) => {
+          if (!partner.scheduleChecks || partner.scheduleChecks.length === 0) {
+            return '  無時段檢查記錄'
+          }
+          return partner.scheduleChecks.map((check: any, idx: number) => {
+            const reasons = []
+            if (!check.isDateMatch) reasons.push('❌ 日期不匹配')
+            if (!check.isTimeContained) reasons.push('❌ 時間不包含')
+            if (!check.scheduleIsAvailable) reasons.push('❌ 時段不可用')
+            if (check.hasActiveBooking) reasons.push('❌ 已有預約')
+            
+            return `
+  時段 ${idx + 1} (ID: ${check.scheduleId}):
+    - 日期: ${check.scheduleDateUTC || check.scheduleDate}
+    - 時段: ${check.scheduleStartUTC || check.scheduleStart} ~ ${check.scheduleEndUTC || check.scheduleEnd}
+    - 搜索: ${check.searchStartUTC || check.searchStart} ~ ${check.searchEndUTC || check.searchEnd}
+    - 日期匹配: ${check.isDateMatch ? '✅' : '❌'}
+    - 時間包含: ${check.isTimeContained ? '✅' : '❌'} ${check.timeContainedDetails ? `(${check.timeContainedDetails.startCheck}, ${check.timeContainedDetails.endCheck})` : ''}
+    - 可用性: ${check.scheduleIsAvailable ? '✅' : '❌'}
+    - 預約狀態: ${check.bookingStatus || '無'}
+    - 最終匹配: ${check.finalMatch ? '✅' : '❌'} ${reasons.length > 0 ? `原因: ${reasons.join(', ')}` : ''}
+            `.trim()
+          }).join('\n')
+        }
+        
         const debugMessage = `
 🔍 調試信息：
 
@@ -236,11 +261,17 @@ function MultiPlayerBookingContent() {
 - 時間: ${debugInfo.requestParams?.startTime || 'N/A'} - ${debugInfo.requestParams?.endTime || 'N/A'}
 - 遊戲: ${debugInfo.requestParams?.games || '無'}
 
-📊 查詢步驟 (${debugInfo.steps?.length || 0} 步):
-${debugInfo.steps?.map((step: any, i: number) => `  ${i + 1}. ${step.step}: ${JSON.stringify(step, null, 2)}`).join('\n') || '無'}
+📊 查詢結果:
+- 找到開啟群組預約的夥伴: ${debugInfo.steps?.find((s: any) => s.step === '數據庫查詢結果')?.partnersFound || 0} 個
+- 停權篩選後: ${debugInfo.steps?.find((s: any) => s.step === '停權篩選')?.partnersAfterSuspensionFilter || 0} 個
 
-👥 找到的夥伴: ${debugInfo.partners?.length || 0} 個
-${debugInfo.partners?.map((p: any) => `  - ${p.partnerName || p.partnerId} (${p.partnerId}): ${p.finalStatus || '檢查中'}`).join('\n') || '無'}
+👥 夥伴詳情 (${debugInfo.partners?.length || 0} 個):
+${debugInfo.partners?.map((p: any) => `
+${p.partnerName || p.partnerId} (${p.partnerId}):
+  狀態: ${p.finalStatus || '檢查中'}
+  時段檢查:
+${formatScheduleChecks(p)}
+`).join('\n') || '無'}
 
 🎯 最終匹配: ${debugInfo.finalResult?.partnersFound || 0} 個夥伴
         `.trim()
