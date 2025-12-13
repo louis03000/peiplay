@@ -27,14 +27,26 @@ export async function GET() {
         return null;
       }
 
+      // 優化：使用 select 而非 include，只查詢必要欄位
       const rows = await client.booking.findMany({
         where: {
           schedule: { partnerId: partner.id },
         },
-        include: {
-          customer: { select: { name: true } },
+        select: {
+          id: true,
+          status: true,
+          createdAt: true,
+          finalAmount: true,
+          rejectReason: true,
+          customer: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
           schedule: {
             select: {
+              id: true,
               startTime: true,
               endTime: true,
               date: true,
@@ -43,7 +55,7 @@ export async function GET() {
           },
         },
         orderBy: [{ createdAt: 'desc' }],
-        take: 200,
+        take: 50, // 減少為 50 筆，提升速度
       });
 
       const now = Date.now();
@@ -64,7 +76,15 @@ export async function GET() {
       return NextResponse.json({ error: '夥伴資料不存在' }, { status: 404 });
     }
 
-    return NextResponse.json({ bookings });
+    // 個人資料使用 private cache（只快取在用戶瀏覽器中）
+    return NextResponse.json(
+      { bookings },
+      {
+        headers: {
+          'Cache-Control': 'private, max-age=10, stale-while-revalidate=30',
+        },
+      }
+    );
   } catch (error) {
     return createErrorResponse(error, 'bookings:partner');
   }

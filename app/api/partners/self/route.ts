@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db-resilience'
 import { createErrorResponse } from '@/lib/api-helpers'
-import { CacheInvalidation } from '@/lib/redis-cache'
+import { CacheInvalidation, Cache, CacheKeys, CacheTTL } from '@/lib/redis-cache'
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -27,21 +27,32 @@ export async function GET() {
           status: session.user.partnerStatus || null,
           // name 需要從資料庫查詢，但可以延遲加載
         }
+      }, {
+        headers: {
+          'Cache-Control': 'private, max-age=60, stale-while-revalidate=120',
+        },
       })
     }
 
-    // 優化：使用索引優化的查詢（Partner.userId 索引）
-    // 移除 updateMany 操作（這個操作很慢，應該移到後台任務或只在需要時執行）
-    const partner = await db.query(async (client) => {
-      return client.partner.findUnique({
-        where: { userId: session.user.id },
-        select: {
-          id: true,
-          name: true,
-          status: true,
-        },
-      })
-    }, 'partners:self:get')
+    // 優化：使用 Redis 快取（30秒快取，因為夥伴狀態可能變動）
+    const cacheKey = CacheKeys.stats.user(session.user.id) + ':partner-self';
+    const partner = await Cache.getOrSet(
+      cacheKey,
+      async () => {
+        // 優化：使用索引優化的查詢（Partner.userId 索引）
+        return await db.query(async (client) => {
+          return client.partner.findUnique({
+            where: { userId: session.user.id },
+            select: {
+              id: true,
+              name: true,
+              status: true,
+            },
+          })
+        }, 'partners:self:get')
+      },
+      CacheTTL.SHORT // 30 秒快取
+    )
 
     if (!partner) {
       return NextResponse.json({ partner: null })
