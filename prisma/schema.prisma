@@ -11,6 +11,7 @@ model User {
   id                            String                 @id @default(cuid())
   email                         String                 @unique
   password                      String
+  passwordUpdatedAt             DateTime?              // 密碼最後更新時間（用於審計）
   name                          String?
   birthday                      DateTime?
   phone                         String?
@@ -40,6 +41,7 @@ model User {
   reviewsReceived               Review[]               @relation("Reviewee")
   reviewsGiven                  Review[]               @relation("Reviewer")
   securityLogs                  SecurityLog[]
+  passwordHistory               PasswordHistory[]      // 密碼歷史
   messagesSent                  Message[]              @relation("MessageSender")
   messagesReceived              Message[]              @relation("MessageReceiver")
   chatMessagesSent              ChatMessage[]          @relation("ChatMessageSender")
