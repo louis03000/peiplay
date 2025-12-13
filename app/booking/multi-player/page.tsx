@@ -239,10 +239,14 @@ function MultiPlayerBookingContent() {
             if (!check.scheduleIsAvailable) reasons.push('❌ 時段不可用')
             if (check.hasActiveBooking) reasons.push('❌ 已有預約')
             
+            // 顯示組合後的時段（實際用於匹配的時段）
+            const displayScheduleStart = check.scheduleStartCombinedUTC || check.scheduleStartCombined || check.scheduleStartUTC || check.scheduleStart
+            const displayScheduleEnd = check.scheduleEndCombinedUTC || check.scheduleEndCombined || check.scheduleEndUTC || check.scheduleEnd
+            
             return `
   時段 ${idx + 1} (ID: ${check.scheduleId}):
     - 日期: ${check.scheduleDateUTC || check.scheduleDate}
-    - 時段: ${check.scheduleStartUTC || check.scheduleStart} ~ ${check.scheduleEndUTC || check.scheduleEnd}
+    - 時段: ${displayScheduleStart} ~ ${displayScheduleEnd}
     - 搜索: ${check.searchStartUTC || check.searchStart} ~ ${check.searchEndUTC || check.searchEnd}
     - 日期匹配: ${check.isDateMatch ? '✅' : '❌'}
     - 時間包含: ${check.isTimeContained ? '✅' : '❌'} ${check.timeContainedDetails ? `(${check.timeContainedDetails.startCheck}, ${check.timeContainedDetails.endCheck})` : ''}

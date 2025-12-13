@@ -327,13 +327,17 @@ export async function GET(request: Request) {
               
               if (debug) {
                 const partnerDebug = debugInfo.partners.find((p: any) => p.partnerId === partner.id)!
+                // 組合後的時段（即使日期不匹配，也顯示組合後的結果）
+                const scheduleStartCombinedUTC = `${scheduleDate.getUTCFullYear()}-${String(scheduleDate.getUTCMonth() + 1).padStart(2, '0')}-${String(scheduleDate.getUTCDate()).padStart(2, '0')} ${String(scheduleStart.getUTCHours()).padStart(2, '0')}:${String(scheduleStart.getUTCMinutes()).padStart(2, '0')}`
+                const scheduleEndCombinedUTC = `${scheduleDate.getUTCFullYear()}-${String(scheduleDate.getUTCMonth() + 1).padStart(2, '0')}-${String(scheduleDate.getUTCDate()).padStart(2, '0')} ${String(scheduleEnd.getUTCHours()).padStart(2, '0')}:${String(scheduleEnd.getUTCMinutes()).padStart(2, '0')}`
+                
                 partnerDebug.scheduleChecks.push({
                   scheduleId: schedule.id,
                   reason: '日期不匹配',
                   scheduleDate: scheduleDate.toISOString(),
                   scheduleDateUTC,
-                  scheduleStartUTC,
-                  scheduleEndUTC,
+                  scheduleStartCombinedUTC,
+                  scheduleEndCombinedUTC,
                   searchDateUTC,
                   searchStartUTC,
                   searchEndUTC,
@@ -381,18 +385,22 @@ export async function GET(request: Request) {
             // 確保所有條件都滿足
             const isAvailable = schedule.isAvailable && !hasActiveBooking
             
+            // 組合後的時段（用於匹配的實際時段）
+            const scheduleStartCombinedUTC = `${scheduleDate.getUTCFullYear()}-${String(scheduleDate.getUTCMonth() + 1).padStart(2, '0')}-${String(scheduleDate.getUTCDate()).padStart(2, '0')} ${String(scheduleStart.getUTCHours()).padStart(2, '0')}:${String(scheduleStart.getUTCMinutes()).padStart(2, '0')}`
+            const scheduleEndCombinedUTC = `${scheduleDate.getUTCFullYear()}-${String(scheduleDate.getUTCMonth() + 1).padStart(2, '0')}-${String(scheduleDate.getUTCDate()).padStart(2, '0')} ${String(scheduleEnd.getUTCHours()).padStart(2, '0')}:${String(scheduleEnd.getUTCMinutes()).padStart(2, '0')}`
+            
             const matchResult = {
               scheduleId: schedule.id,
-              // 原始数据
-              scheduleDate: scheduleDate.toISOString(),
-              scheduleStart: scheduleStart.toISOString(),
-              scheduleEnd: scheduleEnd.toISOString(),
-              // UTC 时间部分
-              scheduleStartUTC: `${scheduleStart.getUTCFullYear()}-${String(scheduleStart.getUTCMonth() + 1).padStart(2, '0')}-${String(scheduleStart.getUTCDate()).padStart(2, '0')} ${String(scheduleStart.getUTCHours()).padStart(2, '0')}:${String(scheduleStart.getUTCMinutes()).padStart(2, '0')}`,
-              scheduleEndUTC: `${scheduleEnd.getUTCFullYear()}-${String(scheduleEnd.getUTCMonth() + 1).padStart(2, '0')}-${String(scheduleEnd.getUTCDate()).padStart(2, '0')} ${String(scheduleEnd.getUTCHours()).padStart(2, '0')}:${String(scheduleEnd.getUTCMinutes()).padStart(2, '0')}`,
-              // 组合后的时间
-              scheduleStartOnSearchDate: scheduleStartOnSearchDate.toISOString(),
-              scheduleEndOnSearchDate: scheduleEndOnSearchDate.toISOString(),
+              // 原始数据（從數據庫讀取的，僅用於調試）
+              rawScheduleDate: scheduleDate.toISOString(),
+              rawScheduleStart: scheduleStart.toISOString(),
+              rawScheduleEnd: scheduleEnd.toISOString(),
+              // 組合後的時段（實際用於匹配的時段）
+              scheduleDateUTC: scheduleDateUTC,
+              scheduleStartCombined: scheduleStartOnSearchDate.toISOString(),
+              scheduleEndCombined: scheduleEndOnSearchDate.toISOString(),
+              scheduleStartCombinedUTC: scheduleStartCombinedUTC,
+              scheduleEndCombinedUTC: scheduleEndCombinedUTC,
               // 搜索时间
               searchStart: startDateTime.toISOString(),
               searchEnd: endDateTime.toISOString(),
