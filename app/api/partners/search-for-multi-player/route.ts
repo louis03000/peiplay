@@ -305,7 +305,8 @@ export async function GET(request: Request) {
               parsedEndTime: scheduleEnd.toISOString(),
             })
             
-            // 檢查日期是否匹配（使用 UTC 日期比較）
+            // 檢查日期是否匹配（使用 date 字段的 UTC 日期比較）
+            // 注意：date 字段是夥伴設置的日期，應該用這個來匹配
             const scheduleDateUTC = `${scheduleDate.getUTCFullYear()}-${String(scheduleDate.getUTCMonth() + 1).padStart(2, '0')}-${String(scheduleDate.getUTCDate()).padStart(2, '0')}`
             const searchDateUTC = `${startDateTime.getUTCFullYear()}-${String(startDateTime.getUTCMonth() + 1).padStart(2, '0')}-${String(startDateTime.getUTCDate()).padStart(2, '0')}`
             const isDateMatch = scheduleDateUTC === searchDateUTC
@@ -345,23 +346,23 @@ export async function GET(request: Request) {
             }
             
             // 檢查時間：搜尋的時段必須完全包含在夥伴的時段內
-            // 將 schedule 的時間轉換為與搜索日期相同的日期，然後比較時間部分
-            // 這樣可以確保日期一致，只比較時間
+            // 重要：使用 date 字段的日期 + startTime/endTime 的時間部分來組合
+            // 這樣可以確保使用夥伴設置的正確日期，而不是 startTime/endTime 中可能錯誤的日期
             const scheduleStartOnSearchDate = new Date(Date.UTC(
-              startDateTime.getUTCFullYear(),
-              startDateTime.getUTCMonth(),
-              startDateTime.getUTCDate(),
-              scheduleStart.getUTCHours(),
-              scheduleStart.getUTCMinutes(),
+              scheduleDate.getUTCFullYear(),  // 使用 date 字段的年份
+              scheduleDate.getUTCMonth(),     // 使用 date 字段的月份
+              scheduleDate.getUTCDate(),      // 使用 date 字段的日期
+              scheduleStart.getUTCHours(),    // 使用 startTime 的時間部分
+              scheduleStart.getUTCMinutes(),  // 使用 startTime 的時間部分
               0,
               0
             ))
             const scheduleEndOnSearchDate = new Date(Date.UTC(
-              startDateTime.getUTCFullYear(),
-              startDateTime.getUTCMonth(),
-              startDateTime.getUTCDate(),
-              scheduleEnd.getUTCHours(),
-              scheduleEnd.getUTCMinutes(),
+              scheduleDate.getUTCFullYear(),  // 使用 date 字段的年份
+              scheduleDate.getUTCMonth(),     // 使用 date 字段的月份
+              scheduleDate.getUTCDate(),      // 使用 date 字段的日期
+              scheduleEnd.getUTCHours(),      // 使用 endTime 的時間部分
+              scheduleEnd.getUTCMinutes(),    // 使用 endTime 的時間部分
               0,
               0
             ))
