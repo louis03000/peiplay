@@ -54,22 +54,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: '時間格式錯誤' }, { status: 400 })
     }
 
-    // 檢查時段是否在「現在+2小時」之後
-    const now = new Date()
-    const twoHoursLater = new Date(now.getTime() + 2 * 60 * 60 * 1000)
-    const selectedStartTime = new Date(`${normalizedDate}T${startTime}:00`)
-    
-    if (isNaN(selectedStartTime.getTime())) {
-      return NextResponse.json({ error: '開始時間格式錯誤' }, { status: 400 })
-    }
-    
-    if (selectedStartTime <= twoHoursLater) {
-      return NextResponse.json({ 
-        error: '預約時段必須在現在時間的2小時之後'
-      }, { status: 400 })
-    }
-
-    // 創建時間對象（使用本地時間，因為夥伴的時段也是以本地時間設置的）
+    // 解析日期和時間
     const [startHour, startMinute] = startTime.split(':').map(Number)
     const [endHour, endMinute] = endTime.split(':').map(Number)
     const [year, month, day] = normalizedDate.split('-').map(Number)
@@ -79,69 +64,86 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: '時間或日期解析失敗' }, { status: 400 })
     }
     
-    // 使用本地時間創建，與夥伴設置時段的時區一致
-    const startDateTime = new Date(year, month - 1, day, startHour, startMinute, 0, 0)
-    const endDateTime = new Date(year, month - 1, day, endHour, endMinute, 0, 0)
+    // 重要：前端傳來的是本地時間（台灣 UTC+8）
+    // 需要將本地時間轉換為 UTC 時間戳進行比較
+    // 使用 Date 構造函數創建本地時間，然後取其 UTC 時間戳
+    // new Date(year, month, day, hour, minute) 會創建本地時間，內部存儲為 UTC
+    const startDateTimeLocal = new Date(year, month - 1, day, startHour, startMinute, 0, 0)
+    const endDateTimeLocal = new Date(year, month - 1, day, endHour, endMinute, 0, 0)
     
-    if (isNaN(startDateTime.getTime()) || isNaN(endDateTime.getTime())) {
+    if (isNaN(startDateTimeLocal.getTime()) || isNaN(endDateTimeLocal.getTime())) {
       return NextResponse.json({ error: '時間對象創建失敗' }, { status: 400 })
     }
     
-    if (endDateTime <= startDateTime) {
+    if (endDateTimeLocal <= startDateTimeLocal) {
       return NextResponse.json({ error: '結束時間必須晚於開始時間' }, { status: 400 })
     }
+    
+    // 檢查時段是否在「現在+2小時」之後
+    const now = new Date()
+    const twoHoursLater = new Date(now.getTime() + 2 * 60 * 60 * 1000)
+    
+    if (startDateTimeLocal <= twoHoursLater) {
+      return NextResponse.json({ 
+        error: '預約時段必須在現在時間的2小時之後'
+      }, { status: 400 })
+    }
+    
+    // 使用 UTC 時間戳進行比較（startDateTimeLocal 內部已經是 UTC，直接使用）
+    const startDateTimeUTC = startDateTimeLocal
+    const endDateTimeUTC = endDateTimeLocal
 
     // 解析遊戲列表
     const gameList = games 
       ? games.split(',').map(g => g.trim().toLowerCase()).filter(g => g.length > 0)
       : []
 
-    // 調試日誌：搜索參數
-    console.log('🔍 [多人陪玩搜索] 搜索參數:', {
+    // 調試日誌：搜索參數（只顯示 UTC，避免混用）
+    console.log('🔍 [多人陪玩搜索] 搜索參數 (UTC):', {
       date: normalizedDate,
       startTime,
       endTime,
       games: gameList,
-      startDateTime: startDateTime.toISOString(),
-      endDateTime: endDateTime.toISOString(),
-      startDateTimeLocal: `${startDateTime.getFullYear()}-${String(startDateTime.getMonth() + 1).padStart(2, '0')}-${String(startDateTime.getDate()).padStart(2, '0')} ${String(startDateTime.getHours()).padStart(2, '0')}:${String(startDateTime.getMinutes()).padStart(2, '0')}`,
-      endDateTimeLocal: `${endDateTime.getFullYear()}-${String(endDateTime.getMonth() + 1).padStart(2, '0')}-${String(endDateTime.getDate()).padStart(2, '0')} ${String(endDateTime.getHours()).padStart(2, '0')}:${String(endDateTime.getMinutes()).padStart(2, '0')}`,
+      startDateTimeUTC: startDateTimeUTC.toISOString(),
+      endDateTimeUTC: endDateTimeUTC.toISOString(),
     })
 
     const result = await db.query(async (client) => {
-      // 查詢日期範圍（擴大範圍以確保不遺漏）
-      const dateStartUTC = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0))
-      const dateEndUTC = new Date(Date.UTC(year, month - 1, day, 23, 59, 59, 999))
-      const expandedDateStart = new Date(dateStartUTC.getTime() - 24 * 60 * 60 * 1000)
-      const expandedDateEnd = new Date(dateEndUTC.getTime() + 24 * 60 * 60 * 1000)
+      // 直接使用時間範圍查詢，不再用 date 字段過濾
+      // 擴大查詢範圍：搜索開始時間的前後各 24 小時
+      const expandedStart = new Date(startDateTimeUTC.getTime() - 24 * 60 * 60 * 1000)
+      const expandedEnd = new Date(endDateTimeUTC.getTime() + 24 * 60 * 60 * 1000)
 
-      console.log('📅 [多人陪玩搜索] 查詢日期範圍:', {
-        dateStartUTC: dateStartUTC.toISOString(),
-        dateEndUTC: dateEndUTC.toISOString(),
-        expandedDateStart: expandedDateStart.toISOString(),
-        expandedDateEnd: expandedDateEnd.toISOString(),
+      console.log('📅 [多人陪玩搜索] 查詢時間範圍 (UTC):', {
+        searchStartUTC: startDateTimeUTC.toISOString(),
+        searchEndUTC: endDateTimeUTC.toISOString(),
+        expandedStart: expandedStart.toISOString(),
+        expandedEnd: expandedEnd.toISOString(),
       })
       
       if (debug) {
         debugInfo.steps.push({
-          step: '查詢日期範圍',
-          dateStartUTC: dateStartUTC.toISOString(),
-          dateEndUTC: dateEndUTC.toISOString(),
-          expandedDateStart: expandedDateStart.toISOString(),
-          expandedDateEnd: expandedDateEnd.toISOString(),
+          step: '查詢時間範圍',
+          searchStartUTC: startDateTimeUTC.toISOString(),
+          searchEndUTC: endDateTimeUTC.toISOString(),
+          expandedStart: expandedStart.toISOString(),
+          expandedEnd: expandedEnd.toISOString(),
         })
       }
 
       // 查詢已批准且開啟群組預約的夥伴
+      // 直接在 Prisma 查詢中過濾時間：startTime <= searchEnd 且 endTime >= searchStart
       const partners = await client.partner.findMany({
         where: {
           status: 'APPROVED',
           allowGroupBooking: true, // 只查詢開啟群組預約的夥伴
           schedules: {
             some: {
-              date: {
-                gte: expandedDateStart,
-                lte: expandedDateEnd,
+              startTime: {
+                lte: expandedEnd, // 時段開始時間不晚於擴展結束時間
+              },
+              endTime: {
+                gte: expandedStart, // 時段結束時間不早於擴展開始時間
               },
               isAvailable: true
             }
@@ -162,9 +164,11 @@ export async function GET(request: Request) {
           },
           schedules: {
             where: {
-              date: {
-                gte: expandedDateStart,
-                lte: expandedDateEnd,
+              startTime: {
+                lte: expandedEnd, // 時段開始時間不晚於擴展結束時間
+              },
+              endTime: {
+                gte: expandedStart, // 時段結束時間不早於擴展開始時間
               },
               isAvailable: true
             },
@@ -182,8 +186,7 @@ export async function GET(request: Request) {
               }
             },
             orderBy: [
-              // 優先排序：搜索日期當天的時段排在前面
-              { date: 'asc' },
+              // 按開始時間排序
               { startTime: 'asc' }
             ],
             take: 200, // 增加數量以確保不遺漏
@@ -307,23 +310,12 @@ export async function GET(request: Request) {
             const scheduleStart = new Date(schedule.startTime)
             const scheduleEnd = new Date(schedule.endTime)
             
-            // 記錄原始數據（用於調試）
-            console.log(`🔍 [多人陪玩搜索] 檢查時段 ${schedule.id}:`, {
-              rawStartTime: schedule.startTime,
-              rawEndTime: schedule.endTime,
-              parsedStartTime: scheduleStart.toISOString(),
-              parsedEndTime: scheduleEnd.toISOString(),
-              searchStartTime: startDateTime.toISOString(),
-              searchEndTime: endDateTime.toISOString(),
-            })
-            
             // 直接比較 UTC 時間戳：搜尋的時段必須完全包含在夥伴的時段內
             // schedule.startTime 和 schedule.endTime 是 UTC 時間戳
-            // startDateTime 和 endDateTime 也是 UTC 時間戳（Date 對象內部存儲為 UTC）
-            // 條件：scheduleStart <= startDateTime 且 scheduleEnd >= endDateTime
-            // 這樣可以自動處理跨日、時區等問題，不需要單獨比較日期
-            const isTimeContained = scheduleStart.getTime() <= startDateTime.getTime() && 
-                                   scheduleEnd.getTime() >= endDateTime.getTime()
+            // startDateTimeUTC 和 endDateTimeUTC 也是 UTC 時間戳
+            // 條件：scheduleStart <= startDateTimeUTC 且 scheduleEnd >= endDateTimeUTC
+            const isTimeContained = scheduleStart.getTime() <= startDateTimeUTC.getTime() && 
+                                   scheduleEnd.getTime() >= endDateTimeUTC.getTime()
             
             // 檢查是否有活躍的預約（bookings 是一對一關係，可能是 null 或單個對象）
             // 只排除真正活躍的預約狀態
@@ -335,30 +327,21 @@ export async function GET(request: Request) {
             // 確保所有條件都滿足
             const isAvailable = schedule.isAvailable && !hasActiveBooking
             
-            // 提取本地時間用於顯示（僅用於調試）
-            const scheduleStartLocalTime = `${String(scheduleStart.getFullYear())}-${String(scheduleStart.getMonth() + 1).padStart(2, '0')}-${String(scheduleStart.getDate()).padStart(2, '0')} ${String(scheduleStart.getHours()).padStart(2, '0')}:${String(scheduleStart.getMinutes()).padStart(2, '0')}`
-            const scheduleEndLocalTime = `${String(scheduleEnd.getFullYear())}-${String(scheduleEnd.getMonth() + 1).padStart(2, '0')}-${String(scheduleEnd.getDate()).padStart(2, '0')} ${String(scheduleEnd.getHours()).padStart(2, '0')}:${String(scheduleEnd.getMinutes()).padStart(2, '0')}`
-            const searchStartLocalTime = `${String(startDateTime.getFullYear())}-${String(startDateTime.getMonth() + 1).padStart(2, '0')}-${String(startDateTime.getDate()).padStart(2, '0')} ${String(startDateTime.getHours()).padStart(2, '0')}:${String(startDateTime.getMinutes()).padStart(2, '0')}`
-            const searchEndLocalTime = `${String(endDateTime.getFullYear())}-${String(endDateTime.getMonth() + 1).padStart(2, '0')}-${String(endDateTime.getDate()).padStart(2, '0')} ${String(endDateTime.getHours()).padStart(2, '0')}:${String(endDateTime.getMinutes()).padStart(2, '0')}`
-            
-            // 提取本地日期用於顯示（僅用於調試）
-            const scheduleDateLocal = `${String(scheduleStart.getFullYear())}-${String(scheduleStart.getMonth() + 1).padStart(2, '0')}-${String(scheduleStart.getDate()).padStart(2, '0')}`
-            const searchDateLocal = `${String(startDateTime.getFullYear())}-${String(startDateTime.getMonth() + 1).padStart(2, '0')}-${String(startDateTime.getDate()).padStart(2, '0')}`
-            
             const finalMatch = isTimeContained && isAvailable
+            
+            // 記錄調試信息（只顯示 UTC）
+            console.log(`🔍 [多人陪玩搜索] 檢查時段 ${schedule.id} (UTC):`, {
+              scheduleStartUTC: scheduleStart.toISOString(),
+              scheduleEndUTC: scheduleEnd.toISOString(),
+              searchStartUTC: startDateTimeUTC.toISOString(),
+              searchEndUTC: endDateTimeUTC.toISOString(),
+              isTimeContained,
+              isAvailable,
+              finalMatch,
+            })
             
             if (!finalMatch) {
               const reason = !isTimeContained ? '時間不包含' : !isAvailable ? '時段不可用' : '未知原因'
-              
-              console.log(`❌ [多人陪玩搜索] 時段 ${schedule.id} 不匹配:`, {
-                reason,
-                scheduleStartUTC: scheduleStart.toISOString(),
-                scheduleEndUTC: scheduleEnd.toISOString(),
-                searchStartUTC: startDateTime.toISOString(),
-                searchEndUTC: endDateTime.toISOString(),
-                isTimeContained,
-                isAvailable,
-              })
               
               if (debug) {
                 const partnerDebug = debugInfo.partners.find((p: any) => p.partnerId === partner.id)!
@@ -367,13 +350,8 @@ export async function GET(request: Request) {
                   reason,
                   scheduleStartUTC: scheduleStart.toISOString(),
                   scheduleEndUTC: scheduleEnd.toISOString(),
-                  scheduleStartLocal: scheduleStartLocalTime,
-                  scheduleEndLocal: scheduleEndLocalTime,
-                  searchStartUTC: startDateTime.toISOString(),
-                  searchEndUTC: endDateTime.toISOString(),
-                  searchDateLocal,
-                  searchStartLocal: searchStartLocalTime,
-                  searchEndLocal: searchEndLocalTime,
+                  searchStartUTC: startDateTimeUTC.toISOString(),
+                  searchEndUTC: endDateTimeUTC.toISOString(),
                   isTimeContained,
                   scheduleIsAvailable: schedule.isAvailable,
                   hasActiveBooking: !!hasActiveBooking,
@@ -402,13 +380,8 @@ export async function GET(request: Request) {
                 scheduleId: schedule.id,
                 scheduleStartUTC: scheduleStart.toISOString(),
                 scheduleEndUTC: scheduleEnd.toISOString(),
-                scheduleStartLocal: scheduleStartLocalTime,
-                scheduleEndLocal: scheduleEndLocalTime,
-                searchStartUTC: startDateTime.toISOString(),
-                searchEndUTC: endDateTime.toISOString(),
-                searchDateLocal,
-                searchStartLocal: searchStartLocalTime,
-                searchEndLocal: searchEndLocalTime,
+                searchStartUTC: startDateTimeUTC.toISOString(),
+                searchEndUTC: endDateTimeUTC.toISOString(),
                 isTimeContained: true,
                 scheduleIsAvailable: schedule.isAvailable,
                 hasActiveBooking: !!hasActiveBooking,
@@ -494,10 +467,8 @@ export async function GET(request: Request) {
           normalizedDate,
           startTime,
           endTime,
-          startDateTime: startDateTime.toISOString(),
-          endDateTime: endDateTime.toISOString(),
-          startDateTimeLocal: `${startDateTime.getFullYear()}-${String(startDateTime.getMonth() + 1).padStart(2, '0')}-${String(startDateTime.getDate()).padStart(2, '0')} ${String(startDateTime.getHours()).padStart(2, '0')}:${String(startDateTime.getMinutes()).padStart(2, '0')}`,
-          endDateTimeLocal: `${endDateTime.getFullYear()}-${String(endDateTime.getMonth() + 1).padStart(2, '0')}-${String(endDateTime.getDate()).padStart(2, '0')} ${String(endDateTime.getHours()).padStart(2, '0')}:${String(endDateTime.getMinutes()).padStart(2, '0')}`,
+          startDateTimeUTC: startDateTimeUTC.toISOString(),
+          endDateTimeUTC: endDateTimeUTC.toISOString(),
         }
       }
 
