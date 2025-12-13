@@ -266,15 +266,55 @@ export async function GET(request: Request) {
           // 找到符合時段的 schedule
           console.log(`🔎 [多人陪玩搜索] 檢查夥伴 ${partner.name} (${partner.id}) 的 ${partner.schedules.length} 個時段`)
           
+          // 初始化夥伴調試信息
+          if (debug) {
+            const partnerDebug = debugInfo.partners.find((p: any) => p.partnerId === partner.id) || {
+              partnerId: partner.id,
+              partnerName: partner.name,
+              scheduleChecks: [],
+            }
+            if (!debugInfo.partners.find((p: any) => p.partnerId === partner.id)) {
+              debugInfo.partners.push(partnerDebug)
+            }
+          }
+          
+          // 記錄所有時段的原始數據（用於調試）
+          if (debug && partner.schedules.length > 0) {
+            console.log(`📋 [多人陪玩搜索] 夥伴 ${partner.name} 的所有時段原始數據:`, partner.schedules.map(s => ({
+              id: s.id,
+              date: s.date,
+              startTime: s.startTime,
+              endTime: s.endTime,
+              isAvailable: s.isAvailable,
+              bookingStatus: s.bookings?.status || null,
+            })))
+          }
+          
           const matchingSchedule = partner.schedules.find(schedule => {
             const scheduleStart = new Date(schedule.startTime)
             const scheduleEnd = new Date(schedule.endTime)
             const scheduleDate = new Date(schedule.date)
             
+            // 記錄原始數據（用於調試）
+            console.log(`🔍 [多人陪玩搜索] 檢查時段 ${schedule.id}:`, {
+              rawDate: schedule.date,
+              rawStartTime: schedule.startTime,
+              rawEndTime: schedule.endTime,
+              parsedDate: scheduleDate.toISOString(),
+              parsedStartTime: scheduleStart.toISOString(),
+              parsedEndTime: scheduleEnd.toISOString(),
+            })
+            
             // 檢查日期是否匹配（使用 UTC 日期比較）
             const scheduleDateUTC = `${scheduleDate.getUTCFullYear()}-${String(scheduleDate.getUTCMonth() + 1).padStart(2, '0')}-${String(scheduleDate.getUTCDate()).padStart(2, '0')}`
             const searchDateUTC = `${startDateTime.getUTCFullYear()}-${String(startDateTime.getUTCMonth() + 1).padStart(2, '0')}-${String(startDateTime.getUTCDate()).padStart(2, '0')}`
             const isDateMatch = scheduleDateUTC === searchDateUTC
+            
+            // 為調試模式準備完整的時段信息
+            const scheduleStartUTC = `${scheduleStart.getUTCFullYear()}-${String(scheduleStart.getUTCMonth() + 1).padStart(2, '0')}-${String(scheduleStart.getUTCDate()).padStart(2, '0')} ${String(scheduleStart.getUTCHours()).padStart(2, '0')}:${String(scheduleStart.getUTCMinutes()).padStart(2, '0')}`
+            const scheduleEndUTC = `${scheduleEnd.getUTCFullYear()}-${String(scheduleEnd.getUTCMonth() + 1).padStart(2, '0')}-${String(scheduleEnd.getUTCDate()).padStart(2, '0')} ${String(scheduleEnd.getUTCHours()).padStart(2, '0')}:${String(scheduleEnd.getUTCMinutes()).padStart(2, '0')}`
+            const searchStartUTC = `${startDateTime.getUTCFullYear()}-${String(startDateTime.getUTCMonth() + 1).padStart(2, '0')}-${String(startDateTime.getUTCDate()).padStart(2, '0')} ${String(startDateTime.getUTCHours()).padStart(2, '0')}:${String(startDateTime.getUTCMinutes()).padStart(2, '0')}`
+            const searchEndUTC = `${endDateTime.getUTCFullYear()}-${String(endDateTime.getUTCMonth() + 1).padStart(2, '0')}-${String(endDateTime.getUTCDate()).padStart(2, '0')} ${String(endDateTime.getUTCHours()).padStart(2, '0')}:${String(endDateTime.getUTCMinutes()).padStart(2, '0')}`
             
             if (!isDateMatch) {
               console.log(`📅 [多人陪玩搜索] 時段 ${schedule.id} 日期不匹配:`, {
@@ -285,20 +325,19 @@ export async function GET(request: Request) {
               })
               
               if (debug) {
-                const partnerDebug = debugInfo.partners.find((p: any) => p.partnerId === partner.id) || {
-                  partnerId: partner.id,
-                  partnerName: partner.name,
-                  scheduleChecks: [],
-                }
-                if (!debugInfo.partners.find((p: any) => p.partnerId === partner.id)) {
-                  debugInfo.partners.push(partnerDebug)
-                }
+                const partnerDebug = debugInfo.partners.find((p: any) => p.partnerId === partner.id)!
                 partnerDebug.scheduleChecks.push({
                   scheduleId: schedule.id,
                   reason: '日期不匹配',
                   scheduleDate: scheduleDate.toISOString(),
                   scheduleDateUTC,
+                  scheduleStartUTC,
+                  scheduleEndUTC,
                   searchDateUTC,
+                  searchStartUTC,
+                  searchEndUTC,
+                  isDateMatch: false,
+                  finalMatch: false,
                 })
               }
               
