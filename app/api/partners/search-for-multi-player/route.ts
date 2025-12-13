@@ -306,28 +306,22 @@ export async function GET(request: Request) {
           const matchingSchedule = partner.schedules.find(schedule => {
             const scheduleStart = new Date(schedule.startTime)
             const scheduleEnd = new Date(schedule.endTime)
-            const scheduleDate = new Date(schedule.date)
             
             // 記錄原始數據（用於調試）
             console.log(`🔍 [多人陪玩搜索] 檢查時段 ${schedule.id}:`, {
-              rawDate: schedule.date,
               rawStartTime: schedule.startTime,
               rawEndTime: schedule.endTime,
-              parsedDate: scheduleDate.toISOString(),
               parsedStartTime: scheduleStart.toISOString(),
               parsedEndTime: scheduleEnd.toISOString(),
+              searchStartTime: startDateTime.toISOString(),
+              searchEndTime: endDateTime.toISOString(),
             })
             
-            // 檢查日期是否匹配（使用本地日期比較）
-            // 注意：date 字段是夥伴設置的日期，應該用這個來匹配
-            const scheduleDateLocal = `${scheduleDate.getFullYear()}-${String(scheduleDate.getMonth() + 1).padStart(2, '0')}-${String(scheduleDate.getDate()).padStart(2, '0')}`
-            const searchDateLocal = `${startDateTime.getFullYear()}-${String(startDateTime.getMonth() + 1).padStart(2, '0')}-${String(startDateTime.getDate()).padStart(2, '0')}`
-            const isDateMatch = scheduleDateLocal === searchDateLocal
-            
-            // 直接比較時間戳：搜尋的時段必須完全包含在夥伴的時段內
+            // 直接比較 UTC 時間戳：搜尋的時段必須完全包含在夥伴的時段內
             // schedule.startTime 和 schedule.endTime 是 UTC 時間戳
             // startDateTime 和 endDateTime 也是 UTC 時間戳（Date 對象內部存儲為 UTC）
             // 條件：scheduleStart <= startDateTime 且 scheduleEnd >= endDateTime
+            // 這樣可以自動處理跨日、時區等問題，不需要單獨比較日期
             const isTimeContained = scheduleStart.getTime() <= startDateTime.getTime() && 
                                    scheduleEnd.getTime() >= endDateTime.getTime()
             
@@ -347,16 +341,21 @@ export async function GET(request: Request) {
             const searchStartLocalTime = `${String(startDateTime.getFullYear())}-${String(startDateTime.getMonth() + 1).padStart(2, '0')}-${String(startDateTime.getDate()).padStart(2, '0')} ${String(startDateTime.getHours()).padStart(2, '0')}:${String(startDateTime.getMinutes()).padStart(2, '0')}`
             const searchEndLocalTime = `${String(endDateTime.getFullYear())}-${String(endDateTime.getMonth() + 1).padStart(2, '0')}-${String(endDateTime.getDate()).padStart(2, '0')} ${String(endDateTime.getHours()).padStart(2, '0')}:${String(endDateTime.getMinutes()).padStart(2, '0')}`
             
-            const finalMatch = isDateMatch && isTimeContained && isAvailable
+            // 提取本地日期用於顯示（僅用於調試）
+            const scheduleDateLocal = `${String(scheduleStart.getFullYear())}-${String(scheduleStart.getMonth() + 1).padStart(2, '0')}-${String(scheduleStart.getDate()).padStart(2, '0')}`
+            const searchDateLocal = `${String(startDateTime.getFullYear())}-${String(startDateTime.getMonth() + 1).padStart(2, '0')}-${String(startDateTime.getDate()).padStart(2, '0')}`
+            
+            const finalMatch = isTimeContained && isAvailable
             
             if (!finalMatch) {
-              const reason = !isDateMatch ? '日期不匹配' : !isTimeContained ? '時間不包含' : !isAvailable ? '時段不可用' : '未知原因'
+              const reason = !isTimeContained ? '時間不包含' : !isAvailable ? '時段不可用' : '未知原因'
               
               console.log(`❌ [多人陪玩搜索] 時段 ${schedule.id} 不匹配:`, {
                 reason,
-                scheduleDateLocal,
-                searchDateLocal,
-                isDateMatch,
+                scheduleStartUTC: scheduleStart.toISOString(),
+                scheduleEndUTC: scheduleEnd.toISOString(),
+                searchStartUTC: startDateTime.toISOString(),
+                searchEndUTC: endDateTime.toISOString(),
                 isTimeContained,
                 isAvailable,
               })
@@ -366,14 +365,15 @@ export async function GET(request: Request) {
                 partnerDebug.scheduleChecks.push({
                   scheduleId: schedule.id,
                   reason,
-                  scheduleDate: scheduleDate.toISOString(),
-                  scheduleDateLocal,
+                  scheduleStartUTC: scheduleStart.toISOString(),
+                  scheduleEndUTC: scheduleEnd.toISOString(),
                   scheduleStartLocal: scheduleStartLocalTime,
                   scheduleEndLocal: scheduleEndLocalTime,
+                  searchStartUTC: startDateTime.toISOString(),
+                  searchEndUTC: endDateTime.toISOString(),
                   searchDateLocal,
                   searchStartLocal: searchStartLocalTime,
                   searchEndLocal: searchEndLocalTime,
-                  isDateMatch,
                   isTimeContained,
                   scheduleIsAvailable: schedule.isAvailable,
                   hasActiveBooking: !!hasActiveBooking,
@@ -400,14 +400,15 @@ export async function GET(request: Request) {
               }
               partnerDebug.scheduleChecks.push({
                 scheduleId: schedule.id,
-                scheduleDate: scheduleDate.toISOString(),
-                scheduleDateLocal,
+                scheduleStartUTC: scheduleStart.toISOString(),
+                scheduleEndUTC: scheduleEnd.toISOString(),
                 scheduleStartLocal: scheduleStartLocalTime,
                 scheduleEndLocal: scheduleEndLocalTime,
+                searchStartUTC: startDateTime.toISOString(),
+                searchEndUTC: endDateTime.toISOString(),
                 searchDateLocal,
                 searchStartLocal: searchStartLocalTime,
                 searchEndLocal: searchEndLocalTime,
-                isDateMatch: true,
                 isTimeContained: true,
                 scheduleIsAvailable: schedule.isAvailable,
                 hasActiveBooking: !!hasActiveBooking,
