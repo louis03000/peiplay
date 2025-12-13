@@ -179,11 +179,15 @@ function MultiPlayerBookingContent() {
         params.append('games', allGames.join(','))
       }
       
-      // 添加調試模式（從 URL 參數或 localStorage 讀取）
+      // 強制啟用調試模式（暫時用於診斷問題）
+      // 可以通過 URL 參數 ?debug=false 來關閉
       const urlParams = new URLSearchParams(window.location.search)
-      const debugMode = urlParams.get('debug') === 'true' || localStorage.getItem('multiPlayerDebug') === 'true'
+      const forceDisableDebug = urlParams.get('debug') === 'false'
+      const debugMode = !forceDisableDebug // 預設啟用調試模式
+      
       if (debugMode) {
         params.append('debug', 'true')
+        console.log('🔍 [多人陪玩搜索] 調試模式已啟用')
       }
 
       const response = await fetch(`/api/partners/search-for-multi-player?${params}`)
@@ -200,13 +204,23 @@ function MultiPlayerBookingContent() {
       let partnersList: any[] = []
       let debugInfo: any = null
       
-      if (debugMode && data.debug) {
-        // 調試模式：顯示詳細信息
+      // 檢查響應格式：可能是 { partners: [], debug: {} } 或直接是 []
+      if (data.debug) {
+        // 調試模式響應
         debugInfo = data.debug
         partnersList = Array.isArray(data.partners) ? data.partners : []
-        
-        // 在控制台顯示調試信息
-        console.group('🔍 [多人陪玩搜索] 調試信息')
+      } else {
+        // 普通響應
+        partnersList = Array.isArray(data) ? data : []
+      }
+      
+      // 無論是否啟用調試模式，都輸出基本信息到控制台
+      console.log('🔍 [多人陪玩搜索] API 響應:', data)
+      console.log('📊 [多人陪玩搜索] 找到夥伴數量:', partnersList.length)
+      
+      // 如果有調試信息，詳細輸出
+      if (debugInfo) {
+        console.group('🔍 [多人陪玩搜索] 詳細調試信息')
         console.log('📥 請求參數:', debugInfo.requestParams)
         console.log('📊 查詢步驟:', debugInfo.steps)
         console.log('👥 夥伴詳情:', debugInfo.partners)
@@ -218,15 +232,15 @@ function MultiPlayerBookingContent() {
 🔍 調試信息：
 
 📥 請求參數:
-- 日期: ${debugInfo.requestParams.date}
-- 時間: ${debugInfo.requestParams.startTime} - ${debugInfo.requestParams.endTime}
-- 遊戲: ${debugInfo.requestParams.games || '無'}
+- 日期: ${debugInfo.requestParams?.date || 'N/A'}
+- 時間: ${debugInfo.requestParams?.startTime || 'N/A'} - ${debugInfo.requestParams?.endTime || 'N/A'}
+- 遊戲: ${debugInfo.requestParams?.games || '無'}
 
-📊 查詢步驟:
-${debugInfo.steps.map((step: any, i: number) => `  ${i + 1}. ${step.step}: ${JSON.stringify(step, null, 2)}`).join('\n')}
+📊 查詢步驟 (${debugInfo.steps?.length || 0} 步):
+${debugInfo.steps?.map((step: any, i: number) => `  ${i + 1}. ${step.step}: ${JSON.stringify(step, null, 2)}`).join('\n') || '無'}
 
-👥 找到的夥伴: ${debugInfo.partners.length} 個
-${debugInfo.partners.map((p: any) => `  - ${p.partnerName} (${p.partnerId}): ${p.finalStatus || '檢查中'}`).join('\n')}
+👥 找到的夥伴: ${debugInfo.partners?.length || 0} 個
+${debugInfo.partners?.map((p: any) => `  - ${p.partnerName || p.partnerId} (${p.partnerId}): ${p.finalStatus || '檢查中'}`).join('\n') || '無'}
 
 🎯 最終匹配: ${debugInfo.finalResult?.partnersFound || 0} 個夥伴
         `.trim()
@@ -235,10 +249,13 @@ ${debugInfo.partners.map((p: any) => `  - ${p.partnerName} (${p.partnerId}): ${p
         
         // 如果沒有找到夥伴，顯示詳細原因
         if (partnersList.length === 0) {
-          alert(`沒有找到符合條件的夥伴\n\n調試信息已輸出到瀏覽器控制台（按 F12 查看）\n\n${debugMessage}`)
+          alert(`沒有找到符合條件的夥伴\n\n調試信息已輸出到瀏覽器控制台（按 F12 查看 Console）\n\n${debugMessage}`)
         }
-      } else {
-        partnersList = Array.isArray(data) ? data : []
+      } else if (partnersList.length === 0) {
+        // 沒有調試信息但沒有找到夥伴
+        console.warn('⚠️ [多人陪玩搜索] 沒有找到夥伴，但沒有調試信息')
+        console.log('💡 提示: 在 URL 中添加 ?debug=true 可啟用調試模式')
+        alert('沒有找到符合條件的夥伴\n\n提示: 在 URL 中添加 ?debug=true 可查看詳細調試信息')
       }
       
       setPartners(partnersList)
