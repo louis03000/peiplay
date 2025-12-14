@@ -142,34 +142,57 @@ export default function ChatRoomPage() {
 
   // ✅ 關鍵優化：載入歷史訊息（後台加載，不阻塞 UI）
   const [loadedHistoryMessages, setLoadedHistoryMessages] = useState<ChatMessage[]>([]);
+  const lastRoomIdRef = useRef<string | null>(null);
   
   useEffect(() => {
-    if (!roomId || !session?.user?.id) return;
-    if (initializedRef.current) return;
-    initializedRef.current = true;
+    if (!roomId || !session?.user?.id) {
+      setLoadedHistoryMessages([]);
+      return;
+    }
 
-    const loadMessages = async () => {
-      // ✅ Request lock：防止重複請求
-      if (loadingRef.current) return;
-      loadingRef.current = true;
+    // ✅ 如果 roomId 沒變化，不重新載入
+    if (lastRoomIdRef.current === roomId) {
+      return;
+    }
 
-      // ✅ Abort 之前的請求
+    // ✅ Request lock：防止重複請求
+    if (loadingRef.current) {
+      // 如果正在載入，先取消之前的請求
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
       }
+    }
 
-      const abortController = new AbortController();
-      abortControllerRef.current = abortController;
+    loadingRef.current = true;
+    lastRoomIdRef.current = roomId;
 
+    // ✅ Abort 之前的請求
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
+
+    const loadMessages = async () => {
       try {
         setLoadingMessages(true);
+        console.log(`📥 Loading messages for room: ${roomId}`);
         const messagesRes = await fetch(
           `/api/chat/rooms/${roomId}/messages?limit=30`,
           { signal: abortController.signal }
         );
         
+        if (abortController.signal.aborted) {
+          console.log('Request aborted');
+          return;
+        }
+        
         if (messagesRes.ok) {
           const messagesData = await messagesRes.json();
+          const cacheStatus = messagesRes.headers.get('X-Cache');
+          console.log(`📥 Messages loaded (cache: ${cacheStatus || 'unknown'})`);
+          
           if (messagesData.messages && Array.isArray(messagesData.messages)) {
             // 將歷史消息轉換為 ChatMessage 格式（支持 denormalized 字段）
             const formattedMessages: ChatMessage[] = messagesData.messages.map((msg: any) => ({
@@ -223,7 +246,7 @@ export default function ChatRoomPage() {
 
     // ✅ 立即加載消息（背景執行，不阻塞 UI）
     loadMessages();
-  }, []); // ✅ 關鍵：空依賴陣列，只在 mount 時執行
+  }, [roomId, session?.user?.id]); // ✅ 關鍵：依賴 roomId，切換房間時重新載入
 
   // 滾動到底部
   useEffect(() => {

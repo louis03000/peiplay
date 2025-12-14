@@ -70,7 +70,7 @@ export function getRedisClient(): any | null {
     });
 
     redisClient.on('connect', () => {
-      console.log('✅ Redis connected');
+      console.log('✅ Redis connected (external Redis, not in-memory)');
     });
 
     // 非同步連接（不阻塞）

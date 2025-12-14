@@ -31,28 +31,43 @@ export async function GET(
     const before = searchParams.get('before'); // cursor-based pagination
 
     // ✅ 關鍵優化：統一 cache key，所有用戶共用同一份 cache
-    // cache key 格式：messages:{roomId}:latest:30（不包含 userId）
-    const cacheKey = `messages:${roomId}:latest:${limit}`;
-    const cached = await Cache.get(cacheKey);
+    // cache key 格式：messages:{roomId}:latest:30（固定格式，不包含 userId，不包含 before）
+    // 注意：只有最新消息（無 before 參數）才 cache，分頁查詢不 cache
+    const cacheKey = before 
+      ? null // 分頁查詢不 cache
+      : `messages:${roomId}:latest:30`; // ✅ 固定 limit = 30
     
-    if (cached) {
-      // ✅ cache hit：直接返回，禁止任何 DB 查詢
-      console.log(`✅ Cache hit: ${cacheKey}`);
-      return NextResponse.json(
-        { messages: cached },
-        {
-          headers: {
-            'Cache-Control': 'private, max-age=3, stale-while-revalidate=5',
-            'X-Cache': 'HIT',
-          },
+    // ✅ 只有最新消息才使用 cache
+    if (cacheKey) {
+      try {
+        const cached = await Cache.get(cacheKey);
+        
+        if (cached) {
+          // ✅ cache hit：直接返回，禁止任何 DB 查詢（包括權限驗證）
+          console.log(`🔥 messages cache HIT: ${cacheKey} (${Array.isArray(cached) ? cached.length : 0} messages)`);
+          return NextResponse.json(
+            { messages: cached },
+            {
+              headers: {
+                'Cache-Control': 'private, max-age=3, stale-while-revalidate=5',
+                'X-Cache': 'HIT',
+              },
+            }
+          );
         }
-      );
+        
+        console.log(`❄️ messages cache MISS: ${cacheKey}, will query DB`);
+      } catch (error: any) {
+        // Redis 不可用時，降級為直接查 DB（不報錯）
+        console.warn(`⚠️ Cache unavailable for ${cacheKey}, falling back to DB:`, error.message);
+      }
+    } else {
+      console.log(`📄 Pagination query (before=${before}), skipping cache`);
     }
-    
-    console.log(`❌ Cache miss: ${cacheKey}`);
 
+    // ✅ cache miss：查詢 DB（使用原生 SQL，禁止 JOIN）
     const result = await db.query(async (client) => {
-      // 優化：並行驗證權限（減少等待時間）
+      // ✅ 權限驗證（只在 cache miss 時執行）
       const [membership, user] = await Promise.all([
         client.chatRoomMember.findUnique({
           where: {
@@ -61,7 +76,7 @@ export async function GET(
               userId: session.user.id,
             },
           },
-          select: { id: true }, // 只選必要欄位
+          select: { id: true },
         }),
         client.user.findUnique({
           where: { id: session.user.id },
@@ -73,44 +88,57 @@ export async function GET(
         throw new Error('無權限訪問此聊天室');
       }
 
-      // 優化：使用索引 (roomId, createdAt DESC) 查詢
-      // WHERE 條件必須匹配索引的第一個欄位（roomId），這樣才能使用索引
-      const where: any = {
-        roomId, // 必須先匹配索引的第一個欄位
-        moderationStatus: { not: 'REJECTED' }, // 不顯示被拒絕的訊息
-      };
-
-      // Cursor-based pagination: 使用 created_at < before 來利用索引
+      // ✅ 關鍵優化：使用原生 SQL 查詢，禁止 JOIN
+      // 使用 $queryRaw 直接查詢 messages 表，只使用 snapshot 欄位
+      // 這是業界標準做法：單表查詢，不使用 JOIN
+      let messages: any[];
+      
       if (before) {
-        where.createdAt = { lt: new Date(before) };
+        // 分頁查詢（不 cache）
+        const beforeDate = new Date(before);
+        messages = await (client as any).$queryRaw`
+          SELECT 
+            id,
+            "roomId",
+            "senderId",
+            "senderName",
+            "senderAvatarUrl",
+            content,
+            "contentType",
+            status,
+            "moderationStatus",
+            "createdAt"
+          FROM "ChatMessage"
+          WHERE "roomId" = ${roomId}::text
+            AND "moderationStatus" != 'REJECTED'
+            AND "createdAt" < ${beforeDate}
+          ORDER BY "createdAt" DESC, id DESC
+          LIMIT ${limit}
+        `;
+      } else {
+        // 最新消息查詢（會 cache）
+        messages = await (client as any).$queryRaw`
+          SELECT 
+            id,
+            "roomId",
+            "senderId",
+            "senderName",
+            "senderAvatarUrl",
+            content,
+            "contentType",
+            status,
+            "moderationStatus",
+            "createdAt"
+          FROM "ChatMessage"
+          WHERE "roomId" = ${roomId}::text
+            AND "moderationStatus" != 'REJECTED'
+          ORDER BY "createdAt" DESC, id DESC
+          LIMIT ${limit}
+        `;
       }
-
-      // ✅ 關鍵優化：禁止 JOIN，只使用 denormalized 字段
-      // 舊訊息可能沒有 senderName/senderAvatarUrl，顯示「未知用戶」是預期行為
-      const messages = await (client as any).chatMessage.findMany({
-        where,
-        select: {
-          id: true,
-          roomId: true,
-          senderId: true,
-          senderName: true,        // denormalized 字段
-          senderAvatarUrl: true,   // denormalized 字段
-          content: true,
-          contentType: true,
-          status: true,
-          moderationStatus: true,
-          createdAt: true,
-          // ❌ 禁止 JOIN sender
-        },
-        orderBy: [
-          { createdAt: 'desc' },
-          { id: 'desc' },
-        ],
-        take: limit,
-      });
       
       // 轉換格式（舊訊息可能 senderName 為 null，顯示「未知用戶」）
-      const formattedMessages = messages.reverse().map((msg: any) => ({
+      const formattedMessages = (messages as any[]).reverse().map((msg: any) => ({
         id: msg.id,
         roomId: msg.roomId,
         senderId: msg.senderId,
@@ -131,18 +159,20 @@ export async function GET(
       }));
       
       return formattedMessages;
-
-      return messages;
     }, 'chat:rooms:roomId:messages:get');
 
     // ✅ 關鍵優化：寫入快取（3秒 TTL，允許短暫不一致）
     // 不等待快取寫入完成（fire-and-forget），避免阻塞響應
-    if (result && Array.isArray(result)) {
+    // 只有最新消息才 cache（分頁查詢不 cache）
+    if (cacheKey && result && Array.isArray(result)) {
       Cache.set(cacheKey, result, 3).then(() => {
-        console.log(`✅ Cache set: ${cacheKey}`);
+        console.log(`✅ Cache set: ${cacheKey} (${result.length} messages, TTL: 3s)`);
       }).catch((err: any) => {
-        console.error('Failed to cache messages:', err);
+        // Redis 不可用時，靜默失敗（不影響功能）
+        console.warn(`⚠️ Failed to cache messages (Redis may be unavailable):`, err.message);
       });
+    } else if (!cacheKey) {
+      console.log(`📄 Skipping cache (pagination query)`);
     }
 
     // 個人聊天訊息使用 private cache
