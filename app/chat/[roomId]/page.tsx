@@ -103,36 +103,41 @@ export default function ChatRoomPage() {
     markAsRead,
   } = useChatSocket({ roomId, enabled: !!roomId });
 
-  // 載入聊天室資訊（優先，快速顯示）
+  // ✅ 關鍵優化：延後載入聊天室資訊（不阻塞首屏）
   useEffect(() => {
     if (!roomId) return;
 
-    const loadRoomInfo = async () => {
-      try {
-        const roomRes = await fetch(`/api/chat/rooms/${roomId}`);
-        if (roomRes.ok) {
-          const roomData = await roomRes.json();
-          setRoom(roomData.room);
-          
-          // 計算免費聊天句數（如果需要的話，先從房間信息判斷）
-          const currentRoom = roomData.room;
-          const isFreeChatRoom =
-            currentRoom &&
-            !currentRoom.bookingId &&
-            !currentRoom.groupBookingId &&
-            !currentRoom.multiPlayerBookingId;
-          
-          if (isFreeChatRoom && session?.user?.id) {
-            // 先設置為0，等消息加載後再更新
-            setUserMessageCount(0);
+    // 延後 500ms 載入（首屏優先顯示 messages）
+    const timeoutId = setTimeout(() => {
+      const loadRoomInfo = async () => {
+        try {
+          const roomRes = await fetch(`/api/chat/rooms/${roomId}`);
+          if (roomRes.ok) {
+            const roomData = await roomRes.json();
+            setRoom(roomData.room);
+            
+            // 計算免費聊天句數（如果需要的話，先從房間信息判斷）
+            const currentRoom = roomData.room;
+            const isFreeChatRoom =
+              currentRoom &&
+              !currentRoom.bookingId &&
+              !currentRoom.groupBookingId &&
+              !currentRoom.multiPlayerBookingId;
+            
+            if (isFreeChatRoom && session?.user?.id) {
+              // 先設置為0，等消息加載後再更新
+              setUserMessageCount(0);
+            }
           }
+        } catch (error: any) {
+          console.error('Error loading room:', error);
         }
-      } catch (error: any) {
-        console.error('Error loading room:', error);
-      }
-    };
+      };
 
-    loadRoomInfo();
+      loadRoomInfo();
+    }, 500);
+
+    return () => clearTimeout(timeoutId);
   }, [roomId, session?.user?.id]);
 
   // ✅ 關鍵優化：載入歷史訊息（後台加載，不阻塞 UI）
@@ -528,6 +533,7 @@ export default function ChatRoomPage() {
                   <div className={`max-w-xs lg:max-w-md ${isOwn ? 'order-2' : ''}`}>
                     {!isOwn && showAvatar && (
                       <p className="text-xs text-gray-500 mb-1">
+                        {/* ⚠️ 舊訊息可能沒有 senderName，顯示「未知用戶」是預期行為 */}
                         {message.senderName || message.sender?.name || message.sender?.email || '未知用戶'}
                       </p>
                     )}

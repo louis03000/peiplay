@@ -41,15 +41,28 @@ export function useChatSocket({ roomId, enabled = true }: UseChatSocketOptions) 
   const currentRoomIdRef = useRef<string | null>(null);
   const initializedRef = useRef(false);
 
-  // 連接 Socket.IO（只初始化一次，不隨 roomId 變化重建）
+  // ✅ 關鍵優化：Socket 單例，整個網站只有一條連線
   useEffect(() => {
     if (!enabled || !session?.user?.id) return;
     
-    // 防止重複初始化
+    // ✅ 防止重複初始化：如果已經初始化，直接重用
     if (initializedRef.current && globalSocket) {
       console.log('✅ Socket already initialized, reusing existing connection');
       setIsConnected(globalSocket.connected);
-      // roomId 變化由另一個 useEffect 處理
+      
+      // 處理 roomId 變化（不重新連接）
+      if (roomId && roomId !== currentRoomIdRef.current) {
+        console.log(`🔄 Switching to room: ${roomId}`);
+        if (currentRoomIdRef.current) {
+          globalSocket.emit('room:leave', { roomId: currentRoomIdRef.current });
+        }
+        currentRoomIdRef.current = roomId;
+        globalSocket.emit('room:join', { roomId });
+      } else if (!roomId && currentRoomIdRef.current) {
+        console.log(`🚪 Leaving room: ${currentRoomIdRef.current}`);
+        globalSocket.emit('room:leave', { roomId: currentRoomIdRef.current });
+        currentRoomIdRef.current = null;
+      }
       return;
     }
 

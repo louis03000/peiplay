@@ -102,8 +102,12 @@ async function processMessageJob(job: MessageJob): Promise<void> {
       console.warn('Error emitting socket message:', err);
     }
 
-    // 4. 清除 cache
-    const cachePattern = `chat:messages:${roomId}:*`;
+    // 4. 清除 cache（使用統一的 cache key 格式）
+    const cacheKey = `messages:${roomId}:latest:30`;
+    await Cache.delete(cacheKey).catch(() => {});
+    
+    // 也清除其他可能的變體
+    const cachePattern = `messages:${roomId}:*`;
     await Cache.deletePattern(cachePattern).catch(() => {});
 
     console.log(`✅ Processed message job: ${messageId}`);

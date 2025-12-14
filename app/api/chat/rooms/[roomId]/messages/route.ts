@@ -30,20 +30,26 @@ export async function GET(
     const limit = Math.min(parseInt(searchParams.get('limit') || '30'), 50);
     const before = searchParams.get('before'); // cursor-based pagination
 
-    // ✅ 關鍵優化：使用 Redis 快取（3-5秒 TTL，允許短暫不一致）
-    // 聊天系統允許 3~5 秒不一致，大幅提升體感速度
-    const cacheKey = `chat:messages:${roomId}:${limit}:${before || 'latest'}`;
+    // ✅ 關鍵優化：統一 cache key，所有用戶共用同一份 cache
+    // cache key 格式：messages:{roomId}:latest:30（不包含 userId）
+    const cacheKey = `messages:${roomId}:latest:${limit}`;
     const cached = await Cache.get(cacheKey);
+    
     if (cached) {
+      // ✅ cache hit：直接返回，禁止任何 DB 查詢
+      console.log(`✅ Cache hit: ${cacheKey}`);
       return NextResponse.json(
         { messages: cached },
         {
           headers: {
             'Cache-Control': 'private, max-age=3, stale-while-revalidate=5',
+            'X-Cache': 'HIT',
           },
         }
       );
     }
+    
+    console.log(`❌ Cache miss: ${cacheKey}`);
 
     const result = await db.query(async (client) => {
       // 優化：並行驗證權限（減少等待時間）
@@ -79,114 +85,52 @@ export async function GET(
         where.createdAt = { lt: new Date(before) };
       }
 
-      // ✅ 關鍵優化：嘗試使用 denormalized 字段，如果不存在則回退到 JOIN
-      // 直接嘗試查詢 denormalized 字段，如果失敗則使用 JOIN
-      let useDenormalized = false;
-      let messages: any[];
+      // ✅ 關鍵優化：禁止 JOIN，只使用 denormalized 字段
+      // 舊訊息可能沒有 senderName/senderAvatarUrl，顯示「未知用戶」是預期行為
+      const messages = await (client as any).chatMessage.findMany({
+        where,
+        select: {
+          id: true,
+          roomId: true,
+          senderId: true,
+          senderName: true,        // denormalized 字段
+          senderAvatarUrl: true,   // denormalized 字段
+          content: true,
+          contentType: true,
+          status: true,
+          moderationStatus: true,
+          createdAt: true,
+          // ❌ 禁止 JOIN sender
+        },
+        orderBy: [
+          { createdAt: 'desc' },
+          { id: 'desc' },
+        ],
+        take: limit,
+      });
       
-      try {
-        // 嘗試使用 denormalized 字段查詢
-        messages = await (client as any).chatMessage.findMany({
-          where,
-          select: {
-            id: true,
-            roomId: true,
-            senderId: true,
-            senderName: true,
-            senderAvatarUrl: true,
-            content: true,
-            contentType: true,
-            status: true,
-            moderationStatus: true,
-            createdAt: true,
-          },
-          orderBy: [
-            { createdAt: 'desc' },
-            { id: 'desc' },
-          ],
-          take: limit,
-        });
-        
-        useDenormalized = true;
-        
-        // 轉換格式
-        messages = messages.reverse().map((msg: any) => ({
-          id: msg.id,
-          roomId: msg.roomId,
-          senderId: msg.senderId,
-          senderName: msg.senderName,
-          senderAvatarUrl: msg.senderAvatarUrl,
-          content: msg.content,
-          contentType: msg.contentType,
-          status: msg.status,
-          moderationStatus: msg.moderationStatus,
-          createdAt: msg.createdAt,
-          sender: {
-            id: msg.senderId,
-            name: msg.senderName,
-            email: '',
-            role: '',
-            avatarUrl: msg.senderAvatarUrl,
-          },
-        }));
-      } catch (error: any) {
-        // 如果查詢失敗（字段不存在），使用 JOIN
-        useDenormalized = false;
-
-        // ⚠️ 回退到 JOIN（migration 未執行時）
-        messages = await (client as any).chatMessage.findMany({
-          where,
-          select: {
-            id: true,
-            roomId: true,
-            senderId: true,
-            content: true,
-            contentType: true,
-            status: true,
-            moderationStatus: true,
-            createdAt: true,
-            sender: {
-              select: {
-                id: true,
-                name: true,
-                email: true,
-                role: true,
-                partner: {
-                  select: {
-                    coverImage: true,
-                  },
-                },
-              },
-            },
-          },
-          orderBy: [
-            { createdAt: 'desc' },
-            { id: 'desc' },
-          ],
-          take: limit,
-        });
-
-        // 轉換格式
-        messages = messages.reverse().map((msg: any) => ({
-          id: msg.id,
-          roomId: msg.roomId,
-          senderId: msg.senderId,
-          senderName: msg.sender?.name || null,
-          senderAvatarUrl: msg.sender?.partner?.coverImage || null,
-          content: msg.content,
-          contentType: msg.contentType,
-          status: msg.status,
-          moderationStatus: msg.moderationStatus,
-          createdAt: msg.createdAt,
-          sender: {
-            id: msg.senderId,
-            name: msg.sender?.name || null,
-            email: msg.sender?.email || '',
-            role: msg.sender?.role || '',
-            avatarUrl: msg.sender?.partner?.coverImage || null,
-          },
-        }));
-      }
+      // 轉換格式（舊訊息可能 senderName 為 null，顯示「未知用戶」）
+      const formattedMessages = messages.reverse().map((msg: any) => ({
+        id: msg.id,
+        roomId: msg.roomId,
+        senderId: msg.senderId,
+        senderName: msg.senderName || null,        // 可能為 null（舊訊息）
+        senderAvatarUrl: msg.senderAvatarUrl || null, // 可能為 null（舊訊息）
+        content: msg.content,
+        contentType: msg.contentType,
+        status: msg.status,
+        moderationStatus: msg.moderationStatus,
+        createdAt: msg.createdAt,
+        sender: {
+          id: msg.senderId,
+          name: msg.senderName || null,           // 舊訊息可能為 null
+          email: '',
+          role: '',
+          avatarUrl: msg.senderAvatarUrl || null, // 舊訊息可能為 null
+        },
+      }));
+      
+      return formattedMessages;
 
       return messages;
     }, 'chat:rooms:roomId:messages:get');
@@ -194,7 +138,9 @@ export async function GET(
     // ✅ 關鍵優化：寫入快取（3秒 TTL，允許短暫不一致）
     // 不等待快取寫入完成（fire-and-forget），避免阻塞響應
     if (result && Array.isArray(result)) {
-      Cache.set(cacheKey, result, 3).catch((err: any) => {
+      Cache.set(cacheKey, result, 3).then(() => {
+        console.log(`✅ Cache set: ${cacheKey}`);
+      }).catch((err: any) => {
         console.error('Failed to cache messages:', err);
       });
     }
@@ -205,6 +151,7 @@ export async function GET(
       {
         headers: {
           'Cache-Control': 'private, max-age=3, stale-while-revalidate=5',
+          'X-Cache': 'MISS',
         },
       }
     );
@@ -395,10 +342,16 @@ export async function POST(
     }, 'chat:rooms:roomId:messages:post');
 
     // ✅ 關鍵優化：發送消息後清除快取，確保新消息立即顯示
-    // 清除該房間的所有消息快取（包括不同 limit 和 before 的變體）
-    const cachePattern = `chat:messages:${roomId}:*`;
-    Cache.deletePattern(cachePattern).catch((err: any) => {
+    // 使用統一的 cache key 格式
+    const cacheKey = `messages:${roomId}:latest:30`;
+    Cache.delete(cacheKey).catch((err: any) => {
       console.error('Failed to invalidate messages cache:', err);
+    });
+    
+    // 也清除其他可能的變體
+    const cachePattern = `messages:${roomId}:*`;
+    Cache.deletePattern(cachePattern).catch((err: any) => {
+      console.error('Failed to invalidate messages cache pattern:', err);
     });
 
     return NextResponse.json({ message: result });

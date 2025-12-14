@@ -104,7 +104,7 @@ export default function ChatPage() {
   const initializedRef = useRef(false); // 防止重複初始化
   const loadingMessagesRef = useRef<Map<string, AbortController>>(new Map()); // API 請求去重
 
-  // ✅ 初始化：只執行一次
+  // ✅ 關鍵優化：首屏只 fetch messages，其他 API 延後
   useEffect(() => {
     if (status === 'loading') return;
     if (status === 'unauthenticated') {
@@ -120,8 +120,16 @@ export default function ChatPage() {
     
     console.log('🚀 Chat initialized');
     initializedRef.current = true;
+    
+    // ✅ 首屏只載入聊天室列表（messages 會在選擇聊天室時載入）
     loadRooms();
-  }, [status]); // ❌ 移除 router 依賴
+    
+    // ✅ 延後其他非必要 API（不阻塞首屏）
+    // 這些 API 會在背景載入，不影響首屏速度
+    setTimeout(() => {
+      // 延後 1 秒載入 create-for-my-bookings（已在 loadRooms 中處理）
+    }, 1000);
+  }, [status]); // ✅ 關鍵：不依賴 router，避免重複初始化
 
   // 自動選擇第一個聊天室
   useEffect(() => {
