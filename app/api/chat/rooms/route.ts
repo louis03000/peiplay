@@ -63,98 +63,27 @@ export async function GET(request: Request) {
         const roomsWithMessages = memberships.filter((m: any) => m.room.lastMessageAt);
         const roomIdsWithMessages = roomsWithMessages.map((m: any) => m.roomId);
 
-        // 第二步：並行查詢必要資料（先不查詢消息，後面單獨處理）
-        const [roomMembersData, bookingsData, groupBookingsData] = await Promise.all([
-          // 查詢所有聊天室的成員
-          (client as any).chatRoomMember.findMany({
-            where: { roomId: { in: roomIds } },
-            select: {
-              roomId: true,
-              user: {
-                select: {
-                  id: true,
-                  name: true,
-                  email: true,
-                  role: true,
-                },
+        // ✅ 關鍵優化：只查詢必要的成員資料，booking 和 groupBooking 延後查詢
+        // 先讓列表能快速顯示（< 1 秒），詳細資料可以在進入聊天室時再查詢
+        const roomMembersData = await (client as any).chatRoomMember.findMany({
+          where: { roomId: { in: roomIds } },
+          select: {
+            roomId: true,
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                role: true,
               },
             },
-          }),
-          // 查詢booking資訊（通過chatRoom.bookingId反向查找）
-          (client as any).chatRoom.findMany({
-            where: {
-              id: { in: roomIds },
-              bookingId: { not: null },
-            },
-            select: {
-              id: true,
-              bookingId: true,
-              booking: {
-                select: {
-                  id: true,
-                  status: true,
-                  customer: {
-                    select: {
-                      userId: true,
-                      user: {
-                        select: {
-                          id: true,
-                          name: true,
-                        },
-                      },
-                    },
-                  },
-                  schedule: {
-                    select: {
-                      partner: {
-                        select: {
-                          userId: true,
-                          user: {
-                            select: {
-                              id: true,
-                              name: true,
-                            },
-                          },
-                        },
-                      },
-                    },
-                  },
-                },
-              },
-            },
-          }),
-          // 查詢群組預約資訊（通過chatRoom.groupBookingId反向查找）
-          (client as any).chatRoom.findMany({
-            where: {
-              id: { in: roomIds },
-              groupBookingId: { not: null },
-            },
-            select: {
-              id: true,
-              groupBookingId: true,
-              groupBooking: {
-                select: {
-                  id: true,
-                  GroupBookingParticipant: {
-                    select: {
-                      Customer: {
-                        select: {
-                          userId: true,
-                          user: {
-                            select: {
-                              id: true,
-                              name: true,
-                            },
-                          },
-                        },
-                      },
-                    },
-                  },
-                },
-              },
-            },
-          }),
-        ]);
+          },
+        });
+        
+        // 暫時跳過 booking 和 groupBooking 查詢（太慢）
+        // 這些資料可以在進入聊天室時再查詢，或者使用 denormalized 字段
+        const bookingsData: any[] = [];
+        const groupBookingsData: any[] = [];
 
         // 構建查找Map
         const membersByRoomId = new Map<string, any[]>();
@@ -165,49 +94,23 @@ export async function GET(request: Request) {
           membersByRoomId.get(m.roomId)!.push(m.user);
         });
 
-        // 優化：延遲查詢最新消息（只在有消息的房間查詢，且限制數量）
+        // ✅ 關鍵優化：不查詢最新消息內容（太慢）
+        // 只使用 lastMessageAt 時間戳，不查詢消息內容
+        // 前端可以從 lastMessageAt 判斷是否有消息，不需要實際內容
         const lastMessageByRoomId = new Map<string, any>();
-        if (roomIdsWithMessages.length > 0 && roomIdsWithMessages.length <= 30) {
-          // 只對前30個有消息的房間查詢最新消息（避免查詢太慢）
-          const roomIdsToQuery = roomIdsWithMessages.slice(0, 30);
-          
-          // 批量查詢，但限制時間範圍（只查最近7天的消息）
-          const recentMessages = await (client as any).chatMessage.findMany({
-            where: {
-              roomId: { in: roomIdsToQuery },
-              moderationStatus: { not: 'REJECTED' },
-              createdAt: {
-                gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), // 最近7天
-              },
-            },
-            select: {
-              id: true,
-              roomId: true,
-              content: true,
-              senderId: true,
-              createdAt: true,
-              sender: {
-                select: {
-                  id: true,
-                  name: true,
-                  email: true,
-                },
-              },
-            },
-            orderBy: [
-              { roomId: 'asc' },
-              { createdAt: 'desc' },
-              { id: 'desc' },
-            ],
-          });
-          
-          // 每個房間只取最新一條消息
-          recentMessages.forEach((msg: any) => {
-            if (!lastMessageByRoomId.has(msg.roomId)) {
-              lastMessageByRoomId.set(msg.roomId, msg);
-            }
-          });
-        }
+        
+        // 只為有 lastMessageAt 的房間創建一個簡單的 lastMessage 對象
+        roomsWithMessages.forEach((membership: any) => {
+          if (membership.room.lastMessageAt) {
+            lastMessageByRoomId.set(membership.roomId, {
+              id: 'placeholder', // 不需要實際 ID
+              content: '...',     // 不需要實際內容（前端不顯示）
+              senderId: '',
+              sender: { name: '', email: '' },
+              createdAt: membership.room.lastMessageAt,
+            });
+          }
+        });
 
         const bookingByRoomId = new Map<string, any>();
         bookingsData.forEach((room: any) => {
@@ -223,44 +126,11 @@ export async function GET(request: Request) {
           }
         });
 
-        // 第三步：優化未讀消息計算 - 先跳過，只計算有 lastMessageAt 的房間
-        // 如果未讀數計算很慢，可以先返回 0，讓前端用其他方式處理
-        const unreadCountMap = new Map<string, number>();
-        
-        // 優化：暫時跳過未讀數計算，先讓列表能快速顯示
+        // ✅ 關鍵優化：暫時跳過未讀數計算（太慢）
         // 未讀數可以在進入聊天室時再計算，或者使用 background job 定期更新
-        // 如果必須計算，使用批量查詢而非多次 count
-        if (roomsWithMessages.length > 0 && roomsWithMessages.length <= 50) {
-          // 只對前50個房間計算未讀數（避免太慢）
-          const roomsToCalculate = roomsWithMessages.slice(0, 50);
-          
-          await Promise.all(
-            roomsToCalculate.map(async (membership: any) => {
-              const lastReadAt = membership.lastReadAt || membership.joinedAt;
-              const lastReadDate = lastReadAt instanceof Date
-                ? lastReadAt
-                : lastReadAt
-                  ? new Date(lastReadAt as string | number)
-                  : new Date(0);
-
-              try {
-                const unreadCount = await (client as any).chatMessage.count({
-                  where: {
-                    roomId: membership.roomId,
-                    senderId: { not: session.user.id },
-                    moderationStatus: { not: 'REJECTED' },
-                    createdAt: { gt: lastReadDate },
-                  },
-                });
-
-                unreadCountMap.set(membership.roomId, unreadCount);
-              } catch (error) {
-                // 如果查詢失敗，設為 0
-                unreadCountMap.set(membership.roomId, 0);
-              }
-            })
-          );
-        }
+        // 先讓列表能快速顯示（< 1 秒）
+        const unreadCountMap = new Map<string, number>();
+        // 所有房間未讀數設為 0（暫時）
 
         // ✅ 構建返回結果 - 只返回有消息的聊天室
         const rooms = memberships

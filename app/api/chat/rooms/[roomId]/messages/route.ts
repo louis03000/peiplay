@@ -62,53 +62,116 @@ export async function GET(
         where.createdAt = { lt: new Date(before) };
       }
 
-      // ✅ 關鍵優化：不使用 JOIN，只查 messages 表（denormalized 字段）
-      // 這是業界聊天系統標準做法，避免 JOIN 導致的效能問題
-      const messages = await (client as any).chatMessage.findMany({
-        where,
-        select: {
-          id: true,
-          roomId: true,
-          senderId: true,
-          senderName: true,        // 去正規化字段
-          senderAvatarUrl: true,   // 去正規化字段
-          content: true,
-          contentType: true,
-          status: true,
-          moderationStatus: true,
-          createdAt: true,
-          // ❌ 不再 JOIN sender（避免 JOIN 導致的效能問題）
-        },
-        // 優化：使用複合索引 (roomId, createdAt DESC)
-        orderBy: [
-          { createdAt: 'desc' },
-          { id: 'desc' }, // 確保排序穩定（處理相同時間戳）
-        ],
-        take: limit,
-      });
+      // ✅ 關鍵優化：嘗試使用 denormalized 字段，如果不存在則回退到 JOIN
+      // 直接嘗試查詢 denormalized 字段，如果失敗則使用 JOIN
+      let useDenormalized = false;
+      let messages: any[];
+      
+      try {
+        // 嘗試使用 denormalized 字段查詢
+        messages = await (client as any).chatMessage.findMany({
+          where,
+          select: {
+            id: true,
+            roomId: true,
+            senderId: true,
+            senderName: true,
+            senderAvatarUrl: true,
+            content: true,
+            contentType: true,
+            status: true,
+            moderationStatus: true,
+            createdAt: true,
+          },
+          orderBy: [
+            { createdAt: 'desc' },
+            { id: 'desc' },
+          ],
+          take: limit,
+        });
+        
+        useDenormalized = true;
+        
+        // 轉換格式
+        messages = messages.reverse().map((msg: any) => ({
+          id: msg.id,
+          roomId: msg.roomId,
+          senderId: msg.senderId,
+          senderName: msg.senderName,
+          senderAvatarUrl: msg.senderAvatarUrl,
+          content: msg.content,
+          contentType: msg.contentType,
+          status: msg.status,
+          moderationStatus: msg.moderationStatus,
+          createdAt: msg.createdAt,
+          sender: {
+            id: msg.senderId,
+            name: msg.senderName,
+            email: '',
+            role: '',
+            avatarUrl: msg.senderAvatarUrl,
+          },
+        }));
+      } catch (error: any) {
+        // 如果查詢失敗（字段不存在），使用 JOIN
+        useDenormalized = false;
 
-      // 反轉順序（從舊到新，前端顯示用）
-      // 轉換格式以保持向後兼容
-      return messages.reverse().map((msg: any) => ({
-        id: msg.id,
-        roomId: msg.roomId,
-        senderId: msg.senderId,
-        senderName: msg.senderName,
-        senderAvatarUrl: msg.senderAvatarUrl,
-        content: msg.content,
-        contentType: msg.contentType,
-        status: msg.status,
-        moderationStatus: msg.moderationStatus,
-        createdAt: msg.createdAt,
-        // 保持向後兼容的 sender 結構
-        sender: {
-          id: msg.senderId,
-          name: msg.senderName,
-          email: '', // 不再需要 email
-          role: '',  // 不再需要 role
-          avatarUrl: msg.senderAvatarUrl,
-        },
-      }));
+        // ⚠️ 回退到 JOIN（migration 未執行時）
+        messages = await (client as any).chatMessage.findMany({
+          where,
+          select: {
+            id: true,
+            roomId: true,
+            senderId: true,
+            content: true,
+            contentType: true,
+            status: true,
+            moderationStatus: true,
+            createdAt: true,
+            sender: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                role: true,
+                partner: {
+                  select: {
+                    coverImage: true,
+                  },
+                },
+              },
+            },
+          },
+          orderBy: [
+            { createdAt: 'desc' },
+            { id: 'desc' },
+          ],
+          take: limit,
+        });
+
+        // 轉換格式
+        messages = messages.reverse().map((msg: any) => ({
+          id: msg.id,
+          roomId: msg.roomId,
+          senderId: msg.senderId,
+          senderName: msg.sender?.name || null,
+          senderAvatarUrl: msg.sender?.partner?.coverImage || null,
+          content: msg.content,
+          contentType: msg.contentType,
+          status: msg.status,
+          moderationStatus: msg.moderationStatus,
+          createdAt: msg.createdAt,
+          sender: {
+            id: msg.senderId,
+            name: msg.sender?.name || null,
+            email: msg.sender?.email || '',
+            role: msg.sender?.role || '',
+            avatarUrl: msg.sender?.partner?.coverImage || null,
+          },
+        }));
+      }
+
+      return messages;
     }, 'chat:rooms:roomId:messages:get');
 
     // 個人聊天訊息使用 private cache
