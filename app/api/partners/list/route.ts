@@ -40,25 +40,20 @@ export async function GET(request: NextRequest) {
               status: 'APPROVED',
               ...(rankBooster ? { isRankBooster: true } : {}),
               ...(availableNow ? { isAvailableNow: true } : {}),
-              // 過濾被停權的用戶（應用層過濾，避免 OR 條件）
-              user: {
-                select: {
-                  isSuspended: true,
-                  suspensionEndsAt: true,
-                }
-              },
+              // 注意：停權用戶過濾在應用層處理，避免 OR 條件影響索引
             };
 
             // 如果篩選「現在有空」，排除有活躍預約的夥伴
             if (availableNow) {
-              const busySchedules = await client.schedule.findMany({
+              // 先查詢有活躍預約的 booking，然後獲取對應的 partnerId
+              const busyBookings = await client.booking.findMany({
                 where: {
-                  bookings: {
-                    status: {
-                      in: ['PENDING', 'CONFIRMED', 'PAID_WAITING_PARTNER_CONFIRMATION', 'PARTNER_ACCEPTED'],
-                    },
+                  status: {
+                    in: ['PENDING', 'CONFIRMED', 'PAID_WAITING_PARTNER_CONFIRMATION', 'PARTNER_ACCEPTED'],
                   },
-                  endTime: { gte: now },
+                  schedule: {
+                    endTime: { gte: now },
+                  },
                 },
                 select: {
                   partnerId: true,
@@ -67,7 +62,7 @@ export async function GET(request: NextRequest) {
                 take: 200,
               });
 
-              const partnerIds = busySchedules.map((s) => s.partnerId);
+              const partnerIds = busyBookings.map((b) => b.partnerId).filter(Boolean);
               if (partnerIds.length > 0) {
                 partnerWhere.id = {
                   notIn: partnerIds,
