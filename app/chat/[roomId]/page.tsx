@@ -82,6 +82,9 @@ export default function ChatRoomPage() {
   const [optimisticMessages, setOptimisticMessages] = useState<ChatMessage[]>([]); // 樂觀更新的消息
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const initializedRef = useRef(false);
+  const loadingRef = useRef(false);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   // 檢查是否是免費聊天室（沒有關聯booking）
   const isFreeChat = Boolean(
@@ -132,16 +135,33 @@ export default function ChatRoomPage() {
     loadRoomInfo();
   }, [roomId, session?.user?.id]);
 
-  // 載入歷史訊息（後台加載，不阻塞 UI）
+  // ✅ 關鍵優化：載入歷史訊息（後台加載，不阻塞 UI）
   const [loadedHistoryMessages, setLoadedHistoryMessages] = useState<ChatMessage[]>([]);
   
   useEffect(() => {
     if (!roomId || !session?.user?.id) return;
+    if (initializedRef.current) return;
+    initializedRef.current = true;
 
     const loadMessages = async () => {
+      // ✅ Request lock：防止重複請求
+      if (loadingRef.current) return;
+      loadingRef.current = true;
+
+      // ✅ Abort 之前的請求
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+
+      const abortController = new AbortController();
+      abortControllerRef.current = abortController;
+
       try {
         setLoadingMessages(true);
-        const messagesRes = await fetch(`/api/chat/rooms/${roomId}/messages?limit=30`); // 優化：減少到30條，提升載入速度
+        const messagesRes = await fetch(
+          `/api/chat/rooms/${roomId}/messages?limit=30`,
+          { signal: abortController.signal }
+        );
         
         if (messagesRes.ok) {
           const messagesData = await messagesRes.json();
@@ -185,15 +205,20 @@ export default function ChatRoomPage() {
           }
         }
       } catch (error: any) {
+        if (error.name === 'AbortError') {
+          console.log('Request aborted');
+          return;
+        }
         console.error('Error loading messages:', error);
       } finally {
         setLoadingMessages(false);
+        loadingRef.current = false;
       }
     };
 
-    // 立即加載消息，確保不丟失
+    // ✅ 立即加載消息（背景執行，不阻塞 UI）
     loadMessages();
-  }, [roomId, room, session?.user?.id]);
+  }, []); // ✅ 關鍵：空依賴陣列，只在 mount 時執行
 
   // 滾動到底部
   useEffect(() => {
@@ -481,6 +506,7 @@ export default function ChatRoomPage() {
                             alt={message.senderName || message.sender?.name || '用戶'}
                             className="w-full h-full object-cover"
                             loading="lazy"
+                            decoding="async"
                             onError={(e) => {
                               // 如果圖片載入失敗，顯示預設頭像
                               const target = e.target as HTMLImageElement;

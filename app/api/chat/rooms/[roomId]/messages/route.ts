@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth';
 import { db } from '@/lib/db-resilience';
 import { createErrorResponse } from '@/lib/api-helpers';
 import { Cache } from '@/lib/redis-cache';
+import { withRateLimit } from '@/lib/rate-limit';
 
 export const dynamic = 'force-dynamic';
 
@@ -235,6 +236,21 @@ export async function POST(
       return NextResponse.json({ error: '訊息內容不能為空' }, { status: 400 });
     }
 
+    // ✅ Rate limit：每用戶 3 條/秒，burst 5 條
+    const rateLimitResponse = await withRateLimit(
+      request as any,
+      {
+        windowMs: 1000, // 1 秒
+        maxRequests: 3,
+        keyGenerator: (req, userId) => `user:${session.user.id}`,
+      },
+      session.user.id
+    );
+
+    if (rateLimitResponse) {
+      return rateLimitResponse;
+    }
+
     const result = await db.query(async (client) => {
       // 優化：並行查詢 membership 和 room 信息
       const [membership, room] = await Promise.all([
@@ -333,17 +349,27 @@ export async function POST(
         },
       });
 
-      // 優化：異步更新 lastMessageAt（不阻塞回應）
-      // 使用 fire-and-forget 模式，不等待完成
-      (client as any).chatRoom
-        .update({
-          where: { id: roomId },
-          data: { lastMessageAt: new Date() },
-        })
-        .catch((err: any) => {
-          // 忽略更新錯誤，不影響消息發送
-          console.error('Failed to update lastMessageAt:', err);
+      // ✅ 關鍵優化：其他工作丟到 queue（非同步處理）
+      // 不阻塞回應，立即返回新消息
+      try {
+        const { addMessageJob } = await import('@/lib/message-queue');
+        addMessageJob({
+          messageId: message.id,
+          roomId: message.roomId,
+        }).catch((err: any) => {
+          console.error('Failed to add message job:', err);
         });
+      } catch (err) {
+        // Queue 不可用時，降級為 fire-and-forget
+        (client as any).chatRoom
+          .update({
+            where: { id: roomId },
+            data: { lastMessageAt: new Date() },
+          })
+          .catch((err: any) => {
+            console.error('Failed to update lastMessageAt:', err);
+          });
+      }
 
       // 返回格式保持向後兼容
       return {

@@ -24,6 +24,10 @@ const io = new Server(httpServer, {
   transports: ['websocket', 'polling'],
 });
 
+// ✅ 導出 io 供其他模組使用（如 message-queue）
+(global as any).socketIO = io;
+export { io };
+
 // Redis adapter for horizontal scaling
 const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
 const pubClient = createClient({ url: redisUrl });

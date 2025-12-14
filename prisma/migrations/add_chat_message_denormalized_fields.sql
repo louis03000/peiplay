@@ -1,26 +1,25 @@
--- 添加 ChatMessage denormalized 字段
--- 這是業界聊天系統標準做法：在 messages 表中直接存儲 sender_name 和 sender_avatar_url
--- 避免 JOIN users 表，大幅提升查詢效能（從秒級降到毫秒級）
+-- Migration: Add denormalized fields to ChatMessage
+-- ⚠️ 必須在 maintenance window 執行
+-- 執行前請先備份資料庫：pg_dump -h $DB_HOST -U $DB_USER -d $DB_NAME > backup_$(date +%Y%m%d).sql
 
--- 添加字段
-ALTER TABLE "ChatMessage" 
+-- Step 1: 添加 denormalized 字段
+ALTER TABLE "ChatMessage"
 ADD COLUMN IF NOT EXISTS "senderName" TEXT,
 ADD COLUMN IF NOT EXISTS "senderAvatarUrl" TEXT;
 
--- 為現有數據填充 denormalized 字段（從 users 表更新）
--- 注意：這是一次性操作，之後新消息會在創建時自動填充
-UPDATE "ChatMessage" cm
-SET 
-  "senderName" = u.name,
-  "senderAvatarUrl" = COALESCE(
-    (SELECT "coverImage" FROM "Partner" WHERE "userId" = u.id),
-    (SELECT "avatar" FROM "User" WHERE "id" = u.id)
-  )
-FROM "User" u
-WHERE cm."senderId" = u.id
-  AND (cm."senderName" IS NULL OR cm."senderAvatarUrl" IS NULL);
-
--- 創建索引（確保查詢效能）
-CREATE INDEX IF NOT EXISTS "ChatMessage_roomId_createdAt_idx" 
+-- Step 2: 建立複合索引（CONCURRENTLY 不鎖表）
+-- 注意：CONCURRENTLY 只能在 transaction 外執行
+CREATE INDEX CONCURRENTLY IF NOT EXISTS "ChatMessage_roomId_createdAt_idx"
 ON "ChatMessage"("roomId", "createdAt" DESC);
 
+-- Step 3: 驗證索引（可選，用於檢查）
+-- EXPLAIN ANALYZE
+-- SELECT id, content, "senderName", "senderAvatarUrl", "createdAt"
+-- FROM "ChatMessage"
+-- WHERE "roomId" = 'test-room-id'
+-- ORDER BY "createdAt" DESC
+-- LIMIT 30;
+
+-- 預期結果：
+-- Index Scan using ChatMessage_roomId_createdAt_idx
+-- Execution Time: < 100ms
