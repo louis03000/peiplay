@@ -406,10 +406,20 @@ export default function ChatRoomPage() {
         ref={messagesContainerRef}
         className="flex-1 overflow-y-auto px-4 py-4 space-y-4"
       >
+        {/* ✅ 關鍵優化：立即顯示 skeleton，不阻塞 UI */}
         {loadingMessages && loadedHistoryMessages.length === 0 && socketMessages.length === 0 && optimisticMessages.length === 0 && (
-          <div className="flex items-center justify-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-            <p className="ml-3 text-gray-600 text-sm">載入訊息中...</p>
+          <div className="space-y-4">
+            {/* Skeleton 消息 */}
+            {[1, 2, 3, 4, 5].map((i) => (
+              <div key={i} className={`flex ${i % 2 === 0 ? 'justify-end' : 'justify-start'}`}>
+                <div className={`max-w-xs lg:max-w-md ${i % 2 === 0 ? 'order-2' : ''}`}>
+                  <div className="rounded-lg px-4 py-2 bg-gray-200 animate-pulse">
+                    <div className="h-4 bg-gray-300 rounded w-3/4"></div>
+                  </div>
+                  <div className="h-3 w-16 bg-gray-200 rounded mt-1"></div>
+                </div>
+              </div>
+            ))}
           </div>
         )}
         {/* 合併歷史消息、實際消息和樂觀更新的消息 */}

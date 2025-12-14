@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { db } from '@/lib/db-resilience';
 import { createErrorResponse } from '@/lib/api-helpers';
+import { Cache } from '@/lib/redis-cache';
 
 export const dynamic = 'force-dynamic';
 
@@ -27,6 +28,21 @@ export async function GET(
     // 優化：減少默認limit到30，提升查詢速度
     const limit = Math.min(parseInt(searchParams.get('limit') || '30'), 50);
     const before = searchParams.get('before'); // cursor-based pagination
+
+    // ✅ 關鍵優化：使用 Redis 快取（3-5秒 TTL，允許短暫不一致）
+    // 聊天系統允許 3~5 秒不一致，大幅提升體感速度
+    const cacheKey = `chat:messages:${roomId}:${limit}:${before || 'latest'}`;
+    const cached = await Cache.get(cacheKey);
+    if (cached) {
+      return NextResponse.json(
+        { messages: cached },
+        {
+          headers: {
+            'Cache-Control': 'private, max-age=3, stale-while-revalidate=5',
+          },
+        }
+      );
+    }
 
     const result = await db.query(async (client) => {
       // 優化：並行驗證權限（減少等待時間）
@@ -174,12 +190,20 @@ export async function GET(
       return messages;
     }, 'chat:rooms:roomId:messages:get');
 
+    // ✅ 關鍵優化：寫入快取（3秒 TTL，允許短暫不一致）
+    // 不等待快取寫入完成（fire-and-forget），避免阻塞響應
+    if (result && Array.isArray(result)) {
+      Cache.set(cacheKey, result, 3).catch((err: any) => {
+        console.error('Failed to cache messages:', err);
+      });
+    }
+
     // 個人聊天訊息使用 private cache
     return NextResponse.json(
       { messages: result },
       {
         headers: {
-          'Cache-Control': 'private, max-age=10, stale-while-revalidate=30',
+          'Cache-Control': 'private, max-age=3, stale-while-revalidate=5',
         },
       }
     );
@@ -343,6 +367,13 @@ export async function POST(
         },
       };
     }, 'chat:rooms:roomId:messages:post');
+
+    // ✅ 關鍵優化：發送消息後清除快取，確保新消息立即顯示
+    // 清除該房間的所有消息快取（包括不同 limit 和 before 的變體）
+    const cachePattern = `chat:messages:${roomId}:*`;
+    Cache.deletePattern(cachePattern).catch((err: any) => {
+      console.error('Failed to invalidate messages cache:', err);
+    });
 
     return NextResponse.json({ message: result });
   } catch (error) {

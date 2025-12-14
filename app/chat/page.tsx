@@ -165,25 +165,28 @@ export default function ChatPage() {
         setError('載入聊天室失敗');
       }
       
-      // 在背景異步創建聊天室（不阻塞 UI）
-      fetch('/api/chat/rooms/create-for-my-bookings', {
-        method: 'POST',
-      })
-        .then((res) => res.ok && res.json())
-        .then((createData) => {
-          if (createData?.created > 0) {
-            console.log(`🆕 Created ${createData.created} new rooms`);
-            // 如果有新創建的聊天室，重新載入列表
-            return fetch('/api/chat/rooms')
-              .then((res) => res.json())
-              .then((data) => {
-                setRooms(data.rooms || []);
-              });
-          }
+      // ✅ 關鍵優化：延後創建聊天室（不阻塞首屏）
+      // 延遲 1 秒後再執行，確保首屏能快速顯示
+      setTimeout(() => {
+        fetch('/api/chat/rooms/create-for-my-bookings', {
+          method: 'POST',
         })
-        .catch(() => {
-          // 忽略錯誤，不影響用戶體驗
-        });
+          .then((res) => res.ok && res.json())
+          .then((createData) => {
+            if (createData?.created > 0) {
+              console.log(`🆕 Created ${createData.created} new rooms`);
+              // 如果有新創建的聊天室，重新載入列表
+              return fetch('/api/chat/rooms')
+                .then((res) => res.json())
+                .then((data) => {
+                  setRooms(data.rooms || []);
+                });
+            }
+          })
+          .catch(() => {
+            // 忽略錯誤，不影響用戶體驗
+          });
+      }, 1000); // 延遲 1 秒
     } catch (err) {
       console.error('Error loading rooms:', err);
       setError('載入聊天室失敗');
