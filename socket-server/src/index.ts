@@ -195,11 +195,16 @@ io.on('connection', (socket) => {
         },
       });
 
-      // Update room last message time
-      await prisma.chatRoom.update({
-        where: { id: roomId },
-        data: { lastMessageAt: new Date() },
-      });
+      // 優化：異步更新 lastMessageAt（不阻塞消息發送）
+      prisma.chatRoom
+        .update({
+          where: { id: roomId },
+          data: { lastMessageAt: new Date() },
+        })
+        .catch((err: any) => {
+          // 忽略更新錯誤，不影響消息發送
+          console.error('Failed to update lastMessageAt:', err);
+        });
 
       // If message is rejected, don't send to room
       if (moderationResult.status === 'REJECTED') {

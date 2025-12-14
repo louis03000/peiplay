@@ -23,43 +23,48 @@ export async function GET(
 
     const { roomId } = params;
     const { searchParams } = new URL(request.url);
-    const limit = parseInt(searchParams.get('limit') || '50');
-    const before = searchParams.get('before'); // 用於分頁
+    // 優化：減少默認limit到30，提升查詢速度
+    const limit = Math.min(parseInt(searchParams.get('limit') || '30'), 50);
+    const before = searchParams.get('before'); // cursor-based pagination
 
     const result = await db.query(async (client) => {
-      // 驗證用戶是否有權限
-      const membership = await client.chatRoomMember.findUnique({
-        where: {
-          roomId_userId: {
-            roomId,
-            userId: session.user.id,
+      // 優化：並行驗證權限（減少等待時間）
+      const [membership, user] = await Promise.all([
+        client.chatRoomMember.findUnique({
+          where: {
+            roomId_userId: {
+              roomId,
+              userId: session.user.id,
+            },
           },
-        },
-      });
-
-      const user = await client.user.findUnique({
-        where: { id: session.user.id },
-        select: { role: true },
-      });
+          select: { id: true }, // 只選必要欄位
+        }),
+        client.user.findUnique({
+          where: { id: session.user.id },
+          select: { role: true },
+        }),
+      ]);
 
       if (!membership && user?.role !== 'ADMIN') {
         throw new Error('無權限訪問此聊天室');
       }
 
-      // 獲取訊息
+      // 優化：使用索引 (roomId, createdAt DESC) 查詢
+      // WHERE 條件必須匹配索引的第一個欄位（roomId），這樣才能使用索引
       const where: any = {
-        roomId,
+        roomId, // 必須先匹配索引的第一個欄位
         moderationStatus: { not: 'REJECTED' }, // 不顯示被拒絕的訊息
       };
 
+      // Cursor-based pagination: 使用 created_at < before 來利用索引
       if (before) {
         where.createdAt = { lt: new Date(before) };
       }
 
+      // 優化：只查詢必要欄位，使用索引排序
       const messages = await (client as any).chatMessage.findMany({
         where,
         select: {
-          // 優化：使用 select 而非 include
           id: true,
           roomId: true,
           senderId: true,
@@ -68,6 +73,7 @@ export async function GET(
           status: true,
           moderationStatus: true,
           createdAt: true,
+          // 優化：JOIN sender（避免N+1查詢，但只選必要欄位）
           sender: {
             select: {
               id: true,
@@ -77,14 +83,15 @@ export async function GET(
             },
           },
         },
+        // 優化：使用複合索引 (roomId, createdAt DESC)
         orderBy: [
           { createdAt: 'desc' },
-          { id: 'desc' }, // 確保排序穩定
+          { id: 'desc' }, // 確保排序穩定（處理相同時間戳）
         ],
         take: limit,
       });
 
-      // 反轉順序（從舊到新）
+      // 反轉順序（從舊到新，前端顯示用）
       return messages.reverse();
     }, 'chat:rooms:roomId:messages:get');
 
@@ -178,37 +185,39 @@ export async function POST(
         }
       }
 
-      // 優化：並行創建訊息和更新房間時間
-      const [message] = await Promise.all([
-        (client as any).chatMessage.create({
-          data: {
-            roomId,
-            senderId: session.user.id,
-            content: content.trim(),
-            contentType: 'TEXT',
-            status: 'SENT',
-            moderationStatus: hasBlockedKeyword ? 'FLAGGED' : 'APPROVED',
-          },
-          include: {
-            sender: {
-              select: {
-                id: true,
-                name: true,
-                email: true,
-                role: true,
-              },
+      // 優化：先創建訊息（同步，必須等待）
+      const message = await (client as any).chatMessage.create({
+        data: {
+          roomId,
+          senderId: session.user.id,
+          content: content.trim(),
+          contentType: 'TEXT',
+          status: 'SENT',
+          moderationStatus: hasBlockedKeyword ? 'FLAGGED' : 'APPROVED',
+        },
+        include: {
+          sender: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              role: true,
             },
           },
-        }),
-        // 更新聊天室最後訊息時間（不等待完成）
-        (client as any).chatRoom.update({
+        },
+      });
+
+      // 優化：異步更新 lastMessageAt（不阻塞回應）
+      // 使用 fire-and-forget 模式，不等待完成
+      (client as any).chatRoom
+        .update({
           where: { id: roomId },
           data: { lastMessageAt: new Date() },
-        }).catch((err: any) => {
+        })
+        .catch((err: any) => {
           // 忽略更新錯誤，不影響消息發送
           console.error('Failed to update lastMessageAt:', err);
-        }),
-      ]);
+        });
 
       return {
         id: message.id,

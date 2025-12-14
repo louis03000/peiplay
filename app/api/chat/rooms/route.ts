@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { db } from '@/lib/db-resilience';
 import { createErrorResponse } from '@/lib/api-helpers';
+import { Cache } from '@/lib/redis-cache';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,80 +20,96 @@ export async function GET(request: Request) {
     }
 
     const result = await db.query(async (client) => {
-      // 使用動態訪問來避免 TypeScript 類型錯誤（如果 migration 還沒執行）
       try {
         const chatRoomMember = (client as any).chatRoomMember;
         if (!chatRoomMember) {
-          // 如果模型不存在，返回空陣列
           return [];
         }
 
-        const now = new Date();
-        
-        // 獲取用戶參與的所有聊天室，包含：
-        // 1. 免費聊天室（所有 bookingId 都為 null）
-        // 2. 未結束的訂單聊天室
-        // 3. 群組聊天室
+        // 第一步：獲取用戶的所有活躍聊天室memberships（簡化查詢）
         const memberships = await chatRoomMember.findMany({
-        where: {
-          userId: session.user.id,
-          isActive: true,
-          OR: [
-            {
-              // 免費聊天室（所有 booking 相關 ID 都為 null）
-              room: {
-                bookingId: null,
-                groupBookingId: null,
-                multiPlayerBookingId: null,
+          where: {
+            userId: session.user.id,
+            isActive: true,
+          },
+          select: {
+            roomId: true,
+            lastReadAt: true,
+            joinedAt: true,
+            room: {
+              select: {
+                id: true,
+                type: true,
+                bookingId: true,
+                groupBookingId: true,
+                multiPlayerBookingId: true,
+                lastMessageAt: true,
               },
             },
-            {
-              // 群組聊天室
-              room: {
-                groupBookingId: { not: null },
-              },
+          },
+          orderBy: {
+            room: {
+              lastMessageAt: 'desc',
             },
-            {
-              // 未結束的訂單聊天室
-              room: {
-                bookingId: { not: null },
-                booking: {
-                  schedule: {
-                    endTime: { gte: now },
-                  },
+          },
+        });
+
+        const roomIds = memberships.map((m: any) => m.roomId);
+        if (roomIds.length === 0) {
+          return [];
+        }
+
+        // 第二步：並行查詢必要資料
+        const [roomMembersData, lastMessagesData, bookingsData, groupBookingsData] = await Promise.all([
+          // 查詢所有聊天室的成員
+          (client as any).chatRoomMember.findMany({
+            where: { roomId: { in: roomIds } },
+            select: {
+              roomId: true,
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                  role: true,
                 },
               },
             },
-          ],
-        },
-        include: {
-          room: {
-            include: {
-              members: {
-                include: {
-                  user: {
-                    select: {
-                      id: true,
-                      name: true,
-                      email: true,
-                      role: true,
-                    },
-                  },
+          }),
+          // 查詢每個聊天室的最新一條消息（使用索引優化）
+          (client as any).chatMessage.findMany({
+            where: {
+              roomId: { in: roomIds },
+              moderationStatus: { not: 'REJECTED' },
+            },
+            select: {
+              id: true,
+              roomId: true,
+              content: true,
+              senderId: true,
+              createdAt: true,
+              sender: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
                 },
               },
-              messages: {
-                take: 1,
-                orderBy: { createdAt: 'desc' },
-                include: {
-                  sender: {
-                    select: {
-                      id: true,
-                      name: true,
-                      email: true,
-                    },
-                  },
-                },
-              },
+            },
+            orderBy: [
+              { createdAt: 'desc' },
+              { id: 'desc' },
+            ],
+          }),
+          // 查詢booking資訊（通過chatRoom.bookingId反向查找）
+          (client as any).chatRoom.findMany({
+            where: {
+              id: { in: roomIds },
+              bookingId: { not: null },
+            },
+            select: {
+              id: true,
+              bookingId: true,
               booking: {
                 select: {
                   id: true,
@@ -125,6 +142,17 @@ export async function GET(request: Request) {
                   },
                 },
               },
+            },
+          }),
+          // 查詢群組預約資訊（通過chatRoom.groupBookingId反向查找）
+          (client as any).chatRoom.findMany({
+            where: {
+              id: { in: roomIds },
+              groupBookingId: { not: null },
+            },
+            select: {
+              id: true,
+              groupBookingId: true,
               groupBooking: {
                 select: {
                   id: true,
@@ -146,99 +174,86 @@ export async function GET(request: Request) {
                 },
               },
             },
-          },
-        },
-        orderBy: {
-          room: {
-            lastMessageAt: 'desc',
-          },
-        },
-      });
+          }),
+        ]);
 
-      // 優化：批量查詢未讀訊息數（只查詢有 lastMessageAt 的房間，減少查詢量）
-      const roomIds = memberships.map((m: any) => m.roomId);
-      const lastReadMap = new Map<string, Date>();
-      
-      // 只處理有 lastMessageAt 的房間（有消息的房間才需要計算未讀數）
-      memberships.forEach((m: any) => {
-        if (m.room.lastMessageAt) {
-          const readAt = m.lastReadAt || m.joinedAt;
-          const readDate = readAt instanceof Date 
-            ? readAt 
-            : readAt 
-              ? new Date(readAt as string | number)
-              : new Date(0); // 如果沒有讀取時間，從最早開始計算
-          lastReadMap.set(m.roomId, readDate);
-        }
-      });
-
-      // 只查詢有 lastMessageAt 的房間的未讀訊息（優化查詢）
-      const roomsWithMessages = roomIds.filter((id: string) => {
-        const membership = memberships.find((m: any) => m.roomId === id);
-        return membership?.room.lastMessageAt;
-      });
-
-      const unreadCountMap = new Map<string, number>();
-      
-      if (roomsWithMessages.length > 0) {
-        // 批量查詢所有未讀訊息（只查詢有消息的房間）
-        const unreadMessages = await (client as any).chatMessage.findMany({
-          where: {
-            roomId: { in: roomsWithMessages },
-            senderId: { not: session.user.id },
-            moderationStatus: { not: 'REJECTED' },
-          },
-          select: {
-            roomId: true,
-            createdAt: true,
-          },
+        // 構建查找Map
+        const membersByRoomId = new Map<string, any[]>();
+        roomMembersData.forEach((m: any) => {
+          if (!membersByRoomId.has(m.roomId)) {
+            membersByRoomId.set(m.roomId, []);
+          }
+          membersByRoomId.get(m.roomId)!.push(m.user);
         });
 
-        // 計算每個聊天室的未讀數
-        unreadMessages.forEach((msg: any) => {
-          const lastReadDate = lastReadMap.get(msg.roomId);
-          if (lastReadDate) {
-            const messageDate = new Date(msg.createdAt);
-            if (messageDate > lastReadDate) {
-              unreadCountMap.set(
-                msg.roomId,
-                (unreadCountMap.get(msg.roomId) || 0) + 1
-              );
-            }
+        // 每個房間只取最新一條消息
+        const lastMessageByRoomId = new Map<string, any>();
+        lastMessagesData.forEach((msg: any) => {
+          if (!lastMessageByRoomId.has(msg.roomId)) {
+            lastMessageByRoomId.set(msg.roomId, msg);
           }
         });
-      }
 
-      // 構建返回結果
-      const rooms = memberships.map((membership: any) => ({
-        id: membership.room.id,
-        type: membership.room.type,
-        bookingId: membership.room.bookingId,
-        groupBookingId: membership.room.groupBookingId,
-        lastMessageAt: membership.room.lastMessageAt,
-        unreadCount: unreadCountMap.get(membership.roomId) || 0,
-        members: membership.room.members.map((m: any) => ({
-          id: m.user.id,
-          name: m.user.name,
-          email: m.user.email,
-          role: m.user.role,
-        })),
-        lastMessage: membership.room.messages[0]
-          ? {
-              id: membership.room.messages[0].id,
-              content: membership.room.messages[0].content,
-              senderId: membership.room.messages[0].senderId,
-              sender: membership.room.messages[0].sender,
-              createdAt: membership.room.messages[0].createdAt,
-            }
-          : null,
-        booking: membership.room.booking,
-        groupBooking: membership.room.groupBooking,
-      }));
+        const bookingByRoomId = new Map<string, any>();
+        bookingsData.forEach((room: any) => {
+          if (room.booking) {
+            bookingByRoomId.set(room.id, room.booking);
+          }
+        });
+
+        const groupBookingByRoomId = new Map<string, any>();
+        groupBookingsData.forEach((room: any) => {
+          if (room.groupBooking) {
+            groupBookingByRoomId.set(room.id, room.groupBooking);
+          }
+        });
+
+        // 第三步：優化未讀消息計算 - 使用資料庫count而非應用層過濾
+        const unreadCountMap = new Map<string, number>();
+        const roomsWithMessages = memberships.filter((m: any) => m.room.lastMessageAt);
+        
+        if (roomsWithMessages.length > 0) {
+          // 並行查詢每個房間的未讀消息數（使用count，高效）
+          await Promise.all(
+            roomsWithMessages.map(async (membership: any) => {
+              const lastReadAt = membership.lastReadAt || membership.joinedAt;
+              const lastReadDate = lastReadAt instanceof Date
+                ? lastReadAt
+                : lastReadAt
+                  ? new Date(lastReadAt as string | number)
+                  : new Date(0);
+
+              // 優化：使用資料庫count，避免查詢所有消息
+              const unreadCount = await (client as any).chatMessage.count({
+                where: {
+                  roomId: membership.roomId,
+                  senderId: { not: session.user.id },
+                  moderationStatus: { not: 'REJECTED' },
+                  createdAt: { gt: lastReadDate },
+                },
+              });
+
+              unreadCountMap.set(membership.roomId, unreadCount);
+            })
+          );
+        }
+
+        // 構建返回結果
+        const rooms = memberships.map((membership: any) => ({
+          id: membership.room.id,
+          type: membership.room.type,
+          bookingId: membership.room.bookingId,
+          groupBookingId: membership.room.groupBookingId,
+          lastMessageAt: membership.room.lastMessageAt,
+          unreadCount: unreadCountMap.get(membership.roomId) || 0,
+          members: membersByRoomId.get(membership.roomId) || [],
+          lastMessage: lastMessageByRoomId.get(membership.roomId) || null,
+          booking: bookingByRoomId.get(membership.roomId) || null,
+          groupBooking: groupBookingByRoomId.get(membership.roomId) || null,
+        }));
 
         return rooms;
       } catch (error: any) {
-        // 如果模型不存在（通常是 Prisma 錯誤），返回空陣列
         if (error?.message?.includes('chatRoomMember') || error?.code === 'P2001' || error?.message?.includes('does not exist')) {
           console.warn('聊天室模型尚未建立，請執行資料庫 migration');
           return [];
@@ -247,7 +262,31 @@ export async function GET(request: Request) {
       }
     }, 'chat:rooms:get');
 
-    return NextResponse.json({ rooms: result });
+    // 優化：使用 Redis 快取聊天室列表（短TTL，確保實時性）
+    const cacheKey = `chat:rooms:${session.user.id}`;
+    const cached = await Cache.get(cacheKey);
+    if (cached) {
+      return NextResponse.json(
+        { rooms: cached },
+        {
+          headers: {
+            'Cache-Control': 'private, max-age=5, stale-while-revalidate=10',
+          },
+        }
+      );
+    }
+
+    // 快取結果（5秒TTL）
+    await Cache.set(cacheKey, result, 5);
+
+    return NextResponse.json(
+      { rooms: result },
+      {
+        headers: {
+          'Cache-Control': 'private, max-age=5, stale-while-revalidate=10',
+        },
+      }
+    );
   } catch (error) {
     return createErrorResponse(error, 'chat:rooms:get');
   }
@@ -276,7 +315,6 @@ export async function POST(request: Request) {
     }
 
     const result = await db.query(async (client) => {
-      // 檢查模型是否存在（如果 migration 還沒執行）
       try {
         const testQuery = (client as any).chatRoom;
         if (!testQuery) {
@@ -305,7 +343,6 @@ export async function POST(request: Request) {
       let memberUserIds: string[] = [];
 
       if (bookingId) {
-        // 一對一聊天室：客戶和陪玩
         const booking = await (client as any).booking.findUnique({
           where: { id: bookingId },
           include: {
@@ -318,7 +355,6 @@ export async function POST(request: Request) {
           throw new Error('訂單不存在');
         }
 
-        // 驗證用戶是否有權限（放寬條件，只要是用戶或陪玩就可以）
         const isCustomer = booking.customer.userId === session.user.id;
         const isPartner = booking.schedule.partner.userId === session.user.id;
         const isAdmin = session.user.role === 'ADMIN';
@@ -326,27 +362,12 @@ export async function POST(request: Request) {
         if (!isCustomer && !isPartner && !isAdmin) {
           throw new Error('無權限創建此聊天室');
         }
-        
-        // 允許更多狀態的訂單創建聊天室（不只是 CONFIRMED）
-        // 只要不是 PENDING、REJECTED、CANCELLED 都可以
-        const allowedStatuses = [
-          'CONFIRMED',
-          'PARTNER_ACCEPTED',
-          'COMPLETED',
-          'PAID_WAITING_PARTNER_CONFIRMATION',
-        ];
-        
-        if (!allowedStatuses.includes(booking.status)) {
-          // 不拋出錯誤，但記錄警告
-          console.warn(`訂單 ${bookingId} 狀態為 ${booking.status}，通常不會有聊天室`);
-        }
 
         memberUserIds = [
           booking.customer.userId,
           booking.schedule.partner.userId,
         ];
       } else if (groupBookingId) {
-        // 群組聊天室
         roomType = 'GROUP';
         const groupBooking = await (client as any).groupBooking.findUnique({
           where: { id: groupBookingId },
@@ -364,12 +385,10 @@ export async function POST(request: Request) {
           throw new Error('群組預約不存在');
         }
 
-        // 收集所有參與者的 userId
         memberUserIds = groupBooking.GroupBookingParticipant
           .map((p: any) => p.Customer?.userId || p.Partner?.userId)
           .filter((id: any): id is string => !!id);
 
-        // 驗證用戶是否有權限
         if (
           !memberUserIds.includes(session.user.id) &&
           session.user.role !== 'ADMIN'
@@ -414,4 +433,3 @@ export async function POST(request: Request) {
     return createErrorResponse(error, 'chat:rooms:post');
   }
 }
-

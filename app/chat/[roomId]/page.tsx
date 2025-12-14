@@ -116,7 +116,7 @@ export default function ChatRoomPage() {
     const loadMessages = async () => {
       try {
         setLoadingMessages(true);
-        const messagesRes = await fetch(`/api/chat/rooms/${roomId}/messages?limit=50`); // 增加到50條，確保消息不丟失
+        const messagesRes = await fetch(`/api/chat/rooms/${roomId}/messages?limit=30`); // 優化：減少到30條，提升載入速度
         
         if (messagesRes.ok) {
           const messagesData = await messagesRes.json();
