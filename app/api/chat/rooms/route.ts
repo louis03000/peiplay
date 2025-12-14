@@ -262,19 +262,21 @@ export async function GET(request: Request) {
           );
         }
 
-        // 構建返回結果
-        const rooms = memberships.map((membership: any) => ({
-          id: membership.room.id,
-          type: membership.room.type,
-          bookingId: membership.room.bookingId,
-          groupBookingId: membership.room.groupBookingId,
-          lastMessageAt: membership.room.lastMessageAt,
-          unreadCount: unreadCountMap.get(membership.roomId) || 0,
-          members: membersByRoomId.get(membership.roomId) || [],
-          lastMessage: lastMessageByRoomId.get(membership.roomId) || null,
-          booking: bookingByRoomId.get(membership.roomId) || null,
-          groupBooking: groupBookingByRoomId.get(membership.roomId) || null,
-        }));
+        // ✅ 構建返回結果 - 只返回有消息的聊天室
+        const rooms = memberships
+          .filter((membership: any) => membership.room.lastMessageAt) // 只顯示有消息的
+          .map((membership: any) => ({
+            id: membership.room.id,
+            type: membership.room.type,
+            bookingId: membership.room.bookingId,
+            groupBookingId: membership.room.groupBookingId,
+            lastMessageAt: membership.room.lastMessageAt,
+            unreadCount: unreadCountMap.get(membership.roomId) || 0,
+            members: membersByRoomId.get(membership.roomId) || [],
+            lastMessage: lastMessageByRoomId.get(membership.roomId) || null,
+            booking: bookingByRoomId.get(membership.roomId) || null,
+            groupBooking: groupBookingByRoomId.get(membership.roomId) || null,
+          }));
 
         return rooms;
       } catch (error: any) {

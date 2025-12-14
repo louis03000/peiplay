@@ -6,11 +6,14 @@ interface ChatMessage {
   id: string;
   roomId: string;
   senderId: string;
+  senderName?: string | null;      // 去正規化字段
+  senderAvatarUrl?: string | null; // 去正規化字段
   sender: {
     id: string;
     name: string | null;
     email: string;
     role: string;
+    avatarUrl?: string | null;     // 頭像 URL
   };
   content: string;
   contentType: 'TEXT' | 'IMAGE' | 'SYSTEM';

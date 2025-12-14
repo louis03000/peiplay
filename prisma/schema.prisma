@@ -798,10 +798,14 @@ model ChatRoomMember {
 }
 
 // 聊天訊息（新模型，支援聊天室）
+// ⚠️ 重要：使用 denormalization，直接存儲 sender_name 和 sender_avatar_url
+// 避免 JOIN users 表，提升查詢效能（業界聊天系統標準做法）
 model ChatMessage {
   id               String               @id @default(cuid())
   roomId           String
   senderId         String
+  senderName       String?              // 去正規化：發送者名稱（發送時的快照）
+  senderAvatarUrl  String?              // 去正規化：發送者頭像 URL（發送時的快照）
   content          String
   contentType      MessageContentType   @default(TEXT)
   status           MessageStatus        @default(SENT)

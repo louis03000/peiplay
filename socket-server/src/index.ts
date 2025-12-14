@@ -172,10 +172,31 @@ io.on('connection', (socket) => {
 
     // Save message to database
     try {
+      // ✅ 關鍵優化：發送消息時寫入 denormalized 字段（sender_name, sender_avatar_url）
+      // 先查詢用戶信息（一次性查詢）
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: {
+          name: true,
+          email: true,
+          partner: {
+            select: {
+              coverImage: true,
+            },
+          },
+        },
+      });
+
+      // 獲取頭像 URL（優先使用 partner 的 coverImage）
+      const avatarUrl = user?.partner?.coverImage || null;
+      const senderName = user?.name || user?.email || '未知用戶';
+
       const message = await prisma.chatMessage.create({
         data: {
           roomId,
           senderId: userId,
+          senderName: senderName,        // 去正規化：寫入發送時的快照
+          senderAvatarUrl: avatarUrl,    // 去正規化：寫入發送時的快照
           content,
           contentType: 'TEXT',
           status: 'SENT',
@@ -183,15 +204,18 @@ io.on('connection', (socket) => {
           moderationReason: moderationResult.reason || null,
           moderationScore: moderationResult.score || null,
         },
-        include: {
-          sender: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-              role: true,
-            },
-          },
+        select: {
+          id: true,
+          roomId: true,
+          senderId: true,
+          senderName: true,
+          senderAvatarUrl: true,
+          content: true,
+          contentType: true,
+          status: true,
+          moderationStatus: true,
+          createdAt: true,
+          // ❌ 不再 include sender（避免 JOIN）
         },
       });
 
@@ -220,12 +244,21 @@ io.on('connection', (socket) => {
         id: message.id,
         roomId: message.roomId,
         senderId: message.senderId,
-        sender: message.sender,
+        senderName: message.senderName,
+        senderAvatarUrl: message.senderAvatarUrl,
         content: message.content,
         contentType: message.contentType,
         status: message.status,
         moderationStatus: message.moderationStatus,
         createdAt: message.createdAt.toISOString(),
+        // 保持向後兼容的 sender 結構
+        sender: {
+          id: message.senderId,
+          name: message.senderName,
+          email: '',
+          role: '',
+          avatarUrl: message.senderAvatarUrl,
+        },
       };
 
       io.to(roomId).emit('message:new', messagePayload);

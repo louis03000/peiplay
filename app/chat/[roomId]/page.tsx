@@ -7,15 +7,40 @@ import { useChatSocket } from '@/lib/hooks/useChatSocket';
 import { format } from 'date-fns';
 import { zhTW } from 'date-fns/locale';
 
+// ✅ 優化頭像 URL（使用 Cloudinary resize）
+function getOptimizedAvatarUrl(avatarUrl: string): string {
+  if (!avatarUrl) return '';
+  
+  // 如果是 Cloudinary 圖片，添加 resize 參數（64x64，自動品質）
+  if (avatarUrl.includes('res.cloudinary.com')) {
+    // 檢查是否已經有轉換參數
+    if (avatarUrl.includes('/w_') || avatarUrl.includes('/c_')) {
+      // 如果已有轉換參數，替換為優化的尺寸
+      return avatarUrl.replace(/\/w_\d+/g, '/w_64').replace(/\/h_\d+/g, '/h_64').replace(/\/q_\d+/g, '/q_auto');
+    }
+    // 如果沒有轉換參數，添加優化參數
+    // Cloudinary URL 格式：https://res.cloudinary.com/{cloud_name}/image/upload/{transformations}/{public_id}
+    const parts = avatarUrl.split('/upload/');
+    if (parts.length === 2) {
+      return `${parts[0]}/upload/w_64,h_64,q_auto,c_fill,f_auto/${parts[1]}`;
+    }
+  }
+  
+  return avatarUrl;
+}
+
 interface ChatMessage {
   id: string;
   roomId: string;
   senderId: string;
+  senderName?: string | null;      // 去正規化字段
+  senderAvatarUrl?: string | null; // 去正規化字段
   sender: {
     id: string;
     name: string | null;
     email: string;
     role: string;
+    avatarUrl?: string | null;     // 頭像 URL
   };
   content: string;
   contentType: 'TEXT' | 'IMAGE' | 'SYSTEM';
@@ -121,12 +146,20 @@ export default function ChatRoomPage() {
         if (messagesRes.ok) {
           const messagesData = await messagesRes.json();
           if (messagesData.messages && Array.isArray(messagesData.messages)) {
-            // 將歷史消息轉換為 ChatMessage 格式
+            // 將歷史消息轉換為 ChatMessage 格式（支持 denormalized 字段）
             const formattedMessages: ChatMessage[] = messagesData.messages.map((msg: any) => ({
               id: msg.id,
               roomId: msg.roomId,
               senderId: msg.senderId,
-              sender: msg.sender,
+              senderName: msg.senderName || msg.sender?.name,
+              senderAvatarUrl: msg.senderAvatarUrl || msg.sender?.avatarUrl,
+              sender: {
+                id: msg.senderId,
+                name: msg.senderName || msg.sender?.name || null,
+                email: msg.sender?.email || '',
+                role: msg.sender?.role || '',
+                avatarUrl: msg.senderAvatarUrl || msg.sender?.avatarUrl || null,
+              },
               content: msg.content,
               contentType: msg.contentType || 'TEXT',
               status: msg.status || 'SENT',
@@ -430,15 +463,36 @@ export default function ChatRoomPage() {
                 >
                   {!isOwn && showAvatar && (
                     <div className="flex-shrink-0 mr-2">
-                      <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white text-sm font-medium">
-                        {message.sender.name?.[0]?.toUpperCase() || '?'}
-                      </div>
+                      {/* ✅ 顯示發送者頭像（使用 denormalized 字段） */}
+                      {message.senderAvatarUrl || message.sender?.avatarUrl ? (
+                        <div className="w-8 h-8 rounded-full overflow-hidden relative">
+                          <img
+                            src={getOptimizedAvatarUrl(message.senderAvatarUrl || message.sender?.avatarUrl || '')}
+                            alt={message.senderName || message.sender?.name || '用戶'}
+                            className="w-full h-full object-cover"
+                            loading="lazy"
+                            onError={(e) => {
+                              // 如果圖片載入失敗，顯示預設頭像
+                              const target = e.target as HTMLImageElement;
+                              target.style.display = 'none';
+                              const parent = target.parentElement;
+                              if (parent) {
+                                parent.innerHTML = `<div class="w-full h-full bg-gradient-to-br from-purple-400 to-blue-400 flex items-center justify-center text-white text-sm font-medium">${(message.senderName || message.sender?.name || '?')[0]?.toUpperCase() || '?'}</div>`;
+                              }
+                            }}
+                          />
+                        </div>
+                      ) : (
+                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-400 to-blue-400 flex items-center justify-center text-white text-sm font-medium">
+                          {(message.senderName || message.sender?.name || '?')[0]?.toUpperCase() || '?'}
+                        </div>
+                      )}
                     </div>
                   )}
                   <div className={`max-w-xs lg:max-w-md ${isOwn ? 'order-2' : ''}`}>
                     {!isOwn && showAvatar && (
                       <p className="text-xs text-gray-500 mb-1">
-                        {message.sender.name || message.sender.email}
+                        {message.senderName || message.sender?.name || message.sender?.email || '未知用戶'}
                       </p>
                     )}
                     <div

@@ -9,6 +9,7 @@ export const dynamic = 'force-dynamic';
 /**
  * GET /api/chat/rooms/[roomId]/messages
  * 獲取聊天室訊息歷史
+ * ✅ 關鍵優化：使用 denormalized 字段，不 JOIN users 表（業界標準做法）
  */
 export async function GET(
   request: Request,
@@ -61,27 +62,22 @@ export async function GET(
         where.createdAt = { lt: new Date(before) };
       }
 
-      // 優化：只查詢必要欄位，使用索引排序
+      // ✅ 關鍵優化：不使用 JOIN，只查 messages 表（denormalized 字段）
+      // 這是業界聊天系統標準做法，避免 JOIN 導致的效能問題
       const messages = await (client as any).chatMessage.findMany({
         where,
         select: {
           id: true,
           roomId: true,
           senderId: true,
+          senderName: true,        // 去正規化字段
+          senderAvatarUrl: true,   // 去正規化字段
           content: true,
           contentType: true,
           status: true,
           moderationStatus: true,
           createdAt: true,
-          // 優化：JOIN sender（避免N+1查詢，但只選必要欄位）
-          sender: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-              role: true,
-            },
-          },
+          // ❌ 不再 JOIN sender（避免 JOIN 導致的效能問題）
         },
         // 優化：使用複合索引 (roomId, createdAt DESC)
         orderBy: [
@@ -92,7 +88,27 @@ export async function GET(
       });
 
       // 反轉順序（從舊到新，前端顯示用）
-      return messages.reverse();
+      // 轉換格式以保持向後兼容
+      return messages.reverse().map((msg: any) => ({
+        id: msg.id,
+        roomId: msg.roomId,
+        senderId: msg.senderId,
+        senderName: msg.senderName,
+        senderAvatarUrl: msg.senderAvatarUrl,
+        content: msg.content,
+        contentType: msg.contentType,
+        status: msg.status,
+        moderationStatus: msg.moderationStatus,
+        createdAt: msg.createdAt,
+        // 保持向後兼容的 sender 結構
+        sender: {
+          id: msg.senderId,
+          name: msg.senderName,
+          email: '', // 不再需要 email
+          role: '',  // 不再需要 role
+          avatarUrl: msg.senderAvatarUrl,
+        },
+      }));
     }, 'chat:rooms:roomId:messages:get');
 
     // 個人聊天訊息使用 private cache
@@ -185,25 +201,48 @@ export async function POST(
         }
       }
 
-      // 優化：先創建訊息（同步，必須等待）
+      // ✅ 關鍵優化：發送消息時寫入 denormalized 字段（sender_name, sender_avatar_url）
+      // 先查詢用戶信息（一次性查詢）
+      const user = await client.user.findUnique({
+        where: { id: session.user.id },
+        select: {
+          name: true,
+          partner: {
+            select: {
+              coverImage: true,
+            },
+          },
+        },
+      });
+
+      // 獲取頭像 URL（優先使用 partner 的 coverImage）
+      const avatarUrl = user?.partner?.coverImage || null;
+      const senderName = user?.name || session.user.email || '未知用戶';
+
+      // 創建訊息並寫入 denormalized 字段
       const message = await (client as any).chatMessage.create({
         data: {
           roomId,
           senderId: session.user.id,
+          senderName: senderName,        // 去正規化：寫入發送時的快照
+          senderAvatarUrl: avatarUrl,    // 去正規化：寫入發送時的快照
           content: content.trim(),
           contentType: 'TEXT',
           status: 'SENT',
           moderationStatus: hasBlockedKeyword ? 'FLAGGED' : 'APPROVED',
         },
-        include: {
-          sender: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-              role: true,
-            },
-          },
+        select: {
+          id: true,
+          roomId: true,
+          senderId: true,
+          senderName: true,
+          senderAvatarUrl: true,
+          content: true,
+          contentType: true,
+          status: true,
+          moderationStatus: true,
+          createdAt: true,
+          // ❌ 不再 include sender（避免 JOIN）
         },
       });
 
@@ -219,16 +258,26 @@ export async function POST(
           console.error('Failed to update lastMessageAt:', err);
         });
 
+      // 返回格式保持向後兼容
       return {
         id: message.id,
         roomId: message.roomId,
         senderId: message.senderId,
-        sender: message.sender,
+        senderName: message.senderName,
+        senderAvatarUrl: message.senderAvatarUrl,
         content: message.content,
         contentType: message.contentType,
         status: message.status,
         moderationStatus: message.moderationStatus,
         createdAt: message.createdAt.toISOString(),
+        // 保持向後兼容的 sender 結構
+        sender: {
+          id: message.senderId,
+          name: message.senderName,
+          email: '',
+          role: '',
+          avatarUrl: message.senderAvatarUrl,
+        },
       };
     }, 'chat:rooms:roomId:messages:post');
 
