@@ -24,18 +24,31 @@ interface UseChatSocketOptions {
   enabled?: boolean;
 }
 
+// Socket 單例（全局共享一個連接）
+let globalSocket: Socket | null = null;
+let globalSocketInitialized = false;
+
 export function useChatSocket({ roomId, enabled = true }: UseChatSocketOptions) {
   const { data: session } = useSession();
-  const socketRef = useRef<Socket | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isConnected, setIsConnected] = useState(false);
   const [typingUsers, setTypingUsers] = useState<Set<string>>(new Set());
   const [onlineMembers, setOnlineMembers] = useState<Set<string>>(new Set());
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const currentRoomIdRef = useRef<string | null>(null);
+  const initializedRef = useRef(false);
 
-  // 連接 Socket.IO
+  // 連接 Socket.IO（只初始化一次，不隨 roomId 變化重建）
   useEffect(() => {
-    if (!enabled || !session?.user?.id || !roomId) return;
+    if (!enabled || !session?.user?.id) return;
+    
+    // 防止重複初始化
+    if (initializedRef.current && globalSocket) {
+      console.log('✅ Socket already initialized, reusing existing connection');
+      setIsConnected(globalSocket.connected);
+      // roomId 變化由另一個 useEffect 處理
+      return;
+    }
 
     // 優先使用環境變數，否則使用相對路徑（適用於同域部署）
     let socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL;
@@ -59,30 +72,40 @@ export function useChatSocket({ roomId, enabled = true }: UseChatSocketOptions) 
       return;
     }
     
-    socketRef.current = io(socketUrl, {
-      transports: ['websocket', 'polling'],
-      auth: {
-        userId: session.user.id,
-      },
-      reconnection: true,
-      reconnectionDelay: 1000,
-      reconnectionAttempts: 5,
-      timeout: 10000,
-      autoConnect: true,
-    });
+    // 使用全局 socket 單例
+    if (!globalSocket) {
+      console.log('🚀 Chat initialized - Creating new Socket connection');
+      globalSocket = io(socketUrl, {
+        transports: ['websocket', 'polling'],
+        auth: {
+          userId: session.user.id,
+        },
+        reconnection: true,
+        reconnectionDelay: 1000,
+        reconnectionAttempts: 5,
+        timeout: 10000,
+        autoConnect: true,
+      });
+      globalSocketInitialized = true;
+      initializedRef.current = true;
+    }
 
-    const socket = socketRef.current;
+    const socket = globalSocket;
 
     socket.on('connect', () => {
-      console.log('✅ Socket.IO connected');
+      console.log('✅ Socket connected');
       setIsConnected(true);
       
-      // 加入聊天室
-      socket.emit('room:join', { roomId });
+      // 加入聊天室（如果有的話）
+      if (roomId) {
+        console.log(`🏠 Room joined: ${roomId}`);
+        currentRoomIdRef.current = roomId;
+        socket.emit('room:join', { roomId });
+      }
     });
 
     socket.on('disconnect', () => {
-      console.log('❌ Socket.IO disconnected');
+      console.log('❌ Socket disconnected');
       setIsConnected(false);
     });
 
@@ -90,8 +113,12 @@ export function useChatSocket({ roomId, enabled = true }: UseChatSocketOptions) 
       console.error('Socket.IO error:', error);
     });
 
-    // 接收新訊息
+    // 接收新訊息（只接收當前房間的消息）
     socket.on('message:new', (message: ChatMessage) => {
+      // 只處理當前房間的消息
+      if (message.roomId !== currentRoomIdRef.current) {
+        return;
+      }
       setMessages((prev) => {
         // 避免重複
         if (prev.some((m) => m.id === message.id)) {
@@ -154,14 +181,53 @@ export function useChatSocket({ roomId, enabled = true }: UseChatSocketOptions) 
       );
     });
 
+    // 清理函數：不斷開 socket（因為是全局單例）
     return () => {
-      if (socket && roomId) {
-        socket.emit('room:leave', { roomId });
-      }
-      socket.disconnect();
-      socketRef.current = null;
+      // 不斷開 socket，因為是全局單例
     };
-  }, [enabled, session?.user?.id, roomId]);
+  }, [enabled, session?.user?.id]); // ❌ 移除 roomId 依賴，避免重建 socket
+
+  // 當 roomId 變化時，切換房間並清空消息（單獨處理）
+  useEffect(() => {
+    if (!roomId) {
+      setMessages([]); // 清空消息
+      currentRoomIdRef.current = null;
+      return;
+    }
+    
+    if (!globalSocket) return;
+    
+    // 離開之前的房間
+    if (currentRoomIdRef.current && currentRoomIdRef.current !== roomId) {
+      console.log(`🚪 Leaving room: ${currentRoomIdRef.current}`);
+      globalSocket.emit('room:leave', { roomId: currentRoomIdRef.current });
+    }
+    
+    // 加入新房間
+    if (roomId !== currentRoomIdRef.current) {
+      console.log(`🏠 Room joined: ${roomId}`);
+      currentRoomIdRef.current = roomId;
+      setMessages([]); // 清空之前的消息
+      
+      if (globalSocket.connected) {
+        globalSocket.emit('room:join', { roomId });
+      } else {
+        // 如果還沒連接，等待連接後再加入
+        const handleConnect = () => {
+          globalSocket?.emit('room:join', { roomId });
+          globalSocket?.off('connect', handleConnect);
+        };
+        globalSocket.on('connect', handleConnect);
+      }
+    }
+    
+    return () => {
+      // 清理時離開房間
+      if (globalSocket && currentRoomIdRef.current === roomId) {
+        globalSocket.emit('room:leave', { roomId });
+      }
+    };
+  }, [roomId]);
 
   // 發送訊息（如果 WebSocket 不可用，回退到 API）
   const sendMessage = useCallback(
@@ -171,7 +237,7 @@ export function useChatSocket({ roomId, enabled = true }: UseChatSocketOptions) 
       }
 
       // 如果 WebSocket 已連接，使用 WebSocket 發送
-      const socket = socketRef.current;
+      const socket = globalSocket;
       if (socket?.connected) {
         return new Promise((resolve, reject) => {
           let resolved = false;
@@ -255,9 +321,9 @@ export function useChatSocket({ roomId, enabled = true }: UseChatSocketOptions) 
 
   // 開始輸入（typing indicator）
   const startTyping = useCallback(() => {
-    if (!socketRef.current || !roomId) return;
+    if (!globalSocket || !roomId) return;
 
-    socketRef.current.emit('typing:start', { roomId });
+    globalSocket.emit('typing:start', { roomId });
 
     // 清除之前的 timeout
     if (typingTimeoutRef.current) {
@@ -272,9 +338,9 @@ export function useChatSocket({ roomId, enabled = true }: UseChatSocketOptions) 
 
   // 停止輸入
   const stopTyping = useCallback(() => {
-    if (!socketRef.current || !roomId) return;
+    if (!globalSocket || !roomId) return;
 
-    socketRef.current.emit('typing:stop', { roomId });
+    globalSocket.emit('typing:stop', { roomId });
 
     if (typingTimeoutRef.current) {
       clearTimeout(typingTimeoutRef.current);
@@ -285,10 +351,10 @@ export function useChatSocket({ roomId, enabled = true }: UseChatSocketOptions) 
   // 標記訊息為已讀
   const markAsRead = useCallback(
     (messageIds: string[]) => {
-      if (!socketRef.current || !roomId) return;
+      if (!globalSocket || !roomId) return;
 
       messageIds.forEach((messageId) => {
-        socketRef.current?.emit('message:read', { messageId, roomId });
+        globalSocket?.emit('message:read', { messageId, roomId });
       });
     },
     [roomId]

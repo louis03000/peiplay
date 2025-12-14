@@ -59,8 +59,12 @@ export async function GET(request: Request) {
           return [];
         }
 
-        // 第二步：並行查詢必要資料
-        const [roomMembersData, lastMessagesData, bookingsData, groupBookingsData] = await Promise.all([
+        // 先篩選出有消息的房間（用於後續查詢）
+        const roomsWithMessages = memberships.filter((m: any) => m.room.lastMessageAt);
+        const roomIdsWithMessages = roomsWithMessages.map((m: any) => m.roomId);
+
+        // 第二步：並行查詢必要資料（先不查詢消息，後面單獨處理）
+        const [roomMembersData, bookingsData, groupBookingsData] = await Promise.all([
           // 查詢所有聊天室的成員
           (client as any).chatRoomMember.findMany({
             where: { roomId: { in: roomIds } },
@@ -75,31 +79,6 @@ export async function GET(request: Request) {
                 },
               },
             },
-          }),
-          // 查詢每個聊天室的最新一條消息（使用索引優化）
-          (client as any).chatMessage.findMany({
-            where: {
-              roomId: { in: roomIds },
-              moderationStatus: { not: 'REJECTED' },
-            },
-            select: {
-              id: true,
-              roomId: true,
-              content: true,
-              senderId: true,
-              createdAt: true,
-              sender: {
-                select: {
-                  id: true,
-                  name: true,
-                  email: true,
-                },
-              },
-            },
-            orderBy: [
-              { createdAt: 'desc' },
-              { id: 'desc' },
-            ],
           }),
           // 查詢booking資訊（通過chatRoom.bookingId反向查找）
           (client as any).chatRoom.findMany({
@@ -186,13 +165,49 @@ export async function GET(request: Request) {
           membersByRoomId.get(m.roomId)!.push(m.user);
         });
 
-        // 每個房間只取最新一條消息
+        // 優化：延遲查詢最新消息（只在有消息的房間查詢，且限制數量）
         const lastMessageByRoomId = new Map<string, any>();
-        lastMessagesData.forEach((msg: any) => {
-          if (!lastMessageByRoomId.has(msg.roomId)) {
-            lastMessageByRoomId.set(msg.roomId, msg);
-          }
-        });
+        if (roomIdsWithMessages.length > 0 && roomIdsWithMessages.length <= 30) {
+          // 只對前30個有消息的房間查詢最新消息（避免查詢太慢）
+          const roomIdsToQuery = roomIdsWithMessages.slice(0, 30);
+          
+          // 批量查詢，但限制時間範圍（只查最近7天的消息）
+          const recentMessages = await (client as any).chatMessage.findMany({
+            where: {
+              roomId: { in: roomIdsToQuery },
+              moderationStatus: { not: 'REJECTED' },
+              createdAt: {
+                gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), // 最近7天
+              },
+            },
+            select: {
+              id: true,
+              roomId: true,
+              content: true,
+              senderId: true,
+              createdAt: true,
+              sender: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                },
+              },
+            },
+            orderBy: [
+              { roomId: 'asc' },
+              { createdAt: 'desc' },
+              { id: 'desc' },
+            ],
+          });
+          
+          // 每個房間只取最新一條消息
+          recentMessages.forEach((msg: any) => {
+            if (!lastMessageByRoomId.has(msg.roomId)) {
+              lastMessageByRoomId.set(msg.roomId, msg);
+            }
+          });
+        }
 
         const bookingByRoomId = new Map<string, any>();
         bookingsData.forEach((room: any) => {
@@ -208,14 +223,19 @@ export async function GET(request: Request) {
           }
         });
 
-        // 第三步：優化未讀消息計算 - 使用資料庫count而非應用層過濾
+        // 第三步：優化未讀消息計算 - 先跳過，只計算有 lastMessageAt 的房間
+        // 如果未讀數計算很慢，可以先返回 0，讓前端用其他方式處理
         const unreadCountMap = new Map<string, number>();
-        const roomsWithMessages = memberships.filter((m: any) => m.room.lastMessageAt);
         
-        if (roomsWithMessages.length > 0) {
-          // 並行查詢每個房間的未讀消息數（使用count，高效）
+        // 優化：暫時跳過未讀數計算，先讓列表能快速顯示
+        // 未讀數可以在進入聊天室時再計算，或者使用 background job 定期更新
+        // 如果必須計算，使用批量查詢而非多次 count
+        if (roomsWithMessages.length > 0 && roomsWithMessages.length <= 50) {
+          // 只對前50個房間計算未讀數（避免太慢）
+          const roomsToCalculate = roomsWithMessages.slice(0, 50);
+          
           await Promise.all(
-            roomsWithMessages.map(async (membership: any) => {
+            roomsToCalculate.map(async (membership: any) => {
               const lastReadAt = membership.lastReadAt || membership.joinedAt;
               const lastReadDate = lastReadAt instanceof Date
                 ? lastReadAt
@@ -223,17 +243,21 @@ export async function GET(request: Request) {
                   ? new Date(lastReadAt as string | number)
                   : new Date(0);
 
-              // 優化：使用資料庫count，避免查詢所有消息
-              const unreadCount = await (client as any).chatMessage.count({
-                where: {
-                  roomId: membership.roomId,
-                  senderId: { not: session.user.id },
-                  moderationStatus: { not: 'REJECTED' },
-                  createdAt: { gt: lastReadDate },
-                },
-              });
+              try {
+                const unreadCount = await (client as any).chatMessage.count({
+                  where: {
+                    roomId: membership.roomId,
+                    senderId: { not: session.user.id },
+                    moderationStatus: { not: 'REJECTED' },
+                    createdAt: { gt: lastReadDate },
+                  },
+                });
 
-              unreadCountMap.set(membership.roomId, unreadCount);
+                unreadCountMap.set(membership.roomId, unreadCount);
+              } catch (error) {
+                // 如果查詢失敗，設為 0
+                unreadCountMap.set(membership.roomId, 0);
+              }
             })
           );
         }

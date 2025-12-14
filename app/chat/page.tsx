@@ -76,15 +76,27 @@ export default function ChatPage() {
   const [loadedHistoryMessages, setLoadedHistoryMessages] = useState<ChatMessage[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const initializedRef = useRef(false); // 防止重複初始化
+  const loadingMessagesRef = useRef<Map<string, AbortController>>(new Map()); // API 請求去重
 
+  // ✅ 初始化：只執行一次
   useEffect(() => {
     if (status === 'loading') return;
     if (status === 'unauthenticated') {
       router.push('/auth/login');
       return;
     }
+    
+    // 防止重複初始化
+    if (initializedRef.current) {
+      console.log('⚠️ Chat already initialized, skipping');
+      return;
+    }
+    
+    console.log('🚀 Chat initialized');
+    initializedRef.current = true;
     loadRooms();
-  }, [status, router]);
+  }, [status]); // ❌ 移除 router 依賴
 
   // 自動選擇第一個聊天室
   useEffect(() => {
@@ -103,6 +115,7 @@ export default function ChatPage() {
   const loadRooms = async () => {
     try {
       setLoading(true);
+      console.log('📋 Loading rooms...');
       
       // 優先載入聊天室列表（快速顯示）
       const roomsRes = await fetch('/api/chat/rooms');
@@ -111,6 +124,7 @@ export default function ChatPage() {
         const data = await roomsRes.json();
         const loadedRooms = data.rooms || [];
         setRooms(loadedRooms);
+        console.log(`✅ Loaded ${loadedRooms.length} rooms`);
         
         // 如果有新創建的聊天室，自動選擇第一個
         if (loadedRooms.length > 0 && !selectedRoomId) {
@@ -133,6 +147,7 @@ export default function ChatPage() {
         .then((res) => res.ok && res.json())
         .then((createData) => {
           if (createData?.created > 0) {
+            console.log(`🆕 Created ${createData.created} new rooms`);
             // 如果有新創建的聊天室，重新載入列表
             return fetch('/api/chat/rooms')
               .then((res) => res.json())
@@ -200,16 +215,35 @@ export default function ChatPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [socketMessages, typingUsers]);
 
-  // 載入歷史訊息（當選擇聊天室時）
+  // ✅ 載入歷史訊息（當選擇聊天室時）- 添加請求去重
   useEffect(() => {
     if (!selectedRoomId || !session?.user?.id) {
       setLoadedHistoryMessages([]);
       return;
     }
 
+    // 如果已經有進行中的請求，取消它
+    const existingController = loadingMessagesRef.current.get(selectedRoomId);
+    if (existingController) {
+      console.log(`⚠️ Aborting duplicate messages request for room ${selectedRoomId}`);
+      existingController.abort();
+    }
+
+    // 創建新的 AbortController
+    const abortController = new AbortController();
+    loadingMessagesRef.current.set(selectedRoomId, abortController);
+
     const loadMessages = async () => {
       try {
-        const messagesRes = await fetch(`/api/chat/rooms/${selectedRoomId}/messages?limit=50`);
+        console.log(`📥 Loading messages for room: ${selectedRoomId}`);
+        const messagesRes = await fetch(`/api/chat/rooms/${selectedRoomId}/messages?limit=30`, {
+          signal: abortController.signal,
+        });
+        
+        if (abortController.signal.aborted) {
+          console.log(`⚠️ Messages request aborted for room ${selectedRoomId}`);
+          return;
+        }
         
         if (messagesRes.ok) {
           const messagesData = await messagesRes.json();
@@ -227,15 +261,28 @@ export default function ChatPage() {
               createdAt: msg.createdAt,
             }));
             setLoadedHistoryMessages(formattedMessages);
+            console.log(`✅ Loaded ${formattedMessages.length} messages for room ${selectedRoomId}`);
           }
         }
       } catch (error: any) {
+        if (error.name === 'AbortError') {
+          console.log(`⚠️ Messages request aborted for room ${selectedRoomId}`);
+          return;
+        }
         console.error('Error loading messages:', error);
+      } finally {
+        loadingMessagesRef.current.delete(selectedRoomId);
       }
     };
 
     loadMessages();
-  }, [selectedRoomId, session?.user?.id]);
+    
+    // 清理函數：取消請求
+    return () => {
+      abortController.abort();
+      loadingMessagesRef.current.delete(selectedRoomId);
+    };
+  }, [selectedRoomId]); // ❌ 移除 session?.user?.id 依賴（不應該因為 session 變化而重新載入）
 
   // 標記已讀
   useEffect(() => {
