@@ -48,8 +48,9 @@ export async function GET(
         if (cached) {
           // ✅ cache hit：直接返回，禁止任何 DB 查詢（包括權限驗證）
           const tEnd = performance.now();
-          console.log(
-            `🔥 messages cache HIT: ${cacheKey} (${Array.isArray(cached) ? cached.length : 0} messages) | total ${(tEnd - t0).toFixed(1)}ms`
+          const totalMs = (tEnd - t0).toFixed(1);
+          console.info(
+            `🔥 messages cache HIT: ${cacheKey} (${Array.isArray(cached) ? cached.length : 0} messages) | total ${totalMs}ms`
           );
           return NextResponse.json(
             { 
@@ -60,18 +61,19 @@ export async function GET(
               headers: {
                 'Cache-Control': 'private, max-age=3, stale-while-revalidate=5',
                 'X-Cache': 'HIT',
+                'Server-Timing': `auth;dur=0,db;dur=0,total;dur=${totalMs}`,
               },
             }
           );
         }
         
-        console.log(`❄️ messages cache MISS: ${cacheKey}, will query DB`);
+        console.info(`❄️ messages cache MISS: ${cacheKey}, will query DB`);
       } catch (error: any) {
         // Redis 不可用時，降級為直接查 DB（不報錯）
         console.warn(`⚠️ Cache unavailable for ${cacheKey}, falling back to DB:`, error.message);
       }
       } else {
-        console.log(`📄 Pagination query (cursor=${cursor}), skipping cache`);
+        console.info(`📄 Pagination query (cursor=${cursor}), skipping cache`);
       }
 
     // ✅ cache miss：查詢 DB（使用原生 SQL，禁止 JOIN）
@@ -196,7 +198,7 @@ export async function GET(
     const authMs = (tAuth - t0).toFixed(1);
     const dbMs = (tDbDone - tAuth).toFixed(1);
     const totalMs = (tEnd - t0).toFixed(1);
-    console.log(`⏱️ messages GET room=${roomId} auth=${authMs}ms db=${dbMs}ms total=${totalMs}ms cache=${cacheKey ? 'MISS' : 'SKIP'}`);
+    console.info(`⏱️ messages GET room=${roomId} auth=${authMs}ms db=${dbMs}ms total=${totalMs}ms cache=${cacheKey ? 'MISS' : 'SKIP'}`);
     
     return NextResponse.json(
       { 
