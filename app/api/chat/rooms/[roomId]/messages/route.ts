@@ -87,8 +87,10 @@ export async function GET(
       }
 
     // ✅ cache miss：查詢 DB（使用原生 SQL，禁止 JOIN）
+    const tDbStart = performance.now();
     const result = await db.query(async (client) => {
       // ✅ 權限驗證（只在 cache miss 時執行）
+      const tAuthCheckStart = performance.now();
       const [membership, user] = await Promise.all([
         client.chatRoomMember.findUnique({
           where: {
@@ -104,6 +106,9 @@ export async function GET(
           select: { role: true },
         }),
       ]);
+      const tAuthCheckDone = performance.now();
+      const authCheckMs = (tAuthCheckDone - tAuthCheckStart).toFixed(1);
+      console.info(`🔐 Auth check: ${authCheckMs}ms (membership: ${membership ? 'found' : 'not found'}, role: ${user?.role || 'none'})`);
 
       if (!membership && user?.role !== 'ADMIN') {
         throw new Error('無權限訪問此聊天室');
@@ -114,6 +119,7 @@ export async function GET(
       // ✅ 這是業界標準做法：單表查詢，不使用 JOIN，最小化資料傳輸
       let messages: any[];
       
+      const tQueryStart = performance.now();
       if (cursor) {
         // ✅ Cursor-based pagination（不 cache）
         // cursor 格式：{createdAt}:{id} 或 ISO 日期字符串
@@ -152,6 +158,9 @@ export async function GET(
           LIMIT ${limit}
         `;
       }
+      const tQueryDone = performance.now();
+      const queryMs = (tQueryDone - tQueryStart).toFixed(1);
+      console.info(`📊 Messages query: ${queryMs}ms (found ${messages.length} messages)`);
       
       // ✅ 轉換格式（舊訊息可能 senderName 為 null，顯示「未知用戶」）
       // ✅ 只返回必要欄位，減少資料傳輸
@@ -211,6 +220,7 @@ export async function GET(
     const serverTiming = `auth;dur=${authMs},db;dur=${dbMs},total;dur=${totalMs}`;
     console.info(`⏱️ messages GET room=${roomId} auth=${authMs}ms db=${dbMs}ms total=${totalMs}ms cache=${cacheKey ? 'MISS' : 'SKIP'}`);
     console.info(`📊 Server-Timing header: ${serverTiming}`);
+    console.info(`🔍 DB breakdown: db.query() took ${dbMs}ms (this includes auth check + messages query)`);
     
     const response = NextResponse.json(
       { messages, cursor: nextCursor },
