@@ -72,7 +72,7 @@ export async function GET(
           // ✅ 驗證 header 是否正確設置
           const actualServerTiming = response.headers.get('Server-Timing');
           const actualXServerTiming = response.headers.get('X-Server-Timing');
-          console.info(`📊 Headers set - Server-Timing: ${actualServerTiming || 'MISS'}, X-Server-Timing: ${actualXServerTiming || 'MISS'}`);
+          console.log(`[MESSAGES API] 📊 Cache HIT - Headers: Server-Timing=${actualServerTiming || 'MISS'}, X-Server-Timing=${actualXServerTiming || 'MISS'}`);
           
           return response;
         }
@@ -108,7 +108,7 @@ export async function GET(
       ]);
       const tAuthCheckDone = performance.now();
       const authCheckMs = (tAuthCheckDone - tAuthCheckStart).toFixed(1);
-      console.info(`🔐 Auth check: ${authCheckMs}ms (membership: ${membership ? 'found' : 'not found'}, role: ${user?.role || 'none'})`);
+      console.log(`[MESSAGES API] 🔐 Auth check: ${authCheckMs}ms (membership: ${membership ? 'found' : 'not found'}, role: ${user?.role || 'none'})`);
 
       if (!membership && user?.role !== 'ADMIN') {
         throw new Error('無權限訪問此聊天室');
@@ -120,6 +120,7 @@ export async function GET(
       let messages: any[];
       
       const tQueryStart = performance.now();
+      console.log(`[MESSAGES API] 📊 Starting messages query for room=${roomId}, limit=${limit}, cursor=${cursor || 'none'}`);
       if (cursor) {
         // ✅ Cursor-based pagination（不 cache）
         // cursor 格式：{createdAt}:{id} 或 ISO 日期字符串
@@ -142,6 +143,8 @@ export async function GET(
         `;
       } else {
         // ✅ 最新消息查詢（會 cache）- 只 select 必要欄位
+        // ✅ 關鍵優化：使用部分索引 ChatMessage_roomId_createdAt_not_rejected_idx
+        // 這個索引專門用於 moderationStatus != 'REJECTED' 的查詢
         messages = await (client as any).$queryRaw`
           SELECT 
             id,
@@ -160,7 +163,7 @@ export async function GET(
       }
       const tQueryDone = performance.now();
       const queryMs = (tQueryDone - tQueryStart).toFixed(1);
-      console.info(`📊 Messages query: ${queryMs}ms (found ${messages.length} messages)`);
+      console.log(`[MESSAGES API] 📊 Messages query: ${queryMs}ms (found ${messages.length} messages)`);
       
       // ✅ 轉換格式（舊訊息可能 senderName 為 null，顯示「未知用戶」）
       // ✅ 只返回必要欄位，減少資料傳輸
@@ -218,9 +221,9 @@ export async function GET(
     const dbMs = (tDbDone - tAuth).toFixed(1);
     const totalMs = (tEnd - t0).toFixed(1);
     const serverTiming = `auth;dur=${authMs},db;dur=${dbMs},total;dur=${totalMs}`;
-    console.info(`⏱️ messages GET room=${roomId} auth=${authMs}ms db=${dbMs}ms total=${totalMs}ms cache=${cacheKey ? 'MISS' : 'SKIP'}`);
-    console.info(`📊 Server-Timing header: ${serverTiming}`);
-    console.info(`🔍 DB breakdown: db.query() took ${dbMs}ms (this includes auth check + messages query)`);
+    console.log(`[MESSAGES API] ⏱️ FINAL TIMING: room=${roomId} auth=${authMs}ms db=${dbMs}ms total=${totalMs}ms cache=${cacheKey ? 'MISS' : 'SKIP'}`);
+    console.log(`[MESSAGES API] 📊 Server-Timing header: ${serverTiming}`);
+    console.log(`[MESSAGES API] 🔍 DB breakdown: db.query() took ${dbMs}ms (this includes auth check + messages query)`);
     
     const response = NextResponse.json(
       { messages, cursor: nextCursor },
@@ -239,8 +242,8 @@ export async function GET(
     // ✅ 驗證 header 是否正確設置
     const actualServerTiming = response.headers.get('Server-Timing');
     const actualXServerTiming = response.headers.get('X-Server-Timing');
-    console.info(`📊 Headers set - Server-Timing: ${actualServerTiming || 'MISS'}, X-Server-Timing: ${actualXServerTiming || 'MISS'}`);
-    console.info(`⏱️ Timing breakdown: auth=${authMs}ms, db=${dbMs}ms, total=${totalMs}ms`);
+    console.log(`[MESSAGES API] 📊 Cache MISS - Headers: Server-Timing=${actualServerTiming || 'MISS'}, X-Server-Timing=${actualXServerTiming || 'MISS'}`);
+    console.log(`[MESSAGES API] ⏱️ Timing breakdown: auth=${authMs}ms, db=${dbMs}ms, total=${totalMs}ms`);
     
     return response;
   } catch (error) {
