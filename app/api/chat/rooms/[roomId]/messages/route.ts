@@ -62,6 +62,7 @@ export async function GET(
                 'Cache-Control': 'private, max-age=3, stale-while-revalidate=5',
                 'X-Cache': 'HIT',
                 'Server-Timing': `auth;dur=0,db;dur=0,total;dur=${totalMs}`,
+                'Access-Control-Expose-Headers': 'Server-Timing',
               },
             }
           );
@@ -210,6 +211,7 @@ export async function GET(
           'Cache-Control': 'private, max-age=3, stale-while-revalidate=5',
           'X-Cache': 'MISS',
           'Server-Timing': `auth;dur=${authMs},db;dur=${dbMs},total;dur=${totalMs}`,
+          'Access-Control-Expose-Headers': 'Server-Timing',
         },
       }
     );
