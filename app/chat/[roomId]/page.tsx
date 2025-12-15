@@ -92,6 +92,9 @@ export default function ChatRoomPage() {
   );
   const FREE_CHAT_LIMIT = 5;
 
+  // ✅ 關鍵優化：延後 WebSocket 初始化，直到 messages 載入完成
+  const [messagesLoaded, setMessagesLoaded] = useState(false);
+  
   const {
     messages: socketMessages,
     isConnected,
@@ -101,7 +104,10 @@ export default function ChatRoomPage() {
     startTyping,
     stopTyping,
     markAsRead,
-  } = useChatSocket({ roomId, enabled: !!roomId });
+  } = useChatSocket({ 
+    roomId, 
+    enabled: !!roomId && messagesLoaded // ✅ 只在 messages 載入後才啟用 socket
+  });
 
   // ✅ 關鍵優化：延後載入聊天室資訊（不阻塞首屏）
   useEffect(() => {
@@ -177,9 +183,9 @@ export default function ChatRoomPage() {
     const loadMessages = async () => {
       try {
         setLoadingMessages(true);
-        console.log(`📥 Loading messages for room: ${roomId}`);
+        console.log(`📥 Loading messages for room: ${roomId} (limit=10 for fast first screen)`);
         const messagesRes = await fetch(
-          `/api/chat/rooms/${roomId}/messages?limit=30`,
+          `/api/chat/rooms/${roomId}/messages?limit=10`, // ✅ 首屏只載入 10 則訊息
           { signal: abortController.signal }
         );
         
@@ -215,6 +221,7 @@ export default function ChatRoomPage() {
               createdAt: msg.createdAt,
             }));
             setLoadedHistoryMessages(formattedMessages);
+            setMessagesLoaded(true); // ✅ 標記 messages 已載入，允許啟用 socket
             
             // 計算用戶已發送的消息數量（僅計算免費聊天室）
             const currentRoom = room;

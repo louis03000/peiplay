@@ -26,16 +26,16 @@ export async function GET(
 
     const { roomId } = params;
     const { searchParams } = new URL(request.url);
-    // 優化：減少默認limit到30，提升查詢速度
-    const limit = Math.min(parseInt(searchParams.get('limit') || '30'), 50);
-    const before = searchParams.get('before'); // cursor-based pagination
+    // ✅ 關鍵優化：首屏只載入 10 則訊息，大幅提升速度
+    const limit = Math.min(parseInt(searchParams.get('limit') || '10'), 50);
+    const cursor = searchParams.get('cursor'); // cursor-based pagination (使用 cursor 而不是 before)
 
     // ✅ 關鍵優化：統一 cache key，所有用戶共用同一份 cache
-    // cache key 格式：messages:{roomId}:latest:30（固定格式，不包含 userId，不包含 before）
-    // 注意：只有最新消息（無 before 參數）才 cache，分頁查詢不 cache
-    const cacheKey = before 
+    // cache key 格式：messages:{roomId}:latest:10（固定格式，不包含 userId，不包含 cursor）
+    // 注意：只有最新消息（無 cursor 參數）才 cache，分頁查詢不 cache
+    const cacheKey = cursor 
       ? null // 分頁查詢不 cache
-      : `messages:${roomId}:latest:30`; // ✅ 固定 limit = 30
+      : `messages:${roomId}:latest:10`; // ✅ 固定 limit = 10（首屏優化）
     
     // ✅ 只有最新消息才使用 cache
     if (cacheKey) {
@@ -46,7 +46,10 @@ export async function GET(
           // ✅ cache hit：直接返回，禁止任何 DB 查詢（包括權限驗證）
           console.log(`🔥 messages cache HIT: ${cacheKey} (${Array.isArray(cached) ? cached.length : 0} messages)`);
           return NextResponse.json(
-            { messages: cached },
+            { 
+              messages: cached,
+              cursor: null, // ✅ cache hit 時不返回 cursor（因為是最新消息）
+            },
             {
               headers: {
                 'Cache-Control': 'private, max-age=3, stale-while-revalidate=5',
@@ -61,9 +64,9 @@ export async function GET(
         // Redis 不可用時，降級為直接查 DB（不報錯）
         console.warn(`⚠️ Cache unavailable for ${cacheKey}, falling back to DB:`, error.message);
       }
-    } else {
-      console.log(`📄 Pagination query (before=${before}), skipping cache`);
-    }
+      } else {
+        console.log(`📄 Pagination query (cursor=${cursor}), skipping cache`);
+      }
 
     // ✅ cache miss：查詢 DB（使用原生 SQL，禁止 JOIN）
     const result = await db.query(async (client) => {
@@ -89,13 +92,14 @@ export async function GET(
       }
 
       // ✅ 關鍵優化：使用原生 SQL 查詢，禁止 JOIN
-      // 使用 $queryRaw 直接查詢 messages 表，只使用 snapshot 欄位
-      // 這是業界標準做法：單表查詢，不使用 JOIN
+      // ✅ 只 select 必要欄位：id, senderId, senderName, senderAvatarUrl, content, createdAt
+      // ✅ 這是業界標準做法：單表查詢，不使用 JOIN，最小化資料傳輸
       let messages: any[];
       
-      if (before) {
-        // 分頁查詢（不 cache）
-        const beforeDate = new Date(before);
+      if (cursor) {
+        // ✅ Cursor-based pagination（不 cache）
+        // cursor 格式：{createdAt}:{id} 或 ISO 日期字符串
+        const cursorDate = new Date(cursor);
         messages = await (client as any).$queryRaw`
           SELECT 
             id,
@@ -104,19 +108,16 @@ export async function GET(
             "senderName",
             "senderAvatarUrl",
             content,
-            "contentType",
-            status,
-            "moderationStatus",
             "createdAt"
           FROM "ChatMessage"
           WHERE "roomId" = ${roomId}::text
             AND "moderationStatus" != 'REJECTED'
-            AND "createdAt" < ${beforeDate}
+            AND ("createdAt" < ${cursorDate} OR ("createdAt" = ${cursorDate} AND id < ${cursor.split(':')[1] || ''}))
           ORDER BY "createdAt" DESC, id DESC
           LIMIT ${limit}
         `;
       } else {
-        // 最新消息查詢（會 cache）
+        // ✅ 最新消息查詢（會 cache）- 只 select 必要欄位
         messages = await (client as any).$queryRaw`
           SELECT 
             id,
@@ -125,9 +126,6 @@ export async function GET(
             "senderName",
             "senderAvatarUrl",
             content,
-            "contentType",
-            status,
-            "moderationStatus",
             "createdAt"
           FROM "ChatMessage"
           WHERE "roomId" = ${roomId}::text
@@ -137,7 +135,8 @@ export async function GET(
         `;
       }
       
-      // 轉換格式（舊訊息可能 senderName 為 null，顯示「未知用戶」）
+      // ✅ 轉換格式（舊訊息可能 senderName 為 null，顯示「未知用戶」）
+      // ✅ 只返回必要欄位，減少資料傳輸
       const formattedMessages = (messages as any[]).reverse().map((msg: any) => ({
         id: msg.id,
         roomId: msg.roomId,
@@ -145,9 +144,9 @@ export async function GET(
         senderName: msg.senderName || null,        // 可能為 null（舊訊息）
         senderAvatarUrl: msg.senderAvatarUrl || null, // 可能為 null（舊訊息）
         content: msg.content,
-        contentType: msg.contentType,
-        status: msg.status,
-        moderationStatus: msg.moderationStatus,
+        contentType: 'TEXT' as const, // ✅ 默認值，減少查詢
+        status: 'SENT' as const, // ✅ 默認值，減少查詢
+        moderationStatus: 'APPROVED' as const, // ✅ 默認值（已過濾 REJECTED）
         createdAt: msg.createdAt,
         sender: {
           id: msg.senderId,
@@ -158,15 +157,23 @@ export async function GET(
         },
       }));
       
-      return formattedMessages;
+      // ✅ 返回 cursor 供下次分頁使用
+      const nextCursor = formattedMessages.length > 0 
+        ? `${formattedMessages[formattedMessages.length - 1].createdAt}:${formattedMessages[formattedMessages.length - 1].id}`
+        : null;
+      
+      return {
+        messages: formattedMessages,
+        cursor: nextCursor,
+      };
     }, 'chat:rooms:roomId:messages:get');
 
     // ✅ 關鍵優化：寫入快取（3秒 TTL，允許短暫不一致）
     // 不等待快取寫入完成（fire-and-forget），避免阻塞響應
     // 只有最新消息才 cache（分頁查詢不 cache）
-    if (cacheKey && result && Array.isArray(result)) {
-      Cache.set(cacheKey, result, 3).then(() => {
-        console.log(`✅ Cache set: ${cacheKey} (${result.length} messages, TTL: 3s)`);
+    if (cacheKey && result && typeof result === 'object' && 'messages' in result && Array.isArray(result.messages)) {
+      Cache.set(cacheKey, result.messages, 3).then(() => {
+        console.log(`✅ Cache set: ${cacheKey} (${result.messages.length} messages, TTL: 3s)`);
       }).catch((err: any) => {
         // Redis 不可用時，靜默失敗（不影響功能）
         console.warn(`⚠️ Failed to cache messages (Redis may be unavailable):`, err.message);
@@ -175,9 +182,15 @@ export async function GET(
       console.log(`📄 Skipping cache (pagination query)`);
     }
 
-    // 個人聊天訊息使用 private cache
+    // ✅ 返回結果，包含 cursor 供分頁使用
+    const messages = (result as any)?.messages || result || [];
+    const nextCursor = (result as any)?.cursor || null;
+    
     return NextResponse.json(
-      { messages: result },
+      { 
+        messages,
+        cursor: nextCursor, // ✅ 返回 cursor 供下次分頁使用
+      },
       {
         headers: {
           'Cache-Control': 'private, max-age=3, stale-while-revalidate=5',
@@ -372,8 +385,8 @@ export async function POST(
     }, 'chat:rooms:roomId:messages:post');
 
     // ✅ 關鍵優化：發送消息後清除快取，確保新消息立即顯示
-    // 使用統一的 cache key 格式
-    const cacheKey = `messages:${roomId}:latest:30`;
+    // 使用統一的 cache key 格式（limit=10）
+    const cacheKey = `messages:${roomId}:latest:10`;
     Cache.delete(cacheKey).catch((err: any) => {
       console.error('Failed to invalidate messages cache:', err);
     });
