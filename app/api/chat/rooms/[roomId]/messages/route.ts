@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { performance } from 'perf_hooks';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { db } from '@/lib/db-resilience';
@@ -18,7 +19,9 @@ export async function GET(
   { params }: { params: { roomId: string } }
 ) {
   try {
+    const t0 = performance.now();
     const session = await getServerSession(authOptions);
+    const tAuth = performance.now();
 
     if (!session?.user?.id) {
       return NextResponse.json({ error: '請先登入' }, { status: 401 });
@@ -44,7 +47,10 @@ export async function GET(
         
         if (cached) {
           // ✅ cache hit：直接返回，禁止任何 DB 查詢（包括權限驗證）
-          console.log(`🔥 messages cache HIT: ${cacheKey} (${Array.isArray(cached) ? cached.length : 0} messages)`);
+          const tEnd = performance.now();
+          console.log(
+            `🔥 messages cache HIT: ${cacheKey} (${Array.isArray(cached) ? cached.length : 0} messages) | total ${(tEnd - t0).toFixed(1)}ms`
+          );
           return NextResponse.json(
             { 
               messages: cached,
@@ -167,6 +173,7 @@ export async function GET(
         cursor: nextCursor,
       };
     }, 'chat:rooms:roomId:messages:get');
+    const tDbDone = performance.now();
 
     // ✅ 關鍵優化：寫入快取（3秒 TTL，允許短暫不一致）
     // 不等待快取寫入完成（fire-and-forget），避免阻塞響應
@@ -185,6 +192,11 @@ export async function GET(
     // ✅ 返回結果，包含 cursor 供分頁使用
     const messages = (result as any)?.messages || result || [];
     const nextCursor = (result as any)?.cursor || null;
+    const tEnd = performance.now();
+    const authMs = (tAuth - t0).toFixed(1);
+    const dbMs = (tDbDone - tAuth).toFixed(1);
+    const totalMs = (tEnd - t0).toFixed(1);
+    console.log(`⏱️ messages GET room=${roomId} auth=${authMs}ms db=${dbMs}ms total=${totalMs}ms cache=${cacheKey ? 'MISS' : 'SKIP'}`);
     
     return NextResponse.json(
       { 
@@ -195,6 +207,7 @@ export async function GET(
         headers: {
           'Cache-Control': 'private, max-age=3, stale-while-revalidate=5',
           'X-Cache': 'MISS',
+          'Server-Timing': `auth;dur=${authMs},db;dur=${dbMs},total;dur=${totalMs}`,
         },
       }
     );
