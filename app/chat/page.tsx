@@ -280,8 +280,8 @@ export default function ChatPage() {
 
     const loadMessages = async () => {
       try {
-        console.log(`📥 Loading messages for room: ${selectedRoomId}`);
-        const messagesRes = await fetch(`/api/chat/rooms/${selectedRoomId}/messages?limit=30`, {
+        console.log(`📥 Loading messages for room: ${selectedRoomId} (limit=10 for fast first screen)`);
+        const messagesRes = await fetch(`/api/chat/rooms/${selectedRoomId}/messages?limit=10`, {
           signal: abortController.signal,
         });
         
