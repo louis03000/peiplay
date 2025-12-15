@@ -49,18 +49,34 @@ export async function GET(
           // ✅ cache hit：直接返回，禁止任何 DB 查詢（包括權限驗證）
           const tEnd = performance.now();
           const totalMs = (tEnd - t0).toFixed(1);
+          const serverTiming = `auth;dur=0,db;dur=0,total;dur=${totalMs}`;
           console.info(
             `🔥 messages cache HIT: ${cacheKey} (${Array.isArray(cached) ? cached.length : 0} messages) | total ${totalMs}ms`
           );
-          const headers = new Headers();
-          headers.set('Cache-Control', 'private, max-age=3, stale-while-revalidate=5');
-          headers.set('X-Cache', 'HIT');
-          headers.set('Server-Timing', `auth;dur=0,db;dur=0,total;dur=${totalMs}`);
-          headers.set('Access-Control-Expose-Headers', 'Server-Timing');
-          return new NextResponse(
-            JSON.stringify({ messages: cached, cursor: null }),
-            { status: 200, headers }
+          console.info(`📊 Server-Timing header (cache HIT): ${serverTiming}`);
+          
+          const response = NextResponse.json(
+            { messages: cached, cursor: null },
+            {
+              status: 200,
+              headers: {
+                'Cache-Control': 'private, max-age=3, stale-while-revalidate=5',
+                'X-Cache': 'HIT',
+                'Server-Timing': serverTiming,
+                'Access-Control-Expose-Headers': 'Server-Timing',
+              },
+            }
           );
+          
+          // ✅ 驗證 header 是否正確設置
+          const actualServerTiming = response.headers.get('Server-Timing');
+          if (actualServerTiming) {
+            console.info(`✅ Server-Timing header set successfully (cache HIT): ${actualServerTiming}`);
+          } else {
+            console.error(`❌ Server-Timing header NOT set (cache HIT)! Expected: ${serverTiming}`);
+          }
+          
+          return response;
         }
         
         console.info(`❄️ messages cache MISS: ${cacheKey}, will query DB`);
@@ -194,18 +210,32 @@ export async function GET(
     const authMs = (tAuth - t0).toFixed(1);
     const dbMs = (tDbDone - tAuth).toFixed(1);
     const totalMs = (tEnd - t0).toFixed(1);
+    const serverTiming = `auth;dur=${authMs},db;dur=${dbMs},total;dur=${totalMs}`;
     console.info(`⏱️ messages GET room=${roomId} auth=${authMs}ms db=${dbMs}ms total=${totalMs}ms cache=${cacheKey ? 'MISS' : 'SKIP'}`);
+    console.info(`📊 Server-Timing header: ${serverTiming}`);
     
-    const headers = new Headers();
-    headers.set('Cache-Control', 'private, max-age=3, stale-while-revalidate=5');
-    headers.set('X-Cache', 'MISS');
-    headers.set('Server-Timing', `auth;dur=${authMs},db;dur=${dbMs},total;dur=${totalMs}`);
-    headers.set('Access-Control-Expose-Headers', 'Server-Timing');
-    
-    return new NextResponse(
-      JSON.stringify({ messages, cursor: nextCursor }),
-      { status: 200, headers }
+    const response = NextResponse.json(
+      { messages, cursor: nextCursor },
+      {
+        status: 200,
+        headers: {
+          'Cache-Control': 'private, max-age=3, stale-while-revalidate=5',
+          'X-Cache': 'MISS',
+          'Server-Timing': serverTiming,
+          'Access-Control-Expose-Headers': 'Server-Timing',
+        },
+      }
     );
+    
+    // ✅ 驗證 header 是否正確設置
+    const actualServerTiming = response.headers.get('Server-Timing');
+    if (actualServerTiming) {
+      console.info(`✅ Server-Timing header set successfully: ${actualServerTiming}`);
+    } else {
+      console.error(`❌ Server-Timing header NOT set! Expected: ${serverTiming}`);
+    }
+    
+    return response;
   } catch (error) {
     return createErrorResponse(error, 'chat:rooms:roomId:messages:get');
   }
