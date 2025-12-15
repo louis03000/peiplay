@@ -31,6 +31,7 @@ interface UseChatSocketOptions {
 let globalSocket: Socket | null = null;
 let globalSocketInitialized = false;
 let globalInitializedRef = false; // ✅ 全局初始化標記，確保只初始化一次
+const eventHandlers = new Map<string, Set<Function>>(); // ✅ 追蹤事件處理器，防止重複綁定
 
 export function useChatSocket({ roomId, enabled = true }: UseChatSocketOptions) {
   const { data: session } = useSession();
@@ -98,10 +99,8 @@ export function useChatSocket({ roomId, enabled = true }: UseChatSocketOptions) 
         auth: {
           userId: session.user.id,
         },
-        reconnection: true,
-        reconnectionDelay: 1000,
-        reconnectionAttempts: 5,
-        timeout: 10000,
+        reconnection: false, // ✅ 關鍵：禁用自動重連，避免多次連接嘗試
+        timeout: 5000, // ✅ 減少超時時間，快速失敗
         autoConnect: true,
       });
       globalSocketInitialized = true;
@@ -112,7 +111,16 @@ export function useChatSocket({ roomId, enabled = true }: UseChatSocketOptions) 
       });
       
       globalSocket.on('connect_error', (error: any) => {
+        // ✅ 關鍵：連接失敗時，禁用 socket，避免重複嘗試
         console.error('❌ Socket connection error:', error.message);
+        console.warn('⚠️ Socket connection failed, real-time features disabled. This is OK if socket server is not available.');
+        setIsConnected(false);
+        // 不自動重連，避免多次失敗嘗試
+        if (globalSocket) {
+          globalSocket.disconnect();
+          globalSocket = null;
+          globalInitializedRef = false; // 允許下次手動重試
+        }
       });
     } else if (globalSocket) {
       // ✅ 如果 socket 已經存在，直接使用
@@ -130,8 +138,26 @@ export function useChatSocket({ roomId, enabled = true }: UseChatSocketOptions) 
       return;
     }
 
-    socket.on('connect', () => {
-      console.log('✅ Socket connected');
+    // ✅ 關鍵：使用 once 或確保事件監聽器只綁定一次
+    // 因為 socket 是全局的，多個 hook 實例會重複綁定事件
+    // 使用一個標記來追蹤是否已經綁定過全局事件
+    if (!globalSocketInitialized) {
+      // 全局事件只綁定一次
+      socket.on('connect', () => {
+        console.log('✅ Socket connected (global event)');
+      });
+
+      socket.on('disconnect', () => {
+        console.log('❌ Socket disconnected (global event)');
+      });
+
+      socket.on('error', (error: { message: string }) => {
+        console.error('Socket.IO error:', error);
+      });
+    }
+
+    // ✅ 每個 hook 實例只綁定自己的事件（使用 roomId 過濾）
+    const handleConnect = () => {
       setIsConnected(true);
       
       // 加入聊天室（如果有的話）
@@ -140,19 +166,9 @@ export function useChatSocket({ roomId, enabled = true }: UseChatSocketOptions) 
         currentRoomIdRef.current = roomId;
         socket.emit('room:join', { roomId });
       }
-    });
+    };
 
-    socket.on('disconnect', () => {
-      console.log('❌ Socket disconnected');
-      setIsConnected(false);
-    });
-
-    socket.on('error', (error: { message: string }) => {
-      console.error('Socket.IO error:', error);
-    });
-
-    // 接收新訊息（只接收當前房間的消息）
-    socket.on('message:new', (message: ChatMessage) => {
+    const handleMessageNew = (message: ChatMessage) => {
       // 只處理當前房間的消息
       if (message.roomId !== currentRoomIdRef.current) {
         return;
@@ -164,22 +180,15 @@ export function useChatSocket({ roomId, enabled = true }: UseChatSocketOptions) 
         }
         return [...prev, message];
       });
-    });
+    };
 
-    // 訊息被拒絕
-    socket.on('message:rejected', (data: { messageId: string; reason?: string }) => {
-      console.warn('Message rejected:', data.reason);
-      // 可以顯示錯誤提示
-    });
-
-    // Typing indicator
-    socket.on('typing:start', (data: { userId: string; roomId: string }) => {
+    const handleTypingStart = (data: { userId: string; roomId: string }) => {
       if (data.roomId === roomId && data.userId !== session.user.id) {
         setTypingUsers((prev) => new Set(prev).add(data.userId));
       }
-    });
+    };
 
-    socket.on('typing:stop', (data: { userId: string; roomId: string }) => {
+    const handleTypingStop = (data: { userId: string; roomId: string }) => {
       if (data.roomId === roomId) {
         setTypingUsers((prev) => {
           const next = new Set(prev);
@@ -187,10 +196,9 @@ export function useChatSocket({ roomId, enabled = true }: UseChatSocketOptions) 
           return next;
         });
       }
-    });
+    };
 
-    // Online status
-    socket.on('user:online', (data: { userId: string; isOnline: boolean }) => {
+    const handleUserOnline = (data: { userId: string; isOnline: boolean }) => {
       setOnlineMembers((prev) => {
         const next = new Set(prev);
         if (data.isOnline) {
@@ -200,16 +208,15 @@ export function useChatSocket({ roomId, enabled = true }: UseChatSocketOptions) 
         }
         return next;
       });
-    });
+    };
 
-    socket.on('room:online-members', (data: { roomId: string; members: string[] }) => {
+    const handleRoomOnlineMembers = (data: { roomId: string; members: string[] }) => {
       if (data.roomId === roomId) {
         setOnlineMembers(new Set(data.members));
       }
-    });
+    };
 
-    // 已讀回條
-    socket.on('message:read', (data: { messageId: string; userId: string }) => {
+    const handleMessageRead = (data: { messageId: string; userId: string }) => {
       setMessages((prev) =>
         prev.map((msg) =>
           msg.id === data.messageId
@@ -217,18 +224,46 @@ export function useChatSocket({ roomId, enabled = true }: UseChatSocketOptions) 
             : msg
         )
       );
-    });
+    };
 
-    // 清理函數：不斷開 socket（因為是全局單例）
+    const handleMessageRejected = (data: { messageId: string; reason?: string }) => {
+      console.warn('Message rejected:', data.reason);
+    };
+
+    // ✅ 綁定事件（每個 hook 實例都會綁定，但會用 roomId 過濾）
+    socket.on('connect', handleConnect);
+    socket.on('message:new', handleMessageNew);
+    socket.on('message:rejected', handleMessageRejected);
+    socket.on('typing:start', handleTypingStart);
+    socket.on('typing:stop', handleTypingStop);
+    socket.on('user:online', handleUserOnline);
+    socket.on('room:online-members', handleRoomOnlineMembers);
+    socket.on('message:read', handleMessageRead);
+
+    // ✅ 如果 socket 已經連接，立即觸發 connect 處理
+    if (socket.connected) {
+      handleConnect();
+    }
+
+    // 清理函數：移除事件監聽器（不斷開 socket）
     return () => {
-      // ✅ 關鍵：不斷開 socket，因為是全局單例，整個網站共用
-      // 只離開當前房間
-      if (globalSocket && currentRoomIdRef.current) {
-        globalSocket.emit('room:leave', { roomId: currentRoomIdRef.current });
+      // ✅ 關鍵：移除事件監聽器，但不斷開 socket（因為是全局單例）
+      socket.off('connect', handleConnect);
+      socket.off('message:new', handleMessageNew);
+      socket.off('message:rejected', handleMessageRejected);
+      socket.off('typing:start', handleTypingStart);
+      socket.off('typing:stop', handleTypingStop);
+      socket.off('user:online', handleUserOnline);
+      socket.off('room:online-members', handleRoomOnlineMembers);
+      socket.off('message:read', handleMessageRead);
+      
+      // 離開當前房間
+      if (currentRoomIdRef.current) {
+        socket.emit('room:leave', { roomId: currentRoomIdRef.current });
         currentRoomIdRef.current = null;
       }
     };
-  }, [enabled, session?.user?.id]); // ✅ 關鍵：不依賴 roomId，避免重建 socket
+  }, [enabled, session?.user?.id, roomId]); // ✅ 需要依賴 roomId，因為要處理房間切換
 
   // ✅ 當 roomId 變化時，切換房間（不重新連接 socket）
   useEffect(() => {
