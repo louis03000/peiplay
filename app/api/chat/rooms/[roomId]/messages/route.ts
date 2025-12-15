@@ -52,19 +52,14 @@ export async function GET(
           console.info(
             `🔥 messages cache HIT: ${cacheKey} (${Array.isArray(cached) ? cached.length : 0} messages) | total ${totalMs}ms`
           );
-          return NextResponse.json(
-            { 
-              messages: cached,
-              cursor: null, // ✅ cache hit 時不返回 cursor（因為是最新消息）
-            },
-            {
-              headers: {
-                'Cache-Control': 'private, max-age=3, stale-while-revalidate=5',
-                'X-Cache': 'HIT',
-                'Server-Timing': `auth;dur=0,db;dur=0,total;dur=${totalMs}`,
-                'Access-Control-Expose-Headers': 'Server-Timing',
-              },
-            }
+          const headers = new Headers();
+          headers.set('Cache-Control', 'private, max-age=3, stale-while-revalidate=5');
+          headers.set('X-Cache', 'HIT');
+          headers.set('Server-Timing', `auth;dur=0,db;dur=0,total;dur=${totalMs}`);
+          headers.set('Access-Control-Expose-Headers', 'Server-Timing');
+          return new NextResponse(
+            JSON.stringify({ messages: cached, cursor: null }),
+            { status: 200, headers }
           );
         }
         
@@ -201,19 +196,15 @@ export async function GET(
     const totalMs = (tEnd - t0).toFixed(1);
     console.info(`⏱️ messages GET room=${roomId} auth=${authMs}ms db=${dbMs}ms total=${totalMs}ms cache=${cacheKey ? 'MISS' : 'SKIP'}`);
     
-    return NextResponse.json(
-      { 
-        messages,
-        cursor: nextCursor, // ✅ 返回 cursor 供下次分頁使用
-      },
-      {
-        headers: {
-          'Cache-Control': 'private, max-age=3, stale-while-revalidate=5',
-          'X-Cache': 'MISS',
-          'Server-Timing': `auth;dur=${authMs},db;dur=${dbMs},total;dur=${totalMs}`,
-          'Access-Control-Expose-Headers': 'Server-Timing',
-        },
-      }
+    const headers = new Headers();
+    headers.set('Cache-Control', 'private, max-age=3, stale-while-revalidate=5');
+    headers.set('X-Cache', 'MISS');
+    headers.set('Server-Timing', `auth;dur=${authMs},db;dur=${dbMs},total;dur=${totalMs}`);
+    headers.set('Access-Control-Expose-Headers', 'Server-Timing');
+    
+    return new NextResponse(
+      JSON.stringify({ messages, cursor: nextCursor }),
+      { status: 200, headers }
     );
   } catch (error) {
     return createErrorResponse(error, 'chat:rooms:roomId:messages:get');
