@@ -63,18 +63,16 @@ export async function GET(
                 'Cache-Control': 'private, max-age=3, stale-while-revalidate=5',
                 'X-Cache': 'HIT',
                 'Server-Timing': serverTiming,
-                'Access-Control-Expose-Headers': 'Server-Timing',
+                'X-Server-Timing': serverTiming, // ✅ 備用方案：Vercel 可能過濾 Server-Timing
+                'Access-Control-Expose-Headers': 'Server-Timing, X-Server-Timing',
               },
             }
           );
           
           // ✅ 驗證 header 是否正確設置
           const actualServerTiming = response.headers.get('Server-Timing');
-          if (actualServerTiming) {
-            console.info(`✅ Server-Timing header set successfully (cache HIT): ${actualServerTiming}`);
-          } else {
-            console.error(`❌ Server-Timing header NOT set (cache HIT)! Expected: ${serverTiming}`);
-          }
+          const actualXServerTiming = response.headers.get('X-Server-Timing');
+          console.info(`📊 Headers set - Server-Timing: ${actualServerTiming || 'MISS'}, X-Server-Timing: ${actualXServerTiming || 'MISS'}`);
           
           return response;
         }
@@ -222,18 +220,17 @@ export async function GET(
           'Cache-Control': 'private, max-age=3, stale-while-revalidate=5',
           'X-Cache': 'MISS',
           'Server-Timing': serverTiming,
-          'Access-Control-Expose-Headers': 'Server-Timing',
+          'X-Server-Timing': serverTiming, // ✅ 備用方案：Vercel 可能過濾 Server-Timing
+          'Access-Control-Expose-Headers': 'Server-Timing, X-Server-Timing',
         },
       }
     );
     
     // ✅ 驗證 header 是否正確設置
     const actualServerTiming = response.headers.get('Server-Timing');
-    if (actualServerTiming) {
-      console.info(`✅ Server-Timing header set successfully: ${actualServerTiming}`);
-    } else {
-      console.error(`❌ Server-Timing header NOT set! Expected: ${serverTiming}`);
-    }
+    const actualXServerTiming = response.headers.get('X-Server-Timing');
+    console.info(`📊 Headers set - Server-Timing: ${actualServerTiming || 'MISS'}, X-Server-Timing: ${actualXServerTiming || 'MISS'}`);
+    console.info(`⏱️ Timing breakdown: auth=${authMs}ms, db=${dbMs}ms, total=${totalMs}ms`);
     
     return response;
   } catch (error) {
