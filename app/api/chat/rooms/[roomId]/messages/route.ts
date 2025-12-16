@@ -128,6 +128,8 @@ export async function GET(
         // ✅ Cursor-based pagination（不 cache）
         // cursor 格式：{createdAt}:{id} 或 ISO 日期字符串
         const cursorDate = new Date(cursor);
+        // ✅ 關鍵修復：移除 ::text cast，確保使用索引
+        // roomId 已經是 TEXT 類型，不需要 cast
         messages = await (client as any).$queryRaw`
           SELECT 
             id,
@@ -138,7 +140,7 @@ export async function GET(
             content,
             "createdAt"
           FROM "ChatMessage"
-          WHERE "roomId" = ${roomId}::text
+          WHERE "roomId" = ${roomId}
             AND "moderationStatus" != 'REJECTED'
             AND ("createdAt" < ${cursorDate} OR ("createdAt" = ${cursorDate} AND id < ${cursor.split(':')[1] || ''}))
           ORDER BY "createdAt" DESC, id DESC
@@ -148,6 +150,8 @@ export async function GET(
         // ✅ 最新消息查詢（會 cache）- 只 select 必要欄位
         // ✅ 關鍵優化：使用部分索引 ChatMessage_roomId_createdAt_not_rejected_idx
         // 這個索引專門用於 moderationStatus != 'REJECTED' 的查詢
+        // ✅ 關鍵修復：移除 ::text cast，確保使用索引
+        // roomId 已經是 TEXT 類型，不需要 cast
         messages = await (client as any).$queryRaw`
           SELECT 
             id,
@@ -158,7 +162,7 @@ export async function GET(
             content,
             "createdAt"
           FROM "ChatMessage"
-          WHERE "roomId" = ${roomId}::text
+          WHERE "roomId" = ${roomId}
             AND "moderationStatus" != 'REJECTED'
           ORDER BY "createdAt" DESC, id DESC
           LIMIT ${limit}
