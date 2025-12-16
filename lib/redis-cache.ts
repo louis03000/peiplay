@@ -107,7 +107,7 @@ export const CacheKeys = {
   // Partners
   partners: {
     detail: (partnerId: string) => `partner:${partnerId}`,
-    list: () => `partners:list`,
+    list: (params?: string) => params ? `partners:list:${params}` : `partners:list`,
     ranking: () => `partners:ranking`,
     averageRating: (partnerId: string) => `partner:${partnerId}:rating`,
   },
