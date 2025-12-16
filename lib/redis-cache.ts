@@ -117,6 +117,12 @@ export const CacheKeys = {
     averageRating: (partnerId: string) => `partner:${partnerId}:rating`,
   },
 
+  // Reviews
+  reviews: {
+    partner: (partnerId: string) => `reviews:partner:${partnerId}`,
+    public: () => `reviews:public`,
+  },
+
   // Pre-Chat (預聊系統)
   preChat: {
     meta: (roomId: string) => `prechat:meta:${roomId}`,
