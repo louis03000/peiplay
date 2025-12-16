@@ -20,24 +20,29 @@ jobs:
           
           # 確保 API_URL 沒有尾隨斜線
           API_URL=$(echo "${API_URL}" | sed 's|/$||')
+          FULL_URL="${API_URL}/api/internal/cleanup-pre-chat"
           
-          # 使用 -L 參數跟隨重定向，-f 參數在 HTTP 錯誤時失敗
-          response=$(curl -s -L -w "\n%{http_code}" -X POST "${API_URL}/api/internal/cleanup-pre-chat" \
+          echo "🔍 除錯資訊："
+          echo "API_URL: ${FULL_URL}"
+          echo "CRON_SECRET 長度: ${#CRON_SECRET} 字元"
+          echo ""
+          
+          # 使用 -L 參數跟隨重定向，不使用 -f 參數以便捕獲錯誤訊息
+          response=$(curl -s -L -w "\n%{http_code}" -X POST "${FULL_URL}" \
             -H "Authorization: Bearer ${CRON_SECRET}" \
             -H "Content-Type: application/json" \
-            -f 2>&1 || echo "CURL_ERROR")
+            2>&1)
           
           http_code=$(echo "$response" | tail -n1)
           body=$(echo "$response" | sed '$d')
           
-          if [ "$http_code" = "CURL_ERROR" ] || [ "$http_code" != "200" ]; then
-            echo "❌ 清理失敗 (HTTP ${http_code:-未知})"
-            echo "Response body:"
-            echo "$body"
-            echo ""
-            echo "🔍 除錯資訊："
-            echo "API_URL: ${API_URL}/api/internal/cleanup-pre-chat"
-            echo "CRON_SECRET 長度: ${#CRON_SECRET} 字元"
+          echo "HTTP Status Code: ${http_code}"
+          echo "Response body:"
+          echo "$body"
+          echo ""
+          
+          if [ "$http_code" != "200" ]; then
+            echo "❌ 清理失敗 (HTTP ${http_code})"
             exit 1
           else
             echo "✅ 清理成功"

@@ -869,12 +869,12 @@ model Message {
 // 預聊房間
 model PreChatRoom {
   id           String   @id @default(cuid())
-  userId       String
-  partnerId    String
+  userId       String   @map("user_id")
+  partnerId    String   @map("partner_id")
   status       String   @default("open") // open | locked | expired
-  messageCount Int      @default(0)      @db.SmallInt
-  expiresAt    DateTime @db.Timestamptz
-  createdAt    DateTime @default(now())  @db.Timestamptz
+  messageCount Int      @default(0)      @map("message_count") @db.SmallInt
+  expiresAt    DateTime @map("expires_at") @db.Timestamptz
+  createdAt    DateTime @default(now())  @map("created_at") @db.Timestamptz
   user         User     @relation("PreChatRoomUser", fields: [userId], references: [id], onDelete: Cascade)
   partner      User     @relation("PreChatRoomPartner", fields: [partnerId], references: [id], onDelete: Cascade)
   messages     PreChatMessage[]
@@ -890,10 +890,10 @@ model PreChatRoom {
 // 預聊訊息
 model PreChatMessage {
   id         BigInt   @id @default(autoincrement())
-  roomId     String
-  senderType String   // 'user' | 'partner'
+  roomId     String   @map("room_id")
+  senderType String   @map("sender_type") // 'user' | 'partner'
   content    String
-  createdAt  DateTime @default(now()) @db.Timestamptz
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz
   room       PreChatRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
 
   @@index([roomId, createdAt(sort: Desc)])
