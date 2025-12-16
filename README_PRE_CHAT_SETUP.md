@@ -66,7 +66,10 @@ openssl rand -hex 32
 ## 📚 詳細文檔
 
 - [預聊系統完整說明](./docs/PRE_CHAT_SYSTEM.md)
+- [效能優化詳情](./docs/PRE_CHAT_OPTIMIZATION.md)
 - [GitHub Actions 設定指南](./docs/GITHUB_ACTIONS_SETUP.md)
+- [Cursor AI 修復指令](./docs/CURSOR_AI_FIX_INSTRUCTIONS.md)
+- [Session 優化建議](./docs/SESSION_OPTIMIZATION.md)
 
 ## ✅ 檢查清單
 

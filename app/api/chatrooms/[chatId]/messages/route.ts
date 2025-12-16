@@ -57,7 +57,7 @@ export async function GET(
         return { messages: [] };
       }
 
-      // 查詢訊息
+      // 查詢訊息（只查詢必要欄位，使用索引）
       let messages;
       if (since) {
         // 查詢 since 之後的訊息
@@ -68,14 +68,26 @@ export async function GET(
               gt: new Date(since),
             },
           },
+          select: {
+            id: true,
+            senderType: true,
+            content: true,
+            createdAt: true,
+          },
           orderBy: { createdAt: 'asc' },
           take: 10,
         });
       } else {
-        // 查詢最新 10 則訊息
+        // 查詢最新 10 則訊息（ORDER BY created_at DESC LIMIT 10，使用索引）
         messages = await (client as any).preChatMessage.findMany({
           where: {
             roomId: chatId,
+          },
+          select: {
+            id: true,
+            senderType: true,
+            content: true,
+            createdAt: true,
           },
           orderBy: { createdAt: 'desc' },
           take: 10,
@@ -211,6 +223,12 @@ export async function POST(
         };
       });
     }, 'chatrooms:chatId:messages:post');
+
+    // 清除 meta 快取（因為有新訊息）
+    const cacheKey = `prechat:meta:${chatId}`;
+    Cache.delete(cacheKey).catch((err: any) => {
+      console.warn('Failed to invalidate meta cache:', err.message);
+    });
 
     return NextResponse.json(result);
   } catch (error: any) {

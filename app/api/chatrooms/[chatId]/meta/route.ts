@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { db } from '@/lib/db-resilience';
 import { createErrorResponse } from '@/lib/api-helpers';
+import { Cache } from '@/lib/redis-cache';
 
 export const dynamic = 'force-dynamic';
 
@@ -26,6 +27,23 @@ export async function GET(
     }
 
     const { chatId } = params;
+
+    // Redis 快取（如果可用）
+    const cacheKey = `prechat:meta:${chatId}`;
+    try {
+      const cached = await Cache.get(cacheKey);
+      if (cached) {
+        return NextResponse.json(cached, {
+          headers: {
+            'Cache-Control': 'private, max-age=1, stale-while-revalidate=2',
+            'X-Cache': 'HIT',
+          },
+        });
+      }
+    } catch (error) {
+      // Redis 不可用時，降級為直接查 DB
+      console.warn('Redis cache unavailable, falling back to DB');
+    }
 
     const result = await db.query(async (client) => {
       // 只查詢 pre_chat_rooms 表（極快，使用索引）
@@ -61,9 +79,15 @@ export async function GET(
       };
     }, 'chatrooms:chatId:meta:get');
 
+    // 存入 Redis 快取（TTL: 25 小時，略長於房間有效期）
+    Cache.set(cacheKey, result, 90000).catch((err: any) => {
+      console.warn('Failed to cache meta:', err.message);
+    });
+
     return NextResponse.json(result, {
       headers: {
         'Cache-Control': 'private, max-age=1, stale-while-revalidate=2',
+        'X-Cache': 'MISS',
       },
     });
   } catch (error: any) {
