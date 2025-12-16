@@ -104,6 +104,14 @@ export const CacheKeys = {
     rooms: (userId: string) => `chat:rooms:${userId}`,
   },
 
+  // Partners
+  partners: {
+    detail: (partnerId: string) => `partner:${partnerId}`,
+    list: () => `partners:list`,
+    ranking: () => `partners:ranking`,
+    averageRating: (partnerId: string) => `partner:${partnerId}:rating`,
+  },
+
   // Pre-Chat (預聊系統)
   preChat: {
     meta: (roomId: string) => `prechat:meta:${roomId}`,
