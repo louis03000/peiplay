@@ -207,15 +207,17 @@ export async function GET(
     // 不等待快取寫入完成（fire-and-forget），避免阻塞響應
     // 只有最新消息才 cache（分頁查詢不 cache）
     if (cacheKey && result && typeof result === 'object' && 'messages' in result && Array.isArray(result.messages)) {
+      console.log(`📝 Attempting to cache: ${cacheKey} (${result.messages.length} messages)`);
       Cache.set(cacheKey, result.messages, 60).then((success) => {
         if (success) {
           console.log(`✅ KV cache set: ${cacheKey} (${result.messages.length} messages, TTL: 60s)`);
         } else {
-          console.warn(`⚠️ KV cache set failed: ${cacheKey} (REDIS_URL may not be set)`);
+          console.warn(`⚠️ KV cache set failed: ${cacheKey} (Redis client may not be available)`);
         }
       }).catch((err: any) => {
         // Redis/KV 不可用時，靜默失敗（不影響功能）
-        console.warn(`⚠️ Failed to cache messages (KV may be unavailable):`, err.message);
+        console.error(`❌ Failed to cache messages (KV may be unavailable):`, err);
+        console.error(`❌ Error details:`, err.message, err.stack);
       });
     } else if (!cacheKey) {
       console.log(`📄 Skipping cache (pagination or limit > 10)`);

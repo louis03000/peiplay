@@ -205,12 +205,27 @@ export class Cache {
       if (!client.isReady) {
         console.log(`🔌 Cache.set(${key}): Connecting to Redis...`);
         await client.connect();
+        console.log(`✅ Cache.set(${key}): Redis connected, ready to set`);
       }
-      await client.setEx(key, ttlSeconds, JSON.stringify(value));
-      console.log(`✅ Cache.set(${key}): Success (TTL: ${ttlSeconds}s)`);
+      
+      const valueStr = JSON.stringify(value);
+      console.log(`💾 Cache.set(${key}): Setting value (size: ${valueStr.length} bytes, TTL: ${ttlSeconds}s)`);
+      
+      await client.setEx(key, ttlSeconds, valueStr);
+      
+      // ✅ 驗證是否真的寫入了
+      const verify = await client.get(key);
+      if (verify) {
+        console.log(`✅ Cache.set(${key}): Success and verified (TTL: ${ttlSeconds}s)`);
+      } else {
+        console.error(`❌ Cache.set(${key}): Set succeeded but verification failed (value not found)`);
+      }
+      
       return true;
-    } catch (error) {
+    } catch (error: any) {
       console.error(`❌ Cache set error for key ${key}:`, error);
+      console.error(`❌ Error message:`, error.message);
+      console.error(`❌ Error stack:`, error.stack);
       return false;
     }
   }
