@@ -868,7 +868,7 @@ model Message {
 
 // 預聊房間
 model PreChatRoom {
-  id           String   @id @default(uuid())
+  id           String   @id @default(cuid())
   userId       String
   partnerId    String
   status       String   @default("open") // open | locked | expired

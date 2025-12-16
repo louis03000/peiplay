@@ -8,10 +8,10 @@
 
 -- 1. 預聊房間表
 CREATE TABLE IF NOT EXISTS pre_chat_rooms (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
   
-  user_id UUID NOT NULL REFERENCES "User"(id) ON DELETE CASCADE,
-  partner_id UUID NOT NULL REFERENCES "User"(id) ON DELETE CASCADE,
+  user_id TEXT NOT NULL REFERENCES "User"(id) ON DELETE CASCADE,
+  partner_id TEXT NOT NULL REFERENCES "User"(id) ON DELETE CASCADE,
   
   status TEXT NOT NULL DEFAULT 'open',
   -- open | locked | expired
@@ -41,7 +41,7 @@ CREATE INDEX IF NOT EXISTS idx_pre_chat_rooms_status
 CREATE TABLE IF NOT EXISTS pre_chat_messages (
   id BIGSERIAL PRIMARY KEY,
   
-  room_id UUID NOT NULL REFERENCES pre_chat_rooms(id) ON DELETE CASCADE,
+  room_id TEXT NOT NULL REFERENCES pre_chat_rooms(id) ON DELETE CASCADE,
   
   sender_type TEXT NOT NULL,
   -- 'user' | 'partner'

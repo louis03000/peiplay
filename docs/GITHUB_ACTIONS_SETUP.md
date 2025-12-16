@@ -98,17 +98,28 @@ node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 
 如果看到錯誤：
 
-1. **401 Unauthorized**
+1. **HTTP 308 (Permanent Redirect)**
+   - **最常見原因**：`API_URL` 設定不正確
+   - **解決方法**：
+     - 確認 `API_URL` 以 `https://` 開頭
+     - 確認 `API_URL` 末尾沒有斜線 `/`
+     - 正確格式：`https://your-app.vercel.app`（不是 `https://your-app.vercel.app/`）
+     - 更新 GitHub Secrets 中的 `API_URL` 後重新執行 workflow
+
+2. **401 Unauthorized**
    - 檢查 `CRON_SECRET` 是否正確設定
-   - 確認 GitHub Secrets 和環境變數的值一致
+   - 確認 GitHub Secrets 和 Vercel 環境變數的值**完全相同**
+   - 確認 Vercel 已重新部署（環境變數需要重新部署才生效）
 
-2. **404 Not Found**
+3. **404 Not Found**
    - 檢查 `API_URL` 是否正確
-   - 確認 API 路由已部署
+   - 確認 API 路由 `/api/internal/cleanup-pre-chat` 已部署
+   - 在瀏覽器訪問 `https://你的網址/api/internal/cleanup-pre-chat` 測試（應該看到 401，表示路由存在）
 
-3. **500 Internal Server Error**
-   - 查看 API 日誌
+4. **500 Internal Server Error**
+   - 查看 Vercel 日誌
    - 檢查資料庫連線
+   - 確認資料表已建立（執行 migration）
 
 ## ⚙️ 自訂排程
 

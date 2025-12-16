@@ -18,19 +18,29 @@ jobs:
         run: |
           echo "🧹 開始清理過期的預聊房間..."
           
-          response=$(curl -s -w "\n%{http_code}" -X POST "${API_URL}/api/internal/cleanup-pre-chat" \
+          # 確保 API_URL 沒有尾隨斜線
+          API_URL=$(echo "${API_URL}" | sed 's|/$||')
+          
+          # 使用 -L 參數跟隨重定向，-f 參數在 HTTP 錯誤時失敗
+          response=$(curl -s -L -w "\n%{http_code}" -X POST "${API_URL}/api/internal/cleanup-pre-chat" \
             -H "Authorization: Bearer ${CRON_SECRET}" \
-            -H "Content-Type: application/json")
+            -H "Content-Type: application/json" \
+            -f 2>&1 || echo "CURL_ERROR")
           
           http_code=$(echo "$response" | tail -n1)
           body=$(echo "$response" | sed '$d')
           
-          if [ "$http_code" -eq 200 ]; then
-            echo "✅ 清理成功"
-            echo "$body" | jq '.' || echo "$body"
-          else
-            echo "❌ 清理失敗 (HTTP $http_code)"
+          if [ "$http_code" = "CURL_ERROR" ] || [ "$http_code" != "200" ]; then
+            echo "❌ 清理失敗 (HTTP ${http_code:-未知})"
+            echo "Response body:"
             echo "$body"
+            echo ""
+            echo "🔍 除錯資訊："
+            echo "API_URL: ${API_URL}/api/internal/cleanup-pre-chat"
+            echo "CRON_SECRET 長度: ${#CRON_SECRET} 字元"
             exit 1
+          else
+            echo "✅ 清理成功"
+            echo "$body"
           fi
 

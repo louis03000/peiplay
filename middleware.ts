@@ -15,11 +15,19 @@ export async function middleware(request: NextRequest) {
   // 在每個請求中添加請求 ID 以便追蹤
   const requestId = crypto.randomUUID()
   
+  // 跳過地理位置檢查的路徑（內部 API，需要 token 驗證）
+  const skipGeoCheckPaths = [
+    '/api/internal/cleanup-pre-chat', // GitHub Actions 清理任務
+  ];
+  
+  const shouldSkipGeoCheck = 
+    process.env.SKIP_GEO_CHECK === 'true' ||
+    skipGeoCheckPaths.some(path => request.nextUrl.pathname.startsWith(path));
+  
   // IP 地理位置檢查（僅允許台灣 IP）
   // 注意：可以通過環境變數 SKIP_GEO_CHECK=true 跳過此檢查（用於開發/測試）
-  const skipGeoCheck = process.env.SKIP_GEO_CHECK === 'true';
-  
-  if (!skipGeoCheck) {
+  // 內部 API 路徑也會跳過檢查（因為它們有自己的 token 驗證）
+  if (!shouldSkipGeoCheck) {
     try {
       const geoCheck = await IPGeolocation.isIPAllowed(request);
       
