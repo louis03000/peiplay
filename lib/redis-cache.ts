@@ -161,6 +161,10 @@ export class Cache {
     if (!client) return null;
 
     try {
+      // ✅ 確保 client 已連接
+      if (!client.isReady) {
+        await client.connect();
+      }
       const value = await client.get(key);
       if (!value) return null;
       return JSON.parse(value) as T;
@@ -182,6 +186,10 @@ export class Cache {
     if (!client) return false;
 
     try {
+      // ✅ 確保 client 已連接
+      if (!client.isReady) {
+        await client.connect();
+      }
       await client.setEx(key, ttlSeconds, JSON.stringify(value));
       return true;
     } catch (error) {
@@ -198,6 +206,10 @@ export class Cache {
     if (!client) return false;
 
     try {
+      // ✅ 確保 client 已連接
+      if (!client.isReady) {
+        await client.connect();
+      }
       await client.del(key);
       return true;
     } catch (error) {
@@ -214,6 +226,10 @@ export class Cache {
     if (!client) return 0;
 
     try {
+      // ✅ 確保 client 已連接
+      if (!client.isReady) {
+        await client.connect();
+      }
       const keys = await client.keys(pattern);
       if (keys.length === 0) return 0;
 
