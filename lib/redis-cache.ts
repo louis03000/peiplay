@@ -49,12 +49,46 @@ export function getRedisClient(): Redis | null {
 }
 
 /**
+ * Cache TTL 常數（秒）
+ */
+export const CacheTTL = {
+  SHORT: 120,   // 2 分鐘
+  MEDIUM: 300,  // 5 分鐘
+  LONG: 1800,   // 30 分鐘
+} as const;
+
+/**
+ * Cache Invalidation 工具
+ */
+export const CacheInvalidation = {
+  /**
+   * 當 Partner 更新時，清除相關 cache
+   */
+  async onPartnerUpdate(partnerId: string): Promise<void> {
+    try {
+      const patterns = [
+        `partners:*`,
+        `partner:${partnerId}:*`,
+        `stats:*`,
+      ];
+      
+      for (const pattern of patterns) {
+        await Cache.deletePattern(pattern);
+      }
+    } catch (error: any) {
+      console.error('Cache invalidation error:', error);
+    }
+  },
+} as const;
+
+/**
  * Cache Key 命名規範
  */
 export const CacheKeys = {
   // User stats
   stats: {
     user: (userId: string) => `stats:user:${userId}`,
+    platform: () => `stats:platform`,
   },
 
   // User info
@@ -189,5 +223,29 @@ export class Cache {
       console.error(`❌ Cache deletePattern error for pattern ${pattern}:`, error);
       return 0;
     }
+  }
+
+  /**
+   * 獲取 cache 值，如果不存在則執行回調函數並設置 cache
+   */
+  static async getOrSet<T>(
+    key: string,
+    factory: () => Promise<T>,
+    ttlSeconds: number = 300
+  ): Promise<T> {
+    const cached = await this.get<T>(key);
+    if (cached !== null) {
+      return cached;
+    }
+
+    // Cache miss，執行 factory 函數獲取數據
+    const value = await factory();
+    
+    // 設置 cache（不等待完成，避免阻塞）
+    this.set(key, value, ttlSeconds).catch((error: any) => {
+      console.error(`⚠️ Failed to set cache for ${key}:`, error);
+    });
+
+    return value;
   }
 }
