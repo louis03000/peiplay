@@ -21,12 +21,15 @@ export async function GET(
   const start = Date.now();
   console.error('[messages] start', start, 'roomId:', params.roomId);
   
-  // ✅ 檢查環境變數（立即顯示在 Vercel Logs）
+  // ✅ 檢查環境變數（立即顯示在 Vercel Logs 和 Response Headers）
   const redisUrl = process.env.REDIS_URL;
+  const redisStatus = redisUrl ? 'SET' : 'NOT_SET';
+  const redisUrlPreview = redisUrl ? `${redisUrl.substring(0, 20)}...` : 'N/A';
+  
   if (!redisUrl) {
     console.error('❌ REDIS_URL environment variable is NOT SET in Vercel');
   } else {
-    console.error(`✅ REDIS_URL is set (length: ${redisUrl.length}, starts with: ${redisUrl.substring(0, 20)}...)`);
+    console.error(`✅ REDIS_URL is set (length: ${redisUrl.length}, starts with: ${redisUrlPreview})`);
   }
 
   try {
@@ -73,9 +76,11 @@ export async function GET(
                 'Cache-Control': 'private, max-age=1, stale-while-revalidate=2',
                 'X-Cache': 'HIT',
                 'X-Source': 'kv',
+                'X-Redis-Status': redisStatus, // ✅ 顯示 Redis 狀態
+                'X-Redis-URL-Preview': redisUrlPreview, // ✅ 顯示 Redis URL 預覽
                 'Server-Timing': serverTiming,
                 'X-Server-Timing': serverTiming,
-                'Access-Control-Expose-Headers': 'Server-Timing, X-Server-Timing, X-Cache, X-Source',
+                'Access-Control-Expose-Headers': 'Server-Timing, X-Server-Timing, X-Cache, X-Source, X-Redis-Status, X-Redis-URL-Preview',
               },
             }
           );
@@ -250,9 +255,11 @@ export async function GET(
         headers: {
           'Cache-Control': 'private, max-age=3, stale-while-revalidate=5',
           'X-Cache': 'MISS',
+          'X-Redis-Status': redisStatus, // ✅ 顯示 Redis 狀態（SET 或 NOT_SET）
+          'X-Redis-URL-Preview': redisUrlPreview, // ✅ 顯示 Redis URL 預覽
           'Server-Timing': serverTiming,
           'X-Server-Timing': serverTiming, // ✅ 備用方案：Vercel 可能過濾 Server-Timing
-          'Access-Control-Expose-Headers': 'Server-Timing, X-Server-Timing',
+          'Access-Control-Expose-Headers': 'Server-Timing, X-Server-Timing, X-Redis-Status, X-Redis-URL-Preview',
         },
       }
     );
