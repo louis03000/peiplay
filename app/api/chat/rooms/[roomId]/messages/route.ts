@@ -4,7 +4,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { db } from '@/lib/db-resilience';
 import { createErrorResponse } from '@/lib/api-helpers';
-import { Cache } from '@/lib/redis-cache';
+import { Cache, CacheKeys } from '@/lib/redis-cache';
 import { withRateLimit } from '@/lib/rate-limit';
 
 export const dynamic = 'force-dynamic';
@@ -166,7 +166,7 @@ export async function GET(
       console.log(`[MESSAGES API] 📊 Messages query: ${queryMs}ms (found ${messages.length} messages)`);
       
       // ✅ 轉換格式（舊訊息可能 senderName 為 null，顯示「未知用戶」）
-      // ✅ 只返回必要欄位，減少資料傳輸
+      // ✅ 極簡 payload：只返回必要欄位，減少資料傳輸
       const formattedMessages = (messages as any[]).reverse().map((msg: any) => ({
         id: msg.id,
         roomId: msg.roomId,
@@ -178,11 +178,12 @@ export async function GET(
         status: 'SENT' as const, // ✅ 默認值，減少查詢
         moderationStatus: 'APPROVED' as const, // ✅ 默認值（已過濾 REJECTED）
         createdAt: msg.createdAt,
+        // ✅ 保持向後兼容的 sender 結構（但前端應該優先使用 senderName/senderAvatarUrl）
         sender: {
           id: msg.senderId,
           name: msg.senderName || null,           // 舊訊息可能為 null
-          email: '',
-          role: '',
+          email: '',                              // ✅ 不傳輸 email（不需要）
+          role: '',                               // ✅ 不傳輸 role（不需要）
           avatarUrl: msg.senderAvatarUrl || null, // 舊訊息可能為 null
         },
       }));
@@ -360,31 +361,43 @@ export async function POST(
       const avatarUrl = user?.partner?.coverImage || null;
       const senderName = user?.name || session.user.email || '未知用戶';
 
-      // 創建訊息並寫入 denormalized 字段
-      const message = await (client as any).chatMessage.create({
-        data: {
-          roomId,
-          senderId: session.user.id,
-          senderName: senderName,        // 去正規化：寫入發送時的快照
-          senderAvatarUrl: avatarUrl,    // 去正規化：寫入發送時的快照
-          content: content.trim(),
-          contentType: 'TEXT',
-          status: 'SENT',
-          moderationStatus: hasBlockedKeyword ? 'FLAGGED' : 'APPROVED',
-        },
-        select: {
-          id: true,
-          roomId: true,
-          senderId: true,
-          senderName: true,
-          senderAvatarUrl: true,
-          content: true,
-          contentType: true,
-          status: true,
-          moderationStatus: true,
-          createdAt: true,
-          // ❌ 不再 include sender（避免 JOIN）
-        },
+      // ✅ 關鍵優化：在同一 transaction 中插入訊息並更新 room 的 lastMessageAt
+      // 這確保原子性，避免 race condition
+      const message = await (client as any).$transaction(async (tx: any) => {
+        // 1. 創建訊息並寫入 denormalized 字段
+        const newMessage = await tx.chatMessage.create({
+          data: {
+            roomId,
+            senderId: session.user.id,
+            senderName: senderName,        // 去正規化：寫入發送時的快照
+            senderAvatarUrl: avatarUrl,    // 去正規化：寫入發送時的快照
+            content: content.trim(),
+            contentType: 'TEXT',
+            status: 'SENT',
+            moderationStatus: hasBlockedKeyword ? 'FLAGGED' : 'APPROVED',
+          },
+          select: {
+            id: true,
+            roomId: true,
+            senderId: true,
+            senderName: true,
+            senderAvatarUrl: true,
+            content: true,
+            contentType: true,
+            status: true,
+            moderationStatus: true,
+            createdAt: true,
+            // ❌ 不再 include sender（避免 JOIN）
+          },
+        });
+
+        // 2. 在同一 transaction 中更新 room 的 lastMessageAt
+        await tx.chatRoom.update({
+          where: { id: roomId },
+          data: { lastMessageAt: newMessage.createdAt },
+        });
+
+        return newMessage;
       });
 
       // ✅ 關鍵優化：其他工作丟到 queue（非同步處理）
@@ -398,15 +411,8 @@ export async function POST(
           console.error('Failed to add message job:', err);
         });
       } catch (err) {
-        // Queue 不可用時，降級為 fire-and-forget
-        (client as any).chatRoom
-          .update({
-            where: { id: roomId },
-            data: { lastMessageAt: new Date() },
-          })
-          .catch((err: any) => {
-            console.error('Failed to update lastMessageAt:', err);
-          });
+        // Queue 不可用時，靜默失敗（room 已更新）
+        console.warn('Message queue unavailable, room already updated');
       }
 
       // 返回格式保持向後兼容
@@ -433,16 +439,22 @@ export async function POST(
     }, 'chat:rooms:roomId:messages:post');
 
     // ✅ 關鍵優化：發送消息後清除快取，確保新消息立即顯示
-    // 使用統一的 cache key 格式（limit=10）
-    const cacheKey = `messages:${roomId}:latest:10`;
-    Cache.delete(cacheKey).catch((err: any) => {
-      console.error('Failed to invalidate messages cache:', err);
+    // 清除 messages cache
+    const messagesCacheKey = CacheKeys.chat.messages(roomId, 10);
+    Cache.delete(messagesCacheKey).catch((err: any) => {
+      console.warn('Failed to invalidate messages cache:', err);
+    });
+    
+    // 清除 meta cache（因為 lastMessageAt 已更新）
+    const metaCacheKey = CacheKeys.chat.meta(roomId);
+    Cache.delete(metaCacheKey).catch((err: any) => {
+      console.warn('Failed to invalidate meta cache:', err);
     });
     
     // 也清除其他可能的變體
     const cachePattern = `messages:${roomId}:*`;
     Cache.deletePattern(cachePattern).catch((err: any) => {
-      console.error('Failed to invalidate messages cache pattern:', err);
+      console.warn('Failed to invalidate messages cache pattern:', err);
     });
 
     return NextResponse.json({ message: result });

@@ -135,6 +135,18 @@ export const CacheKeys = {
     platform: () => 'stats:platform',
     user: (userId: string) => `stats:user:${userId}`,
   },
+
+  // Chat (正式聊天室)
+  chat: {
+    meta: (roomId: string) => `chat:meta:${roomId}`,
+    messages: (roomId: string, limit: number = 10) => `chat:messages:${roomId}:${limit}`,
+    rooms: (userId: string) => `chat:rooms:${userId}`,
+  },
+
+  // Pre-Chat (預聊系統)
+  preChat: {
+    meta: (roomId: string) => `prechat:meta:${roomId}`,
+  },
 } as const;
 
 /**

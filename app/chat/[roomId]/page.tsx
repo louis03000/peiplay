@@ -85,6 +85,12 @@ export default function ChatRoomPage() {
   const initializedRef = useRef(false);
   const loadingRef = useRef(false);
   const abortControllerRef = useRef<AbortController | null>(null);
+  
+  // ✅ Meta-first polling refs（當 WebSocket 不可用時的後備方案）
+  const pollingInFlightRef = useRef(false);
+  const pollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const lastMetaAtRef = useRef<string | null>(null);
+  const stoppedPollingRef = useRef(false);
 
   // 檢查是否是免費聊天室（沒有關聯booking）
   const isFreeChat = Boolean(
@@ -254,6 +260,110 @@ export default function ChatRoomPage() {
     // ✅ 立即加載消息（背景執行，不阻塞 UI）
     loadMessages();
   }, [roomId, session?.user?.id]); // ✅ 關鍵：依賴 roomId，切換房間時重新載入
+
+  // ✅ 關鍵優化：Meta-first polling（當 WebSocket 不可用時的後備方案）
+  useEffect(() => {
+    if (!roomId || !session?.user?.id || !messagesLoaded) return;
+    
+    // 如果 WebSocket 已連接，不需要 polling
+    if (isConnected) {
+      if (pollTimeoutRef.current) {
+        clearTimeout(pollTimeoutRef.current);
+        pollTimeoutRef.current = null;
+      }
+      stoppedPollingRef.current = true;
+      return;
+    }
+
+    // WebSocket 未連接，啟用 polling
+    stoppedPollingRef.current = false;
+    pollingInFlightRef.current = false;
+    lastMetaAtRef.current = null;
+
+    let retryDelay = 2500;
+
+    const pollOnce = async () => {
+      if (pollingInFlightRef.current || stoppedPollingRef.current) return;
+      pollingInFlightRef.current = true;
+
+      try {
+        const metaRes = await fetch(`/api/chat/rooms/${roomId}/meta`);
+        if (metaRes.status !== 200) {
+          stoppedPollingRef.current = true;
+          pollingInFlightRef.current = false;
+          return;
+        }
+
+        const meta = await metaRes.json();
+        if (meta.lastMessageAt !== lastMetaAtRef.current) {
+          lastMetaAtRef.current = meta.lastMessageAt;
+          const messagesRes = await fetch(`/api/chat/rooms/${roomId}/messages?limit=10`);
+          
+          if (messagesRes.ok) {
+            const messagesData = await messagesRes.json();
+            if (messagesData.messages && Array.isArray(messagesData.messages)) {
+              const formattedMessages: ChatMessage[] = messagesData.messages.map((msg: any) => ({
+                id: msg.id,
+                roomId: msg.roomId,
+                senderId: msg.senderId,
+                senderName: msg.senderName || msg.sender?.name,
+                senderAvatarUrl: msg.senderAvatarUrl || msg.sender?.avatarUrl,
+                sender: {
+                  id: msg.senderId,
+                  name: msg.senderName || msg.sender?.name || null,
+                  email: msg.sender?.email || '',
+                  role: msg.sender?.role || '',
+                  avatarUrl: msg.senderAvatarUrl || msg.sender?.avatarUrl || null,
+                },
+                content: msg.content,
+                contentType: msg.contentType || 'TEXT',
+                status: msg.status || 'SENT',
+                moderationStatus: msg.moderationStatus || 'APPROVED',
+                createdAt: msg.createdAt,
+              }));
+
+              setLoadedHistoryMessages((prev) => {
+                const existingIds = new Set(prev.map((m) => m.id));
+                const newMessages = formattedMessages.filter((m: ChatMessage) => !existingIds.has(m.id));
+                return [...prev, ...newMessages].sort(
+                  (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+                );
+              });
+
+              retryDelay = 2500;
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error polling:', error);
+        retryDelay = Math.min(retryDelay * 1.5, 15000);
+      } finally {
+        pollingInFlightRef.current = false;
+        if (!stoppedPollingRef.current && !isConnected) {
+          const delay = document.hidden ? 15000 : retryDelay;
+          pollTimeoutRef.current = setTimeout(pollOnce, delay);
+        }
+      }
+    };
+
+    pollOnce();
+    const handleVisibilityChange = () => {
+      if (!document.hidden && !pollingInFlightRef.current && !stoppedPollingRef.current && !isConnected) {
+        pollOnce();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      stoppedPollingRef.current = true;
+      pollingInFlightRef.current = false;
+      if (pollTimeoutRef.current) {
+        clearTimeout(pollTimeoutRef.current);
+        pollTimeoutRef.current = null;
+      }
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [roomId, session?.user?.id, messagesLoaded, isConnected]);
 
   // 滾動到底部
   useEffect(() => {

@@ -115,15 +115,34 @@ export const authOptions: NextAuthOptions = {
         token.role = user.role;
       }
       
-      // 只在沒有 role 時才查 DB
+      // ✅ 關鍵優化：只在沒有 role 時才查 DB（通常只在首次登入時）
+      // 之後 role 會存在 token 中，不需要查 DB
       if (!token.role && token.sub) {
         try {
-          // 確保 Prisma Client 已連接
-          await ensureConnection();
+          // ✅ 先查 Redis 快取
+          const { Cache, CacheKeys } = await import('./redis-cache');
+          const cacheKey = CacheKeys.stats.user(token.sub as string) + ':role';
+          const cachedRole = await Cache.get<string>(cacheKey);
           
-          const dbUser = await prisma.user.findUnique({ where: { id: token.sub as string } });
-          if (dbUser) {
-            token.role = dbUser.role;
+          if (cachedRole) {
+            // ✅ Cache hit：直接使用快取結果
+            token.role = cachedRole as UserRole;
+          } else {
+            // ✅ Cache miss：查詢 DB 並寫入快取
+            await ensureConnection();
+            
+            const dbUser = await prisma.user.findUnique({ 
+              where: { id: token.sub as string },
+              select: { role: true },
+            });
+            
+            if (dbUser) {
+              token.role = dbUser.role;
+              // ✅ 寫入快取（30 分鐘 TTL，role 很少變動）
+              await Cache.set(cacheKey, dbUser.role, 1800);
+            } else {
+              token.role = 'CUSTOMER';
+            }
           }
         } catch (error) {
           console.error('JWT callback DB error:', error);
@@ -132,29 +151,45 @@ export const authOptions: NextAuthOptions = {
         }
       }
       
-      // 優化：一次性獲取伙伴信息並緩存到 token 中（避免每個頁面重複查詢）
+      // ✅ 關鍵優化：使用 Redis 快取 partner 信息（避免每次查 DB）
       // 只在沒有 partnerId 時才查詢，並且每5分鐘刷新一次
       if (token.sub && (!token.partnerId || !token.partnerInfoTimestamp || Date.now() - (token.partnerInfoTimestamp as number) > 5 * 60 * 1000)) {
         try {
-          await ensureConnection();
+          // ✅ 先查 Redis 快取
+          const { Cache, CacheKeys } = await import('./redis-cache');
+          const cacheKey = CacheKeys.stats.user(token.sub as string) + ':partner';
+          const cachedPartner = await Cache.get<{ id: string; status: string } | null>(cacheKey);
           
-          // 快速查詢伙伴信息（只查詢必要欄位）
-          const partner = await prisma.partner.findUnique({
-            where: { userId: token.sub as string },
-            select: {
-              id: true,
-              status: true,
-            },
-          });
-          
-          if (partner) {
-            token.partnerId = partner.id;
-            token.partnerStatus = partner.status;
+          if (cachedPartner !== null) {
+            // ✅ Cache hit：直接使用快取結果
+            token.partnerId = cachedPartner?.id || null;
+            token.partnerStatus = cachedPartner?.status || null;
+            token.partnerInfoTimestamp = Date.now();
           } else {
-            token.partnerId = null;
-            token.partnerStatus = null;
+            // ✅ Cache miss：查詢 DB 並寫入快取
+            await ensureConnection();
+            
+            const partner = await prisma.partner.findUnique({
+              where: { userId: token.sub as string },
+              select: {
+                id: true,
+                status: true,
+              },
+            });
+            
+            if (partner) {
+              token.partnerId = partner.id;
+              token.partnerStatus = partner.status;
+              // ✅ 寫入快取（5 分鐘 TTL）
+              await Cache.set(cacheKey, { id: partner.id, status: partner.status }, 300);
+            } else {
+              token.partnerId = null;
+              token.partnerStatus = null;
+              // ✅ 也快取 null 結果（避免重複查詢）
+              await Cache.set(cacheKey, null, 300);
+            }
+            token.partnerInfoTimestamp = Date.now();
           }
-          token.partnerInfoTimestamp = Date.now();
         } catch (error) {
           console.error('JWT callback partner query error:', error);
           // 查詢失敗時不清除現有信息，避免頻繁查詢
