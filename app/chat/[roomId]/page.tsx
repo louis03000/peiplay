@@ -190,6 +190,28 @@ export default function ChatRoomPage() {
       try {
         setLoadingMessages(true);
         console.log(`📥 Loading messages for room: ${roomId} (limit=10 for fast first screen)`);
+        
+        // ✅ 關鍵優化：初始載入也先查 meta，避免不必要的 messages 查詢
+        // 如果房間沒有訊息，直接跳過 messages 查詢
+        try {
+          const metaRes = await fetch(`/api/chat/rooms/${roomId}/meta`, { signal: abortController.signal });
+          if (metaRes.ok) {
+            const meta = await metaRes.json();
+            // 如果沒有 lastMessageAt，表示房間沒有訊息，直接返回空陣列
+            if (!meta.lastMessageAt) {
+              console.log('📭 Room has no messages, skipping messages query');
+              setLoadedHistoryMessages([]);
+              setMessagesLoaded(true);
+              setLoadingMessages(false);
+              loadingRef.current = false;
+              return;
+            }
+          }
+        } catch (metaError) {
+          // Meta 查詢失敗，繼續查 messages（降級處理）
+          console.warn('Meta query failed, falling back to messages query:', metaError);
+        }
+        
         const messagesRes = await fetch(
           `/api/chat/rooms/${roomId}/messages?limit=10`, // ✅ 首屏只載入 10 則訊息
           { signal: abortController.signal }

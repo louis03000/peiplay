@@ -18,6 +18,9 @@ export async function GET(
   request: Request,
   { params }: { params: { roomId: string } }
 ) {
+  const start = Date.now();
+  console.log('[messages] start', start, 'roomId:', params.roomId);
+  
   try {
     const t0 = performance.now();
     const session = await getServerSession(authOptions);
@@ -245,6 +248,7 @@ export async function GET(
     const actualXServerTiming = response.headers.get('X-Server-Timing');
     console.log(`[MESSAGES API] 📊 Cache MISS - Headers: Server-Timing=${actualServerTiming || 'MISS'}, X-Server-Timing=${actualXServerTiming || 'MISS'}`);
     console.log(`[MESSAGES API] ⏱️ Timing breakdown: auth=${authMs}ms, db=${dbMs}ms, total=${totalMs}ms`);
+    console.log('[messages] end', Date.now() - start, 'ms');
     
     return response;
   } catch (error) {

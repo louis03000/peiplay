@@ -19,6 +19,9 @@ export async function GET(
   request: Request,
   { params }: { params: { roomId: string } }
 ) {
+  const start = Date.now();
+  console.log('[meta] start', start, 'roomId:', params.roomId);
+  
   try {
     const session = await getServerSession(authOptions);
 
@@ -102,6 +105,8 @@ export async function GET(
       // Redis 不可用時，靜默失敗
       console.warn('Failed to cache meta:', err.message);
     }
+
+    console.log('[meta] end', Date.now() - start, 'ms');
 
     return NextResponse.json(result, {
       headers: {
