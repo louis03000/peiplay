@@ -32,7 +32,7 @@ export async function GET() {
     // 測試讀寫
     const testKey = 'test:connection';
     const testValue = `test-${Date.now()}`;
-    await client.setEx(testKey, 10, testValue);
+    await client.set(testKey, testValue, { ex: 10 });
     const readValue = await client.get(testKey);
     await client.del(testKey);
     
