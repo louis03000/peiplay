@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { db } from '@/lib/db-resilience';
 import { createErrorResponse } from '@/lib/api-helpers';
+import { Cache } from '@/lib/redis-cache';
 
 export const dynamic = 'force-dynamic';
 
@@ -226,9 +227,12 @@ export async function POST(
 
     // 清除 meta 快取（因為有新訊息）
     const cacheKey = `prechat:meta:${chatId}`;
-    Cache.delete(cacheKey).catch((err: any) => {
-      console.warn('Failed to invalidate meta cache:', err.message);
-    });
+    try {
+      await Cache.delete(cacheKey);
+    } catch (err: any) {
+      // Redis 不可用時，靜默失敗（不影響功能）
+      console.warn('Failed to invalidate meta cache:', err?.message || err);
+    }
 
     return NextResponse.json(result);
   } catch (error: any) {
