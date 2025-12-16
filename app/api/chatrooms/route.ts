@@ -31,11 +31,38 @@ export async function GET(request: Request) {
     }
 
     const result = await db.query(async (client) => {
+      // 先檢查 partnerId 是 Partner ID 還是 User ID
+      // 如果是 Partner ID，需要轉換為 User ID
+      let partnerUserId: string;
+      
+      // 先嘗試作為 Partner ID 查詢
+      const partner = await (client as any).partner.findUnique({
+        where: { id: partnerId },
+        select: { userId: true },
+      });
+      
+      if (partner) {
+        // 是 Partner ID，使用對應的 userId
+        partnerUserId = partner.userId;
+      } else {
+        // 可能是 User ID，驗證是否存在
+        const user = await client.user.findUnique({
+          where: { id: partnerId },
+          select: { id: true },
+        });
+        
+        if (!user) {
+          throw new Error('陪玩師不存在');
+        }
+        
+        partnerUserId = partnerId;
+      }
+      
       // 檢查聊天室是否已存在（使用 findFirst 因為 Prisma 可能還沒生成複合鍵名稱）
       let room = await (client as any).preChatRoom.findFirst({
         where: {
           userId: session.user.id,
-          partnerId: partnerId,
+          partnerId: partnerUserId,
         },
         include: {
           messages: {
@@ -61,7 +88,7 @@ export async function GET(request: Request) {
         room = await (client as any).preChatRoom.create({
           data: {
             userId: session.user.id,
-            partnerId: partnerId,
+            partnerId: partnerUserId,
             status: 'open',
             messageCount: 0,
             expiresAt: expiresAt,
@@ -86,7 +113,7 @@ export async function GET(request: Request) {
         .reverse() // 反轉為時間正序
         .map((msg: any) => ({
           id: msg.id.toString(),
-          senderId: msg.senderType === 'user' ? session.user.id : partnerId,
+          senderId: msg.senderType === 'user' ? session.user.id : partnerUserId,
           senderType: msg.senderType,
           content: msg.content,
           createdAt: msg.createdAt.toISOString(),
