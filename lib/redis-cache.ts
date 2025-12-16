@@ -79,12 +79,16 @@ export function getRedisClient(): any | null {
 
     redisClient.on('connect', () => {
       console.error('✅ Redis connected (external Redis, not in-memory)');
+    });
+
+    redisClient.on('ready', () => {
       console.error('✅ Redis is ready for cache operations');
     });
 
-    // 非同步連接（不阻塞）
+    // ✅ 關鍵：立即嘗試連接（不等待，但記錄狀態）
     redisClient.connect().catch((err: any) => {
       console.error('❌ Redis connection failed:', err);
+      console.error('❌ Redis connection error details:', err.message, err.stack);
       redisClient = null;
     });
 
