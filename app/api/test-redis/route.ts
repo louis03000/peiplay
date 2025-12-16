@@ -1,45 +1,43 @@
 import { NextResponse } from 'next/server';
-import { getRedisClient } from '@/lib/redis-cache';
+import { redis } from '@/lib/redis';
 
 /**
  * Redis 連線測試 API
  * 用於驗證 Vercel 環境變數設定是否正確
  */
 export async function GET() {
-  const hasRedisUrl = !!process.env.REDIS_URL;
-  const client = getRedisClient();
+  const hasRedisUrl = !!process.env.UPSTASH_REDIS_REST_URL;
+  const hasRedisToken = !!process.env.UPSTASH_REDIS_REST_TOKEN;
   
-  if (!hasRedisUrl) {
+  if (!hasRedisUrl || !hasRedisToken) {
     return NextResponse.json({
       status: 'not_configured',
-      message: 'REDIS_URL environment variable not set',
-      hint: 'Please set REDIS_URL in Vercel Dashboard → Settings → Environment Variables',
+      message: 'UPSTASH_REDIS_REST_URL or UPSTASH_REDIS_REST_TOKEN not set',
+      hint: 'Please set these in Vercel Dashboard → Settings → Environment Variables',
+      hasUrl: hasRedisUrl,
+      hasToken: hasRedisToken,
     });
   }
 
-  if (!client) {
+  if (!redis) {
     return NextResponse.json({
       status: 'not_connected',
-      message: 'Redis client not available (redis package may not be installed)',
-      redisUrl: process.env.REDIS_URL ? '***configured***' : 'not set',
+      message: 'Redis client not available',
+      redisUrl: process.env.UPSTASH_REDIS_REST_URL ? '***configured***' : 'not set',
     });
   }
 
   try {
-    // 測試連線
-    const pingResult = await client.ping();
-    
     // 測試讀寫
     const testKey = 'test:connection';
     const testValue = `test-${Date.now()}`;
-    await client.set(testKey, testValue, { ex: 10 });
-    const readValue = await client.get(testKey);
-    await client.del(testKey);
+    await redis.set(testKey, testValue, { ex: 10 });
+    const readValue = await redis.get(testKey);
+    await redis.del(testKey);
     
     return NextResponse.json({
       status: 'connected',
-      message: 'Redis is working correctly',
-      ping: pingResult,
+      message: 'Upstash Redis is working correctly',
       readWriteTest: readValue === testValue ? 'passed' : 'failed',
       timestamp: new Date().toISOString(),
     });
