@@ -139,7 +139,7 @@ export const CacheKeys = {
   // Chat (正式聊天室)
   chat: {
     meta: (roomId: string) => `chat:meta:${roomId}`,
-    messages: (roomId: string, limit: number = 10) => `chat:messages:${roomId}:${limit}`,
+    messages: (roomId: string, limit: number = 10) => `chat:room:${roomId}:messages:${limit}`,
     rooms: (userId: string) => `chat:rooms:${userId}`,
   },
 

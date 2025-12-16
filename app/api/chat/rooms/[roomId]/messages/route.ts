@@ -36,58 +36,54 @@ export async function GET(
     const limit = Math.min(parseInt(searchParams.get('limit') || '10'), 50);
     const cursor = searchParams.get('cursor'); // cursor-based pagination (使用 cursor 而不是 before)
 
-    // ✅ 關鍵優化：統一 cache key，所有用戶共用同一份 cache
-    // cache key 格式：messages:{roomId}:latest:10（固定格式，不包含 userId，不包含 cursor）
-    // 注意：只有最新消息（無 cursor 參數）才 cache，分頁查詢不 cache
-    const cacheKey = cursor 
-      ? null // 分頁查詢不 cache
-      : `messages:${roomId}:latest:10`; // ✅ 固定 limit = 10（首屏優化）
+    // ✅ 關鍵優化：聊天讀取層抽離 Postgres
+    // 只有最新消息（無 cursor 參數，limit <= 10）才使用 KV cache
+    // TTL = 60 秒（polling 情境，即使失效也只是回 DB 一次）
+    const cacheKey = cursor || limit > 10
+      ? null // 分頁查詢或 limit > 10 不 cache
+      : CacheKeys.chat.messages(roomId, limit); // ✅ 統一使用 CacheKeys
     
-    // ✅ 只有最新消息才使用 cache
+    // ✅ 優先從 KV 讀取（命中直接返回，< 50ms）
     if (cacheKey) {
       try {
-        const cached = await Cache.get(cacheKey);
+        const cached = await Cache.get<any[]>(cacheKey);
         
-        if (cached) {
+        if (cached && Array.isArray(cached)) {
           // ✅ cache hit：直接返回，禁止任何 DB 查詢（包括權限驗證）
           const tEnd = performance.now();
           const totalMs = (tEnd - t0).toFixed(1);
           const serverTiming = `auth;dur=0,db;dur=0,total;dur=${totalMs}`;
           console.info(
-            `🔥 messages cache HIT: ${cacheKey} (${Array.isArray(cached) ? cached.length : 0} messages) | total ${totalMs}ms`
+            `🔥 KV cache HIT: ${cacheKey} (${cached.length} messages) | total ${totalMs}ms`
           );
-          console.info(`📊 Server-Timing header (cache HIT): ${serverTiming}`);
           
           const response = NextResponse.json(
             { messages: cached, cursor: null },
             {
               status: 200,
               headers: {
-                'Cache-Control': 'private, max-age=3, stale-while-revalidate=5',
+                'Cache-Control': 'private, max-age=1, stale-while-revalidate=2',
                 'X-Cache': 'HIT',
+                'X-Source': 'kv',
                 'Server-Timing': serverTiming,
-                'X-Server-Timing': serverTiming, // ✅ 備用方案：Vercel 可能過濾 Server-Timing
-                'Access-Control-Expose-Headers': 'Server-Timing, X-Server-Timing',
+                'X-Server-Timing': serverTiming,
+                'Access-Control-Expose-Headers': 'Server-Timing, X-Server-Timing, X-Cache, X-Source',
               },
             }
           );
           
-          // ✅ 驗證 header 是否正確設置
-          const actualServerTiming = response.headers.get('Server-Timing');
-          const actualXServerTiming = response.headers.get('X-Server-Timing');
-          console.log(`[MESSAGES API] 📊 Cache HIT - Headers: Server-Timing=${actualServerTiming || 'MISS'}, X-Server-Timing=${actualXServerTiming || 'MISS'}`);
-          
+          console.log('[messages] end', Date.now() - start, 'ms (KV HIT)');
           return response;
         }
         
-        console.info(`❄️ messages cache MISS: ${cacheKey}, will query DB`);
+        console.info(`❄️ KV cache MISS: ${cacheKey}, will query DB`);
       } catch (error: any) {
-        // Redis 不可用時，降級為直接查 DB（不報錯）
-        console.warn(`⚠️ Cache unavailable for ${cacheKey}, falling back to DB:`, error.message);
+        // Redis/KV 不可用時，降級為直接查 DB（不報錯）
+        console.warn(`⚠️ KV unavailable for ${cacheKey}, falling back to DB:`, error.message);
       }
-      } else {
-        console.info(`📄 Pagination query (cursor=${cursor}), skipping cache`);
-      }
+    } else {
+      console.info(`📄 Skipping cache (cursor=${cursor || 'none'}, limit=${limit})`);
+    }
 
     // ✅ cache miss：查詢 DB（使用原生 SQL，禁止 JOIN）
     const tDbStart = performance.now();
@@ -207,18 +203,18 @@ export async function GET(
     }, 'chat:rooms:roomId:messages:get');
     const tDbDone = performance.now();
 
-    // ✅ 關鍵優化：寫入快取（3秒 TTL，允許短暫不一致）
+    // ✅ 關鍵優化：寫入 KV（60秒 TTL，polling 情境）
     // 不等待快取寫入完成（fire-and-forget），避免阻塞響應
     // 只有最新消息才 cache（分頁查詢不 cache）
     if (cacheKey && result && typeof result === 'object' && 'messages' in result && Array.isArray(result.messages)) {
-      Cache.set(cacheKey, result.messages, 3).then(() => {
-        console.log(`✅ Cache set: ${cacheKey} (${result.messages.length} messages, TTL: 3s)`);
+      Cache.set(cacheKey, result.messages, 60).then(() => {
+        console.log(`✅ KV cache set: ${cacheKey} (${result.messages.length} messages, TTL: 60s)`);
       }).catch((err: any) => {
-        // Redis 不可用時，靜默失敗（不影響功能）
-        console.warn(`⚠️ Failed to cache messages (Redis may be unavailable):`, err.message);
+        // Redis/KV 不可用時，靜默失敗（不影響功能）
+        console.warn(`⚠️ Failed to cache messages (KV may be unavailable):`, err.message);
       });
     } else if (!cacheKey) {
-      console.log(`📄 Skipping cache (pagination query)`);
+      console.log(`📄 Skipping cache (pagination or limit > 10)`);
     }
 
     // ✅ 返回結果，包含 cursor 供分頁使用
@@ -446,23 +442,51 @@ export async function POST(
       };
     }, 'chat:rooms:roomId:messages:post');
 
-    // ✅ 關鍵優化：發送消息後清除快取，確保新消息立即顯示
-    // 清除 messages cache
+    // ✅ 關鍵優化：發送消息後同步更新 KV（而不是刪除）
+    // 這樣可以讓新消息立即顯示，而不需要等待下次 DB 查詢
     const messagesCacheKey = CacheKeys.chat.messages(roomId, 10);
-    Cache.delete(messagesCacheKey).catch((err: any) => {
-      console.warn('Failed to invalidate messages cache:', err);
-    });
+    
+    // 從 KV 獲取現有 messages（如果有）
+    try {
+      const cachedMessages = await Cache.get<any[]>(messagesCacheKey) || [];
+      
+      // 格式化新訊息（與 GET API 格式一致）
+      const newMessageFormatted = {
+        id: result.id,
+        roomId: result.roomId,
+        senderId: result.senderId,
+        senderName: result.senderName || null,
+        senderAvatarUrl: result.senderAvatarUrl || null,
+        content: result.content,
+        contentType: result.contentType || 'TEXT',
+        status: result.status || 'SENT',
+        moderationStatus: result.moderationStatus || 'APPROVED',
+        createdAt: typeof result.createdAt === 'string' ? result.createdAt : result.createdAt.toISOString(),
+        sender: result.sender || {
+          id: result.senderId,
+          name: result.senderName || null,
+          email: '',
+          role: '',
+          avatarUrl: result.senderAvatarUrl || null,
+        },
+      };
+      
+      // 將新訊息 unshift 到陣列開頭，並只保留最新 10 則
+      const updatedMessages = [newMessageFormatted, ...cachedMessages].slice(0, 10);
+      
+      // 同步更新 KV（重設 TTL = 60 秒）
+      await Cache.set(messagesCacheKey, updatedMessages, 60);
+      console.log(`✅ KV cache updated: ${messagesCacheKey} (${updatedMessages.length} messages, TTL: 60s)`);
+    } catch (err: any) {
+      // KV 不可用時，刪除 cache（讓下次查詢回 DB）
+      console.warn('Failed to update KV cache, deleting instead:', err.message);
+      await Cache.delete(messagesCacheKey).catch(() => {});
+    }
     
     // 清除 meta cache（因為 lastMessageAt 已更新）
     const metaCacheKey = CacheKeys.chat.meta(roomId);
     Cache.delete(metaCacheKey).catch((err: any) => {
       console.warn('Failed to invalidate meta cache:', err);
-    });
-    
-    // 也清除其他可能的變體
-    const cachePattern = `messages:${roomId}:*`;
-    Cache.deletePattern(cachePattern).catch((err: any) => {
-      console.warn('Failed to invalidate messages cache pattern:', err);
     });
 
     return NextResponse.json({ message: result });
