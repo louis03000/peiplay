@@ -85,75 +85,97 @@ export default function PreChatPage() {
     loadRoom();
   }, [chatId, session?.user?.id]);
 
-  // 輪詢新訊息（長輪詢）
+  // 優化輪詢：先 meta 再 messages，確保單一 in-flight
   useEffect(() => {
     if (!chatId || !session?.user?.id || !room || room.isClosed) return;
     if (isPollingRef.current) return;
 
     isPollingRef.current = true;
+    const stoppedRef = { current: false };
+    let retryDelay = 3000;
+    let lastMetaAt: string | null = null;
 
-    const poll = async () => {
+    const pollOnce = async () => {
+      // 防止重複執行
+      if (isPollingRef.current || stoppedRef.current) return;
+      isPollingRef.current = true;
+
       try {
-        const since = lastTimestampRef.current || undefined;
-        const url = since
-          ? `/api/chatrooms/${chatId}/messages?since=${since}`
-          : `/api/chatrooms/${chatId}/messages`;
+        // 1. 先 fetch meta（極快，只查 pre_chat_rooms 表）
+        const metaRes = await fetch(`/api/chatrooms/${chatId}/meta`);
+        
+        if (metaRes.status !== 200) {
+          // 如果 meta 失敗，停止輪詢
+          stoppedRef.current = true;
+          isPollingRef.current = false;
+          return;
+        }
 
-        const res = await fetch(url);
-        if (res.ok) {
-          const data = await res.json();
-          if (data.messages && data.messages.length > 0) {
-            setMessages((prev) => {
-              // 去重並合併
-              const existingIds = new Set(prev.map((m) => m.id));
-              const newMessages = data.messages.filter(
-                (m: ChatMessage) => !existingIds.has(m.id)
-              );
-              const merged = [...prev, ...newMessages].sort(
-                (a, b) =>
-                  new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-              );
-              if (merged.length > 0) {
-                lastTimestampRef.current =
-                  merged[merged.length - 1].createdAt;
-              }
-              return merged;
-            });
+        const meta = await metaRes.json();
+
+        // 2. 檢查是否有新訊息（lastMessageAt 改變）
+        if (meta.lastMessageAt !== lastMetaAt) {
+          lastMetaAt = meta.lastMessageAt;
+
+          // 3. 只有當 meta 改變時才拉取完整訊息
+          const messagesRes = await fetch(`/api/chatrooms/${chatId}/messages?limit=10`);
+          
+          if (messagesRes.ok) {
+            const messagesData = await messagesRes.json();
+            if (messagesData.messages && messagesData.messages.length > 0) {
+              setMessages((prev) => {
+                // 去重並合併
+                const existingIds = new Set(prev.map((m) => m.id));
+                const newMessages = messagesData.messages.filter(
+                  (m: ChatMessage) => !existingIds.has(m.id)
+                );
+                const merged = [...prev, ...newMessages].sort(
+                  (a, b) =>
+                    new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+                );
+                if (merged.length > 0) {
+                  lastTimestampRef.current = merged[merged.length - 1].createdAt;
+                }
+                return merged;
+              });
+            }
           }
+
+          retryDelay = 3000; // 成功後重置延遲
         }
       } catch (error) {
-        console.error('Error polling messages:', error);
-      }
+        console.error('Error polling:', error);
+        // 指數退避
+        retryDelay = Math.min(retryDelay * 1.5, 30000);
+      } finally {
+        isPollingRef.current = false;
 
-      // 繼續輪詢（2-5 秒間隔）
-      if (!document.hidden && room && !room.isClosed) {
-        pollIntervalRef.current = setTimeout(poll, 3000);
+        // 繼續輪詢（根據可見性調整間隔）
+        if (!stoppedRef.current && !room.isClosed) {
+          const delay = document.hidden ? 15000 : retryDelay;
+          pollIntervalRef.current = setTimeout(pollOnce, delay);
+        }
       }
     };
 
     // 立即開始第一次輪詢
-    poll();
+    pollOnce();
 
-    // 可見性檢查：頁面隱藏時暫停輪詢
+    // 可見性檢查：頁面顯示時立即輪詢
     const handleVisibilityChange = () => {
-      if (document.hidden) {
-        if (pollIntervalRef.current) {
-          clearTimeout(pollIntervalRef.current);
-          pollIntervalRef.current = null;
-        }
-      } else {
-        if (!pollIntervalRef.current && room && !room.isClosed) {
-          poll();
-        }
+      if (!document.hidden && !isPollingRef.current && !stoppedRef.current && !room.isClosed) {
+        pollOnce();
       }
     };
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
+      stoppedRef.current = true;
       isPollingRef.current = false;
       if (pollIntervalRef.current) {
         clearTimeout(pollIntervalRef.current);
+        pollIntervalRef.current = null;
       }
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };

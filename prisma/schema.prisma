@@ -873,6 +873,7 @@ model PreChatRoom {
   partnerId    String   @map("partner_id")
   status       String   @default("open") // open | locked | expired
   messageCount Int      @default(0)      @map("message_count") @db.SmallInt
+  lastMessageAt DateTime? @map("last_message_at") @db.Timestamptz // 最後訊息時間（優化輪詢）
   expiresAt    DateTime @map("expires_at") @db.Timestamptz
   createdAt    DateTime @default(now())  @map("created_at") @db.Timestamptz
   user         User     @relation("PreChatRoomUser", fields: [userId], references: [id], onDelete: Cascade)
@@ -884,6 +885,8 @@ model PreChatRoom {
   @@index([partnerId])
   @@index([expiresAt])
   @@index([status])
+  @@index([lastMessageAt])
+  @@index([messageCount])
   @@map("pre_chat_rooms")
 }
 

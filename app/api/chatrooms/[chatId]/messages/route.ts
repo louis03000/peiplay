@@ -182,7 +182,7 @@ export async function POST(
           throw new Error('已達到訊息上限（10 則）');
         }
 
-        // 3. 寫訊息
+        // 3. 寫訊息並在同一 transaction 更新 meta
         const senderType = isUser ? 'user' : 'partner';
         const message = await tx.preChatMessage.create({
           data: {
@@ -192,25 +192,18 @@ export async function POST(
           },
         });
 
-        // 4. 直接 +1（不要 COUNT）
+        // 4. 更新 meta：last_message_at 和 message_count（同一 transaction）
         const updatedRoom = await tx.preChatRoom.update({
           where: { id: chatId },
           data: {
+            lastMessageAt: message.createdAt, // 更新最後訊息時間
             messageCount: {
               increment: 1,
             },
+            // 如果到 10 則就鎖
+            status: room.messageCount + 1 >= 10 ? 'locked' : room.status,
           },
         });
-
-        // 5. 如果到 10 則就鎖
-        if (updatedRoom.messageCount >= 10) {
-          await tx.preChatRoom.update({
-            where: { id: chatId },
-            data: {
-              status: 'locked',
-            },
-          });
-        }
 
         return {
           messageId: message.id.toString(),
