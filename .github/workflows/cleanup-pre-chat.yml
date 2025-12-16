@@ -1,0 +1,36 @@
+name: Cleanup Pre Chat
+
+on:
+  schedule:
+    # 每小時執行一次（UTC 時間）
+    - cron: '0 * * * *'
+  # 也可以手動觸發
+  workflow_dispatch:
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run cleanup
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          API_URL: ${{ secrets.API_URL || 'https://your-domain.com' }}
+        run: |
+          echo "🧹 開始清理過期的預聊房間..."
+          
+          response=$(curl -s -w "\n%{http_code}" -X POST "${API_URL}/api/internal/cleanup-pre-chat" \
+            -H "Authorization: Bearer ${CRON_SECRET}" \
+            -H "Content-Type: application/json")
+          
+          http_code=$(echo "$response" | tail -n1)
+          body=$(echo "$response" | sed '$d')
+          
+          if [ "$http_code" -eq 200 ]; then
+            echo "✅ 清理成功"
+            echo "$body" | jq '.' || echo "$body"
+          else
+            echo "❌ 清理失敗 (HTTP $http_code)"
+            echo "$body"
+            exit 1
+          fi
+

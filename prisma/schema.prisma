@@ -47,6 +47,8 @@ model User {
   chatMessagesSent              ChatMessage[]          @relation("ChatMessageSender")
   chatRoomMembers               ChatRoomMember[]
   messageReadReceipts           MessageReadReceipt[]
+  preChatRoomsAsUser            PreChatRoom[]         @relation("PreChatRoomUser")
+  preChatRoomsAsPartner         PreChatRoom[]         @relation("PreChatRoomPartner")
   notifications                 Notification[]
   announcements                 Announcement[]         @relation("AnnouncementCreator")
   personalNotificationsReceived PersonalNotification[] @relation("PersonalNotificationReceiver")
@@ -852,6 +854,50 @@ model Message {
 
   @@index([receiverId, isRead])
   @@index([senderId])
+}
+
+// ============================================
+// 預聊系統（Pre-Chat System）- 極簡高效設計
+// ============================================
+// 設計原則：
+// 1. 不做真正聊天室
+// 2. 不支援歷史長查詢
+// 3. 不支援即時狀態
+// 4. 資料活不超過 24 小時
+// 5. 一個房間最多 10 則訊息
+
+// 預聊房間
+model PreChatRoom {
+  id           String   @id @default(uuid())
+  userId       String
+  partnerId    String
+  status       String   @default("open") // open | locked | expired
+  messageCount Int      @default(0)      @db.SmallInt
+  expiresAt    DateTime @db.Timestamptz
+  createdAt    DateTime @default(now())  @db.Timestamptz
+  user         User     @relation("PreChatRoomUser", fields: [userId], references: [id], onDelete: Cascade)
+  partner      User     @relation("PreChatRoomPartner", fields: [partnerId], references: [id], onDelete: Cascade)
+  messages     PreChatMessage[]
+
+  @@unique([userId, partnerId])
+  @@index([userId])
+  @@index([partnerId])
+  @@index([expiresAt])
+  @@index([status])
+  @@map("pre_chat_rooms")
+}
+
+// 預聊訊息
+model PreChatMessage {
+  id         BigInt   @id @default(autoincrement())
+  roomId     String
+  senderType String   // 'user' | 'partner'
+  content    String
+  createdAt  DateTime @default(now()) @db.Timestamptz
+  room       PreChatRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@index([roomId, createdAt(sort: Desc)])
+  @@map("pre_chat_messages")
 }
 
 model Notification {

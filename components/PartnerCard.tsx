@@ -142,11 +142,10 @@ const PartnerCard = memo(function PartnerCard({ partner, onQuickBook, showNextSt
 
     setIsCreatingChat(true)
     try {
-      // 創建或獲取免費聊天室
-      const response = await fetch('/api/chat/rooms/free-chat', {
-        method: 'POST',
+      // 使用新的預聊系統
+      const response = await fetch(`/api/chatrooms?partnerId=${partner.id}`, {
+        method: 'GET',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ partnerId: partner.id }),
       })
 
       if (!response.ok) {
@@ -156,8 +155,8 @@ const PartnerCard = memo(function PartnerCard({ partner, onQuickBook, showNextSt
       }
 
       const data = await response.json()
-      // 跳轉到聊天室
-      window.location.href = `/chat/${data.roomId}`
+      // 跳轉到預聊頁面
+      window.location.href = `/pre-chat/${data.chatId}?partnerId=${partner.id}`
     } catch (error) {
       console.error('Error creating chat room:', error)
       alert('無法創建聊天室，請稍後再試')
