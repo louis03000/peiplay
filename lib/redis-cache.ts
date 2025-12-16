@@ -107,7 +107,12 @@ export const CacheKeys = {
   // Partners
   partners: {
     detail: (partnerId: string) => `partner:${partnerId}`,
-    list: (params?: string) => params ? `partners:list:${params}` : `partners:list`,
+    list: (params?: any) => {
+      if (!params) return `partners:list`;
+      // 將物件轉換為穩定的字串 key
+      const sorted = Object.keys(params).sort().map(k => `${k}:${params[k]}`).join('|');
+      return `partners:list:${sorted}`;
+    },
     ranking: () => `partners:ranking`,
     averageRating: (partnerId: string) => `partner:${partnerId}:rating`,
   },
