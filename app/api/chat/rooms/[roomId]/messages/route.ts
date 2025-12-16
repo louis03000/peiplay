@@ -55,11 +55,15 @@ export async function GET(
       : CacheKeys.chat.messages(roomId, limit); // ✅ 統一使用 CacheKeys
     
     // ✅ 優先從 KV 讀取（命中直接返回，< 50ms）
+    let cacheStatus = 'SKIP';
     if (cacheKey) {
       try {
+        console.error(`[CACHE] Attempting to get cache: ${cacheKey}`);
         const cached = await Cache.get<any[]>(cacheKey);
+        console.error(`[CACHE] Cache.get result:`, cached ? `HIT (${cached.length} items)` : 'MISS');
         
         if (cached && Array.isArray(cached)) {
+          cacheStatus = 'HIT';
           // ✅ cache hit：直接返回，禁止任何 DB 查詢（包括權限驗證）
           const tEnd = performance.now();
           const totalMs = (tEnd - t0).toFixed(1);
@@ -89,10 +93,13 @@ export async function GET(
           return response;
         }
         
-        console.info(`❄️ KV cache MISS: ${cacheKey}, will query DB`);
+        cacheStatus = 'MISS';
+        console.error(`❄️ KV cache MISS: ${cacheKey}, will query DB`);
       } catch (error: any) {
         // Redis/KV 不可用時，降級為直接查 DB（不報錯）
-        console.warn(`⚠️ KV unavailable for ${cacheKey}, falling back to DB:`, error.message);
+        cacheStatus = 'ERROR';
+        console.error(`⚠️ KV unavailable for ${cacheKey}, falling back to DB:`, error.message);
+        console.error(`⚠️ KV error details:`, error);
       }
     } else {
       console.info(`📄 Skipping cache (cursor=${cursor || 'none'}, limit=${limit})`);
@@ -254,12 +261,12 @@ export async function GET(
         status: 200,
         headers: {
           'Cache-Control': 'private, max-age=3, stale-while-revalidate=5',
-          'X-Cache': 'MISS',
+          'X-Cache': cacheStatus, // ✅ 顯示 cache 狀態（HIT, MISS, SKIP, ERROR）
           'X-Redis-Status': redisStatus, // ✅ 顯示 Redis 狀態（SET 或 NOT_SET）
           'X-Redis-URL-Preview': redisUrlPreview, // ✅ 顯示 Redis URL 預覽
           'Server-Timing': serverTiming,
           'X-Server-Timing': serverTiming, // ✅ 備用方案：Vercel 可能過濾 Server-Timing
-          'Access-Control-Expose-Headers': 'Server-Timing, X-Server-Timing, X-Redis-Status, X-Redis-URL-Preview',
+          'Access-Control-Expose-Headers': 'Server-Timing, X-Server-Timing, X-Cache, X-Redis-Status, X-Redis-URL-Preview',
         },
       }
     );
