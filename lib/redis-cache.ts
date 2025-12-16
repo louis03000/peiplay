@@ -48,8 +48,11 @@ export function getRedisClient(): any | null {
   const redisUrl = process.env.REDIS_URL;
   if (!redisUrl) {
     console.warn('⚠️  REDIS_URL not set, cache will be disabled');
+    console.warn('⚠️  Please set REDIS_URL in Vercel Environment Variables');
     return null;
   }
+  
+  console.log('🔍 Redis URL found, attempting to connect...');
 
   try {
     redisClient = redis.createClient({
@@ -71,6 +74,7 @@ export function getRedisClient(): any | null {
 
     redisClient.on('connect', () => {
       console.log('✅ Redis connected (external Redis, not in-memory)');
+      console.log('✅ Redis is ready for cache operations');
     });
 
     // 非同步連接（不阻塞）
@@ -158,15 +162,23 @@ export class Cache {
    */
   static async get<T>(key: string): Promise<T | null> {
     const client = getRedisClient();
-    if (!client) return null;
+    if (!client) {
+      console.warn(`⚠️  Cache.get(${key}): Redis client not available`);
+      return null;
+    }
 
     try {
       // ✅ 確保 client 已連接
       if (!client.isReady) {
+        console.log(`🔌 Cache.get(${key}): Connecting to Redis...`);
         await client.connect();
       }
       const value = await client.get(key);
-      if (!value) return null;
+      if (!value) {
+        console.log(`📭 Cache.get(${key}): MISS (no value found)`);
+        return null;
+      }
+      console.log(`✅ Cache.get(${key}): HIT (value found)`);
       return JSON.parse(value) as T;
     } catch (error) {
       console.error(`❌ Cache get error for key ${key}:`, error);
@@ -183,14 +195,19 @@ export class Cache {
     ttlSeconds: number = 300 // 預設 5 分鐘
   ): Promise<boolean> {
     const client = getRedisClient();
-    if (!client) return false;
+    if (!client) {
+      console.warn(`⚠️  Cache.set(${key}): Redis client not available`);
+      return false;
+    }
 
     try {
       // ✅ 確保 client 已連接
       if (!client.isReady) {
+        console.log(`🔌 Cache.set(${key}): Connecting to Redis...`);
         await client.connect();
       }
       await client.setEx(key, ttlSeconds, JSON.stringify(value));
+      console.log(`✅ Cache.set(${key}): Success (TTL: ${ttlSeconds}s)`);
       return true;
     } catch (error) {
       console.error(`❌ Cache set error for key ${key}:`, error);
