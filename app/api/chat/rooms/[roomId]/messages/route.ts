@@ -19,8 +19,16 @@ export async function GET(
   { params }: { params: { roomId: string } }
 ) {
   const start = Date.now();
-  console.log('[messages] start', start, 'roomId:', params.roomId);
+  console.error('[messages] start', start, 'roomId:', params.roomId);
   
+  // ✅ 檢查環境變數（立即顯示在 Vercel Logs）
+  const redisUrl = process.env.REDIS_URL;
+  if (!redisUrl) {
+    console.error('❌ REDIS_URL environment variable is NOT SET in Vercel');
+  } else {
+    console.error(`✅ REDIS_URL is set (length: ${redisUrl.length}, starts with: ${redisUrl.substring(0, 20)}...)`);
+  }
+
   try {
     const t0 = performance.now();
     const session = await getServerSession(authOptions);
@@ -207,12 +215,12 @@ export async function GET(
     // 不等待快取寫入完成（fire-and-forget），避免阻塞響應
     // 只有最新消息才 cache（分頁查詢不 cache）
     if (cacheKey && result && typeof result === 'object' && 'messages' in result && Array.isArray(result.messages)) {
-      console.log(`📝 Attempting to cache: ${cacheKey} (${result.messages.length} messages)`);
+      console.error(`📝 Attempting to cache: ${cacheKey} (${result.messages.length} messages)`);
       Cache.set(cacheKey, result.messages, 60).then((success) => {
         if (success) {
-          console.log(`✅ KV cache set: ${cacheKey} (${result.messages.length} messages, TTL: 60s)`);
+          console.error(`✅ KV cache set: ${cacheKey} (${result.messages.length} messages, TTL: 60s)`);
         } else {
-          console.warn(`⚠️ KV cache set failed: ${cacheKey} (Redis client may not be available)`);
+          console.error(`⚠️ KV cache set failed: ${cacheKey} (Redis client may not be available)`);
         }
       }).catch((err: any) => {
         // Redis/KV 不可用時，靜默失敗（不影響功能）

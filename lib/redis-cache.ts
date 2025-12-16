@@ -35,24 +35,29 @@ function loadRedisModule() {
  * 初始化 Redis 客戶端
  */
 export function getRedisClient(): any | null {
-  if (redisClient) {
+  console.error('[getRedisClient] Called');
+  
+  if (redisClient && redisClient.isReady) {
+    console.error('[getRedisClient] Returning existing ready client');
     return redisClient;
   }
 
   const redis = loadRedisModule();
   if (!redis) {
-    // Redis 未安裝，靜默返回 null
-    return null;
-  }
-
-  const redisUrl = process.env.REDIS_URL;
-  if (!redisUrl) {
-    console.warn('⚠️  REDIS_URL not set, cache will be disabled');
-    console.warn('⚠️  Please set REDIS_URL in Vercel Environment Variables');
+    console.error('[getRedisClient] Redis module not loaded');
     return null;
   }
   
-  console.log('🔍 Redis URL found, attempting to connect...');
+  console.error('[getRedisClient] Redis module loaded, creating new client');
+
+  const redisUrl = process.env.REDIS_URL;
+  if (!redisUrl) {
+    console.error('❌ REDIS_URL not set, cache will be disabled');
+    console.error('❌ Please set REDIS_URL in Vercel Environment Variables');
+    return null;
+  }
+  
+  console.error('🔍 Redis URL found, attempting to connect...');
 
   try {
     redisClient = redis.createClient({
@@ -73,8 +78,8 @@ export function getRedisClient(): any | null {
     });
 
     redisClient.on('connect', () => {
-      console.log('✅ Redis connected (external Redis, not in-memory)');
-      console.log('✅ Redis is ready for cache operations');
+      console.error('✅ Redis connected (external Redis, not in-memory)');
+      console.error('✅ Redis is ready for cache operations');
     });
 
     // 非同步連接（不阻塞）
@@ -170,15 +175,15 @@ export class Cache {
     try {
       // ✅ 確保 client 已連接
       if (!client.isReady) {
-        console.log(`🔌 Cache.get(${key}): Connecting to Redis...`);
+        console.error(`🔌 Cache.get(${key}): Connecting to Redis...`);
         await client.connect();
       }
       const value = await client.get(key);
       if (!value) {
-        console.log(`📭 Cache.get(${key}): MISS (no value found)`);
+        console.error(`📭 Cache.get(${key}): MISS (no value found)`);
         return null;
       }
-      console.log(`✅ Cache.get(${key}): HIT (value found)`);
+      console.error(`✅ Cache.get(${key}): HIT (value found)`);
       return JSON.parse(value) as T;
     } catch (error) {
       console.error(`❌ Cache get error for key ${key}:`, error);
@@ -203,20 +208,20 @@ export class Cache {
     try {
       // ✅ 確保 client 已連接
       if (!client.isReady) {
-        console.log(`🔌 Cache.set(${key}): Connecting to Redis...`);
+        console.error(`🔌 Cache.set(${key}): Connecting to Redis...`);
         await client.connect();
-        console.log(`✅ Cache.set(${key}): Redis connected, ready to set`);
+        console.error(`✅ Cache.set(${key}): Redis connected, ready to set`);
       }
       
       const valueStr = JSON.stringify(value);
-      console.log(`💾 Cache.set(${key}): Setting value (size: ${valueStr.length} bytes, TTL: ${ttlSeconds}s)`);
+      console.error(`💾 Cache.set(${key}): Setting value (size: ${valueStr.length} bytes, TTL: ${ttlSeconds}s)`);
       
       await client.setEx(key, ttlSeconds, valueStr);
       
       // ✅ 驗證是否真的寫入了
       const verify = await client.get(key);
       if (verify) {
-        console.log(`✅ Cache.set(${key}): Success and verified (TTL: ${ttlSeconds}s)`);
+        console.error(`✅ Cache.set(${key}): Success and verified (TTL: ${ttlSeconds}s)`);
       } else {
         console.error(`❌ Cache.set(${key}): Set succeeded but verification failed (value not found)`);
       }
