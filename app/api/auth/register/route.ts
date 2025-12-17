@@ -80,9 +80,23 @@ async function registerHandler(request: Request) {
     // 使用 db.query 處理所有資料庫操作
     return await db.query(async (client) => {
       // 檢查郵箱是否已被註冊
-      const existingUser = await client.user.findUnique({
-        where: { email: sanitizedData.email },
-      })
+      let existingUser;
+      try {
+        existingUser = await client.user.findUnique({
+          where: { email: sanitizedData.email },
+          select: {
+            id: true,
+            email: true,
+          },
+        });
+      } catch (prismaError: any) {
+        // 如果是 Prisma 錯誤（例如缺少 recoveryCodes 欄位），當作郵箱不存在處理
+        if (prismaError?.message?.includes('recoveryCodes') || prismaError?.message?.includes('does not exist')) {
+          existingUser = null;
+        } else {
+          throw prismaError;
+        }
+      }
 
       if (existingUser) {
         throw new Error('此郵箱已被註冊')

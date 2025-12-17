@@ -116,7 +116,15 @@ export default function RegisterPage() {
           setErrorDetails(error.details)
           setErrorMsg('密碼不符合安全要求')
         } else {
-          setErrorMsg(error?.message || error?.error || '註冊失敗')
+          const errorText = error?.message || error?.error || '註冊失敗'
+          // 檢查是否為 Prisma 錯誤，如果是則顯示友好提示
+          if (errorText.includes('recoveryCodes') || 
+              errorText.includes('does not exist') ||
+              errorText.includes('Invalid `prisma.user.findUnique')) {
+            setErrorMsg('註冊失敗，請稍後再試')
+          } else {
+            setErrorMsg(errorText)
+          }
           setErrorDetails([])
         }
         return
