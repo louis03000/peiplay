@@ -66,12 +66,46 @@ export const authOptions: NextAuthOptions = {
               },
             });
           } catch (prismaError: any) {
-            // 如果是 Prisma 錯誤（例如缺少 recoveryCodes 欄位），當作用戶不存在處理
+            // 如果是 Prisma 錯誤（例如缺少 recoveryCodes 欄位），嘗試使用原始 SQL 查詢
             if (prismaError?.message?.includes('recoveryCodes') || prismaError?.message?.includes('does not exist')) {
-              SecurityLogger.logFailedLogin(credentials.email, clientIP, 'unknown');
-              throw new Error('尚未註冊 請先註冊帳號');
+              console.warn('Prisma error, trying raw SQL query for:', credentials.email);
+              try {
+                // 使用原始 SQL 查詢作為備用方案
+                const result = await prisma.$queryRaw<Array<{
+                  id: string;
+                  email: string;
+                  password: string;
+                  name: string | null;
+                  role: string;
+                  emailVerified: boolean;
+                }>>`
+                  SELECT id, email, password, name, role, "emailVerified"
+                  FROM "User"
+                  WHERE email = ${credentials.email}
+                  LIMIT 1
+                `;
+                
+                if (result && result.length > 0) {
+                  user = {
+                    id: result[0].id,
+                    email: result[0].email,
+                    password: result[0].password,
+                    name: result[0].name,
+                    role: result[0].role as UserRole,
+                    emailVerified: result[0].emailVerified,
+                  };
+                } else {
+                  SecurityLogger.logFailedLogin(credentials.email, clientIP, 'unknown');
+                  throw new Error('尚未註冊 請先註冊帳號');
+                }
+              } catch (sqlError) {
+                // 如果原始 SQL 也失敗，當作用戶不存在
+                SecurityLogger.logFailedLogin(credentials.email, clientIP, 'unknown');
+                throw new Error('尚未註冊 請先註冊帳號');
+              }
+            } else {
+              throw prismaError;
             }
-            throw prismaError;
           }
           
           if (!user) {
@@ -79,15 +113,23 @@ export const authOptions: NextAuthOptions = {
             throw new Error('尚未註冊 請先註冊帳號');
           }
           
+          // 管理員帳號跳過所有驗證檢查
+          const isAdmin = user.role === 'ADMIN';
+          
           // 檢查 Email 是否已驗證（管理員帳號除外）
-          if (!user.emailVerified && user.role !== 'ADMIN') {
+          if (!isAdmin && !user.emailVerified) {
             SecurityLogger.logFailedLogin(credentials.email, clientIP, 'email_not_verified');
             throw new Error('請先完成 Email 驗證才能登入');
           }
           
           const isValid = await compare(credentials.password, user.password);
           if (!isValid) {
+            // 管理員帳號密碼錯誤時也記錄，但不影響其他邏輯
             SecurityLogger.logFailedLogin(credentials.email, clientIP, 'invalid_password');
+            // 管理員帳號密碼錯誤時返回錯誤信息，而不是 null
+            if (isAdmin) {
+              throw new Error('帳號或密碼錯誤');
+            }
             return null;
           }
           
@@ -229,7 +271,16 @@ export const authOptions: NextAuthOptions = {
       await ensureConnection();
       
       // 確保 User 記錄存在
-      let dbUser = await prisma.user.findUnique({ where: { id: userId } });
+      let dbUser = await prisma.user.findUnique({ 
+        where: { id: userId },
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          role: true,
+          emailVerified: true,
+        },
+      });
       let isNewUser = false;
       
       if (!dbUser) {
