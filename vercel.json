@@ -1,2 +1,11 @@
-{}
+{
+  "functions": {
+    "app/api/chat/**/*.ts": {
+      "regions": ["hkg1"]
+    },
+    "app/api/chatrooms/**/*.ts": {
+      "regions": ["hkg1"]
+    }
+  }
+}
 
