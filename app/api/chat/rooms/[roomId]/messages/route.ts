@@ -38,46 +38,45 @@ export async function GET(
     const redisStatus = (redisUrl && redisToken) ? 'SET' : 'NOT_SET';
     const redisUrlPreview = redisUrl ? `${redisUrl.substring(0, 30)}...` : 'N/A';
 
-    // ✅ 只有最新消息（無 cursor 參數，limit <= 10）才使用 cache
-    const cacheKey = cursor || limit > 10
-      ? null
-      : CacheKeys.chat.messages(roomId, limit);
+    // ✅ 只有最新消息（無 cursor 參數）才使用 Redis List cache
+    const useCache = !cursor && redisStatus === 'SET';
+    const listKey = useCache ? CacheKeys.chat.messages(roomId) : null;
 
-    // ✅ 如果有 cache key，使用 Cache.getOrSet（這行是關鍵！）
-    if (cacheKey && redisStatus === 'SET') {
-      // 🟥 先單獨測量 Redis get 時間（不包含 factory）
-      const redisGetStart = performance.now();
-      const cached = await Cache.get<any[]>(cacheKey);
-      const redisGetMs = performance.now() - redisGetStart;
-      
-      if (cached && Array.isArray(cached) && cached.length > 0) {
+    // ✅ 使用 Redis List（LRANGE）而不是 SET
+    if (listKey) {
+      const redisStart = performance.now();
+      const cachedMessages = await Cache.listRange<any>(listKey, 0, limit - 1);
+      const redisMs = performance.now() - redisStart;
+
+      if (cachedMessages.length > 0) {
         // ✅ Cache HIT：直接返回
         const tEnd = performance.now();
         const totalMs = (tEnd - t0).toFixed(1);
         const authMs = (tAuth - t0).toFixed(1);
-        const serverTiming = `auth;dur=${authMs},redis;dur=${redisGetMs.toFixed(1)},db;dur=0,total;dur=${totalMs}`;
-        
-        console.error(`🔥 Redis HIT: ${cacheKey} (${cached.length} messages) | redis ${redisGetMs.toFixed(1)}ms | total ${totalMs}ms`);
+        const serverTiming = `auth;dur=${authMs},redis;dur=${redisMs.toFixed(1)},db;dur=0,total;dur=${totalMs}`;
+
+        console.error(`🔥 Redis HIT (List): ${listKey} (${cachedMessages.length} messages) | redis ${redisMs.toFixed(1)}ms | total ${totalMs}ms`);
 
         return NextResponse.json(
-          { messages: cached, cursor: null },
+          { messages: cachedMessages, cursor: null },
           {
             status: 200,
             headers: {
               'Cache-Control': 'private, max-age=1, stale-while-revalidate=2',
               'X-Cache': 'HIT',
+              'X-Redis-Op': 'LRANGE',
               'X-Redis-Status': redisStatus,
               'X-Redis-URL-Preview': redisUrlPreview,
-              'X-Redis-Ms': redisGetMs.toFixed(1),
+              'X-Redis-Ms': redisMs.toFixed(1),
               'Server-Timing': serverTiming,
               'X-Server-Timing': serverTiming,
-              'Access-Control-Expose-Headers': 'Server-Timing, X-Server-Timing, X-Cache, X-Redis-Status, X-Redis-URL-Preview, X-Redis-Ms',
+              'Access-Control-Expose-Headers': 'Server-Timing, X-Server-Timing, X-Cache, X-Redis-Op, X-Redis-Status, X-Redis-URL-Preview, X-Redis-Ms',
             },
           }
         );
       }
 
-      // ❄️ Cache MISS：查 DB
+      // ❄️ Cache MISS：查 DB 並回填 Redis List
       const dbStart = performance.now();
       try {
         const result = await db.query(async (client) => {
@@ -138,21 +137,27 @@ export async function GET(
             cursor: null,
           };
         }, 'chat:rooms:roomId:messages:get');
-        
+
         const dbMs = performance.now() - dbStart;
         const messages = result.messages || [];
 
-        // 🟩 寫回 Redis（不等待完成，避免阻塞）
-        Cache.set(cacheKey, messages, CacheTTL.SHORT).catch((error: any) => {
-          console.error(`⚠️ Failed to set cache for ${cacheKey}:`, error.message);
-        });
+        // 🟩 回填 Redis List（背景執行，不阻塞回應）
+        if (messages.length > 0) {
+          // 清空舊的並回填（從右邊推入，保持時間順序）
+          Cache.delete(listKey)
+            .then(() => Cache.listPushRight(listKey, ...messages))
+            .then(() => Cache.listTrim(listKey, 0, 49)) // 只保留最近 50 則
+            .catch((error: any) => {
+              console.error(`⚠️ Failed to backfill Redis List for ${listKey}:`, error.message);
+            });
+        }
 
         const tEnd = performance.now();
         const totalMs = (tEnd - t0).toFixed(1);
         const authMs = (tAuth - t0).toFixed(1);
-        const serverTiming = `auth;dur=${authMs},redis;dur=${redisGetMs.toFixed(1)},db;dur=${dbMs.toFixed(1)},total;dur=${totalMs}`;
-        
-        console.error(`❄️ Redis MISS: ${cacheKey} | redis get ${redisGetMs.toFixed(1)}ms | db ${dbMs.toFixed(1)}ms | total ${totalMs}ms`);
+        const serverTiming = `auth;dur=${authMs},redis;dur=${redisMs.toFixed(1)},db;dur=${dbMs.toFixed(1)},total;dur=${totalMs}`;
+
+        console.error(`❄️ Redis MISS (List): ${listKey} | redis ${redisMs.toFixed(1)}ms | db ${dbMs.toFixed(1)}ms | total ${totalMs}ms`);
 
         return NextResponse.json(
           { messages, cursor: null },
@@ -161,13 +166,14 @@ export async function GET(
             headers: {
               'Cache-Control': 'private, max-age=1, stale-while-revalidate=2',
               'X-Cache': 'MISS',
+              'X-Redis-Op': 'LRANGE',
               'X-Redis-Status': redisStatus,
               'X-Redis-URL-Preview': redisUrlPreview,
-              'X-Redis-Ms': redisGetMs.toFixed(1),
+              'X-Redis-Ms': redisMs.toFixed(1),
               'X-Db-Ms': dbMs.toFixed(1),
               'Server-Timing': serverTiming,
               'X-Server-Timing': serverTiming,
-              'Access-Control-Expose-Headers': 'Server-Timing, X-Server-Timing, X-Cache, X-Redis-Status, X-Redis-URL-Preview, X-Redis-Ms, X-Db-Ms',
+              'Access-Control-Expose-Headers': 'Server-Timing, X-Server-Timing, X-Cache, X-Redis-Op, X-Redis-Status, X-Redis-URL-Preview, X-Redis-Ms, X-Db-Ms',
             },
           }
         );
@@ -287,5 +293,196 @@ export async function GET(
     );
   } catch (error) {
     return createErrorResponse(error, 'chat:rooms:roomId:messages:get');
+  }
+}
+
+/**
+ * POST /api/chat/rooms/[roomId]/messages
+ * 發送訊息
+ * ✅ 關鍵優化：Write-through cache（寫入 DB 後同步更新 Redis List）
+ */
+export async function POST(
+  request: Request,
+  { params }: { params: { roomId: string } }
+) {
+  try {
+    const session = await getServerSession(authOptions);
+
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: '請先登入' }, { status: 401 });
+    }
+
+    const { roomId } = params;
+    const body = await request.json();
+    const { content } = body;
+
+    if (!content || !content.trim()) {
+      return NextResponse.json({ error: '訊息內容不能為空' }, { status: 400 });
+    }
+
+    // 檢查 Redis 狀態
+    const redisUrl = process.env.UPSTASH_REDIS_REST_URL;
+    const redisToken = process.env.UPSTASH_REDIS_REST_TOKEN;
+    const redisStatus = (redisUrl && redisToken) ? 'SET' : 'NOT_SET';
+
+    const result = await db.query(async (client) => {
+      const [membership, room] = await Promise.all([
+        (client as any).chatRoomMember.findUnique({
+          where: {
+            roomId_userId: {
+              roomId,
+              userId: session.user.id,
+            },
+          },
+        }),
+        (client as any).chatRoom.findUnique({
+          where: { id: roomId },
+          select: {
+            bookingId: true,
+            groupBookingId: true,
+            multiPlayerBookingId: true,
+          },
+        }),
+      ]);
+
+      if (!membership) {
+        throw new Error('無權限訪問此聊天室');
+      }
+
+      const isFreeChat =
+        !room?.bookingId && !room?.groupBookingId && !room?.multiPlayerBookingId;
+
+      // 免費聊天限制檢查
+      if (isFreeChat) {
+        const recentMessages = await (client as any).chatMessage.findMany({
+          where: {
+            roomId,
+            senderId: session.user.id,
+          },
+          select: { id: true },
+          orderBy: { createdAt: 'desc' },
+          take: 5,
+        });
+
+        const FREE_CHAT_LIMIT = 5;
+        if (recentMessages.length >= FREE_CHAT_LIMIT) {
+          throw new Error(`免費聊天句數上限為${FREE_CHAT_LIMIT}句，您已達到上限`);
+        }
+      }
+
+      // 獲取使用者資訊
+      const user = await client.user.findUnique({
+        where: { id: session.user.id },
+        select: {
+          name: true,
+          partner: {
+            select: {
+              coverImage: true,
+            },
+          },
+        },
+      });
+
+      const avatarUrl = user?.partner?.coverImage || null;
+      const senderName = user?.name || session.user.email || '未知用戶';
+
+      // 內容過濾
+      const blockedKeywords = ['垃圾', 'spam'];
+      const hasBlockedKeyword = blockedKeywords.some((keyword) =>
+        content.toLowerCase().includes(keyword.toLowerCase())
+      );
+
+      // 寫入訊息並更新 ChatRoom.lastMessageAt
+      const message = await (client as any).$transaction(async (tx: any) => {
+        const newMessage = await tx.chatMessage.create({
+          data: {
+            roomId,
+            senderId: session.user.id,
+            senderName: senderName,
+            senderAvatarUrl: avatarUrl,
+            content: content.trim(),
+            contentType: 'TEXT',
+            status: 'SENT',
+            moderationStatus: hasBlockedKeyword ? 'FLAGGED' : 'APPROVED',
+          },
+          select: {
+            id: true,
+            roomId: true,
+            senderId: true,
+            senderName: true,
+            senderAvatarUrl: true,
+            content: true,
+            contentType: true,
+            status: true,
+            moderationStatus: true,
+            createdAt: true,
+          },
+        });
+
+        await tx.chatRoom.update({
+          where: { id: roomId },
+          data: { lastMessageAt: newMessage.createdAt },
+        });
+
+        return newMessage;
+      });
+
+      return {
+        id: message.id,
+        roomId: message.roomId,
+        senderId: message.senderId,
+        senderName: message.senderName,
+        senderAvatarUrl: message.senderAvatarUrl,
+        content: message.content,
+        contentType: message.contentType,
+        status: message.status,
+        moderationStatus: message.moderationStatus,
+        createdAt: message.createdAt.toISOString(),
+        sender: {
+          id: message.senderId,
+          name: message.senderName,
+          email: '',
+          role: '',
+          avatarUrl: message.senderAvatarUrl,
+        },
+      };
+    }, 'chat:rooms:roomId:messages:post');
+
+    // ✅ Write-through cache：同步更新 Redis List
+    if (redisStatus === 'SET') {
+      const listKey = CacheKeys.chat.messages(roomId);
+      
+      // 格式化訊息（與 GET API 格式一致）
+      const formattedMessage = {
+        id: result.id,
+        roomId: result.roomId,
+        senderId: result.senderId,
+        senderName: result.senderName || null,
+        senderAvatarUrl: result.senderAvatarUrl || null,
+        content: result.content,
+        contentType: result.contentType || 'TEXT',
+        status: result.status || 'SENT',
+        moderationStatus: result.moderationStatus || 'APPROVED',
+        createdAt: result.createdAt,
+        sender: result.sender,
+      };
+
+      // 從左邊推入新訊息（最新的在最前面）
+      Cache.listPush(listKey, formattedMessage)
+        .then(() => Cache.listTrim(listKey, 0, 49)) // 只保留最近 50 則
+        .then(() => {
+          console.error(`✅ Write-through cache: ${listKey} updated with new message`);
+        })
+        .catch((error: any) => {
+          console.error(`⚠️ Failed to update Redis List for ${listKey}:`, error.message);
+        });
+
+      // 同時清除 meta cache（讓 meta polling 知道有新訊息）
+      Cache.delete(CacheKeys.chat.meta(roomId)).catch(() => {});
+    }
+
+    return NextResponse.json({ message: result });
+  } catch (error) {
+    return createErrorResponse(error, 'chat:rooms:roomId:messages:post');
   }
 }
