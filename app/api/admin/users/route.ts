@@ -26,6 +26,20 @@ export async function GET() {
           isSuspended: true,
           suspensionEndsAt: true,
           suspensionReason: true,
+          partner: {
+            select: {
+              id: true,
+              status: true,
+              games: true,
+              halfHourlyRate: true,
+              contractFile: true,
+            },
+          },
+          customer: {
+            select: {
+              id: true,
+            },
+          },
         },
         orderBy: {
           createdAt: 'desc',
@@ -33,7 +47,7 @@ export async function GET() {
       })
     }, 'admin:users:list')
 
-    return NextResponse.json({ users })
+    return NextResponse.json(users)
   } catch (error) {
     return createErrorResponse(error, 'admin:users:list')
   }

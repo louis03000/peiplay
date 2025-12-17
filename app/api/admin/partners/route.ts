@@ -20,7 +20,29 @@ export async function GET(request: Request) {
     const partners = await db.query(async (client) => {
       return client.partner.findMany({
         where: status ? { status } : undefined,
-        include: { user: true },
+        select: {
+          id: true,
+          name: true,
+          birthday: true,
+          phone: true,
+          coverImage: true,
+          games: true,
+          contractFile: true,
+          halfHourlyRate: true,
+          status: true,
+          bankCode: true,
+          bankAccountNumber: true,
+          customerMessage: true,
+          isRankBooster: true,
+          rankBoosterNote: true,
+          rankBoosterRank: true,
+          createdAt: true,
+          user: {
+            select: {
+              email: true,
+            },
+          },
+        },
         orderBy: { createdAt: 'desc' },
       })
     }, 'admin:partners:get')
