@@ -37,6 +37,11 @@ export async function GET(request: NextRequest) {
         client.referralEarning.findMany({
           where: { referralRecord: { inviterId: partner.id } },
           include: {
+            referralRecord: {
+              include: {
+                invitee: true,
+              },
+            },
             booking: {
               include: {
                 schedule: {
@@ -74,7 +79,7 @@ export async function GET(request: NextRequest) {
         percentage: earning.percentage,
         createdAt: earning.createdAt,
         bookingId: earning.bookingId,
-        inviteeName: earning.booking.schedule?.partner?.name || '未知',
+        inviteeName: earning.referralRecord?.invitee?.name || '未知',
       }))
 
       return {
