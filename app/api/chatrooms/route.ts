@@ -64,10 +64,23 @@ export async function GET(request: Request) {
           userId: session.user.id,
           partnerId: partnerUserId,
         },
-        include: {
+        select: {
+          id: true,
+          userId: true,
+          partnerId: true,
+          status: true,
+          messageCount: true,
+          expiresAt: true,
+          createdAt: true,
           messages: {
             orderBy: { createdAt: 'desc' },
             take: 10,
+            select: {
+              id: true,
+              senderType: true,
+              content: true,
+              createdAt: true,
+            },
           },
         },
       });
@@ -93,10 +106,23 @@ export async function GET(request: Request) {
             messageCount: 0,
             expiresAt: expiresAt,
           },
-          include: {
+          select: {
+            id: true,
+            userId: true,
+            partnerId: true,
+            status: true,
+            messageCount: true,
+            expiresAt: true,
+            createdAt: true,
             messages: {
               orderBy: { createdAt: 'desc' },
               take: 10,
+              select: {
+                id: true,
+                senderType: true,
+                content: true,
+                createdAt: true,
+              },
             },
           },
         });

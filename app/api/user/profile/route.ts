@@ -39,6 +39,10 @@ export async function PATCH(request: Request) {
             { email: session.user.email },
           ],
         },
+        select: {
+          id: true,
+          email: true,
+        },
       });
 
       if (!existingUser) {
@@ -53,6 +57,14 @@ export async function PATCH(request: Request) {
           birthday: date,
           ...(discord !== undefined ? { discord } : {}),
         },
+        select: {
+          id: true,
+          name: true,
+          phone: true,
+          birthday: true,
+          discord: true,
+          email: true,
+        },
       });
 
       let updatedPartner = null;
@@ -64,7 +76,14 @@ export async function PATCH(request: Request) {
         Array.isArray(coverImages);
 
       if (hasPartnerData) {
-        const partner = await client.partner.findUnique({ where: { userId: existingUser.id } });
+        const partner = await client.partner.findUnique({ 
+          where: { userId: existingUser.id },
+          select: {
+            id: true,
+            userId: true,
+            images: true,
+          },
+        });
 
         if (partner) {
           const partnerUpdateData: Record<string, unknown> = {};
@@ -88,6 +107,16 @@ export async function PATCH(request: Request) {
             updatedPartner = await client.partner.update({
               where: { userId: existingUser.id },
               data: partnerUpdateData,
+              select: {
+                id: true,
+                userId: true,
+                name: true,
+                customerMessage: true,
+                games: true,
+                coverImage: true,
+                images: true,
+                halfHourlyRate: true,
+              },
             });
           }
         } else if (
@@ -108,6 +137,16 @@ export async function PATCH(request: Request) {
               customerMessage: customerMessage || '',
               games: [],
               halfHourlyRate: 0,
+            },
+            select: {
+              id: true,
+              userId: true,
+              name: true,
+              customerMessage: true,
+              games: true,
+              coverImage: true,
+              images: true,
+              halfHourlyRate: true,
             },
           });
         }
@@ -143,7 +182,18 @@ export async function GET(request: Request) {
           birthday: true,
           discord: true,
           email: true,
-          partner: true,
+          partner: {
+            select: {
+              id: true,
+              userId: true,
+              name: true,
+              customerMessage: true,
+              games: true,
+              coverImage: true,
+              images: true,
+              halfHourlyRate: true,
+            },
+          },
         },
       });
     }, 'user:profile:get');

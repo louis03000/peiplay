@@ -820,13 +820,13 @@ export default function PartnerSchedulePage() {
                   </Switch>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-xs sm:text-sm text-gray-700">允許群組預約</span>
+                  <span className="text-xs sm:text-sm text-gray-700">允許多人陪玩</span>
                   <Switch
                     checked={!!partnerStatus?.allowGroupBooking}
                     onChange={v => handleToggle('allowGroupBooking', v)}
                     className={`${partnerStatus?.allowGroupBooking ? 'bg-green-500' : 'bg-gray-300'} relative inline-flex h-5 w-9 sm:h-6 sm:w-11 items-center rounded-full transition-colors`}
                   >
-                    <span className="sr-only">允許群組預約</span>
+                    <span className="sr-only">允許多人陪玩</span>
                     <span
                       className={`${partnerStatus?.allowGroupBooking ? 'translate-x-5 sm:translate-x-6' : 'translate-x-1'} inline-block h-3 w-3 sm:h-4 sm:w-4 transform rounded-full bg-white transition-transform`}
                     />
@@ -908,8 +908,7 @@ export default function PartnerSchedulePage() {
             )}
 
             {/* 群組預約管理區域 */}
-            {partnerStatus?.allowGroupBooking && (
-              <div className="p-4 bg-green-50 border border-green-200 rounded-lg mt-4">
+            <div className="p-4 bg-green-50 border border-green-200 rounded-lg mt-4">
                 <div className="flex justify-between items-center mb-4">
                   <h3 className="text-lg font-semibold text-green-800">🎮 群組預約管理</h3>
                   <button
@@ -1139,7 +1138,6 @@ export default function PartnerSchedulePage() {
                   )}
                 </div>
               </div>
-            )}
           </div>
           {/* 手機版說明 */}
           <div className="sm:hidden px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg mx-3 mb-2">

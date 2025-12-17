@@ -52,14 +52,24 @@ export const authOptions: NextAuthOptions = {
           // 確保 Prisma Client 已連接
           await ensureConnection();
           
-          const user = await prisma.user.findUnique({ where: { email: credentials.email } });
+          const user = await prisma.user.findUnique({ 
+            where: { email: credentials.email },
+            select: {
+              id: true,
+              email: true,
+              password: true,
+              name: true,
+              role: true,
+              emailVerified: true,
+            },
+          });
           if (!user) {
             SecurityLogger.logFailedLogin(credentials.email, clientIP, 'unknown');
-            throw new Error('尚未註冊，請先註冊');
+            throw new Error('尚未註冊 請先註冊帳號');
           }
           
           // 檢查 Email 是否已驗證（管理員帳號除外）
-          if (!(user as any).emailVerified && user.role !== 'ADMIN') {
+          if (!user.emailVerified && user.role !== 'ADMIN') {
             SecurityLogger.logFailedLogin(credentials.email, clientIP, 'email_not_verified');
             throw new Error('請先完成 Email 驗證才能登入');
           }

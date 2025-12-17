@@ -32,8 +32,8 @@ export default function LoginPage() {
     });
     console.log('signIn result', res);
     if (res?.error) {
-      if (res.error === '尚未註冊，請先註冊') {
-        setErrorMsg('尚未註冊，請先註冊');
+      if (res.error === '尚未註冊 請先註冊帳號' || res.error === '尚未註冊，請先註冊') {
+        setErrorMsg('尚未註冊 請先註冊帳號');
       } else {
         setErrorMsg(res.error === 'CredentialsSignin' ? '帳號或密碼錯誤' : res.error);
       }

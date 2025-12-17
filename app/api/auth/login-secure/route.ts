@@ -37,17 +37,31 @@ export async function POST(request: NextRequest) {
     return await db.query(async (client) => {
       // 查找用戶
       const user = await client.user.findUnique({
-        where: { email: sanitizedEmail }
+        where: { email: sanitizedEmail },
+        select: {
+          id: true,
+          email: true,
+          password: true,
+          name: true,
+          role: true,
+          emailVerified: true,
+          isTwoFactorEnabled: true,
+          lockUntil: true,
+          loginAttempts: true,
+        },
       })
 
       if (!user) {
         await SecurityLogger.logFailedLogin(sanitizedEmail, ipAddress, userAgent, null);
         
-        throw new Error('Email 或密碼錯誤')
+        throw new Error('尚未註冊 請先註冊帳號')
       }
 
-      // 檢查用戶是否被鎖定
-      if (user.lockUntil && user.lockUntil > new Date()) {
+      // 管理員帳號跳過所有驗證檢查
+      const isAdmin = user.role === 'ADMIN';
+
+      // 檢查用戶是否被鎖定（管理員除外）
+      if (!isAdmin && user.lockUntil && user.lockUntil > new Date()) {
         await SecurityLogger.logSuspiciousActivity(user.id, 'ACCOUNT_LOCKED', {
           lockUntil: user.lockUntil,
         }, request);
@@ -59,54 +73,53 @@ export async function POST(request: NextRequest) {
       const isPasswordValid = await SecurityEnhanced.verifyPassword(password, user.password);
       
       if (!isPasswordValid) {
-        // 增加失敗次數
-        const newLoginAttempts = user.loginAttempts + 1;
-        const shouldLock = newLoginAttempts >= 5;
-        
-        await client.user.update({
-          where: { id: user.id },
-          data: {
-            loginAttempts: newLoginAttempts,
-            lockUntil: shouldLock ? new Date(Date.now() + 30 * 60 * 1000) : null, // 鎖定 30 分鐘
-          },
-        });
+        // 管理員帳號不增加失敗次數，也不鎖定
+        if (!isAdmin) {
+          // 增加失敗次數
+          const newLoginAttempts = user.loginAttempts + 1;
+          const shouldLock = newLoginAttempts >= 5;
+          
+          await client.user.update({
+            where: { id: user.id },
+            data: {
+              loginAttempts: newLoginAttempts,
+              lockUntil: shouldLock ? new Date(Date.now() + 30 * 60 * 1000) : null, // 鎖定 30 分鐘
+            },
+          });
 
-        await SecurityLogger.logFailedLogin(user.email, ipAddress, userAgent, user.id);
+          await SecurityLogger.logFailedLogin(user.email, ipAddress, userAgent, user.id);
 
-        throw new Error(`Email 或密碼錯誤|${Math.max(0, 5 - newLoginAttempts)}`)
+          throw new Error(`Email 或密碼錯誤|${Math.max(0, 5 - newLoginAttempts)}`)
+        } else {
+          await SecurityLogger.logFailedLogin(user.email, ipAddress, userAgent, user.id);
+          throw new Error('Email 或密碼錯誤')
+        }
       }
 
-      // 檢查是否需要 MFA 驗證
-      const { requiresMFA } = await import('@/lib/mfa-service');
-      const needsMFA = await requiresMFA(user.id);
+      // 管理員帳號跳過 MFA 驗證
+      if (!isAdmin) {
+        // 檢查是否需要 MFA 驗證
+        const { requiresMFA } = await import('@/lib/mfa-service');
+        const needsMFA = await requiresMFA(user.id);
 
-      // 如果管理員未啟用 MFA，強制要求啟用
-      if (user.role === 'ADMIN' && !user.isTwoFactorEnabled) {
-        return NextResponse.json({
-          message: '管理員帳號必須啟用雙因素認證',
-          requireMFA: true,
-          requireMFASetup: true,
-          userId: user.id,
-        }, { status: 200 });
-      }
+        // 如果已啟用 MFA，需要驗證碼
+        if (needsMFA) {
+          // 重置失敗次數（但未完成 MFA 驗證）
+          await client.user.update({
+            where: { id: user.id },
+            data: {
+              loginAttempts: 0,
+              lockUntil: null,
+            },
+          });
 
-      // 如果已啟用 MFA，需要驗證碼
-      if (needsMFA) {
-        // 重置失敗次數（但未完成 MFA 驗證）
-        await client.user.update({
-          where: { id: user.id },
-          data: {
-            loginAttempts: 0,
-            lockUntil: null,
-          },
-        });
-
-        return NextResponse.json({
-          message: '需要雙因素認證',
-          requireMFA: true,
-          requireMFASetup: false,
-          userId: user.id,
-        }, { status: 200 });
+          return NextResponse.json({
+            message: '需要雙因素認證',
+            requireMFA: true,
+            requireMFASetup: false,
+            userId: user.id,
+          }, { status: 200 });
+        }
       }
 
       // 登入成功，重置失敗次數

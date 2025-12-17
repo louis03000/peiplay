@@ -53,8 +53,11 @@ export default function RegisterPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [isSuccess, setIsSuccess] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
+  const [errorDetails, setErrorDetails] = useState<string[]>([])
   const [selectedGames, setSelectedGames] = useState<string[]>([])
   const [customGame, setCustomGame] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const {
     register,
     handleSubmit,
@@ -82,6 +85,7 @@ export default function RegisterPage() {
   const onSubmit = async (data: RegisterFormData) => {
     setIsLoading(true)
     setErrorMsg('')
+    setErrorDetails([])
     try {
       let games = selectedGames.filter((g) => g !== '其他')
       if (selectedGames.includes('其他') && customGame.trim()) {
@@ -106,7 +110,15 @@ export default function RegisterPage() {
         } catch (e) {
           error = null
         }
-        setErrorMsg(error?.message || error?.error || '註冊失敗')
+        
+        // 如果有詳細錯誤信息，顯示所有錯誤
+        if (error?.details && Array.isArray(error.details) && error.details.length > 0) {
+          setErrorDetails(error.details)
+          setErrorMsg('密碼不符合安全要求')
+        } else {
+          setErrorMsg(error?.message || error?.error || '註冊失敗')
+          setErrorDetails([])
+        }
         return
       }
   
@@ -163,7 +175,18 @@ export default function RegisterPage() {
           </div>
           {isSuccess ? null : (
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-              {errorMsg && <div className="text-red-500 text-center mb-2">{errorMsg}</div>}
+              {errorMsg && (
+                <div className="bg-red-900/30 border border-red-500/50 rounded-lg p-3 mb-4">
+                  <div className="text-red-400 text-sm font-medium mb-1">{errorMsg}</div>
+                  {errorDetails.length > 0 && (
+                    <div className="text-red-300 text-sm space-y-1 mt-2">
+                      {errorDetails.map((detail, idx) => (
+                        <div key={idx}>• {detail}</div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
               <input
                 className="w-full px-4 py-2 rounded bg-gray-900 text-white placeholder-gray-400 border border-gray-700"
                 placeholder="Email"
@@ -172,21 +195,59 @@ export default function RegisterPage() {
               {errors.email && (
                 <p className="text-red-400 text-sm">{errors.email.message}</p>
               )}
-              <input
-                className="w-full px-4 py-2 rounded bg-gray-900 text-white placeholder-gray-400 border border-gray-700"
-                placeholder="密碼"
-                type="password"
-                {...register('password')}
-              />
+              <div className="relative">
+                <input
+                  className="w-full px-4 py-2 pr-10 rounded bg-gray-900 text-white placeholder-gray-400 border border-gray-700"
+                  placeholder="密碼"
+                  type={showPassword ? "text" : "password"}
+                  {...register('password')}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-300 focus:outline-none"
+                  aria-label={showPassword ? "隱藏密碼" : "顯示密碼"}
+                >
+                  {showPassword ? (
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                    </svg>
+                  ) : (
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    </svg>
+                  )}
+                </button>
+              </div>
               {errors.password && (
                 <p className="text-red-400 text-sm">{errors.password.message}</p>
               )}
-              <input
-                className="w-full px-4 py-2 rounded bg-gray-900 text-white placeholder-gray-400 border border-gray-700"
-                placeholder="確認密碼"
-                type="password"
-                {...register('confirmPassword')}
-              />
+              <div className="relative">
+                <input
+                  className="w-full px-4 py-2 pr-10 rounded bg-gray-900 text-white placeholder-gray-400 border border-gray-700"
+                  placeholder="確認密碼"
+                  type={showConfirmPassword ? "text" : "password"}
+                  {...register('confirmPassword')}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-300 focus:outline-none"
+                  aria-label={showConfirmPassword ? "隱藏密碼" : "顯示密碼"}
+                >
+                  {showConfirmPassword ? (
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                    </svg>
+                  ) : (
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    </svg>
+                  )}
+                </button>
+              </div>
               {errors.confirmPassword && (
                 <p className="text-red-400 text-sm">{errors.confirmPassword.message}</p>
               )}
