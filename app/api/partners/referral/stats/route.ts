@@ -17,7 +17,6 @@ export async function GET(request: NextRequest) {
     const result = await db.query(async (client) => {
       const partner = await client.partner.findUnique({
         where: { userId: session.user.id },
-        include: { user: true },
       })
 
       if (!partner) {
@@ -29,7 +28,13 @@ export async function GET(request: NextRequest) {
           where: { inviterId: partner.id },
           include: {
             invitee: {
-              include: { user: true },
+              include: {
+                user: {
+                  select: {
+                    email: true,
+                  },
+                },
+              },
             },
           },
           orderBy: { createdAt: 'desc' },
