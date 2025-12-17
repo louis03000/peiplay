@@ -45,83 +45,114 @@ export async function GET(
 
     // ✅ 如果有 cache key，使用 Cache.getOrSet（這行是關鍵！）
     if (cacheKey && redisStatus === 'SET') {
-      const redisStart = performance.now();
+      // 🟥 先單獨測量 Redis get 時間（不包含 factory）
+      const redisGetStart = performance.now();
+      const cached = await Cache.get<any[]>(cacheKey);
+      const redisGetMs = performance.now() - redisGetStart;
       
-      try {
-        const messages = await Cache.getOrSet(
-          cacheKey,
-          async () => {
-            // 👉 只有 MISS 才會跑到這裡
-            const dbStart = performance.now();
-            const result = await db.query(async (client) => {
-              // 權限驗證
-              const [membership, user] = await Promise.all([
-                client.chatRoomMember.findUnique({
-                  where: {
-                    roomId_userId: {
-                      roomId,
-                      userId: session.user.id,
-                    },
-                  },
-                  select: { id: true },
-                }),
-                client.user.findUnique({
-                  where: { id: session.user.id },
-                  select: { role: true },
-                }),
-              ]);
-
-              if (!membership && user?.role !== 'ADMIN') {
-                throw new Error('無權限訪問此聊天室');
-              }
-
-              // 查詢訊息
-              const messages = await (client as any).$queryRaw`
-                SELECT
-                  id, "roomId", "senderId", "senderName", "senderAvatarUrl", content, "createdAt"
-                FROM "ChatMessage"
-                WHERE "roomId" = ${roomId}
-                  AND "moderationStatus" != 'REJECTED'
-                ORDER BY "createdAt" DESC, id DESC
-                LIMIT ${limit}
-              `;
-
-              const formattedMessages = (messages as any[]).reverse().map((msg: any) => ({
-                id: msg.id,
-                roomId: msg.roomId,
-                senderId: msg.senderId,
-                senderName: msg.senderName || null,
-                senderAvatarUrl: msg.senderAvatarUrl || null,
-                content: msg.content,
-                contentType: 'TEXT' as const,
-                status: 'SENT' as const,
-                moderationStatus: 'APPROVED' as const,
-                createdAt: msg.createdAt,
-                sender: {
-                  id: msg.senderId,
-                  name: msg.senderName || null,
-                  email: '',
-                  role: '',
-                  avatarUrl: msg.senderAvatarUrl || null,
-                },
-              }));
-
-              return {
-                messages: formattedMessages,
-                cursor: null,
-              };
-            }, 'chat:rooms:roomId:messages:get');
-            
-            return result.messages || [];
-          },
-          CacheTTL.SHORT // 2 分鐘
-        );
-
-        const redisMs = performance.now() - redisStart;
+      if (cached && Array.isArray(cached) && cached.length > 0) {
+        // ✅ Cache HIT：直接返回
         const tEnd = performance.now();
         const totalMs = (tEnd - t0).toFixed(1);
         const authMs = (tAuth - t0).toFixed(1);
-        const serverTiming = `auth;dur=${authMs},redis;dur=${redisMs.toFixed(1)},db;dur=0,total;dur=${totalMs}`;
+        const serverTiming = `auth;dur=${authMs},redis;dur=${redisGetMs.toFixed(1)},db;dur=0,total;dur=${totalMs}`;
+        
+        console.error(`🔥 Redis HIT: ${cacheKey} (${cached.length} messages) | redis ${redisGetMs.toFixed(1)}ms | total ${totalMs}ms`);
+
+        return NextResponse.json(
+          { messages: cached, cursor: null },
+          {
+            status: 200,
+            headers: {
+              'Cache-Control': 'private, max-age=1, stale-while-revalidate=2',
+              'X-Cache': 'HIT',
+              'X-Redis-Status': redisStatus,
+              'X-Redis-URL-Preview': redisUrlPreview,
+              'X-Redis-Ms': redisGetMs.toFixed(1),
+              'Server-Timing': serverTiming,
+              'X-Server-Timing': serverTiming,
+              'Access-Control-Expose-Headers': 'Server-Timing, X-Server-Timing, X-Cache, X-Redis-Status, X-Redis-URL-Preview, X-Redis-Ms',
+            },
+          }
+        );
+      }
+
+      // ❄️ Cache MISS：查 DB
+      const dbStart = performance.now();
+      try {
+        const result = await db.query(async (client) => {
+          // 權限驗證
+          const [membership, user] = await Promise.all([
+            client.chatRoomMember.findUnique({
+              where: {
+                roomId_userId: {
+                  roomId,
+                  userId: session.user.id,
+                },
+              },
+              select: { id: true },
+            }),
+            client.user.findUnique({
+              where: { id: session.user.id },
+              select: { role: true },
+            }),
+          ]);
+
+          if (!membership && user?.role !== 'ADMIN') {
+            throw new Error('無權限訪問此聊天室');
+          }
+
+          // 查詢訊息
+          const messages = await (client as any).$queryRaw`
+            SELECT
+              id, "roomId", "senderId", "senderName", "senderAvatarUrl", content, "createdAt"
+            FROM "ChatMessage"
+            WHERE "roomId" = ${roomId}
+              AND "moderationStatus" != 'REJECTED'
+            ORDER BY "createdAt" DESC, id DESC
+            LIMIT ${limit}
+          `;
+
+          const formattedMessages = (messages as any[]).reverse().map((msg: any) => ({
+            id: msg.id,
+            roomId: msg.roomId,
+            senderId: msg.senderId,
+            senderName: msg.senderName || null,
+            senderAvatarUrl: msg.senderAvatarUrl || null,
+            content: msg.content,
+            contentType: 'TEXT' as const,
+            status: 'SENT' as const,
+            moderationStatus: 'APPROVED' as const,
+            createdAt: msg.createdAt,
+            sender: {
+              id: msg.senderId,
+              name: msg.senderName || null,
+              email: '',
+              role: '',
+              avatarUrl: msg.senderAvatarUrl || null,
+            },
+          }));
+
+          return {
+            messages: formattedMessages,
+            cursor: null,
+          };
+        }, 'chat:rooms:roomId:messages:get');
+        
+        const dbMs = performance.now() - dbStart;
+        const messages = result.messages || [];
+
+        // 🟩 寫回 Redis（不等待完成，避免阻塞）
+        Cache.set(cacheKey, messages, CacheTTL.SHORT).catch((error: any) => {
+          console.error(`⚠️ Failed to set cache for ${cacheKey}:`, error.message);
+        });
+
+        const tEnd = performance.now();
+        const totalMs = (tEnd - t0).toFixed(1);
+        const authMs = (tAuth - t0).toFixed(1);
+        const serverTiming = `auth;dur=${authMs},redis;dur=${redisGetMs.toFixed(1)},db;dur=${dbMs.toFixed(1)},total;dur=${totalMs}`;
+        
+        console.error(`❄️ Redis MISS: ${cacheKey} | redis get ${redisGetMs.toFixed(1)}ms | db ${dbMs.toFixed(1)}ms | total ${totalMs}ms`);
 
         return NextResponse.json(
           { messages, cursor: null },
@@ -129,18 +160,19 @@ export async function GET(
             status: 200,
             headers: {
               'Cache-Control': 'private, max-age=1, stale-while-revalidate=2',
-              'X-Cache': 'USED',
+              'X-Cache': 'MISS',
               'X-Redis-Status': redisStatus,
               'X-Redis-URL-Preview': redisUrlPreview,
-              'X-Redis-Ms': redisMs.toFixed(1),
+              'X-Redis-Ms': redisGetMs.toFixed(1),
+              'X-Db-Ms': dbMs.toFixed(1),
               'Server-Timing': serverTiming,
               'X-Server-Timing': serverTiming,
-              'Access-Control-Expose-Headers': 'Server-Timing, X-Server-Timing, X-Cache, X-Redis-Status, X-Redis-URL-Preview, X-Redis-Ms',
+              'Access-Control-Expose-Headers': 'Server-Timing, X-Server-Timing, X-Cache, X-Redis-Status, X-Redis-URL-Preview, X-Redis-Ms, X-Db-Ms',
             },
           }
         );
       } catch (error: any) {
-        console.error(`⚠️ Cache.getOrSet error for ${cacheKey}:`, error.message);
+        console.error(`⚠️ DB query error:`, error.message);
         // Fall through to DB query below
       }
     }
