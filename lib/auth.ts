@@ -52,17 +52,28 @@ export const authOptions: NextAuthOptions = {
           // 確保 Prisma Client 已連接
           await ensureConnection();
           
-          const user = await prisma.user.findUnique({ 
-            where: { email: credentials.email },
-            select: {
-              id: true,
-              email: true,
-              password: true,
-              name: true,
-              role: true,
-              emailVerified: true,
-            },
-          });
+          let user;
+          try {
+            user = await prisma.user.findUnique({ 
+              where: { email: credentials.email },
+              select: {
+                id: true,
+                email: true,
+                password: true,
+                name: true,
+                role: true,
+                emailVerified: true,
+              },
+            });
+          } catch (prismaError: any) {
+            // 如果是 Prisma 錯誤（例如缺少 recoveryCodes 欄位），當作用戶不存在處理
+            if (prismaError?.message?.includes('recoveryCodes') || prismaError?.message?.includes('does not exist')) {
+              SecurityLogger.logFailedLogin(credentials.email, clientIP, 'unknown');
+              throw new Error('尚未註冊 請先註冊帳號');
+            }
+            throw prismaError;
+          }
+          
           if (!user) {
             SecurityLogger.logFailedLogin(credentials.email, clientIP, 'unknown');
             throw new Error('尚未註冊 請先註冊帳號');

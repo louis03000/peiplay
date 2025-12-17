@@ -32,7 +32,12 @@ export default function LoginPage() {
     });
     console.log('signIn result', res);
     if (res?.error) {
-      if (res.error === '尚未註冊 請先註冊帳號' || res.error === '尚未註冊，請先註冊') {
+      // 檢查是否為 Prisma 錯誤或用戶不存在錯誤
+      if (res.error === '尚未註冊 請先註冊帳號' || 
+          res.error === '尚未註冊，請先註冊' ||
+          res.error.includes('recoveryCodes') ||
+          res.error.includes('does not exist') ||
+          res.error.includes('Invalid `prisma.user.findUnique')) {
         setErrorMsg('尚未註冊 請先註冊帳號');
       } else {
         setErrorMsg(res.error === 'CredentialsSignin' ? '帳號或密碼錯誤' : res.error);
