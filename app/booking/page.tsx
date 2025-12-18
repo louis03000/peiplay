@@ -329,11 +329,17 @@ function BookingWizardContent() {
         // 處理 partners 資料
         if (Array.isArray(partnersData)) {
           console.log('[預約頁面] 直接數組格式，夥伴數量:', partnersData.length);
+          // 檢查 isAvailableNow 欄位
+          const withAvailableNow = partnersData.filter(p => p.isAvailableNow);
+          console.log('[預約頁面] 有「現在有空」的夥伴數量:', withAvailableNow.length);
           setPartners(partnersData);
           setPartnersError(null);
           setRetryCount(0);
         } else if (partnersData?.partners && Array.isArray(partnersData.partners)) {
           console.log('[預約頁面] 物件格式 {partners: []}，夥伴數量:', partnersData.partners.length);
+          // 檢查 isAvailableNow 欄位
+          const withAvailableNow = partnersData.partners.filter((p: Partner) => p.isAvailableNow);
+          console.log('[預約頁面] 有「現在有空」的夥伴數量:', withAvailableNow.length);
           setPartners(partnersData.partners);
           setPartnersError(null);
           setRetryCount(0);
