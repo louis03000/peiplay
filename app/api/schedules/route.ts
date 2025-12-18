@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db-resilience'
 import { createErrorResponse } from '@/lib/api-helpers'
+import { withRateLimit } from '@/lib/middleware-rate-limit'
 
 export const dynamic = 'force-dynamic'
 
@@ -24,6 +25,15 @@ function parseDateRange(start?: string | null, end?: string | null) {
 
 export async function GET(request: NextRequest) {
   try {
+    // 【架構修復】添加 rate limiting，防止 availability API 爆炸
+    const rateLimitResult = await withRateLimit(request, { 
+      preset: 'GENERAL', // 60 次/分鐘
+      endpoint: 'schedules:get'
+    });
+    if (!rateLimitResult.allowed) {
+      return rateLimitResult.response!;
+    }
+
     const session = await getServerSession(authOptions)
     if (!session?.user) {
       return NextResponse.json({ error: '未授權' }, { status: 401 })
@@ -35,47 +45,134 @@ export async function GET(request: NextRequest) {
       searchParams.get('endDate')
     )
     const partnerId = searchParams.get('partnerId') || undefined
+    
+    // 【架構修復】強制加上 limit 和 pagination，避免全表查詢
+    const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 100) // 預設 50，最大 100
+    const offset = parseInt(searchParams.get('offset') || '0')
+    const cursor = searchParams.get('cursor') // 支援 cursor-based pagination
 
-    const schedules = await db.query(
-      async (client) => {
-        return client.schedule.findMany({
-          where: {
-            ...(dateRange ? { date: dateRange } : {}),
-            ...(partnerId ? { partnerId } : {}),
-          },
-          select: {
-            id: true,
-            partnerId: true,
-            date: true,
-            startTime: true,
-            endTime: true,
-            isAvailable: true,
-            partner: {
-              select: {
-                name: true,
-                games: true,
-                halfHourlyRate: true,
+    // 【架構修復】添加錯誤保護和 fallback
+    let schedules: any[] = []
+    try {
+      schedules = await db.query(
+        async (client) => {
+          // 【架構修復】使用 limit 和 pagination，禁止全表查詢
+          if (cursor) {
+            // Cursor-based pagination（更高效）
+            try {
+              const cursorData = JSON.parse(cursor)
+              return client.schedule.findMany({
+                where: {
+                  ...(dateRange ? { date: dateRange } : {}),
+                  ...(partnerId ? { partnerId } : {}),
+                  OR: [
+                    { date: { gt: new Date(cursorData.date) } },
+                    {
+                      date: new Date(cursorData.date),
+                      startTime: { gt: cursorData.startTime },
+                    },
+                  ],
+                },
+                select: {
+                  id: true,
+                  partnerId: true,
+                  date: true,
+                  startTime: true,
+                  endTime: true,
+                  isAvailable: true,
+                  partner: {
+                    select: {
+                      name: true,
+                      games: true,
+                      halfHourlyRate: true,
+                    },
+                  },
+                  bookings: {
+                    select: {
+                      id: true,
+                      status: true,
+                    },
+                  },
+                },
+                orderBy: [{ date: 'asc' }, { startTime: 'asc' }],
+                take: limit,
+              })
+            } catch (e) {
+              // Invalid cursor, fallback to offset
+              console.warn('Invalid cursor format, falling back to offset pagination')
+            }
+          }
+          
+          // Offset-based pagination（fallback）
+          return client.schedule.findMany({
+            where: {
+              ...(dateRange ? { date: dateRange } : {}),
+              ...(partnerId ? { partnerId } : {}),
+            },
+            select: {
+              id: true,
+              partnerId: true,
+              date: true,
+              startTime: true,
+              endTime: true,
+              isAvailable: true,
+              partner: {
+                select: {
+                  name: true,
+                  games: true,
+                  halfHourlyRate: true,
+                },
+              },
+              bookings: {
+                select: {
+                  id: true,
+                  status: true,
+                },
               },
             },
-            bookings: {
-              select: {
-                id: true,
-                status: true,
-              },
-            },
-          },
-          orderBy: [{ date: 'asc' }, { startTime: 'asc' }],
+            orderBy: [{ date: 'asc' }, { startTime: 'asc' }],
+            skip: offset,
+            take: limit, // 【架構修復】強制 limit
+          })
+        },
+        'schedules:list'
+      )
+    } catch (error: any) {
+      // 【架構修復】DB timeout 時回傳 fallback（空陣列），避免 API 直接 throw
+      console.error('❌ DB query error in schedules:list:', error?.message)
+      if (error?.message?.includes('timeout') || error?.code?.includes('P1008') || error?.code?.includes('P1017')) {
+        console.warn('⚠️ DB timeout, returning empty array as fallback')
+        schedules = [] // Fallback to empty array
+      } else {
+        throw error // 非 timeout 錯誤繼續拋出
+      }
+    }
+
+    // 【架構修復】生成 next cursor 用於 pagination
+    const nextCursor = schedules.length === limit && schedules.length > 0
+      ? JSON.stringify({
+          date: schedules[schedules.length - 1].date,
+          startTime: schedules[schedules.length - 1].startTime,
         })
-      },
-      'schedules:list'
-    )
+      : null
 
     // 時段資料變動頻繁，使用較短的 private cache
-    return NextResponse.json(schedules, {
-      headers: {
-        'Cache-Control': 'private, max-age=10, stale-while-revalidate=30',
+    return NextResponse.json(
+      { 
+        schedules,
+        pagination: {
+          limit,
+          offset,
+          hasMore: schedules.length === limit,
+          nextCursor,
+        },
       },
-    })
+      {
+        headers: {
+          'Cache-Control': 'private, max-age=10, stale-while-revalidate=30',
+        },
+      }
+    )
   } catch (error) {
     return createErrorResponse(error, 'schedules:list')
   }

@@ -5,6 +5,7 @@ import { authOptions } from '@/lib/auth';
 import { db } from '@/lib/db-resilience';
 import { createErrorResponse } from '@/lib/api-helpers';
 import { Cache, CacheKeys, CacheTTL } from '@/lib/redis-cache';
+import { withRateLimit } from '@/lib/middleware-rate-limit';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,6 +21,15 @@ export async function GET(
   const t0 = performance.now();
 
   try {
+    // 【架構修復】添加 rate limiting，防止 API 爆炸
+    const rateLimitResult = await withRateLimit(request as any, { 
+      preset: 'GENERAL', // 60 次/分鐘
+      endpoint: 'chat:rooms:messages:get'
+    });
+    if (!rateLimitResult.allowed) {
+      return rateLimitResult.response!;
+    }
+
     const session = await getServerSession(authOptions);
     const tAuth = performance.now();
 
@@ -306,6 +316,15 @@ export async function POST(
   { params }: { params: { roomId: string } }
 ) {
   try {
+    // 【架構修復】添加 rate limiting，防止寫入 API 爆炸
+    const rateLimitResult = await withRateLimit(request as any, { 
+      preset: 'GENERAL', // 60 次/分鐘
+      endpoint: 'chat:rooms:messages:post'
+    });
+    if (!rateLimitResult.allowed) {
+      return rateLimitResult.response!;
+    }
+
     const session = await getServerSession(authOptions);
 
     if (!session?.user?.id) {

@@ -5,6 +5,7 @@ import { db } from "@/lib/db-resilience";
 import { createErrorResponse } from "@/lib/api-helpers";
 import { BookingStatus } from "@prisma/client";
 import { Cache, CacheKeys, CacheTTL, CacheInvalidation } from "@/lib/redis-cache";
+import { withRateLimit } from '@/lib/middleware-rate-limit';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -61,6 +62,15 @@ const ACTIVE_BOOKING_STATUSES: Set<BookingStatus> = new Set([
 
 export async function GET(request: NextRequest) {
   try {
+    // 【架構修復】添加 rate limiting，防止 partners search API 爆炸
+    const rateLimitResult = await withRateLimit(request, { 
+      preset: 'GENERAL', // 60 次/分鐘
+      endpoint: 'partners:get'
+    });
+    if (!rateLimitResult.allowed) {
+      return rateLimitResult.response!;
+    }
+
     const url = request.nextUrl
     const startDate = url.searchParams.get("startDate")
     const endDate = url.searchParams.get("endDate")
@@ -84,11 +94,14 @@ export async function GET(request: NextRequest) {
     const cacheKey = CacheKeys.partners.list(cacheParams);
 
     // 使用 Redis 快取（TTL: 2 分鐘，因為夥伴狀態可能頻繁變動）
-    const partners = (await Cache.getOrSet(
-      cacheKey,
-      async () => {
-        return await db.query(
-          async (client) => {
+    // 【架構修復】添加錯誤保護，DB timeout 時回傳 cache 或空陣列
+    let partners: PartnerRecord[] = []
+    try {
+      partners = (await Cache.getOrSet(
+        cacheKey,
+        async () => {
+          return await db.query(
+            async (client) => {
             // 優化：在資料庫層面過濾被停權的用戶
             
             // 如果篩選「現在有空」，需要排除有活躍預約的夥伴
@@ -141,6 +154,10 @@ export async function GET(request: NextRequest) {
               }
             }
             
+            // 【架構修復】強制加上 limit 和 pagination，避免全表查詢
+            const limit = Math.min(parseInt(url.searchParams.get('limit') || '50'), 100) // 預設 50，最大 100
+            const offset = parseInt(url.searchParams.get('offset') || '0')
+            
             return client.partner.findMany({
               where: partnerWhere,
               select: {
@@ -189,7 +206,8 @@ export async function GET(request: NextRequest) {
                 },
               },
               orderBy: { createdAt: 'desc' },
-              take: 50, // 減少為 50 筆，提升速度
+              skip: offset, // 【架構修復】支援 pagination
+              take: limit, // 【架構修復】強制 limit，預設 50，最大 100
               // 使用索引優化的排序
             });
           },
@@ -198,6 +216,23 @@ export async function GET(request: NextRequest) {
       },
       CacheTTL.SHORT // 2 分鐘快取
     )) as unknown as PartnerRecord[];
+    } catch (error: any) {
+      // 【架構修復】DB timeout 時嘗試從 cache 獲取，或回傳空陣列
+      console.error('❌ DB query error in partners:list:', error?.message)
+      if (error?.message?.includes('timeout') || error?.code?.includes('P1008') || error?.code?.includes('P1017')) {
+        console.warn('⚠️ DB timeout, trying to get from cache as fallback')
+        const cached = await Cache.get<PartnerRecord[]>(cacheKey)
+        if (cached) {
+          console.log('✅ Using cached data as fallback')
+          partners = cached
+        } else {
+          console.warn('⚠️ No cache available, returning empty array')
+          partners = [] // Fallback to empty array
+        }
+      } else {
+        throw error // 非 timeout 錯誤繼續拋出
+      }
+    }
 
     const processed = partners
       .map((partner) => {
@@ -264,12 +299,28 @@ export async function GET(request: NextRequest) {
       })
       .filter((partner): partner is NonNullable<typeof partner> => partner !== null)
 
+    // 【架構修復】生成 pagination 資訊
+    const limit = Math.min(parseInt(url.searchParams.get('limit') || '50'), 100)
+    const offset = parseInt(url.searchParams.get('offset') || '0')
+    const hasMore = processed.length === limit
+
     // 設定 HTTP Cache Headers（Stale-While-Revalidate 策略）
-    return NextResponse.json(processed, {
-      headers: {
-        'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300',
+    return NextResponse.json(
+      {
+        partners: processed,
+        pagination: {
+          limit,
+          offset,
+          hasMore,
+          total: processed.length, // 實際返回的數量
+        },
       },
-    })
+      {
+        headers: {
+          'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300',
+        },
+      }
+    )
   } catch (error) {
     return createErrorResponse(error, 'partners:list')
   }

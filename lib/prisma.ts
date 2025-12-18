@@ -25,10 +25,12 @@ function getDatabaseUrlWithPool(): string {
       
       // 只在沒有這些參數時才添加
       if (!url.searchParams.has('connection_limit') && !url.searchParams.has('pool_timeout')) {
+        // 【架構修復】確保連線池上限 <= 20，避免 DB 連線耗盡
         // Vercel serverless 環境優化
         if (isVercel) {
           // Vercel 每個 function 最多保持 1-2 個連接
           // 使用更小的連線池以避免連線耗盡
+          // 注意：Prisma 的 connection_limit 是每個實例的連接數，不是全局
           url.searchParams.set('connection_limit', isSupabase ? '2' : '3')
           // 大幅增加超時時間，避免連線建立失敗
           url.searchParams.set('pool_timeout', '60') // 60秒連線池超時
@@ -36,7 +38,11 @@ function getDatabaseUrlWithPool(): string {
           url.searchParams.set('statement_timeout', '45000') // 45秒查詢超時（Vercel function 最多60秒）
         } else {
           // 一般環境配置 - 優化連接池以提高查詢速度
-          url.searchParams.set('connection_limit', isSupabase ? '5' : '10')
+          // 【架構修復】確保單一實例連接數不超過 20
+          // 使用 Supabase Pooler 時建議 connection_limit <= 5
+          // 直接連接時建議 connection_limit <= 10
+          const maxConnections = isSupabase ? '5' : '10'
+          url.searchParams.set('connection_limit', maxConnections)
           url.searchParams.set('pool_timeout', '30') // 減少連線池超時，加快連接獲取
           url.searchParams.set('connect_timeout', '15') // 減少連線建立超時，加快連接速度
           url.searchParams.set('statement_timeout', '30000') // 30秒查詢超時
