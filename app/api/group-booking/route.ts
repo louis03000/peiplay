@@ -190,6 +190,7 @@ export async function GET(request: Request) {
 
     const result = await db.query(async (client) => {
       try {
+        const now = new Date();
         // 構建查詢條件
         const where: any = {};
         if (partnerId) {
@@ -199,6 +200,8 @@ export async function GET(request: Request) {
         if (status) {
           where.status = status;
         }
+        // 過濾掉時間已過的群組（結束時間必須在未來）
+        where.endTime = { gt: now };
 
         // 查詢群組預約
         // 注意：暫時不查詢 games 字段，因為數據庫中可能還沒有這個字段

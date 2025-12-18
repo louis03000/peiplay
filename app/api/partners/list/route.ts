@@ -45,13 +45,14 @@ export async function GET(request: NextRequest) {
 
             // 如果篩選「現在有空」，排除有活躍預約的夥伴
             if (availableNow) {
-              // 先查詢有活躍預約的 booking，然後獲取對應的 partnerId
+              // 查詢正在進行中或即將開始的預約（開始時間 <= 現在，結束時間 >= 現在）
               const busyBookings = await client.booking.findMany({
                 where: {
                   status: {
                     in: ['PENDING', 'CONFIRMED', 'PAID_WAITING_PARTNER_CONFIRMATION', 'PARTNER_ACCEPTED'],
                   },
                   schedule: {
+                    startTime: { lte: now },
                     endTime: { gte: now },
                   },
                 },
@@ -81,6 +82,7 @@ export async function GET(request: NextRequest) {
                 images: true,
                 rankBoosterImages: true,
                 isAvailableNow: true,
+                availableNowSince: true,
                 isRankBooster: true,
                 allowGroupBooking: true,
                 rankBoosterNote: true,
@@ -100,13 +102,24 @@ export async function GET(request: NextRequest) {
               take: 100, // 限制結果數量
             });
 
-            // 應用層過濾：排除被停權的用戶
+            // 應用層過濾：排除被停權的用戶，以及「現在有空」超過30分鐘的夥伴
             return allPartners.filter(partner => {
-              if (!partner.user) return true;
+              if (!partner.user) return false; // 沒有用戶資料的夥伴不顯示
               if (partner.user.isSuspended) {
                 const endsAt = partner.user.suspensionEndsAt;
                 if (endsAt && endsAt > now) return false;
               }
+              
+              // 如果篩選「現在有空」，檢查 availableNowSince 是否在30分鐘內
+              if (availableNow && partner.isAvailableNow) {
+                if (partner.availableNowSince) {
+                  const thirtyMinutesAgo = new Date(now.getTime() - 30 * 60 * 1000);
+                  if (partner.availableNowSince < thirtyMinutesAgo) {
+                    return false; // 超過30分鐘，不顯示
+                  }
+                }
+              }
+              
               return true;
             });
           },

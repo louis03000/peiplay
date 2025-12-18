@@ -62,6 +62,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: '群組預約已關閉' }, { status: 400 });
     }
 
+    // 檢查時間是否已過
+    const now = new Date();
+    const endTime = new Date(groupBooking.endTime);
+    if (endTime.getTime() <= now.getTime()) {
+      return NextResponse.json({ error: '群組預約時間已過，無法加入' }, { status: 400 });
+    }
+
     if (groupBooking.GroupBookingParticipant.length >= groupBooking.maxParticipants) {
       return NextResponse.json({ error: '群組預約已滿' }, { status: 400 });
     }

@@ -100,17 +100,24 @@ function GroupBookingContent() {
       const response = await fetch('/api/group-booking?status=ACTIVE')
       if (response.ok) {
         const data = await response.json()
-        // 檢查用戶是否已加入每個群組
-        const updatedBookings = data.map((booking: GroupBooking) => {
-          // 檢查參與者列表中是否有當前用戶
-          const isJoined = booking.GroupBookingParticipant?.some(
-            (participant) => {
-              // 檢查參與者的 customer 的 user.id 是否等於當前用戶的 id
-              return (participant as any).Customer?.user?.id === user?.id
-            }
-          ) || joinedGroupIds.has(booking.id)
-          return { ...booking, isJoined }
-        })
+        const now = new Date()
+        // 過濾掉時間已過的群組，並檢查用戶是否已加入
+        const updatedBookings = data
+          .filter((booking: GroupBooking) => {
+            // 過濾掉結束時間已過的群組
+            const endTime = new Date(booking.endTime)
+            return endTime.getTime() > now.getTime()
+          })
+          .map((booking: GroupBooking) => {
+            // 檢查參與者列表中是否有當前用戶
+            const isJoined = booking.GroupBookingParticipant?.some(
+              (participant) => {
+                // 檢查參與者的 customer 的 user.id 是否等於當前用戶的 id
+                return (participant as any).Customer?.user?.id === user?.id
+              }
+            ) || joinedGroupIds.has(booking.id)
+            return { ...booking, isJoined }
+          })
         setGroupBookings(updatedBookings)
       }
     } catch (error) {
@@ -144,15 +151,22 @@ function GroupBookingContent() {
       if (response.ok) {
         const data = await response.json()
         setPartners(data.partners || [])
-        // 檢查用戶是否已加入每個群組
-        const updatedGroupBookings = (data.groupBookings || []).map((booking: GroupBooking) => {
-          const isJoined = booking.GroupBookingParticipant?.some(
-            (participant) => {
-              return (participant as any).Customer?.user?.id === user?.id
-            }
-          ) || joinedGroupIds.has(booking.id)
-          return { ...booking, isJoined }
-        })
+        const now = new Date()
+        // 過濾掉時間已過的群組，並檢查用戶是否已加入
+        const updatedGroupBookings = (data.groupBookings || [])
+          .filter((booking: GroupBooking) => {
+            // 過濾掉結束時間已過的群組
+            const endTime = new Date(booking.endTime)
+            return endTime.getTime() > now.getTime()
+          })
+          .map((booking: GroupBooking) => {
+            const isJoined = booking.GroupBookingParticipant?.some(
+              (participant) => {
+                return (participant as any).Customer?.user?.id === user?.id
+              }
+            ) || joinedGroupIds.has(booking.id)
+            return { ...booking, isJoined }
+          })
         setAvailableGroupBookings(updatedGroupBookings)
       } else {
         console.error('搜尋夥伴失敗')
