@@ -265,16 +265,16 @@ const PartnerCard = memo(function PartnerCard({ partner, onQuickBook, showNextSt
               </>
             )}
 
-            {/* 狀態標籤 */}
-            <div className="absolute top-2 left-2 flex flex-col gap-1">
+            {/* 狀態標籤 - 右上角（避免與星星按鈕重疊） */}
+            <div className="absolute top-2 right-12 flex flex-col gap-1 items-end z-10">
               {partner.isAvailableNow && (
-                <span className="bg-green-500 text-white px-2 py-1 rounded-full text-xs font-bold flex items-center gap-1">
+                <span className="bg-green-500 text-white px-2 py-1 rounded-full text-xs font-bold flex items-center gap-1 shadow-lg">
                   <FaBolt className="text-yellow-300" />
                   現在有空
                 </span>
               )}
               {partner.isRankBooster && (
-                <span className="bg-purple-500 text-white px-2 py-1 rounded-full text-xs font-bold flex items-center gap-1">
+                <span className="bg-purple-500 text-white px-2 py-1 rounded-full text-xs font-bold flex items-center gap-1 shadow-lg">
                   <FaCrown className="text-yellow-300" />
                   上分高手
                 </span>
@@ -283,7 +283,7 @@ const PartnerCard = memo(function PartnerCard({ partner, onQuickBook, showNextSt
 
             {/* 評分 */}
             {partner.averageRating && partner.averageRating > 0 && (
-              <div className="absolute top-2 right-12 bg-black bg-opacity-70 text-white px-2 py-1 rounded-full text-xs flex items-center gap-1">
+              <div className="absolute top-2 right-24 bg-black bg-opacity-70 text-white px-2 py-1 rounded-full text-xs flex items-center gap-1">
                 <FaStar className="text-yellow-400" />
                 {partner.averageRating.toFixed(1)}
                 {partner.totalReviews && ` (${partner.totalReviews})`}
@@ -295,7 +295,7 @@ const PartnerCard = memo(function PartnerCard({ partner, onQuickBook, showNextSt
               <button
                 onClick={handleToggleFavorite}
                 disabled={isTogglingFavorite}
-                className={`absolute top-2 right-2 p-2 rounded-full transition-all duration-200 ${
+                className={`absolute top-2 right-2 p-2 rounded-full transition-all duration-200 z-20 ${
                   isFavorite 
                     ? 'bg-yellow-400 text-yellow-900 shadow-lg' 
                     : 'bg-black bg-opacity-50 text-gray-300 hover:bg-opacity-70 hover:text-yellow-300'

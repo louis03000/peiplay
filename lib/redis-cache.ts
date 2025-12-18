@@ -63,16 +63,27 @@ export const CacheTTL = {
 export const CacheInvalidation = {
   /**
    * 當 Partner 更新時，清除相關 cache
+   * 【修復】確保清除所有相關快取，包括 lightweight 後綴的 key
    */
   async onPartnerUpdate(partnerId: string): Promise<void> {
     try {
       const patterns = [
-        `partners:*`,
+        `partners:*`,  // 匹配所有 partners 相關快取，包括 partners:list:* 和 partners:list:*:lightweight
         `partner:${partnerId}:*`,
         `stats:*`,
       ];
       
       for (const pattern of patterns) {
+        await Cache.deletePattern(pattern);
+      }
+      
+      // 【修復】額外清除可能存在的 lightweight 快取
+      // 因為 Upstash Redis 的 keys() 可能不支援複雜的 pattern，我們手動清除常見的組合
+      const lightweightPatterns = [
+        `partners:list:*:lightweight`,
+      ];
+      
+      for (const pattern of lightweightPatterns) {
         await Cache.deletePattern(pattern);
       }
     } catch (error: any) {
