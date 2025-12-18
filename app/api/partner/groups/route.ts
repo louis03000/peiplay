@@ -490,9 +490,9 @@ export async function POST(request: Request) {
             throw participantError
           }
 
-          // 更新群組預約的當前參與人數
+          // 更新群組預約的當前參與人數（使用 updateMany 避免驗證不存在的欄位）
           console.log('🔍 更新群組預約參與人數...')
-          await tx.groupBooking.update({
+          await tx.groupBooking.updateMany({
             where: { id: groupBooking.id },
             data: { currentParticipants: 1 },
           })

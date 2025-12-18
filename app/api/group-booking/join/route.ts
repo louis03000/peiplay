@@ -251,8 +251,8 @@ export async function POST(request: Request) {
           throw participantError;
         }
 
-        // 更新群組預約的當前參與人數
-        await tx.groupBooking.update({
+        // 更新群組預約的當前參與人數（使用 updateMany 避免驗證不存在的欄位）
+        await tx.groupBooking.updateMany({
           where: { id: groupBookingId },
           data: { 
             currentParticipants: groupBooking.GroupBookingParticipant.length + 1
