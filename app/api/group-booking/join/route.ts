@@ -66,9 +66,15 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: '群組預約已滿' }, { status: 400 });
     }
 
-      // 查找用戶資料
+      // 查找用戶資料（明確指定需要的欄位，避免查詢不存在的欄位）
       const user = await client.user.findUnique({
-        where: { id: session.user.id }
+        where: { id: session.user.id },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          image: true,
+        }
       });
 
       if (!user) {

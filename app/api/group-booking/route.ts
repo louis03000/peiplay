@@ -36,9 +36,15 @@ export async function POST(request: Request) {
         throw new Error('夥伴不存在');
       }
 
-      // 查找用戶資料
+      // 查找用戶資料（明確指定需要的欄位，避免查詢不存在的欄位）
       const user = await client.user.findUnique({
-        where: { id: partner.userId }
+        where: { id: partner.userId },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          image: true,
+        }
       });
 
       if (!user) {
