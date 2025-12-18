@@ -27,13 +27,15 @@ export async function GET(request: NextRequest) {
     };
     const cacheKey = CacheKeys.partners.list(cacheParams) + ':lightweight';
 
-    // 使用 Redis 快取（TTL: 30 秒）
+    // 使用 Redis 快取（對於「現在有空」使用更短的快取時間，確保即時性）
+    const cacheTTL = availableNow ? 10 : CacheTTL.SHORT; // 10秒 vs 30秒
     const partners = await Cache.getOrSet(
       cacheKey,
       async () => {
         return await db.query(
           async (client) => {
             const now = new Date();
+            console.log('[partners/list] 查詢條件:', { availableNow, rankBooster, game, now: now.toISOString() });
 
             // 輕量級查詢：只查基本資料
             let partnerWhere: any = {
@@ -42,6 +44,7 @@ export async function GET(request: NextRequest) {
               ...(availableNow ? { isAvailableNow: true } : {}),
               // 注意：停權用戶過濾在應用層處理，避免 OR 條件影響索引
             };
+            console.log('[partners/list] partnerWhere:', JSON.stringify(partnerWhere, null, 2));
 
             // 如果篩選「現在有空」，排除有活躍預約的夥伴
             if (availableNow) {
@@ -101,32 +104,52 @@ export async function GET(request: NextRequest) {
               orderBy: { createdAt: 'desc' },
               take: 100, // 限制結果數量
             });
+            console.log('[partners/list] 查詢到的夥伴數量:', allPartners.length);
 
             // 應用層過濾：排除被停權的用戶，以及「現在有空」超過30分鐘的夥伴
-            return allPartners.filter(partner => {
-              if (!partner.user) return false; // 沒有用戶資料的夥伴不顯示
+            const filtered = allPartners.filter(partner => {
+              if (!partner.user) {
+                console.log('[partners/list] 過濾：沒有用戶資料', partner.id);
+                return false; // 沒有用戶資料的夥伴不顯示
+              }
               if (partner.user.isSuspended) {
                 const endsAt = partner.user.suspensionEndsAt;
-                if (endsAt && endsAt > now) return false;
+                if (endsAt && endsAt > now) {
+                  console.log('[partners/list] 過濾：被停權', partner.id);
+                  return false;
+                }
               }
               
               // 如果篩選「現在有空」，檢查 availableNowSince 是否在30分鐘內
+              // 如果 availableNowSince 為 null，可能是舊數據，允許顯示
               if (availableNow && partner.isAvailableNow) {
                 if (partner.availableNowSince) {
                   const thirtyMinutesAgo = new Date(now.getTime() - 30 * 60 * 1000);
-                  if (partner.availableNowSince < thirtyMinutesAgo) {
+                  const availableSince = new Date(partner.availableNowSince);
+                  if (availableSince < thirtyMinutesAgo) {
+                    console.log('[partners/list] 過濾：超過30分鐘', partner.id, {
+                      availableSince: availableSince.toISOString(),
+                      thirtyMinutesAgo: thirtyMinutesAgo.toISOString()
+                    });
                     return false; // 超過30分鐘，不顯示
                   }
                 }
+                // 如果 availableNowSince 為 null，允許顯示（可能是舊數據或手動設置）
+                console.log('[partners/list] 通過過濾：現在有空', partner.id, {
+                  isAvailableNow: partner.isAvailableNow,
+                  availableNowSince: partner.availableNowSince
+                });
               }
               
               return true;
             });
+            console.log('[partners/list] 過濾後的夥伴數量:', filtered.length);
+            return filtered;
           },
           'partners:list:lightweight'
         );
       },
-      CacheTTL.SHORT // 30 秒快取
+      cacheTTL // 根據是否篩選「現在有空」使用不同的快取時間（10秒 vs 30秒）
     );
 
     // 應用層過濾遊戲（避免資料庫層面的複雜查詢）
