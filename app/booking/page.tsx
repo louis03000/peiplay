@@ -229,11 +229,48 @@ function BookingWizardContent() {
     if (partnerId && partners.length > 0) {
       const partner = partners.find((p) => p.id === partnerId);
       if (partner) {
-        handlePartnerSelect(partner);
+        setSelectedPartner(partner);
+        setSelectedDate(null);
+        setSelectedTimes([]);
+        setSelectedDuration(1);
+        
+        // 載入時段（如果還沒有載入）
+        if (!onlyAvailable && !partnerSchedules.has(partner.id)) {
+          const loadSchedules = async () => {
+            setLoadingSchedules(true);
+            try {
+              const now = new Date();
+              const endDate = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000); // 7天後
+              const url = `/api/partners/${partner.id}/schedules?startDate=${now.toISOString()}&endDate=${endDate.toISOString()}`;
+              
+              const res = await fetch(url, {
+                cache: "force-cache",
+                headers: {
+                  "Cache-Control": "max-age=30",
+                },
+              });
+
+              if (res.ok) {
+                const data = await res.json();
+                setPartnerSchedules(prev => {
+                  const newMap = new Map(prev);
+                  newMap.set(partner.id, data.schedules || []);
+                  return newMap;
+                });
+              }
+            } catch (error) {
+              console.error("[預約頁面] Failed to load schedules:", error);
+            } finally {
+              setLoadingSchedules(false);
+            }
+          };
+          loadSchedules();
+        }
+        
         setStep(1); // 直接跳到選擇日期步驟
       }
     }
-  }, [searchParams, partners, handlePartnerSelect]);
+  }, [searchParams, partners, onlyAvailable, partnerSchedules]);
 
   // 優化：使用輕量級 API + 並行請求
   useEffect(() => {
