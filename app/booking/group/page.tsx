@@ -49,6 +49,14 @@ interface GroupBooking {
       }
     }
   }>
+  GroupBookingParticipant?: Array<{
+    id: string
+    customerId: string
+    partnerId?: string
+    status: string
+    joinedAt: string
+  }>
+  isJoined?: boolean // 標記當前用戶是否已加入
 }
 
 function GroupBookingContent() {
@@ -69,6 +77,9 @@ function GroupBookingContent() {
   const [selectedStartTime, setSelectedStartTime] = useState('')
   const [selectedEndTime, setSelectedEndTime] = useState('')
   const [selectedGame, setSelectedGame] = useState('')
+  const [showJoinModal, setShowJoinModal] = useState(false)
+  const [selectedGroupBooking, setSelectedGroupBooking] = useState<GroupBooking | null>(null)
+  const [joinedGroupIds, setJoinedGroupIds] = useState<Set<string>>(new Set())
 
   // 創建群組表單狀態
   const [createForm, setCreateForm] = useState({
@@ -89,7 +100,18 @@ function GroupBookingContent() {
       const response = await fetch('/api/group-booking?status=ACTIVE')
       if (response.ok) {
         const data = await response.json()
-        setGroupBookings(data)
+        // 檢查用戶是否已加入每個群組
+        const updatedBookings = data.map((booking: GroupBooking) => {
+          // 檢查參與者列表中是否有當前用戶
+          const isJoined = booking.GroupBookingParticipant?.some(
+            (participant) => {
+              // 檢查參與者的 customer 的 user.id 是否等於當前用戶的 id
+              return (participant as any).Customer?.user?.id === user?.id
+            }
+          ) || joinedGroupIds.has(booking.id)
+          return { ...booking, isJoined }
+        })
+        setGroupBookings(updatedBookings)
       }
     } catch (error) {
       console.error('載入群組預約失敗:', error)
@@ -122,7 +144,16 @@ function GroupBookingContent() {
       if (response.ok) {
         const data = await response.json()
         setPartners(data.partners || [])
-        setAvailableGroupBookings(data.groupBookings || [])
+        // 檢查用戶是否已加入每個群組
+        const updatedGroupBookings = (data.groupBookings || []).map((booking: GroupBooking) => {
+          const isJoined = booking.GroupBookingParticipant?.some(
+            (participant) => {
+              return (participant as any).Customer?.user?.id === user?.id
+            }
+          ) || joinedGroupIds.has(booking.id)
+          return { ...booking, isJoined }
+        })
+        setAvailableGroupBookings(updatedGroupBookings)
       } else {
         console.error('搜尋夥伴失敗')
       }
@@ -177,7 +208,14 @@ function GroupBookingContent() {
     }
   }
 
-  const joinGroupBooking = async (groupBookingId: string, retryCount = 0) => {
+  const handleJoinClick = (booking: GroupBooking) => {
+    setSelectedGroupBooking(booking)
+    setShowJoinModal(true)
+  }
+
+  const handleConfirmJoin = async (retryCount = 0) => {
+    if (!selectedGroupBooking) return
+
     try {
       setLoading(true)
       const response = await fetch('/api/group-booking/join', {
@@ -186,7 +224,7 @@ function GroupBookingContent() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          groupBookingId
+          groupBookingId: selectedGroupBooking.id
         })
       })
 
@@ -194,20 +232,23 @@ function GroupBookingContent() {
 
       if (response.ok) {
         // 成功加入
+        setShowJoinModal(false)
+        setJoinedGroupIds(prev => new Set(prev).add(selectedGroupBooking.id))
         if (result.alreadyJoined) {
-          // 如果已經加入（可能是重複請求），不顯示錯誤
           console.log('已經在群組中:', result.message)
-          loadGroupBookings() // 重新載入以更新狀態
         } else {
           alert('成功加入群組預約！')
-          loadGroupBookings()
         }
+        loadGroupBookings()
+        setSelectedGroupBooking(null)
       } else {
         // 處理錯誤響應
         if (result.code === 'ALREADY_JOINED' || response.status === 409) {
-          // 已經加入的情況，不顯示錯誤，重新載入
+          setShowJoinModal(false)
+          setJoinedGroupIds(prev => new Set(prev).add(selectedGroupBooking.id))
           console.log('已經加入群組:', result.details)
           loadGroupBookings()
+          setSelectedGroupBooking(null)
           return
         }
 
@@ -220,12 +261,14 @@ function GroupBookingContent() {
         if ((response.status === 500 || response.status === 503) && retryCount < 2) {
           console.warn(`加入失敗，${retryCount + 1}秒後重試...`)
           setTimeout(() => {
-            joinGroupBooking(groupBookingId, retryCount + 1)
+            handleConfirmJoin(retryCount + 1)
           }, (retryCount + 1) * 1000)
           return
         }
         
         alert(errorMessage)
+        setShowJoinModal(false)
+        setSelectedGroupBooking(null)
       }
     } catch (error) {
       console.error('加入群組預約失敗:', error)
@@ -234,15 +277,22 @@ function GroupBookingContent() {
       if (retryCount < 2) {
         console.warn(`網絡錯誤，${retryCount + 1}秒後重試...`)
         setTimeout(() => {
-          joinGroupBooking(groupBookingId, retryCount + 1)
+          handleConfirmJoin(retryCount + 1)
         }, (retryCount + 1) * 1000)
         return
       }
       
       alert('加入失敗，請檢查網絡連線後重試')
+      setShowJoinModal(false)
+      setSelectedGroupBooking(null)
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleCancelJoin = () => {
+    setShowJoinModal(false)
+    setSelectedGroupBooking(null)
   }
 
   if (authLoading) {
@@ -387,13 +437,19 @@ function GroupBookingContent() {
                   </div>
                   
                   {group.currentParticipants < group.maxParticipants ? (
-                    <button
-                      onClick={() => joinGroupBooking(group.id)}
-                      disabled={loading}
-                      className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
-                    >
-                      {loading ? '加入中...' : '加入群組'}
-                    </button>
+                    group.isJoined || joinedGroupIds.has(group.id) ? (
+                      <span className="w-full px-4 py-2 bg-green-100 text-green-700 rounded-lg text-center font-medium">
+                        已加入
+                      </span>
+                    ) : (
+                      <button
+                        onClick={() => handleJoinClick(group)}
+                        disabled={loading}
+                        className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+                      >
+                        加入群組
+                      </button>
+                    )
                   ) : (
                     <span className="w-full px-4 py-2 bg-gray-300 text-gray-600 rounded-lg text-center">
                       已滿
@@ -516,6 +572,87 @@ function GroupBookingContent() {
           </div>
         )}
 
+        {/* 確認加入 Modal */}
+        {showJoinModal && selectedGroupBooking && (
+          <div 
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+            onClick={handleCancelJoin}
+          >
+            <div 
+              className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="p-6">
+                <h2 className="text-2xl font-bold text-gray-900 mb-4">確認加入群組</h2>
+                
+                <div className="space-y-4 mb-6">
+                  <div>
+                    <h3 className="font-semibold text-lg text-gray-900 mb-2">{selectedGroupBooking.title}</h3>
+                    {selectedGroupBooking.description && (
+                      <p className="text-gray-600 text-sm">{selectedGroupBooking.description}</p>
+                    )}
+                  </div>
+                  
+                  <div className="border-t border-gray-200 pt-4">
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <span className="text-gray-500">夥伴：</span>
+                        <span className="font-medium text-gray-900 ml-2">{selectedGroupBooking.partner.name}</span>
+                      </div>
+                      <div>
+                        <span className="text-gray-500">價格：</span>
+                        <span className="font-medium text-gray-900 ml-2">${selectedGroupBooking.pricePerPerson}/人</span>
+                      </div>
+                      <div>
+                        <span className="text-gray-500">參與人數：</span>
+                        <span className="font-medium text-gray-900 ml-2">
+                          {selectedGroupBooking.currentParticipants}/{selectedGroupBooking.maxParticipants} 人
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-gray-500">日期時間：</span>
+                        <span className="font-medium text-gray-900 ml-2">
+                          {new Date(selectedGroupBooking.startTime).toLocaleString('zh-TW')}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {selectedGroupBooking.games && selectedGroupBooking.games.length > 0 && (
+                    <div>
+                      <span className="text-gray-500 text-sm">遊戲：</span>
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {selectedGroupBooking.games.map((game, idx) => (
+                          <span key={idx} className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">
+                            {game}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+                
+                <div className="flex justify-between gap-4">
+                  <button
+                    onClick={handleCancelJoin}
+                    disabled={loading}
+                    className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors disabled:opacity-50"
+                  >
+                    取消
+                  </button>
+                  <button
+                    onClick={handleConfirmJoin}
+                    disabled={loading}
+                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+                  >
+                    {loading ? '加入中...' : '確認加入'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* 現有群組預約 */}
         <div className="bg-white rounded-lg shadow-md p-6">
           <h2 className="text-xl font-semibold mb-4 text-gray-900">🔥 熱門群組預約</h2>
@@ -560,13 +697,19 @@ function GroupBookingContent() {
                     </div>
                     
                     {booking.currentParticipants < booking.maxParticipants ? (
-                      <button
-                        onClick={() => joinGroupBooking(booking.id)}
-                        disabled={loading}
-                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
-                      >
-                        加入群組
-                      </button>
+                      booking.isJoined || joinedGroupIds.has(booking.id) ? (
+                        <span className="px-4 py-2 bg-green-100 text-green-700 rounded-lg font-medium">
+                          已加入
+                        </span>
+                      ) : (
+                        <button
+                          onClick={() => handleJoinClick(booking)}
+                          disabled={loading}
+                          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+                        >
+                          加入群組
+                        </button>
+                      )
                     ) : (
                       <span className="px-4 py-2 bg-gray-300 text-gray-600 rounded-lg">
                         已滿
