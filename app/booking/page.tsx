@@ -288,14 +288,21 @@ function BookingWizardContent() {
         if (onlyRankBooster) params.push("rankBooster=true");
         if (params.length > 0) partnersUrl += "?" + params.join("&");
 
+        console.log('[預約頁面] 請求 URL:', partnersUrl);
+        console.log('[預約頁面] 篩選條件:', { onlyAvailable, onlyRankBooster });
+
         // 並行請求：partners + favorites（如果已登入）
+        // 對於「現在有空」不使用快取，確保即時性
         const requests: Promise<any>[] = [
           fetch(partnersUrl, {
-            cache: "force-cache", // 使用快取
+            cache: onlyAvailable ? "no-store" : "force-cache", // 「現在有空」不使用快取
             headers: {
-              "Cache-Control": "max-age=30",
+              "Cache-Control": onlyAvailable ? "no-cache, no-store, must-revalidate" : "max-age=30",
             },
-          }).then(res => res.json()),
+          }).then(res => {
+            console.log('[預約頁面] API 響應狀態:', res.status, res.ok);
+            return res.json();
+          }),
         ];
 
         // 如果已登入，同時請求 favorites
