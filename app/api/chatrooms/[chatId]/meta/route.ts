@@ -17,7 +17,7 @@ export const dynamic = 'force-dynamic';
  */
 export async function GET(
   request: Request,
-  { params }: { params: { chatId: string } }
+  { params }: { params: Promise<{ chatId: string }> | { chatId: string } }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -26,7 +26,8 @@ export async function GET(
       return NextResponse.json({ error: '請先登入' }, { status: 401 });
     }
 
-    const { chatId } = params;
+    const resolvedParams = params instanceof Promise ? await params : params;
+    const { chatId } = resolvedParams;
 
     // Redis 快取（如果可用）
     const cacheKey = `prechat:meta:${chatId}`;

@@ -18,7 +18,7 @@ export const dynamic = 'force-dynamic';
  */
 export async function GET(
   request: Request,
-  { params }: { params: { chatId: string } }
+  { params }: { params: Promise<{ chatId: string }> | { chatId: string } }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -27,7 +27,8 @@ export async function GET(
       return NextResponse.json({ error: '請先登入' }, { status: 401 });
     }
 
-    const { chatId } = params;
+    const resolvedParams = params instanceof Promise ? await params : params;
+    const { chatId } = resolvedParams;
     const { searchParams } = new URL(request.url);
     const since = searchParams.get('since');
 
@@ -123,7 +124,7 @@ export async function GET(
  */
 export async function POST(
   request: Request,
-  { params }: { params: { chatId: string } }
+  { params }: { params: Promise<{ chatId: string }> | { chatId: string } }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -132,7 +133,8 @@ export async function POST(
       return NextResponse.json({ error: '請先登入' }, { status: 401 });
     }
 
-    const { chatId } = params;
+    const resolvedParams = params instanceof Promise ? await params : params;
+    const { chatId } = resolvedParams;
     const body = await request.json();
     const { content } = body;
 
