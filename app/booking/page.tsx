@@ -229,11 +229,11 @@ function BookingWizardContent() {
     if (partnerId && partners.length > 0) {
       const partner = partners.find((p) => p.id === partnerId);
       if (partner) {
-        setSelectedPartner(partner);
+        handlePartnerSelect(partner);
         setStep(1); // 直接跳到選擇日期步驟
       }
     }
-  }, [searchParams, partners]);
+  }, [searchParams, partners, handlePartnerSelect]);
 
   // 優化：使用輕量級 API + 並行請求
   useEffect(() => {
@@ -389,7 +389,7 @@ function BookingWizardContent() {
         return new Date(year, month, date).getTime();
       })
       .sort((a, b) => a - b);
-  }, [selectedPartner]);
+  }, [selectedPartner, partnerSchedules]);
 
   // 優化時段選擇邏輯 - 過濾掉所有與已預約時段重疊的時段
   const availableTimeSlots = useMemo(() => {
@@ -862,7 +862,7 @@ function BookingWizardContent() {
                           }}
                           onClick={() => {
                             if (loading) return; // 載入中時禁止點擊
-                            setSelectedPartner(p);
+                            handlePartnerSelect(p);
                           }}
                         >
                           <PartnerCard
