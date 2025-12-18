@@ -266,7 +266,7 @@ const PartnerCard = memo(function PartnerCard({ partner, onQuickBook, showNextSt
             )}
 
             {/* 狀態標籤 - 左上角 */}
-            <div className="absolute top-2 left-2 flex flex-col gap-1 items-start z-10">
+            <div className="absolute top-2 left-2 flex flex-col gap-1 items-start z-30">
               {partner.isAvailableNow && (
                 <span className="bg-green-500 text-white px-2 py-1 rounded-full text-xs font-bold flex items-center gap-1 shadow-lg">
                   <FaBolt className="text-yellow-300" />

@@ -892,39 +892,48 @@ function BookingWizardContent() {
                         </div>
                       </div>
                     )}
-                    {filteredPartners.map((p) => (
-                      <div key={p.id} className="mb-4 relative group">
-                        <div
-                          className={`transition-all duration-200 rounded-2xl border-2 
-                        ${
-                          selectedPartner?.id === p.id
-                            ? "border-transparent ring-4 ring-[#6C63FF]/60 ring-offset-2 shadow-2xl scale-105 bg-[#1e293b]/40"
-                            : "border-transparent hover:ring-2 hover:ring-[#6C63FF]/40 hover:scale-102"
-                        } 
-                        cursor-pointer`}
-                          style={{
-                            boxShadow:
-                              selectedPartner?.id === p.id
-                                ? "0 0 0 4px #818cf8, 0 8px 32px 0 rgba(55,48,163,0.15)"
-                                : undefined,
-                            pointerEvents: loading ? "none" : "auto",
-                            opacity: loading ? 0.6 : 1,
-                          }}
-                          onClick={() => {
-                            if (loading) return; // 載入中時禁止點擊
-                            handlePartnerSelect(p);
-                          }}
-                        >
-                          <PartnerCard
-                            partner={p}
-                            flipped={flippedCards.has(p.id)}
-                            onFlip={() => handleCardFlip(p.id)}
-                            isFavorite={favoritePartnerIds.has(p.id)}
-                            onToggleFavorite={handleToggleFavorite}
-                          />
+                    {filteredPartners.map((p) => {
+                      // 調試：記錄夥伴的狀態
+                      if (p.isAvailableNow || p.isRankBooster) {
+                        console.log('[預約頁面] 夥伴狀態:', p.name, {
+                          isAvailableNow: p.isAvailableNow,
+                          isRankBooster: p.isRankBooster
+                        });
+                      }
+                      return (
+                        <div key={p.id} className="mb-4 relative group">
+                          <div
+                            className={`transition-all duration-200 rounded-2xl border-2 
+                          ${
+                            selectedPartner?.id === p.id
+                              ? "border-transparent ring-4 ring-[#6C63FF]/60 ring-offset-2 shadow-2xl scale-105 bg-[#1e293b]/40"
+                              : "border-transparent hover:ring-2 hover:ring-[#6C63FF]/40 hover:scale-102"
+                          } 
+                          cursor-pointer`}
+                            style={{
+                              boxShadow:
+                                selectedPartner?.id === p.id
+                                  ? "0 0 0 4px #818cf8, 0 8px 32px 0 rgba(55,48,163,0.15)"
+                                  : undefined,
+                              pointerEvents: loading ? "none" : "auto",
+                              opacity: loading ? 0.6 : 1,
+                            }}
+                            onClick={() => {
+                              if (loading) return; // 載入中時禁止點擊
+                              handlePartnerSelect(p);
+                            }}
+                          >
+                            <PartnerCard
+                              partner={p}
+                              flipped={flippedCards.has(p.id)}
+                              onFlip={() => handleCardFlip(p.id)}
+                              isFavorite={favoritePartnerIds.has(p.id)}
+                              onToggleFavorite={handleToggleFavorite}
+                            />
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </>
               )}
