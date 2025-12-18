@@ -43,7 +43,6 @@ export async function POST(request: Request) {
           id: true,
           name: true,
           email: true,
-          image: true,
         }
       });
 
