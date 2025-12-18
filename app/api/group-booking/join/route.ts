@@ -24,13 +24,35 @@ export async function POST(request: Request) {
     }
 
     return await db.query(async (client) => {
-      // 查找群組預約
+      // 查找群組預約（明確指定需要的欄位，避免查詢不存在的欄位）
       const groupBooking = await client.groupBooking.findUnique({
-      where: { id: groupBookingId },
-      include: {
-        GroupBookingParticipant: true
-      }
-    });
+        where: { id: groupBookingId },
+        select: {
+          id: true,
+          title: true,
+          description: true,
+          date: true,
+          startTime: true,
+          endTime: true,
+          maxParticipants: true,
+          currentParticipants: true,
+          pricePerPerson: true,
+          status: true,
+          initiatorId: true,
+          initiatorType: true,
+          createdAt: true,
+          updatedAt: true,
+          GroupBookingParticipant: {
+            select: {
+              id: true,
+              customerId: true,
+              partnerId: true,
+              status: true,
+              joinedAt: true,
+            }
+          }
+        }
+      });
 
     if (!groupBooking) {
       return NextResponse.json({ error: '群組預約不存在' }, { status: 404 });
@@ -99,8 +121,26 @@ export async function POST(request: Request) {
         // 重新查詢群組以獲取最新數據
         const updatedGroupBooking = await client.groupBooking.findUnique({
           where: { id: groupBookingId },
-          include: {
-            GroupBookingParticipant: true
+          select: {
+            id: true,
+            title: true,
+            description: true,
+            date: true,
+            startTime: true,
+            endTime: true,
+            maxParticipants: true,
+            currentParticipants: true,
+            pricePerPerson: true,
+            status: true,
+            GroupBookingParticipant: {
+              select: {
+                id: true,
+                customerId: true,
+                partnerId: true,
+                status: true,
+                joinedAt: true,
+              }
+            }
           }
         });
 
@@ -160,8 +200,26 @@ export async function POST(request: Request) {
               // 已經加入了，返回成功
               const updatedGroupBooking = await tx.groupBooking.findUnique({
                 where: { id: groupBookingId },
-                include: {
-                  GroupBookingParticipant: true
+                select: {
+                  id: true,
+                  title: true,
+                  description: true,
+                  date: true,
+                  startTime: true,
+                  endTime: true,
+                  maxParticipants: true,
+                  currentParticipants: true,
+                  pricePerPerson: true,
+                  status: true,
+                  GroupBookingParticipant: {
+                    select: {
+                      id: true,
+                      customerId: true,
+                      partnerId: true,
+                      status: true,
+                      joinedAt: true,
+                    }
+                  }
                 }
               });
 
@@ -287,8 +345,26 @@ export async function POST(request: Request) {
         // 重新查詢群組以獲取最新的參與人數
         const updatedGroupBooking = await tx.groupBooking.findUnique({
           where: { id: groupBookingId },
-          include: {
-            GroupBookingParticipant: true
+          select: {
+            id: true,
+            title: true,
+            description: true,
+            date: true,
+            startTime: true,
+            endTime: true,
+            maxParticipants: true,
+            currentParticipants: true,
+            pricePerPerson: true,
+            status: true,
+            GroupBookingParticipant: {
+              select: {
+                id: true,
+                customerId: true,
+                partnerId: true,
+                status: true,
+                joinedAt: true,
+              }
+            }
           }
         });
 

@@ -350,7 +350,7 @@ function BookingWizardContent() {
     });
 
     // 將收藏的夥伴放在最上面
-    return filtered.sort((a, b) => {
+    const sorted = filtered.sort((a, b) => {
       const aIsFavorite = favoritePartnerIds.has(a.id);
       const bIsFavorite = favoritePartnerIds.has(b.id);
 
@@ -358,8 +358,8 @@ function BookingWizardContent() {
       if (!aIsFavorite && bIsFavorite) return 1;
       return 0;
     });
-    console.log('[預約頁面] 過濾後夥伴數量:', filtered.length);
-    return filtered;
+    console.log('[預約頁面] 過濾後夥伴數量:', sorted.length);
+    return sorted;
   }, [partners, onlyAvailable, onlyRankBooster, onlyChat, favoritePartnerIds]);
 
   const handleTimeSelect = useCallback((timeId: string) => {
@@ -393,7 +393,10 @@ function BookingWizardContent() {
 
   // 優化時段選擇邏輯 - 過濾掉所有與已預約時段重疊的時段
   const availableTimeSlots = useMemo(() => {
-    if (!selectedPartner || !selectedDate) return [];
+    if (!selectedPartner || !selectedDate) {
+      console.log('[預約頁面] availableTimeSlots: 缺少必要條件', { selectedPartner: !!selectedPartner, selectedDate: !!selectedDate });
+      return [];
+    }
 
     // 收集所有已預約的時段（排除已取消、已拒絕、已完成的）
     const bookedTimeSlots: Array<{ startTime: Date; endTime: Date }> = [];
@@ -401,6 +404,7 @@ function BookingWizardContent() {
 
     // 遍歷所有時段，收集有效預約
     const schedules = partnerSchedules.get(selectedPartner.id) || [];
+    console.log('[預約頁面] availableTimeSlots: 載入時段', { partnerId: selectedPartner.id, schedulesCount: schedules.length, selectedDate });
     schedules.forEach((schedule) => {
       // 只考慮同一天的時段
       const scheduleDate = new Date(schedule.date);
@@ -483,11 +487,13 @@ function BookingWizardContent() {
       seenTimeSlots.add(timeSlotIdentifier);
       return true;
     });
-    return uniqueSchedules.sort(
+    const sorted = uniqueSchedules.sort(
       (a, b) =>
         new Date(a.startTime).getTime() - new Date(b.startTime).getTime(),
     );
-  }, [selectedPartner, selectedDate]);
+    console.log('[預約頁面] availableTimeSlots 最終結果:', sorted.length, '個可用時段');
+    return sorted;
+  }, [selectedPartner, selectedDate, partnerSchedules]);
 
   // 計算所需金幣
   const calculateRequiredCoins = () => {
@@ -588,15 +594,18 @@ function BookingWizardContent() {
   const loadPartnerSchedules = useCallback(async (partnerId: string) => {
     // 如果已經載入過，直接返回
     if (partnerSchedules.has(partnerId)) {
+      console.log('[預約頁面] 時段已載入，跳過:', partnerId);
       return;
     }
 
+    console.log('[預約頁面] 開始載入夥伴時段:', partnerId);
     setLoadingSchedules(true);
     try {
       const now = new Date();
       const endDate = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000); // 7天後
       const url = `/api/partners/${partnerId}/schedules?startDate=${now.toISOString()}&endDate=${endDate.toISOString()}`;
       
+      console.log('[預約頁面] 時段 API URL:', url);
       const res = await fetch(url, {
         cache: "force-cache",
         headers: {
@@ -604,16 +613,23 @@ function BookingWizardContent() {
         },
       });
 
+      console.log('[預約頁面] 時段 API 響應狀態:', res.status, res.ok);
       if (res.ok) {
         const data = await res.json();
+        console.log('[預約頁面] 時段 API 返回數據:', data);
+        console.log('[預約頁面] 時段數量:', data.schedules?.length || 0);
         setPartnerSchedules(prev => {
           const newMap = new Map(prev);
           newMap.set(partnerId, data.schedules || []);
+          console.log('[預約頁面] 已更新 partnerSchedules，當前數量:', newMap.get(partnerId)?.length || 0);
           return newMap;
         });
+      } else {
+        const errorText = await res.text();
+        console.error('[預約頁面] 時段 API 錯誤:', res.status, errorText);
       }
     } catch (error) {
-      console.error("Failed to load schedules:", error);
+      console.error("[預約頁面] Failed to load schedules:", error);
     } finally {
       setLoadingSchedules(false);
     }

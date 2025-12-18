@@ -56,14 +56,20 @@ export default function ReferralPage() {
   const fetchStats = async () => {
     try {
       const response = await fetch('/api/partners/referral/stats');
+      const data = await response.json();
+      console.log('[推薦系統] 獲取統計響應:', { status: response.status, ok: response.ok });
+      
       if (response.ok) {
-        const data = await response.json();
         setStats(data);
+        setError(''); // 清除錯誤
       } else {
-        setError('獲取推薦統計失敗');
+        const errorMessage = data.error || '獲取推薦統計失敗';
+        console.error('[推薦系統] 獲取統計失敗:', errorMessage);
+        setError(errorMessage);
       }
     } catch (err) {
-      setError('獲取推薦統計失敗');
+      console.error('[推薦系統] 獲取統計異常:', err);
+      setError(err instanceof Error ? err.message : '獲取推薦統計失敗');
     } finally {
       setLoading(false);
     }
@@ -71,17 +77,25 @@ export default function ReferralPage() {
 
   const generateInviteCode = async () => {
     setGenerating(true);
+    setError(''); // 清除之前的錯誤
     try {
       const response = await fetch('/api/partners/referral/generate-code', {
         method: 'POST'
       });
+      
+      const data = await response.json();
+      console.log('[推薦系統] 生成邀請碼響應:', { status: response.status, ok: response.ok, data });
+      
       if (response.ok) {
         await fetchStats(); // 重新獲取統計
       } else {
-        setError('生成邀請碼失敗');
+        const errorMessage = data.error || data.message || '生成邀請碼失敗';
+        console.error('[推薦系統] 生成邀請碼失敗:', errorMessage);
+        setError(errorMessage);
       }
     } catch (err) {
-      setError('生成邀請碼失敗');
+      console.error('[推薦系統] 生成邀請碼異常:', err);
+      setError(err instanceof Error ? err.message : '生成邀請碼失敗');
     } finally {
       setGenerating(false);
     }
@@ -105,10 +119,18 @@ export default function ReferralPage() {
     );
   }
 
-  if (error) {
+  if (error && !stats) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-900 via-purple-900 to-indigo-900 flex items-center justify-center">
-        <div className="text-center text-red-400">{error}</div>
+        <div className="text-center">
+          <div className="text-red-400 text-xl mb-4">{error}</div>
+          <button
+            onClick={fetchStats}
+            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+          >
+            重試
+          </button>
+        </div>
       </div>
     );
   }
@@ -185,6 +207,13 @@ export default function ReferralPage() {
             </div>
           </div>
         </div>
+
+        {/* 錯誤提示 */}
+        {error && (
+          <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+            <p className="text-red-800">{error}</p>
+          </div>
+        )}
 
         {/* 邀請碼區域 */}
         <div className="bg-gray-50 rounded-lg shadow-lg p-6 mb-8">

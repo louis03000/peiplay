@@ -21,10 +21,11 @@ const ACTIVE_BOOKING_STATUSES: Set<BookingStatus> = new Set([
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> | { id: string } }
 ) {
   try {
-    const partnerId = params.id;
+    const resolvedParams = params instanceof Promise ? await params : params;
+    const partnerId = resolvedParams.id;
     const url = request.nextUrl;
     const startDate = url.searchParams.get("startDate");
     const endDate = url.searchParams.get("endDate");

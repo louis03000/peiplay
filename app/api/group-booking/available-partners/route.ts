@@ -109,44 +109,75 @@ export async function GET(request: Request) {
       // 同時獲取該時段的群組預約
       const thirtyMinutesFromNow = new Date(now.getTime() + 30 * 60 * 1000);
       const groupBookings = await client.groupBooking.findMany({
-      where: {
-        status: 'ACTIVE',
-        startTime: { 
-          lte: end,
-          gt: thirtyMinutesFromNow // 開始前30分鐘的群組不顯示
+        where: {
+          status: 'ACTIVE',
+          startTime: { 
+            lte: end,
+            gt: thirtyMinutesFromNow // 開始前30分鐘的群組不顯示
+          },
+          endTime: { gt: start }
         },
-        endTime: { gt: start }
-      },
-      include: {
-        GroupBookingParticipant: {
-          include: {
-            Partner: {
-              select: {
-                id: true,
-                name: true,
-                coverImage: true,
-                halfHourlyRate: true,
-                user: {
-                  select: {
-                    isSuspended: true,
-                    suspensionEndsAt: true,
-                    reviewsReceived: {
-                      where: { isApproved: true },
-                      select: { rating: true }
+        select: {
+          id: true,
+          title: true,
+          description: true,
+          date: true,
+          startTime: true,
+          endTime: true,
+          maxParticipants: true,
+          currentParticipants: true,
+          pricePerPerson: true,
+          status: true,
+          initiatorId: true,
+          initiatorType: true,
+          createdAt: true,
+          GroupBookingParticipant: {
+            select: {
+              id: true,
+              customerId: true,
+              partnerId: true,
+              status: true,
+              joinedAt: true,
+              Partner: {
+                select: {
+                  id: true,
+                  name: true,
+                  coverImage: true,
+                  halfHourlyRate: true,
+                  user: {
+                    select: {
+                      id: true,
+                      isSuspended: true,
+                      suspensionEndsAt: true,
+                      reviewsReceived: {
+                        where: { isApproved: true },
+                        select: { rating: true }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          bookings: {
+            select: {
+              id: true,
+              customerId: true,
+              status: true,
+              customer: {
+                select: {
+                  id: true,
+                  user: {
+                    select: {
+                      id: true,
+                      name: true,
+                      email: true
                     }
                   }
                 }
               }
             }
           }
-        },
-        bookings: {
-          include: {
-            customer: {
-              include: { user: true }
-            }
-          }
-        }
       },
       orderBy: { createdAt: 'desc' }
     });

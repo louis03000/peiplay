@@ -17,6 +17,10 @@ interface PartnerProfile {
   halfHourlyRate: number
   customerMessage: string | null
   images: string[]
+  isRankBooster?: boolean
+  rankBoosterImages?: string[]
+  rankBoosterNote?: string | null
+  rankBoosterRank?: string | null
   reviewsReceived: Review[]
   user: {
     name: string
@@ -43,10 +47,15 @@ export default function PartnerProfilePage() {
   const [touchStart, setTouchStart] = useState<number | null>(null)
   const [touchEnd, setTouchEnd] = useState<number | null>(null)
 
-  // 獲取要顯示的圖片陣列（最多3張）
+  // 獲取要顯示的圖片陣列：包含普通圖片和上分高手圖片
   const displayImages = useMemo(() => {
     if (!partner) return []
-    return partner.images.slice(0, 3)
+    let images = partner.images || []
+    // 如果有上分高手圖片，合併進去
+    if (partner.isRankBooster && partner.rankBoosterImages?.length) {
+      images = [...images, ...partner.rankBoosterImages]
+    }
+    return images.slice(0, 10) // 允許顯示更多圖片（包含段位證明）
   }, [partner])
 
   // 當圖片陣列改變時，重置索引

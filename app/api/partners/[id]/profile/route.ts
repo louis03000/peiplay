@@ -8,9 +8,10 @@ export const runtime = 'nodejs';
 
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> | { id: string } }
 ) {
-  const { id } = params;
+  const resolvedParams = params instanceof Promise ? await params : params;
+  const { id } = resolvedParams;
 
   try {
     // 優化：使用 Redis 快取（夥伴資料不常變動）
@@ -34,6 +35,10 @@ export async function GET(
               customerMessage: true,
               images: true,
               coverImage: true,
+              rankBoosterImages: true,
+              isRankBooster: true,
+              rankBoosterNote: true,
+              rankBoosterRank: true,
               userId: true,
               user: {
                 select: { name: true }
@@ -87,6 +92,10 @@ export async function GET(
     if (images.length === 0 && partner.coverImage) {
       images = [partner.coverImage];
     }
+    // 如果有上分高手圖片，合併到圖片列表中
+    if (partner.isRankBooster && partner.rankBoosterImages?.length) {
+      images = [...images, ...partner.rankBoosterImages];
+    }
     images = images.slice(0, 3);
     
     const formattedPartner = {
@@ -101,6 +110,10 @@ export async function GET(
       halfHourlyRate: partner.halfHourlyRate || 0,
       customerMessage: partner.customerMessage || null,
       images: Array.isArray(images) ? images : [],
+      isRankBooster: Boolean(partner.isRankBooster),
+      rankBoosterImages: Array.isArray(partner.rankBoosterImages) ? partner.rankBoosterImages : [],
+      rankBoosterNote: partner.rankBoosterNote || null,
+      rankBoosterRank: partner.rankBoosterRank || null,
       reviewsReceived: reviewsReceived.map(review => ({
         id: review.id,
         rating: review.rating || 0,
