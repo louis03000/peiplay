@@ -28,6 +28,7 @@ export default function AnnouncementManagementPage() {
   const [error, setError] = useState<string | null>(null)
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
 
   // 表單狀態
   const [formData, setFormData] = useState({
@@ -107,6 +108,34 @@ export default function AnnouncementManagementPage() {
       setError(err instanceof Error ? err.message : '發布失敗')
     } finally {
       setSubmitting(false)
+    }
+  }
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('確定要刪除此公告嗎？此操作無法復原。')) {
+      return
+    }
+
+    try {
+      setDeletingId(id)
+      setError(null)
+
+      const response = await fetch(`/api/announcements/${id}`, {
+        method: 'DELETE',
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || '刪除失敗')
+      }
+
+      // 重新載入公告
+      await fetchAnnouncements()
+      
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '刪除失敗')
+    } finally {
+      setDeletingId(null)
     }
   }
 
@@ -274,6 +303,13 @@ export default function AnnouncementManagementPage() {
                       )}
                     </div>
                   </div>
+                  <button
+                    onClick={() => handleDelete(announcement.id)}
+                    disabled={deletingId === announcement.id}
+                    className="ml-4 px-4 py-2 bg-red-600 hover:bg-red-700 disabled:bg-gray-600 disabled:opacity-50 text-white rounded-lg font-medium transition-colors text-sm"
+                  >
+                    {deletingId === announcement.id ? '刪除中...' : '刪除'}
+                  </button>
                 </div>
                 
                 <div className="bg-gray-700/50 rounded-lg p-4">

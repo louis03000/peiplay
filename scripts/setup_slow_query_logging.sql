@@ -153,3 +153,5 @@ ORDER BY pg_relation_size(indexrelid) DESC;
 -- 6. 可以使用 log_rotation_age 和 log_rotation_size 自動輪轉日誌
 
 
+
+

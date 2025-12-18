@@ -278,16 +278,23 @@ function BookingWizardContent() {
         const partnersData = results[0];
         const favoritesData = results[1];
 
+        // 調試：記錄 API 返回的數據
+        console.log('[預約頁面] API 返回的 partnersData:', partnersData);
+        console.log('[預約頁面] partnersData 類型:', typeof partnersData, Array.isArray(partnersData));
+
         // 處理 partners 資料
         if (Array.isArray(partnersData)) {
+          console.log('[預約頁面] 直接數組格式，夥伴數量:', partnersData.length);
           setPartners(partnersData);
           setPartnersError(null);
           setRetryCount(0);
         } else if (partnersData?.partners && Array.isArray(partnersData.partners)) {
+          console.log('[預約頁面] 物件格式 {partners: []}，夥伴數量:', partnersData.partners.length);
           setPartners(partnersData.partners);
           setPartnersError(null);
           setRetryCount(0);
         } else {
+          console.warn('[預約頁面] ⚠️ 無法識別的數據格式:', partnersData);
           setPartners([]);
           setPartnersError(null);
         }
@@ -318,6 +325,7 @@ function BookingWizardContent() {
 
   // 搜尋過濾 - 使用 useMemo 優化，使用防抖搜尋，並將收藏的夥伴放在最上面
   const filteredPartners: Partner[] = useMemo(() => {
+    console.log('[預約頁面] 過濾前夥伴數量:', partners.length, '篩選條件:', { onlyAvailable, onlyRankBooster, onlyChat });
     const filtered = partners.filter((p) => {
       // 所有篩選條件都應該疊加（AND 邏輯）
       // 純聊天篩選：檢查 supportsChatOnly 欄位或 games 陣列中是否包含 'chat' 或 '純聊天'
@@ -350,6 +358,8 @@ function BookingWizardContent() {
       if (!aIsFavorite && bIsFavorite) return 1;
       return 0;
     });
+    console.log('[預約頁面] 過濾後夥伴數量:', filtered.length);
+    return filtered;
   }, [partners, onlyAvailable, onlyRankBooster, onlyChat, favoritePartnerIds]);
 
   const handleTimeSelect = useCallback((timeId: string) => {

@@ -113,3 +113,5 @@ ORDER BY pg_relation_size(indexrelid) DESC;
 -- 4. 定期檢查索引使用情況，刪除未使用的索引
 
 
+
+

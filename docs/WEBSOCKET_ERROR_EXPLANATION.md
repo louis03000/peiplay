@@ -74,3 +74,5 @@ globalSocket.on('connect_error', (error) => {
 
 等未來真正需要即時推送時，再考慮部署 Socket 服務器。
 
+
+
