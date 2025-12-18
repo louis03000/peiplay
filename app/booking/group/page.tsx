@@ -304,6 +304,10 @@ function GroupBookingContent() {
     }
   }
 
+  const handleConfirmJoinClick = () => {
+    handleConfirmJoin(0)
+  }
+
   const handleCancelJoin = () => {
     setShowJoinModal(false)
     setSelectedGroupBooking(null)
@@ -655,7 +659,7 @@ function GroupBookingContent() {
                     取消
                   </button>
                   <button
-                    onClick={handleConfirmJoin}
+                    onClick={handleConfirmJoinClick}
                     disabled={loading}
                     className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
                   >
