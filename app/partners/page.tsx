@@ -163,7 +163,9 @@ export default function PartnersPage() {
           }
           
           const data = await response.json()
-          setPartners(data)
+          // API 返回格式可能是 { partners: [...], pagination: {...} } 或直接是數組
+          const partnersArray = Array.isArray(data) ? data : (data?.partners || [])
+          setPartners(partnersArray)
         }
       } catch (err) {
         setError('載入夥伴資料失敗')
