@@ -292,15 +292,18 @@ function BookingWizardContent() {
         console.log('[預約頁面] 篩選條件:', { onlyAvailable, onlyRankBooster });
 
         // 並行請求：partners + favorites（如果已登入）
-        // 對於「現在有空」不使用快取，確保即時性
+        // 為了顯示「現在有空」和「上分高手」標籤，總是獲取最新數據（不使用強制緩存）
         const requests: Promise<any>[] = [
           fetch(partnersUrl, {
-            cache: onlyAvailable ? "no-store" : "force-cache", // 「現在有空」不使用快取
+            cache: "no-store", // 總是獲取最新數據，確保標籤正確顯示
             headers: {
-              "Cache-Control": onlyAvailable ? "no-cache, no-store, must-revalidate" : "max-age=30",
+              "Cache-Control": "no-cache, no-store, must-revalidate",
             },
           }).then(res => {
             console.log('[預約頁面] API 響應狀態:', res.status, res.ok);
+            if (!res.ok) {
+              throw new Error(`API 請求失敗: ${res.status}`);
+            }
             return res.json();
           }),
         ];
@@ -329,17 +332,43 @@ function BookingWizardContent() {
         // 處理 partners 資料
         if (Array.isArray(partnersData)) {
           console.log('[預約頁面] 直接數組格式，夥伴數量:', partnersData.length);
-          // 檢查 isAvailableNow 欄位
+          // 檢查 isAvailableNow 和 isRankBooster 欄位
           const withAvailableNow = partnersData.filter(p => p.isAvailableNow);
+          const withRankBooster = partnersData.filter(p => p.isRankBooster);
           console.log('[預約頁面] 有「現在有空」的夥伴數量:', withAvailableNow.length);
+          console.log('[預約頁面] 有「上分高手」的夥伴數量:', withRankBooster.length);
+          
+          // 詳細記錄每個夥伴的狀態
+          partnersData.forEach((p: Partner) => {
+            if (p.isAvailableNow || p.isRankBooster) {
+              console.log('[預約頁面] 夥伴狀態:', p.name, {
+                isAvailableNow: p.isAvailableNow,
+                isRankBooster: p.isRankBooster
+              });
+            }
+          });
+          
           setPartners(partnersData);
           setPartnersError(null);
           setRetryCount(0);
         } else if (partnersData?.partners && Array.isArray(partnersData.partners)) {
           console.log('[預約頁面] 物件格式 {partners: []}，夥伴數量:', partnersData.partners.length);
-          // 檢查 isAvailableNow 欄位
+          // 檢查 isAvailableNow 和 isRankBooster 欄位
           const withAvailableNow = partnersData.partners.filter((p: Partner) => p.isAvailableNow);
+          const withRankBooster = partnersData.partners.filter((p: Partner) => p.isRankBooster);
           console.log('[預約頁面] 有「現在有空」的夥伴數量:', withAvailableNow.length);
+          console.log('[預約頁面] 有「上分高手」的夥伴數量:', withRankBooster.length);
+          
+          // 詳細記錄每個夥伴的狀態
+          partnersData.partners.forEach((p: Partner) => {
+            if (p.isAvailableNow || p.isRankBooster) {
+              console.log('[預約頁面] 夥伴狀態:', p.name, {
+                isAvailableNow: p.isAvailableNow,
+                isRankBooster: p.isRankBooster
+              });
+            }
+          });
+          
           setPartners(partnersData.partners);
           setPartnersError(null);
           setRetryCount(0);

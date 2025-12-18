@@ -171,13 +171,13 @@ export async function GET(request: NextRequest) {
       }
       images = images.slice(0, 8);
 
-      return {
+      const result = {
         id: partner.id,
         name: partner.name,
         games: partner.games,
         halfHourlyRate: partner.halfHourlyRate,
-        isAvailableNow: partner.isAvailableNow,
-        isRankBooster: partner.isRankBooster,
+        isAvailableNow: !!partner.isAvailableNow, // 確保是 boolean
+        isRankBooster: !!partner.isRankBooster, // 確保是 boolean
         allowGroupBooking: partner.allowGroupBooking,
         rankBoosterNote: partner.rankBoosterNote,
         rankBoosterRank: partner.rankBoosterRank,
@@ -188,6 +188,16 @@ export async function GET(request: NextRequest) {
         // 不返回 schedules
         schedules: [], // 空陣列，時段需要另外查詢
       };
+      
+      // 調試：記錄所有夥伴的狀態（用於診斷）
+      console.log('[partners/list] 夥伴狀態:', result.name, {
+        isAvailableNow: result.isAvailableNow,
+        isRankBooster: result.isRankBooster,
+        rawIsAvailableNow: partner.isAvailableNow,
+        rawIsRankBooster: partner.isRankBooster
+      });
+      
+      return result;
     });
 
     return NextResponse.json(processed, {
