@@ -52,7 +52,14 @@ export async function POST(request: Request) {
 
       // 獲取夥伴上一週的排名並計算平台維護費
       // 本週的排名決定下週的減免，所以計算當前週的費用時，需要查詢上一週的排名
-      const rank = await getPartnerLastWeekRank(partner.id)
+      let rank: number | null = null
+      try {
+        rank = await getPartnerLastWeekRank(partner.id)
+      } catch (error) {
+        // 如果查詢排名失敗，使用默認費率（15%）
+        console.warn('⚠️ 獲取上一週排名失敗，使用默認費率:', error)
+        rank = null
+      }
       const PLATFORM_FEE_PERCENTAGE = calculatePlatformFeePercentage(rank)
 
       const [totalEarnings, totalWithdrawn] = await Promise.all([
@@ -117,7 +124,17 @@ export async function POST(request: Request) {
             status: { in: ['COMPLETED', 'CONFIRMED'] },
           },
           include: {
-            customer: { include: { user: true } },
+            customer: {
+              include: {
+                user: {
+                  select: {
+                    id: true,
+                    name: true,
+                    email: true,
+                  },
+                },
+              },
+            },
             schedule: true,
           },
           orderBy: { createdAt: 'desc' },
