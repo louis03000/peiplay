@@ -298,21 +298,25 @@ export default function Navigation() {
                   </div>
                 )}
                 
-                {/* 預約管理 */}
-                <div className="px-4 py-3">
-                  <Link href="/bookings" className="flex items-center space-x-3 text-gray-900 hover:text-orange-600 hover:bg-orange-50 transition-colors rounded-lg px-2 py-2">
-                    <span className="text-xl">📋</span>
-                    <span className="font-medium">預約管理</span>
-                  </Link>
-                </div>
+                {/* 預約管理 - 管理員不顯示 */}
+                {session.user.role !== 'ADMIN' && (
+                  <div className="px-4 py-3">
+                    <Link href="/bookings" className="flex items-center space-x-3 text-gray-900 hover:text-orange-600 hover:bg-orange-50 transition-colors rounded-lg px-2 py-2">
+                      <span className="text-xl">📋</span>
+                      <span className="font-medium">預約管理</span>
+                    </Link>
+                  </div>
+                )}
                 
-                {/* 個人資料 */}
-                <div className="px-4 py-3">
-                  <Link href="/profile" className="flex items-center space-x-3 text-purple-600 hover:text-purple-700 hover:bg-purple-50 transition-colors rounded-lg px-2 py-2">
-                    <span className="text-xl">👤</span>
-                    <span className="font-medium">個人資料</span>
-                  </Link>
-                </div>
+                {/* 個人資料 - 管理員不顯示 */}
+                {session.user.role !== 'ADMIN' && (
+                  <div className="px-4 py-3">
+                    <Link href="/profile" className="flex items-center space-x-3 text-purple-600 hover:text-purple-700 hover:bg-purple-50 transition-colors rounded-lg px-2 py-2">
+                      <span className="text-xl">👤</span>
+                      <span className="font-medium">個人資料</span>
+                    </Link>
+                  </div>
+                )}
                 
                 {/* 設定 */}
                 <div className="px-4 py-3">

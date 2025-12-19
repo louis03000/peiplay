@@ -320,29 +320,35 @@ export default function Navbar() {
                   </div>
                 )}
                 
-                {/* 預約管理 */}
-                <div className="px-3 py-2">
-                  <Link href="/bookings" className="flex items-center justify-center space-x-2 text-gray-900 hover:text-orange-600 hover:bg-orange-50 transition-colors rounded-lg px-2 py-2">
-                    <span className="text-lg">📋</span>
-                    <span className="font-medium text-sm">預約管理</span>
-                  </Link>
-                </div>
+                {/* 預約管理 - 管理員不顯示 */}
+                {session.user.role !== 'ADMIN' && (
+                  <div className="px-3 py-2">
+                    <Link href="/bookings" className="flex items-center justify-center space-x-2 text-gray-900 hover:text-orange-600 hover:bg-orange-50 transition-colors rounded-lg px-2 py-2">
+                      <span className="text-lg">📋</span>
+                      <span className="font-medium text-sm">預約管理</span>
+                    </Link>
+                  </div>
+                )}
                 
-                {/* 聊天室 */}
-                <div className="px-3 py-2">
-                  <Link href="/chat" className="flex items-center justify-center space-x-2 text-gray-900 hover:text-green-600 hover:bg-green-50 transition-colors rounded-lg px-2 py-2">
-                    <span className="text-lg">💬</span>
-                    <span className="font-medium text-sm">聊天室</span>
-                  </Link>
-                </div>
+                {/* 聊天室 - 管理員不顯示 */}
+                {session.user.role !== 'ADMIN' && (
+                  <div className="px-3 py-2">
+                    <Link href="/chat" className="flex items-center justify-center space-x-2 text-gray-900 hover:text-green-600 hover:bg-green-50 transition-colors rounded-lg px-2 py-2">
+                      <span className="text-lg">💬</span>
+                      <span className="font-medium text-sm">聊天室</span>
+                    </Link>
+                  </div>
+                )}
                 
-                {/* 個人資料 */}
-                <div className="px-3 py-2">
-                  <Link href="/profile" className="flex items-center justify-center space-x-2 text-purple-600 hover:text-purple-700 hover:bg-purple-50 transition-colors rounded-lg px-2 py-2">
-                    <span className="text-lg">👤</span>
-                    <span className="font-medium text-sm">個人資料</span>
-                  </Link>
-                </div>
+                {/* 個人資料 - 管理員不顯示 */}
+                {session.user.role !== 'ADMIN' && (
+                  <div className="px-3 py-2">
+                    <Link href="/profile" className="flex items-center justify-center space-x-2 text-purple-600 hover:text-purple-700 hover:bg-purple-50 transition-colors rounded-lg px-2 py-2">
+                      <span className="text-lg">👤</span>
+                      <span className="font-medium text-sm">個人資料</span>
+                    </Link>
+                  </div>
+                )}
                 
                 {/* 設定 */}
                 <div className="px-3 py-2">
