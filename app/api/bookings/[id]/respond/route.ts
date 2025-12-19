@@ -47,14 +47,26 @@ export async function POST(
         include: {
           customer: {
             include: {
-              user: true,
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                },
+              },
             },
           },
           schedule: {
             include: {
               partner: {
                 include: {
-                  user: true,
+                  user: {
+                    select: {
+                      id: true,
+                      name: true,
+                      email: true,
+                    },
+                  },
                 },
               },
             },

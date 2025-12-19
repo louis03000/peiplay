@@ -1287,11 +1287,11 @@ function BookingWizardContent() {
                 預約已確認，等待夥伴確認即可。
               </p>
               <div className="bg-green-900/30 border border-green-500 rounded-lg p-4 mt-4">
-                <p className="text-green-300 text-sm">
+                <p className="text-green-200 text-base font-medium">
                   🎉 恭喜！您的預約已成功建立。
                 </p>
                 {onlyAvailable && (
-                  <p className="text-blue-300 text-sm mt-2">
+                  <p className="text-blue-200 text-base font-medium mt-2">
                     ⏰ 即時預約：Discord 頻道將在夥伴確認後 3 分鐘自動開啟
                   </p>
                 )}
