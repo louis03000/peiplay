@@ -345,8 +345,8 @@ const PartnerCard = memo(function PartnerCard({ partner, onQuickBook, showNextSt
               )}
             </div>
 
-            {/* 按鈕區域 */}
-            <div className="flex gap-1.5 relative">
+            {/* 按鈕區域 - 使用 flex 佈局，避免重疊 */}
+            <div className="flex gap-1.5 items-center">
               {partner.isAvailableNow && onQuickBook && (
                 <button
                   onClick={() => onQuickBook(partner.id)}
@@ -358,21 +358,21 @@ const PartnerCard = memo(function PartnerCard({ partner, onQuickBook, showNextSt
                 </button>
               )}
               
-              {/* 查看詳情按鈕 - 合併了查看內容功能 */}
+              {/* 查看詳情按鈕 */}
               <button
                 onClick={() => window.location.href = `/partners/${partner.id}/profile`}
-                className="bg-blue-500 hover:bg-blue-600 text-white py-1.5 px-2 rounded-lg text-xs font-medium transition-colors flex items-center justify-center gap-1"
+                className={`${partner.isAvailableNow && onQuickBook ? 'flex-1' : ''} bg-blue-500 hover:bg-blue-600 text-white py-1.5 px-2 rounded-lg text-xs font-medium transition-colors flex items-center justify-center gap-1`}
               >
                 <FaComments className="text-xs" />
                 <span className="hidden sm:inline">查看詳情</span>
                 <span className="sm:hidden">詳情</span>
               </button>
 
-              {/* 聊天按鈕 - 位於右下角 */}
+              {/* 聊天按鈕 - 固定寬度，不重疊 */}
               <button
                 onClick={handleChatClick}
                 disabled={isCreatingChat}
-                className="absolute bottom-0 right-0 bg-purple-500 hover:bg-purple-600 text-white p-2 rounded-lg text-xs font-medium transition-colors flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
+                className="bg-purple-500 hover:bg-purple-600 text-white p-1.5 rounded-lg text-xs font-medium transition-colors flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
                 title="提前聊天（免費5句）"
               >
                 <FaPaperPlane className="text-xs" />
