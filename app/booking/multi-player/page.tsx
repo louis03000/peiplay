@@ -3,15 +3,22 @@
 import { useState, useEffect, Suspense } from 'react'
 import { useSession } from 'next-auth/react'
 import SecureImage from '@/components/SecureImage'
+import PartnerCard from '@/components/PartnerCard'
 
 interface Partner {
   id: string
   name: string
   coverImage: string
+  images?: string[]
   games: string[]
   halfHourlyRate: number
   averageRating: number
   totalReviews: number
+  isAvailableNow?: boolean
+  isRankBooster?: boolean
+  supportsChatOnly?: boolean
+  chatOnlyRate?: number
+  customerMessage?: string
   matchingSchedule: {
     id: string
     startTime: string
@@ -626,54 +633,48 @@ ${formatScheduleChecks(p)}
             <h2 className="text-xl font-semibold mb-4 text-gray-900">
               符合條件的夥伴 ({partners.length})
             </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
               {partners.map((partner) => {
                 if (!partner.matchingSchedule || !partner.matchingSchedule.id) {
                   return null
                 }
                 const isSelected = selectedPartners.has(partner.matchingSchedule.id)
+                
+                // 轉換為 PartnerCard 需要的格式
+                const partnerCardData = {
+                  id: partner.id,
+                  name: partner.name,
+                  games: partner.games,
+                  halfHourlyRate: partner.halfHourlyRate,
+                  coverImage: partner.coverImage,
+                  images: partner.images || [partner.coverImage].filter(Boolean),
+                  schedules: [],
+                  isAvailableNow: partner.isAvailableNow || false,
+                  isRankBooster: partner.isRankBooster || false,
+                  supportsChatOnly: partner.supportsChatOnly,
+                  chatOnlyRate: partner.chatOnlyRate,
+                  customerMessage: partner.customerMessage,
+                  averageRating: partner.averageRating,
+                  totalReviews: partner.totalReviews,
+                }
+                
                 return (
                   <div
                     key={partner.id}
-                    className={`border-2 rounded-lg p-4 cursor-pointer transition-all ${
-                      isSelected
-                        ? 'border-purple-500 bg-purple-50'
-                        : 'border-gray-200 hover:border-purple-300'
+                    className={`relative transition-all ${
+                      isSelected ? 'ring-2 ring-purple-500 ring-offset-2' : ''
                     }`}
                     onClick={() => togglePartnerSelection(partner.matchingSchedule.id)}
                   >
-                    <div className="flex items-start gap-3">
-                      <div className="w-16 h-16 rounded-lg overflow-hidden relative flex-shrink-0">
-                        <SecureImage
-                          src={partner.coverImage}
-                          alt={partner.name}
-                          fill
-                          className="object-cover"
-                        />
+                    <PartnerCard
+                      partner={partnerCardData}
+                      showNextStep={false}
+                    />
+                    {isSelected && (
+                      <div className="absolute top-2 right-2 bg-purple-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold z-40">
+                        ✓
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold text-gray-900 truncate">{partner.name}</h3>
-                        <p className="text-sm text-gray-600">
-                          每半小時 ${partner.halfHourlyRate}
-                        </p>
-                        <p className="text-sm text-gray-600">
-                          ⭐ {partner.averageRating} ({partner.totalReviews} 評價)
-                        </p>
-                        <div className="flex flex-wrap gap-1 mt-2">
-                          {partner.games.slice(0, 3).map(game => (
-                            <span
-                              key={game}
-                              className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded"
-                            >
-                              {game}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                      {isSelected && (
-                        <div className="text-purple-500 text-xl">✓</div>
-                      )}
-                    </div>
+                    )}
                   </div>
                 )
               })}
