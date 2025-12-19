@@ -27,8 +27,9 @@ export async function GET(request: NextRequest) {
     };
     const cacheKey = CacheKeys.partners.list(cacheParams) + ':lightweight';
 
-    // 使用 Redis 快取（對於「現在有空」使用更短的快取時間，確保即時性）
-    const cacheTTL = availableNow ? 10 : CacheTTL.SHORT; // 10秒 vs 30秒
+    // 使用 Redis 快取（統一使用較短的快取時間，確保「現在有空」和「上分高手」標籤能快速顯示）
+    // 即使沒有勾選篩選，也要快速顯示標籤，所以統一使用 10 秒緩存
+    const cacheTTL = 10; // 統一使用 10 秒，確保標籤即時顯示
     const partners = await Cache.getOrSet(
       cacheKey,
       async () => {
@@ -149,7 +150,7 @@ export async function GET(request: NextRequest) {
           'partners:list:lightweight'
         );
       },
-      cacheTTL // 根據是否篩選「現在有空」使用不同的快取時間（10秒 vs 30秒）
+      cacheTTL // 統一使用 10 秒緩存，確保「現在有空」和「上分高手」標籤快速顯示
     );
 
     // 應用層過濾遊戲（避免資料庫層面的複雜查詢）
