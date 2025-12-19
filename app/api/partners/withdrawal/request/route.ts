@@ -32,8 +32,17 @@ export async function POST(request: Request) {
     const result = await db.query(async (client) => {
       const partner = await client.partner.findUnique({
         where: { userId: session.user.id },
-        include: {
-          user: true,
+        select: {
+          id: true,
+          name: true,
+          userId: true,
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
         },
       })
 
