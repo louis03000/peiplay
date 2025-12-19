@@ -223,6 +223,24 @@ export default function AnnouncementManagementPage() {
                     </option>
                   ))}
                 </select>
+                {/* 類型說明提示 */}
+                <div className="mt-2 p-3 bg-gray-800/50 border border-gray-700 rounded-lg">
+                  <p className="text-xs font-medium text-gray-300 mb-2">類型說明：</p>
+                  <ul className="space-y-1.5 text-xs text-gray-400">
+                    <li className="flex items-start gap-2">
+                      <span className="text-blue-400">🔔</span>
+                      <span><strong className="text-blue-300">系統通知：</strong>一般性通知（如功能更新、維護提醒）</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="text-green-400">🎉</span>
+                      <span><strong className="text-green-300">活動公告：</strong>促銷、活動、優惠等</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="text-purple-400">📢</span>
+                      <span><strong className="text-purple-300">系統公告：</strong>重要系統變更、政策更新等</span>
+                    </li>
+                  </ul>
+                </div>
               </div>
 
               <div>
