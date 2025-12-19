@@ -40,7 +40,15 @@ export async function POST(request: NextRequest) {
         console.log('🔍 開始查詢客戶資料...')
         const customer = await client.customer.findUnique({
           where: { userId: session.user.id },
-          include: { user: true },
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+              },
+            },
+          },
         })
 
         if (!customer) {
@@ -51,7 +59,15 @@ export async function POST(request: NextRequest) {
         console.log('🔍 開始查詢夥伴資料...')
         const partner = await client.partner.findUnique({
           where: { id: partnerId },
-          include: { user: true },
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+              },
+            },
+          },
         })
 
         if (!partner) {
