@@ -10,6 +10,7 @@ interface Partner {
   name: string
   coverImage: string
   images?: string[]
+  rankBoosterImages?: string[]
   games: string[]
   halfHourlyRate: number
   averageRating: number
@@ -641,16 +642,27 @@ ${formatScheduleChecks(p)}
                 const isSelected = selectedPartners.has(partner.matchingSchedule.id)
                 
                 // 轉換為 PartnerCard 需要的格式
+                // 處理圖片：優先使用 images，如果沒有則使用 coverImage
+                let images = partner.images || []
+                if (images.length === 0 && partner.coverImage) {
+                  images = [partner.coverImage]
+                }
+                // 如果有上分高手圖片，合併進去
+                if (partner.isRankBooster && partner.rankBoosterImages?.length) {
+                  images = [...images, ...partner.rankBoosterImages]
+                }
+                images = images.slice(0, 8)
+                
                 const partnerCardData = {
                   id: partner.id,
                   name: partner.name,
                   games: partner.games,
                   halfHourlyRate: partner.halfHourlyRate,
                   coverImage: partner.coverImage,
-                  images: partner.images || [partner.coverImage].filter(Boolean),
+                  images: images,
                   schedules: [],
-                  isAvailableNow: partner.isAvailableNow || false,
-                  isRankBooster: partner.isRankBooster || false,
+                  isAvailableNow: !!partner.isAvailableNow, // 確保是 boolean
+                  isRankBooster: !!partner.isRankBooster, // 確保是 boolean
                   supportsChatOnly: partner.supportsChatOnly,
                   chatOnlyRate: partner.chatOnlyRate,
                   customerMessage: partner.customerMessage,

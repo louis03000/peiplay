@@ -174,6 +174,13 @@ export async function GET(request: Request) {
           games: true,
           halfHourlyRate: true,
           coverImage: true,
+          images: true,
+          isAvailableNow: true,
+          isRankBooster: true,
+          rankBoosterImages: true,
+          supportsChatOnly: true,
+          chatOnlyRate: true,
+          customerMessage: true,
           user: {
             select: {
               email: true,
@@ -552,8 +559,14 @@ export async function GET(request: Request) {
             id: partner.id,
             name: partner.name,
             coverImage: partner.coverImage,
+            images: partner.images || [],
             games: partner.games || [],
             halfHourlyRate: partner.halfHourlyRate,
+            isAvailableNow: partner.isAvailableNow || false,
+            isRankBooster: partner.isRankBooster || false,
+            supportsChatOnly: partner.supportsChatOnly || false,
+            chatOnlyRate: partner.chatOnlyRate || null,
+            customerMessage: partner.customerMessage || null,
             averageRating: 0,
             totalReviews: 0,
             matchingSchedule: {
