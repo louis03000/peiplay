@@ -19,12 +19,17 @@ export async function GET() {
           partner: {
             include: {
               user: {
-                select: { email: true },
+                select: { 
+                  id: true,
+                  name: true,
+                  email: true,
+                },
               },
             },
           },
         },
         orderBy: { requestedAt: 'desc' },
+        // 不限制數量，返回所有記錄（永久保存）
       })
     }, 'admin:withdrawals:get')
 

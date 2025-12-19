@@ -36,6 +36,16 @@ export async function POST(request: Request) {
 
         const partner = await tx.partner.findUnique({ where: { userId: user.id } })
         if (partner) {
+          // 檢查是否有提領記錄（提領記錄永久保存，不允許刪除）
+          const withdrawalCount = await tx.withdrawalRequest.count({
+            where: { partnerId: partner.id },
+          });
+          
+          if (withdrawalCount > 0) {
+            // 如果有提領記錄，不允許刪除 Partner（提領記錄需要永久保存）
+            throw new Error(`無法刪除帳號：您有 ${withdrawalCount} 筆提領記錄，提領記錄需要永久保存。如需刪除帳號，請聯繫客服處理。`);
+          }
+          
           await tx.schedule.deleteMany({ where: { partnerId: partner.id } })
           await tx.partner.deleteMany({ where: { userId: user.id } })
         }

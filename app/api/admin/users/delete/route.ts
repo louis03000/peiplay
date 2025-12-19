@@ -69,6 +69,18 @@ export async function DELETE(request: Request) {
         }
 
         if (user.partner) {
+          // 檢查是否有提領記錄（提領記錄永久保存，不允許刪除）
+          const withdrawalCount = await tx.withdrawalRequest.count({
+            where: { partnerId: user.partner.id },
+          });
+          
+          if (withdrawalCount > 0) {
+            // 如果有提領記錄，不允許刪除 Partner（提領記錄需要永久保存）
+            // 可以選擇：1. 阻止刪除 2. 只標記 Partner 為已刪除但不真正刪除
+            // 這裡選擇阻止刪除，確保提領記錄的完整性
+            throw new Error(`無法刪除夥伴：該夥伴有 ${withdrawalCount} 筆提領記錄，提領記錄需要永久保存`);
+          }
+          
           await tx.partner.delete({ where: { id: user.partner.id } });
         }
 

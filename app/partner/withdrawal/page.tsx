@@ -356,12 +356,15 @@ export default function WithdrawalPage() {
             </div>
           </div>
 
-          {/* 提領歷史 */}
+          {/* 提領歷史 - 永久保存所有記錄 */}
           <div className="bg-white rounded-lg shadow">
-            <div className="px-6 py-4 border-b border-gray-200">
+            <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
               <h2 className="text-lg font-medium text-gray-900">提領歷史</h2>
+              {withdrawalHistory.length > 0 && (
+                <span className="text-sm text-gray-500">共 {withdrawalHistory.length} 筆記錄</span>
+              )}
             </div>
-            <div className="p-6">
+            <div className="p-6 max-h-[600px] overflow-y-auto">
               {withdrawalHistory.length === 0 ? (
                 <div className="text-center py-8">
                   <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">

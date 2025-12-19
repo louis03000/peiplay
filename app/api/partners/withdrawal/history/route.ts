@@ -19,11 +19,11 @@ export async function GET() {
         return { type: 'NOT_PARTNER' } as const
       }
 
-      // 優化：限制載入數量，只載入最近的記錄
+      // 返回所有提領記錄（永久保存，不限制數量）
       const withdrawals = await client.withdrawalRequest.findMany({
         where: { partnerId: partner.id },
         orderBy: { requestedAt: 'desc' },
-        take: 50, // 限制最多載入 50 筆記錄
+        // 移除 take 限制，返回所有記錄
         select: {
           id: true,
           amount: true,
