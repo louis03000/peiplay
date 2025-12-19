@@ -496,8 +496,8 @@ export default function BookingsPage() {
                 </div>
               )}
 
-              <table className="w-full text-sm text-left text-gray-300">
-                <thead className="text-xs text-gray-400 uppercase bg-gray-700/50">
+              <table className="w-full text-sm text-left text-gray-100">
+                <thead className="text-xs text-gray-200 uppercase bg-gray-700/50">
                   <tr>
                     {tab === "partner" && (
                       <th className="py-3 px-6">顧客姓名</th>
@@ -523,23 +523,23 @@ export default function BookingsPage() {
                       className="bg-gray-800/60 border-b border-gray-700 hover:bg-gray-700/80 transition-colors"
                     >
                       {tab === "partner" && (
-                        <td className="py-4 px-6 font-medium">
+                        <td className="py-4 px-6 font-medium text-gray-100">
                           {booking.customer?.name || "匿名顧客"}
                         </td>
                       )}
                       {tab === "me" && (
-                        <td className="py-4 px-6 font-medium">
+                        <td className="py-4 px-6 font-medium text-gray-100">
                           {booking.schedule?.partner?.name || "未知夥伴"}
                         </td>
                       )}
-                      <td className="py-4 px-6">
+                      <td className="py-4 px-6 text-gray-100">
                         {booking.schedule?.startTime
                           ? new Date(
                               booking.schedule.startTime,
                             ).toLocaleDateString("zh-TW")
                           : "-"}
                       </td>
-                      <td className="py-4 px-6">
+                      <td className="py-4 px-6 text-gray-100">
                         {booking.schedule?.startTime &&
                         booking.schedule?.endTime
                           ? `${new Date(booking.schedule.startTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false })} - ${new Date(booking.schedule.endTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false })}`
@@ -569,7 +569,7 @@ export default function BookingsPage() {
                           {getStatusText(booking.status)}
                         </span>
                       </td>
-                      <td className="py-4 px-6 text-gray-400">
+                      <td className="py-4 px-6 text-gray-200">
                         {booking.createdAt
                           ? new Date(booking.createdAt).toLocaleString(
                               "zh-TW",
