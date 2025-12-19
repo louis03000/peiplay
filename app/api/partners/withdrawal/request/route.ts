@@ -14,10 +14,20 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: '請先登入' }, { status: 401 })
     }
 
-    const { amount } = await request.json()
-    if (!amount || amount <= 0) {
+    const body = await request.json()
+    const amount = typeof body.amount === 'string' ? parseFloat(body.amount) : body.amount
+    
+    // 驗證金額是否為有效數字
+    if (typeof amount !== 'number' || isNaN(amount) || !isFinite(amount)) {
       return NextResponse.json({ error: '請輸入有效的提領金額' }, { status: 400 })
     }
+    
+    if (amount <= 0) {
+      return NextResponse.json({ error: '提領金額必須大於 0' }, { status: 400 })
+    }
+    
+    // 確保金額是有效的浮點數（最多兩位小數）
+    const roundedAmount = Math.round(amount * 100) / 100
 
     const result = await db.query(async (client) => {
       const partner = await client.partner.findUnique({
@@ -64,7 +74,7 @@ export async function POST(request: Request) {
       const partnerEarnings = totalEarningsAmount * (1 - PLATFORM_FEE_PERCENTAGE)
       const availableBalance = partnerEarnings + referralEarnings - totalWithdrawnAmount
 
-      if (amount > availableBalance) {
+      if (roundedAmount > availableBalance) {
         return { type: 'EXCEEDS_BALANCE', availableBalance } as const
       }
 
@@ -79,7 +89,7 @@ export async function POST(request: Request) {
       const withdrawalRequest = await client.withdrawalRequest.create({
         data: {
           partnerId: partner.id,
-          amount,
+          amount: roundedAmount,
           status: 'PENDING',
           requestedAt: new Date(),
         },
@@ -109,7 +119,7 @@ export async function POST(request: Request) {
       console.log('💰 新的提領申請:', {
         partnerId: partner.id,
         partnerName: partner.name,
-        amount,
+        amount: roundedAmount,
         totalEarnings: totalEarningsAmount,
         totalOrders,
         availableBalance,
