@@ -164,7 +164,7 @@ export default function RegisterPage() {
                   <p className="mb-2">PeiPlay 使用 Discord 作為主要的互動平台，所有預約和溝通都透過 Discord 進行。</p>
                   <div className="space-y-1">
                     <p>✅ 請確保已下載並安裝 Discord</p>
-                    <p>✅ 輸入您的 Discord 用戶名（不需要 # 後面的數字）</p>
+                    <p>✅ 輸入您的 Discord 名稱(注意大小寫)（不需要 # 後面的數字）</p>
                     <p>✅ 註冊成功後我們會自動邀請您加入 Discord 伺服器</p>
                   </div>
                   <div className="mt-3">
@@ -290,11 +290,11 @@ export default function RegisterPage() {
               <div>
                 <input
                   className="w-full px-4 py-2 rounded bg-gray-900 text-white placeholder-gray-400 border border-gray-700"
-                  placeholder="Discord 用戶名 (例如: yourusername)"
+                  placeholder="Discord 名稱(注意大小寫) (例如: yourusername)"
                   {...register('discord')}
                 />
                 <p className="text-gray-600 text-xs mt-1">
-                  💡 請輸入您的 Discord 用戶名，不需要 # 後面的數字
+                  💡 請輸入您的 Discord 名稱(注意大小寫)，不需要 # 後面的數字
                 </p>
               </div>
               {errors.discord && (

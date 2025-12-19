@@ -353,7 +353,7 @@ export default function ProfileClientComplete() {
               </div>
               <div className="p-4 bg-gray-50 rounded-2xl">
                 <span className="block text-gray-600 mb-2 text-sm font-medium">
-                  Discord 名稱
+                  Discord 名稱(注意大小寫)
                 </span>
                 <span className="text-gray-900 font-semibold text-lg">
                   {userData.discord || "-"}
@@ -509,7 +509,7 @@ export default function ProfileClientComplete() {
                 />
               </div>
               <div>
-                <label className="block text-gray-300 mb-1">Discord 名稱</label>
+                <label className="block text-gray-300 mb-1">Discord 名稱(注意大小寫)</label>
                 <input
                   name="discord"
                   value={formData.discord}

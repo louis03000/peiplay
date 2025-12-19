@@ -106,7 +106,8 @@ async function createDiscordTextChannel(groupBooking: any, participants: string[
         groupId: groupBooking.id,
         groupTitle: groupBooking.title,
         participants: participants,
-        startTime: groupBooking.startTime
+        startTime: groupBooking.startTime,
+        endTime: groupBooking.endTime
       })
     });
 

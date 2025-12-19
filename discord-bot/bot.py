@@ -2398,6 +2398,7 @@ def create_group_text_channel():
         group_title = data.get('groupTitle', '')
         participants = data.get('participants', [])
         start_time = data.get('startTime')
+        end_time = data.get('endTime')
         
         if not group_id:
             return jsonify({'error': '缺少 groupId 參數'}), 400
@@ -2452,12 +2453,28 @@ def create_group_text_channel():
                 if start_time:
                     try:
                         start_dt = datetime.fromisoformat(start_time.replace('Z', '+00:00'))
+                        # 轉換為台灣時間
+                        TW_TZ = timezone(timedelta(hours=8))
+                        tw_start_dt = start_dt.astimezone(TW_TZ)
+                        
+                        # 格式化時間為 HH:MM
+                        start_time_str = tw_start_dt.strftime('%H:%M')
+                        
+                        if end_time:
+                            end_dt = datetime.fromisoformat(end_time.replace('Z', '+00:00'))
+                            tw_end_dt = end_dt.astimezone(TW_TZ)
+                            end_time_str = tw_end_dt.strftime('%H:%M')
+                            time_display = f"{start_time_str} - {end_time_str}"
+                        else:
+                            time_display = start_time_str
+                        
                         embed.add_field(
                             name="預約時間",
-                            value=f"<t:{int(start_dt.timestamp())}:F>",
+                            value=time_display,
                             inline=False
                         )
-                    except:
+                    except Exception as e:
+                        print(f"❌ 格式化預約時間失敗: {e}")
                         pass
                 
                 await text_channel.send(embed=embed)
