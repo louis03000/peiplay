@@ -127,7 +127,22 @@ export default function PartnersPage() {
           params.append('endTime', debouncedFilterOptions.endTime)
           
           if (debouncedSearchTerm) {
-            params.append('game', debouncedSearchTerm)
+            // 解析多條件搜尋
+            const terms = debouncedSearchTerm.split('+').map(t => t.trim()).filter(t => t.length > 0)
+            const games: string[] = []
+            const names: string[] = []
+            
+            // 簡單判斷：先檢查是否為已知遊戲名稱，否則視為夥伴名稱
+            terms.forEach(term => {
+              // 這裡我們先將所有詞都傳給 API，讓 API 層面處理
+              // 但為了向後兼容，如果只有一個詞且沒有 +，使用 game 參數
+              if (terms.length === 1) {
+                params.append('game', term)
+              } else {
+                // 多條件：需要分別處理（暫時都當作遊戲，因為 search-by-time API 只支援遊戲）
+                params.append('game', term)
+              }
+            })
           }
           
           const response = await fetch(`/api/partners/search-by-time?${params}`)
@@ -153,9 +168,14 @@ export default function PartnersPage() {
           if (debouncedFilterOptions.endDate) {
             params.append('endDate', debouncedFilterOptions.endDate)
           }
-          if (debouncedSearchTerm) {
+          // 對於多條件搜尋，主要在前端處理，API 只做基本過濾
+          // 如果只有單一條件（沒有 +），可以傳給 API 進行初步過濾
+          if (debouncedSearchTerm && !debouncedSearchTerm.includes('+')) {
+            // 單一條件：同時傳遞 game 和 name 參數，讓 API 處理（OR 邏輯）
             params.append('game', debouncedSearchTerm)
+            params.append('name', debouncedSearchTerm)
           }
+          // 多條件搜尋（包含 +）完全在前端處理，不傳給 API
           
           const response = await fetch(`/api/partners?${params.toString()}`)
           if (!response.ok) {
@@ -178,23 +198,57 @@ export default function PartnersPage() {
     fetchPartners()
   }, [debouncedFilterOptions, debouncedSearchTerm])
 
+  // 解析多條件搜尋（使用 + 分隔符）
+  // 每個條件會同時匹配遊戲和名稱，只要滿足任一即可
+  const parseSearchTerms = useCallback((searchTerm: string): string[] => {
+    if (!searchTerm.trim()) return []
+    return searchTerm.split('+').map(t => t.trim()).filter(t => t.length > 0)
+  }, [])
+
+  // 檢查單一條件是否匹配夥伴（同時檢查遊戲和名稱）
+  const matchesCondition = useCallback((partner: Partner, condition: string): boolean => {
+    const lowerCondition = condition.toLowerCase()
+    const nameMatch = partner.name.toLowerCase().includes(lowerCondition)
+    const gameMatch = partner.games.some(g => g.toLowerCase().includes(lowerCondition))
+    return nameMatch || gameMatch
+  }, [])
+
   // 篩選夥伴
   const filteredPartners = useMemo(() => {
-    // 如果有時段篩選，直接返回partners（已經在API層面篩選過了）
+    // 如果有時段篩選，需要在前端也進行多條件搜尋過濾
     if (debouncedFilterOptions.startDate && debouncedFilterOptions.endDate && 
         debouncedFilterOptions.startTime && debouncedFilterOptions.endTime) {
-      return partners
+      // 即使有時段篩選，也要進行多條件搜尋過濾
+      if (!debouncedSearchTerm) return partners
+      
+      const terms = parseSearchTerms(debouncedSearchTerm)
+      
+      // 多條件搜尋：必須同時滿足所有條件（每個條件可以匹配遊戲或名稱）
+      return partners.filter(partner => {
+        return terms.every(term => matchesCondition(partner, term))
+      })
     }
     
     // 沒有搜尋詞時不顯示任何夥伴
     if (!debouncedSearchTerm) return []
     
-    const searchLower = debouncedSearchTerm.toLowerCase()
-    return partners.filter(partner => 
-      partner.name.toLowerCase().includes(searchLower) ||
-      partner.games.some(game => game.toLowerCase().includes(searchLower))
-    )
-  }, [partners, debouncedSearchTerm, debouncedFilterOptions])
+    // 解析多條件搜尋
+    const terms = parseSearchTerms(debouncedSearchTerm)
+    
+    // 如果沒有使用 + 分隔符（只有一個條件），使用舊的單一搜尋邏輯（向後兼容）
+    if (terms.length <= 1) {
+      const searchLower = debouncedSearchTerm.toLowerCase()
+      return partners.filter(partner => 
+        partner.name.toLowerCase().includes(searchLower) ||
+        partner.games.some(game => game.toLowerCase().includes(searchLower))
+      )
+    }
+    
+    // 多條件搜尋：必須同時滿足所有條件（每個條件可以匹配遊戲或名稱）
+    return partners.filter(partner => {
+      return terms.every(term => matchesCondition(partner, term))
+    })
+  }, [partners, debouncedSearchTerm, debouncedFilterOptions, parseSearchTerms, matchesCondition])
 
   const handleFilter = useCallback((startDate: string, endDate: string, game?: string, startTime?: string, endTime?: string) => {
     setFilterOptions({

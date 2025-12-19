@@ -77,6 +77,7 @@ export async function GET(request: NextRequest) {
     const availableNow = url.searchParams.get("availableNow") === 'true'
     const rankBooster = url.searchParams.get("rankBooster") === 'true'
     const game = url.searchParams.get("game")?.trim() || ''
+    const name = url.searchParams.get("name")?.trim() || ''
 
     const dateRange = parseDateRange(startDate, endDate)
     const now = new Date()
@@ -90,6 +91,7 @@ export async function GET(request: NextRequest) {
       availableNow: availableNow ? 'true' : 'false',
       rankBooster: rankBooster ? 'true' : 'false',
       game: game || '',
+      name: name || '',
     };
     const cacheKey = CacheKeys.partners.list(cacheParams);
 
@@ -271,11 +273,29 @@ export async function GET(request: NextRequest) {
           }
         }
 
-        if (game) {
-          const lower = game.toLowerCase()
-          const match = partner.games.some((g) => g.toLowerCase().includes(lower))
-          if (!match) {
-            return null
+        // 遊戲或名稱篩選（OR 邏輯：匹配遊戲或名稱任一即可）
+        if (game || name) {
+          const searchTerm = (game || name).toLowerCase()
+          const gameMatch = partner.games.some((g) => g.toLowerCase().includes(searchTerm))
+          const nameMatch = partner.name.toLowerCase().includes(searchTerm)
+          
+          // 如果同時提供了 game 和 name，使用 OR 邏輯（匹配任一即可）
+          // 如果只提供了其中一個，也只匹配該項
+          if (game && name) {
+            // 同時提供 game 和 name：匹配遊戲或名稱任一即可
+            if (!gameMatch && !nameMatch) {
+              return null
+            }
+          } else if (game) {
+            // 只提供 game：只匹配遊戲
+            if (!gameMatch) {
+              return null
+            }
+          } else if (name) {
+            // 只提供 name：只匹配名稱
+            if (!nameMatch) {
+              return null
+            }
           }
         }
 
