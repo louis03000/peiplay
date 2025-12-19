@@ -196,11 +196,11 @@ export default function PartnerProfilePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900">
-      {/* 背景裝飾 */}
-      <div className="absolute inset-0 bg-gradient-to-br from-purple-900/20 via-blue-900/20 to-indigo-900/20"></div>
+    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900" style={{ willChange: 'scroll-position' }}>
+      {/* 背景裝飾 - 使用 transform 優化性能 */}
+      <div className="fixed inset-0 bg-gradient-to-br from-purple-900/20 via-blue-900/20 to-indigo-900/20 pointer-events-none" style={{ willChange: 'transform' }}></div>
       
-      <div className="relative max-w-6xl mx-auto px-4 py-8">
+      <div className="relative max-w-6xl mx-auto px-4 py-8" style={{ contain: 'layout style paint' }}>
         {/* 返回按鈕 */}
         <div className="mb-6">
           <button
@@ -214,8 +214,8 @@ export default function PartnerProfilePage() {
           </button>
         </div>
 
-        {/* 主要內容 */}
-        <div className="bg-gray-800/90 backdrop-blur rounded-2xl shadow-2xl overflow-hidden">
+        {/* 主要內容 - 移除 backdrop-blur 以提升滾動性能 */}
+        <div className="bg-gray-800/95 rounded-2xl shadow-xl overflow-hidden" style={{ willChange: 'transform', contain: 'layout style paint' }}>
           {/* 圖片輪播區（如果有圖片） */}
           {displayImages.length > 0 && (
             <div 
@@ -223,6 +223,7 @@ export default function PartnerProfilePage() {
               onTouchStart={onTouchStart}
               onTouchMove={onTouchMove}
               onTouchEnd={onTouchEnd}
+              style={{ contain: 'layout style paint', willChange: 'transform' }}
             >
               <SecureImage
                 src={displayImages[currentImageIndex]}
@@ -341,14 +342,14 @@ export default function PartnerProfilePage() {
             </div>
           </div>
 
-          {/* 內容區域 */}
-          <div className="p-8">
+          {/* 內容區域 - 使用 contain 優化渲染 */}
+          <div className="p-8" style={{ contain: 'layout style' }}>
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               {/* 左側：基本資訊 */}
               <div className="lg:col-span-2 space-y-6">
                 {/* 興趣 */}
                 {partner.interests.length > 0 && (
-                  <div className="bg-gray-700/50 rounded-xl p-6">
+                  <div className="bg-gray-700/50 rounded-xl p-6" style={{ contain: 'layout style paint' }}>
                     <h3 className="text-xl font-semibold text-white mb-4 flex items-center">
                       <svg className="w-6 h-6 mr-2 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
@@ -369,7 +370,7 @@ export default function PartnerProfilePage() {
                 )}
 
                 {/* 擅長遊戲 */}
-                <div className="bg-gray-700/50 rounded-xl p-6">
+                <div className="bg-gray-700/50 rounded-xl p-6" style={{ contain: 'layout style paint' }}>
                   <h3 className="text-xl font-semibold text-white mb-4 flex items-center">
                     <svg className="w-6 h-6 mr-2 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h1m4 0h1m-6 4h8m-9-4V9a2 2 0 012-2h4a2 2 0 012 2v1M7 7h10a2 2 0 012 2v8a2 2 0 01-2 2H7a2 2 0 01-2-2V9a2 2 0 012-2z" />
@@ -390,7 +391,7 @@ export default function PartnerProfilePage() {
 
                 {/* 純聊天服務 */}
                 {partner.supportsChatOnly && (
-                  <div className="bg-gray-700/50 rounded-xl p-6">
+                  <div className="bg-gray-700/50 rounded-xl p-6" style={{ contain: 'layout style paint' }}>
                     <h3 className="text-xl font-semibold text-white mb-4 flex items-center">
                       <svg className="w-6 h-6 mr-2 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
@@ -405,7 +406,7 @@ export default function PartnerProfilePage() {
                 )}
 
                 {/* 留言板 */}
-                <div className="bg-gray-700/50 rounded-xl p-6">
+                <div className="bg-gray-700/50 rounded-xl p-6" style={{ contain: 'layout style paint' }}>
                   <h3 className="text-xl font-semibold text-white mb-4 flex items-center">
                     <svg className="w-6 h-6 mr-2 text-indigo-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
@@ -423,7 +424,7 @@ export default function PartnerProfilePage() {
 
                 {/* 所有照片 */}
                 {partner.images.length > 0 && (
-                  <div className="bg-gray-700/50 rounded-xl p-6">
+                  <div className="bg-gray-700/50 rounded-xl p-6" style={{ contain: 'layout style paint' }}>
                     <h3 className="text-xl font-semibold text-white mb-4 flex items-center">
                       <svg className="w-6 h-6 mr-2 text-pink-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -432,7 +433,11 @@ export default function PartnerProfilePage() {
                     </h3>
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                       {partner.images.map((image, index) => (
-                        <div key={index} className="relative group aspect-square">
+                        <div 
+                          key={index} 
+                          className="relative group aspect-square"
+                          style={{ contain: 'layout style paint', willChange: index < 6 ? 'transform' : 'auto' }}
+                        >
                           <SecureImage
                             src={image}
                             alt={`${partner.name} 的照片 ${index + 1}`}
@@ -459,8 +464,8 @@ export default function PartnerProfilePage() {
               </div>
 
               {/* 右側：評價 */}
-              <div className="space-y-6">
-                <div className="bg-gray-700/50 rounded-xl p-6">
+              <div className="space-y-6" style={{ contain: 'layout style' }}>
+                <div className="bg-gray-700/50 rounded-xl p-6" style={{ contain: 'layout style paint' }}>
                   <h3 className="text-xl font-semibold text-white mb-4 flex items-center">
                     <svg className="w-6 h-6 mr-2 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
