@@ -235,7 +235,7 @@ export default function PartnerProfilePage() {
           {/* 圖片輪播區（如果有圖片） */}
           {displayImages.length > 0 && (
             <div 
-              className="relative w-full h-96 md:h-[500px] lg:h-[600px] bg-gray-100"
+              className="relative w-full h-96 md:h-[500px] lg:h-[600px]"
               onTouchStart={onTouchStart}
               onTouchMove={onTouchMove}
               onTouchEnd={onTouchEnd}
@@ -245,7 +245,7 @@ export default function PartnerProfilePage() {
                 src={displayImages[currentImageIndex]}
                 alt={`${partner.name} 的照片 ${currentImageIndex + 1}`}
                 fill
-                className="object-contain"
+                className="object-cover"
                 priority
                 sizes="(max-width: 768px) 100vw, 80vw"
               />
@@ -285,8 +285,8 @@ export default function PartnerProfilePage() {
                       onClick={() => setCurrentImageIndex(index)}
                       className={`w-2 h-2 rounded-full ${
                         index === currentImageIndex
-                          ? 'bg-white w-6'
-                          : 'bg-white/50 hover:bg-white/75'
+                          ? 'bg-gray-300 w-6'
+                          : 'bg-gray-600 hover:bg-gray-500'
                       }`}
                       aria-label={`查看圖片 ${index + 1}`}
                       style={{ transition: 'width 0.2s ease-out, background-color 0.15s ease-out', transform: 'translateZ(0)' }}

@@ -83,6 +83,18 @@ export function getGameIconFileName(gameName: string): string | null {
 }
 
 /**
+ * 獲取遊戲圖標路徑（包含實際檔案副檔名映射）
+ * 根據實際上傳的檔案名稱返回正確的路徑
+ */
+const ACTUAL_FILE_NAMES: Record<string, string> = {
+  'csgo': 'csgo.png.png',      // 實際檔案名稱
+  'apex': 'apex.png.png',      // 實際檔案名稱
+  'lol': 'lol.png.jpg',        // 實際檔案名稱
+  'pubg': 'pubg.png.jpeg',     // 實際檔案名稱
+  'valorant': 'valorant.png.webp', // 實際檔案名稱
+}
+
+/**
  * 獲取遊戲圖標路徑
  * @param gameName 遊戲名稱
  * @returns 圖標路徑，如果沒有對應的圖標則返回 null
@@ -92,7 +104,39 @@ export function getGameIconPath(gameName: string): string | null {
   if (!iconFileName) {
     return null
   }
+  
+  // 如果有實際檔案名稱映射，使用實際檔案名稱
+  if (ACTUAL_FILE_NAMES[iconFileName]) {
+    return `/game-icons/${ACTUAL_FILE_NAMES[iconFileName]}`
+  }
+  
+  // 否則嘗試標準的 .png
   return `/game-icons/${iconFileName}.png`
+}
+
+/**
+ * 獲取遊戲圖標路徑（包含實際檔案副檔名檢查）
+ * 這個函數會在客戶端動態檢查檔案是否存在
+ */
+export function getGameIconPathWithFallback(gameName: string): string[] {
+  const iconFileName = getGameIconFileName(gameName)
+  if (!iconFileName) {
+    return []
+  }
+  
+  // 如果有實際檔案名稱映射，優先使用
+  if (ACTUAL_FILE_NAMES[iconFileName]) {
+    return [`/game-icons/${ACTUAL_FILE_NAMES[iconFileName]}`]
+  }
+  
+  // 返回所有可能的檔案路徑，讓客戶端嘗試載入
+  return [
+    `/game-icons/${iconFileName}.png`,
+    `/game-icons/${iconFileName}.png.png`, // 處理重複副檔名的情況
+    `/game-icons/${iconFileName}.jpg`,
+    `/game-icons/${iconFileName}.jpeg`,
+    `/game-icons/${iconFileName}.webp`,
+  ]
 }
 
 /**
