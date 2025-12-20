@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { db } from '@/lib/db'
+import { db } from '@/lib/db-resilience'
 
 export const dynamic = 'force-dynamic'
 
@@ -15,7 +15,7 @@ export async function GET(request: Request) {
     }
 
     const { searchParams } = new URL(request.url)
-    const month = searchParams.get('month') // 格式：YYYY-MM
+    const filterMonth = searchParams.get('month') // 格式：YYYY-MM
 
     // 獲取所有配對記錄
     const records = await db.query(async (client) => {
@@ -104,7 +104,7 @@ export async function GET(request: Request) {
       const timeStr = `${hours}:${minutes}:${seconds}`
 
       // 如果指定了月份，過濾記錄
-      if (month && !dateStr.startsWith(month)) {
+      if (filterMonth && !dateStr.startsWith(filterMonth)) {
         continue
       }
 
