@@ -248,7 +248,6 @@ export default function PartnerProfilePage() {
                 className="object-contain"
                 priority
                 sizes="(max-width: 768px) 100vw, 80vw"
-                style={{ transform: 'translateZ(0)', backfaceVisibility: 'hidden' }}
               />
               
               {/* 電腦版：左右箭頭 */}
@@ -465,8 +464,6 @@ export default function PartnerProfilePage() {
                             className="object-cover rounded-lg border border-gray-600"
                             sizes="(max-width: 768px) 50vw, 33vw"
                             loading={index < 3 ? 'eager' : 'lazy'}
-                            decoding="async"
-                            style={{ transform: 'translateZ(0)' }}
                           />
                           <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 rounded-lg flex items-center justify-center" style={{ transition: 'opacity 0.2s ease-out', transform: 'translateZ(0)' }}>
                             <button
