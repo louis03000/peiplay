@@ -39,6 +39,8 @@ export async function GET(request: NextRequest) {
             console.log('[partners/list] 查詢條件:', { availableNow, rankBooster, game, now: now.toISOString() });
 
             // 輕量級查詢：只查基本資料
+            // 注意：當 availableNow 為 true 時，我們仍然需要先查詢所有 isAvailableNow: true 的夥伴
+            // 然後在應用層過濾掉有活躍預約的，這樣可以確保邏輯正確
             let partnerWhere: any = {
               status: 'APPROVED',
               ...(rankBooster ? { isRankBooster: true } : {}),
@@ -46,34 +48,29 @@ export async function GET(request: NextRequest) {
               // 注意：停權用戶過濾在應用層處理，避免 OR 條件影響索引
             };
             console.log('[partners/list] partnerWhere:', JSON.stringify(partnerWhere, null, 2));
+            console.log('[partners/list] 篩選條件:', { availableNow, rankBooster });
 
-            // 如果篩選「現在有空」，排除有活躍預約的夥伴
-            if (availableNow) {
-              // 查詢正在進行中或即將開始的預約（開始時間 <= 現在，結束時間 >= 現在）
-              const busyBookings = await client.booking.findMany({
-                where: {
-                  status: {
-                    in: ['PENDING', 'CONFIRMED', 'PAID_WAITING_PARTNER_CONFIRMATION', 'PARTNER_ACCEPTED'],
-                  },
-                  schedule: {
-                    startTime: { lte: now },
-                    endTime: { gte: now },
-                  },
+            // 查詢有活躍預約的夥伴（無論是否開啟篩選器，都需要這個信息）
+            // 查詢正在進行中或即將開始的預約（開始時間 <= 現在，結束時間 >= 現在）
+            const busyBookings = await client.booking.findMany({
+              where: {
+                status: {
+                  in: ['PENDING', 'CONFIRMED', 'PAID_WAITING_PARTNER_CONFIRMATION', 'PARTNER_ACCEPTED'],
                 },
-                select: {
-                  partnerId: true,
+                schedule: {
+                  startTime: { lte: now },
+                  endTime: { gte: now },
                 },
-                distinct: ['partnerId'],
-                take: 200,
-              });
+              },
+              select: {
+                partnerId: true,
+              },
+              distinct: ['partnerId'],
+              take: 200,
+            });
 
-              const partnerIds = busyBookings.map((b) => b.partnerId).filter(Boolean);
-              if (partnerIds.length > 0) {
-                partnerWhere.id = {
-                  notIn: partnerIds,
-                };
-              }
-            }
+            const busyPartnerIds = busyBookings.map((b) => b.partnerId).filter(Boolean) as string[];
+            console.log('[partners/list] 有活躍預約的夥伴數量:', busyPartnerIds.length, 'IDs:', busyPartnerIds);
 
             const allPartners = await client.partner.findMany({
               where: partnerWhere,
@@ -121,14 +118,29 @@ export async function GET(request: NextRequest) {
                 }
               }
               
-              // 如果篩選「現在有空」，檢查 availableNowSince 是否在30分鐘內
-              // 如果 availableNowSince 為 null，可能是舊數據，允許顯示
-              if (availableNow && partner.isAvailableNow) {
+              // 如果篩選「現在有空」，需要滿足以下條件：
+              // 1. isAvailableNow 必須為 true（資料庫查詢已經過濾，這裡再次確認）
+              // 2. 不能有活躍預約
+              // 3. availableNowSince 必須在30分鐘內（如果存在）
+              if (availableNow) {
+                // 首先檢查 isAvailableNow（雖然資料庫已經過濾，但這裡再次確認）
+                if (!partner.isAvailableNow) {
+                  console.log('[partners/list] 過濾：isAvailableNow 為 false', partner.id, partner.name);
+                  return false;
+                }
+                
+                // 檢查是否有活躍預約
+                if (busyPartnerIds.includes(partner.id)) {
+                  console.log('[partners/list] 過濾：有活躍預約', partner.id, partner.name);
+                  return false;
+                }
+                
+                // 檢查 availableNowSince 是否在30分鐘內
                 if (partner.availableNowSince) {
                   const thirtyMinutesAgo = new Date(now.getTime() - 30 * 60 * 1000);
                   const availableSince = new Date(partner.availableNowSince);
                   if (availableSince < thirtyMinutesAgo) {
-                    console.log('[partners/list] 過濾：超過30分鐘', partner.id, {
+                    console.log('[partners/list] 過濾：超過30分鐘', partner.id, partner.name, {
                       availableSince: availableSince.toISOString(),
                       thirtyMinutesAgo: thirtyMinutesAgo.toISOString()
                     });
@@ -136,9 +148,10 @@ export async function GET(request: NextRequest) {
                   }
                 }
                 // 如果 availableNowSince 為 null，允許顯示（可能是舊數據或手動設置）
-                console.log('[partners/list] 通過過濾：現在有空', partner.id, {
+                console.log('[partners/list] ✅ 通過過濾：現在有空', partner.id, partner.name, {
                   isAvailableNow: partner.isAvailableNow,
-                  availableNowSince: partner.availableNowSince
+                  availableNowSince: partner.availableNowSince,
+                  hasBusyBooking: busyPartnerIds.includes(partner.id)
                 });
               }
               
