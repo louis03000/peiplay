@@ -267,13 +267,13 @@ const PartnerCard = memo(function PartnerCard({ partner, onQuickBook, showNextSt
 
             {/* 狀態標籤 - 左上角 */}
             <div className="absolute top-2 left-2 flex flex-col gap-1 items-start z-30">
-              {partner.isAvailableNow && (
+              {partner.isAvailableNow === true && (
                 <span className="bg-green-500 text-white px-2 py-1 rounded-full text-xs font-bold flex items-center gap-1 shadow-lg">
                   <FaBolt className="text-yellow-300" />
                   現在有空
                 </span>
               )}
-              {partner.isRankBooster && (
+              {partner.isRankBooster === true && (
                 <span className="bg-purple-500 text-white px-2 py-1 rounded-full text-xs font-bold flex items-center gap-1 shadow-lg">
                   <FaCrown className="text-yellow-300" />
                   上分高手
@@ -286,7 +286,7 @@ const PartnerCard = memo(function PartnerCard({ partner, onQuickBook, showNextSt
               <div className="absolute top-2 right-24 bg-black bg-opacity-70 text-white px-2 py-1 rounded-full text-xs flex items-center gap-1">
                 <FaStar className="text-yellow-400" />
                 {partner.averageRating.toFixed(1)}
-                {partner.totalReviews && ` (${partner.totalReviews})`}
+                {partner.totalReviews !== undefined && partner.totalReviews > 0 && ` (${partner.totalReviews})`}
               </div>
             )}
 
