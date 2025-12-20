@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useParams } from 'next/navigation'
 import { calculateZodiacSign, calculateAge, formatDateChinese } from '@/lib/zodiac'
 import SecureImage from '@/components/SecureImage'
+import GameIcon from '@/components/GameIcon'
 
 interface PartnerProfile {
   id: string
@@ -235,7 +236,7 @@ export default function PartnerProfilePage() {
           {/* 圖片輪播區（如果有圖片） */}
           {displayImages.length > 0 && (
             <div 
-              className="relative w-full h-96 md:h-[500px] lg:h-[600px]"
+              className="relative w-full h-96 md:h-[500px] lg:h-[600px] bg-gray-900"
               onTouchStart={onTouchStart}
               onTouchMove={onTouchMove}
               onTouchEnd={onTouchEnd}
@@ -245,7 +246,7 @@ export default function PartnerProfilePage() {
                 src={displayImages[currentImageIndex]}
                 alt={`${partner.name} 的照片 ${currentImageIndex + 1}`}
                 fill
-                className="object-cover"
+                className="object-contain"
                 priority
                 sizes="(max-width: 768px) 100vw, 80vw"
               />
@@ -400,9 +401,10 @@ export default function PartnerProfilePage() {
                     {partner.games.map((game, index) => (
                       <span
                         key={index}
-                        className="px-3 py-1 bg-blue-500/20 text-blue-300 rounded-full text-sm"
+                        className="px-3 py-1 bg-blue-500/20 text-blue-300 rounded-full text-sm flex items-center gap-1.5"
                       >
-                        {game === 'chat' ? '純聊天' : game}
+                        <GameIcon gameName={game === 'chat' ? '純聊天' : game} size={16} />
+                        <span>{game === 'chat' ? '純聊天' : game}</span>
                       </span>
                     ))}
                   </div>

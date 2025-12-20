@@ -76,6 +76,14 @@ except Exception as e:
 # 創建 Session 類
 Session = sessionmaker(bind=engine)
 
+# 標準化 Discord 用戶名的函數（去除尾隨空格和下劃線）
+def normalize_discord_username(username: str) -> str:
+    """標準化 Discord 用戶名，去除尾隨空格和下劃線"""
+    if not username:
+        return ""
+    # 去除尾隨空格和下劃線
+    return username.rstrip().rstrip('_')
+
 # 可愛物品列表
 CUTE_ITEMS = [
     "蝴蝶結", "小狗", "小貓", "小熊", "小兔", "小鳥", "小魚", "小花", 
