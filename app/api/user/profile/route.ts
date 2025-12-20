@@ -90,6 +90,8 @@ export async function PATCH(request: Request) {
           if (typeof customerMessage === 'string') partnerUpdateData.customerMessage = customerMessage;
           if (Array.isArray(games)) partnerUpdateData.games = games;
           if (typeof data.halfHourlyRate === 'number') partnerUpdateData.halfHourlyRate = data.halfHourlyRate;
+          if (typeof data.supportsChatOnly === 'boolean') partnerUpdateData.supportsChatOnly = data.supportsChatOnly;
+          if (typeof data.chatOnlyRate === 'number') partnerUpdateData.chatOnlyRate = data.chatOnlyRate;
           if (name) partnerUpdateData.name = name;
 
           if (Array.isArray(coverImages) && coverImages.length > 0) {
@@ -116,6 +118,8 @@ export async function PATCH(request: Request) {
                 coverImage: true,
                 images: true,
                 halfHourlyRate: true,
+                supportsChatOnly: true,
+                chatOnlyRate: true,
               },
             });
           }
@@ -192,6 +196,8 @@ export async function GET(request: Request) {
               coverImage: true,
               images: true,
               halfHourlyRate: true,
+              supportsChatOnly: true,
+              chatOnlyRate: true,
             },
           },
         },

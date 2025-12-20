@@ -691,10 +691,6 @@ export async function sendBookingNotificationEmail(
                 <td style="padding: 8px 0; color: #333;">${bookingDetails.customerName}</td>
               </tr>
               <tr>
-                <td style="padding: 8px 0; color: #666;"><strong>客戶 Email：</strong></td>
-                <td style="padding: 8px 0; color: #333;">${bookingDetails.customerEmail}</td>
-              </tr>
-              <tr>
                 <td style="padding: 8px 0; color: #666;"><strong>預約時間：</strong></td>
                 <td style="padding: 8px 0; color: #333;">${formatTaiwanTime(bookingDetails.startTime)}</td>
               </tr>

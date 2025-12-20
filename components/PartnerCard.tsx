@@ -29,9 +29,10 @@ interface PartnerCardProps {
   onFlip?: () => void
   isFavorite?: boolean
   onToggleFavorite?: (partnerId: string) => void
+  isChatOnlyFilter?: boolean // 是否開啟純聊天篩選器
 }
 
-const PartnerCard = memo(function PartnerCard({ partner, onQuickBook, showNextStep = false, flipped = false, onFlip, isFavorite = false, onToggleFavorite }: PartnerCardProps) {
+const PartnerCard = memo(function PartnerCard({ partner, onQuickBook, showNextStep = false, flipped = false, onFlip, isFavorite = false, onToggleFavorite, isChatOnlyFilter = false }: PartnerCardProps) {
   const [imageError, setImageError] = useState(false)
   const [isHovered, setIsHovered] = useState(false)
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
@@ -266,24 +267,24 @@ const PartnerCard = memo(function PartnerCard({ partner, onQuickBook, showNextSt
             )}
 
             {/* 狀態標籤 - 左上角 */}
-            <div className="absolute top-2 left-2 flex flex-col gap-1 items-start z-30">
+            <div className="absolute top-2 left-2 flex flex-col gap-1 items-start z-30 max-w-[40%]">
               {partner.isAvailableNow === true && (
-                <span className="bg-green-500 text-white px-2 py-1 rounded-full text-xs font-bold flex items-center gap-1 shadow-lg">
+                <span className="bg-green-500 text-white px-2 py-1 rounded-full text-xs font-bold flex items-center gap-1 shadow-lg whitespace-nowrap">
                   <FaBolt className="text-yellow-300" />
                   現在有空
                 </span>
               )}
               {partner.isRankBooster === true && (
-                <span className="bg-purple-500 text-white px-2 py-1 rounded-full text-xs font-bold flex items-center gap-1 shadow-lg">
+                <span className="bg-purple-500 text-white px-2 py-1 rounded-full text-xs font-bold flex items-center gap-1 shadow-lg whitespace-nowrap">
                   <FaCrown className="text-yellow-300" />
                   上分高手
                 </span>
               )}
             </div>
 
-            {/* 評分 */}
+            {/* 評分 - 右上角，確保不與左上角標籤重疊 */}
             {partner.averageRating && partner.averageRating > 0 && (
-              <div className="absolute top-2 right-24 bg-black bg-opacity-70 text-white px-2 py-1 rounded-full text-xs flex items-center gap-1">
+              <div className="absolute top-2 right-28 bg-black bg-opacity-70 text-white px-2 py-1 rounded-full text-xs flex items-center gap-1 whitespace-nowrap z-30">
                 <FaStar className="text-yellow-400" />
                 {partner.averageRating.toFixed(1)}
                 {partner.totalReviews !== undefined && partner.totalReviews > 0 && ` (${partner.totalReviews})`}
@@ -331,13 +332,22 @@ const PartnerCard = memo(function PartnerCard({ partner, onQuickBook, showNextSt
             {/* 價格 */}
             <div className="flex items-center justify-between mb-2">
               <div className="flex flex-col">
-                <span className="text-lg font-bold text-green-600">
-                  ${partner.halfHourlyRate}/30分
-                </span>
-                {partner.supportsChatOnly && partner.chatOnlyRate && (
-                  <span className="text-xs text-purple-500 font-medium">
+                {/* 如果開啟純聊天篩選器，且夥伴有純聊天服務，顯示純聊天價格；否則顯示一般陪玩價格 */}
+                {isChatOnlyFilter && partner.supportsChatOnly && partner.chatOnlyRate ? (
+                  <span className="text-lg font-bold text-purple-600">
                     純聊天 ${partner.chatOnlyRate}/時
                   </span>
+                ) : (
+                  <>
+                    <span className="text-lg font-bold text-green-600">
+                      ${partner.halfHourlyRate}/30分
+                    </span>
+                    {partner.supportsChatOnly && partner.chatOnlyRate && (
+                      <span className="text-xs text-purple-500 font-medium">
+                        純聊天 ${partner.chatOnlyRate}/時
+                      </span>
+                    )}
+                  </>
                 )}
               </div>
               {partner.isAvailableNow && (

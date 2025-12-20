@@ -36,6 +36,8 @@ export default function ProfileClientComplete() {
     customerMessage: "",
     games: [] as string[],
     halfHourlyRate: undefined as number | undefined,
+    supportsChatOnly: false,
+    chatOnlyRate: undefined as number | undefined,
     coverImage: "",
     coverImages: [] as string[], // 最多3張封面照
   });
@@ -75,6 +77,8 @@ export default function ProfileClientComplete() {
             customerMessage: data.user.partner?.customerMessage || "",
             games: data.user.partner?.games || [],
             halfHourlyRate: data.user.partner?.halfHourlyRate,
+            supportsChatOnly: data.user.partner?.supportsChatOnly || false,
+            chatOnlyRate: data.user.partner?.chatOnlyRate || undefined,
             coverImage: data.user.partner?.coverImage || "",
             coverImages:
               data.user.partner?.images?.slice(0, 3) ||
@@ -372,6 +376,17 @@ export default function ProfileClientComplete() {
               </InfoCard>
             )}
 
+            {isPartner && userData.partner?.supportsChatOnly && (
+              <InfoCard bgColor="green" className="mt-6">
+                <p className="text-sm font-medium text-gray-600 mb-2">
+                  純聊天服務
+                </p>
+                <p className="text-2xl font-bold text-gray-900">
+                  ${userData.partner.chatOnlyRate || 0}/小時
+                </p>
+              </InfoCard>
+            )}
+
             <InfoCard bgColor="gray" className="mt-6">
               <p className="text-sm font-medium text-gray-600 mb-2">
                 留言板（顧客預約時會看到）
@@ -520,18 +535,53 @@ export default function ProfileClientComplete() {
             </div>
 
             {isPartner && (
-              <div className="mt-6">
-                <label className="block text-gray-300 mb-1">每半小時收費</label>
-                <input
-                  name="halfHourlyRate"
-                  type="number"
-                  value={formData.halfHourlyRate ?? ""}
-                  onChange={handleInputChange}
-                  className="w-full px-3 py-2 rounded bg-gray-900 text-white border border-gray-600 focus:border-indigo-500 focus:outline-none"
-                  required
-                  min={1}
-                />
-              </div>
+              <>
+                <div className="mt-6">
+                  <label className="block text-gray-300 mb-1">每半小時收費</label>
+                  <input
+                    name="halfHourlyRate"
+                    type="number"
+                    value={formData.halfHourlyRate ?? ""}
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2 rounded bg-gray-900 text-white border border-gray-600 focus:border-indigo-500 focus:outline-none"
+                    required
+                    min={1}
+                  />
+                </div>
+                
+                {/* 純聊天服務 */}
+                <div className="mt-6 bg-green-50 border border-green-200 rounded-lg p-4">
+                  <div className="flex items-center mb-4">
+                    <input
+                      type="checkbox"
+                      name="supportsChatOnly"
+                      checked={formData.supportsChatOnly}
+                      onChange={(e) => setFormData(prev => ({ ...prev, supportsChatOnly: e.target.checked }))}
+                      className="rounded border-gray-300 text-indigo-600 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+                    />
+                    <label className="ml-2 text-sm font-medium text-gray-700">
+                      我願意提供純聊天服務
+                    </label>
+                  </div>
+                  
+                  {formData.supportsChatOnly && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        純聊天每小時收費
+                      </label>
+                      <input
+                        name="chatOnlyRate"
+                        type="number"
+                        value={formData.chatOnlyRate ?? ""}
+                        onChange={handleInputChange}
+                        className="w-full px-3 py-2 rounded bg-white text-gray-900 border border-gray-300 focus:border-indigo-500 focus:outline-none"
+                        placeholder="請設定純聊天每小時收費"
+                        min={1}
+                      />
+                    </div>
+                  )}
+                </div>
+              </>
             )}
 
             {isPartner && (

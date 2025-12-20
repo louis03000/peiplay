@@ -27,14 +27,10 @@ export async function GET(request: NextRequest) {
 
     // 獲取夥伴詳細信息並計算平均評價
     const partners = await db.query(async (client) => {
-      const partnersList = await client.partner.findMany({
+      // 先獲取所有已批准的夥伴（不在資料庫層面篩選遊戲，因為遊戲名稱格式可能不一致）
+      let partnersList = await client.partner.findMany({
         where: { 
           status: 'APPROVED',
-          ...(gameFilter && {
-            games: {
-              hasSome: [gameFilter],
-            },
-          }),
         },
         select: {
           id: true,
@@ -47,6 +43,22 @@ export async function GET(request: NextRequest) {
           userId: true, // 用於查詢評價
         },
       })
+
+      // 如果有遊戲篩選，在應用層面進行大小寫不敏感的匹配
+      if (gameFilter) {
+        const gameFilterLower = gameFilter.toLowerCase().replace(/[:：]/g, '') // 移除冒號，統一格式
+        partnersList = partnersList.filter(partner => {
+          if (!partner.games || partner.games.length === 0) return false
+          return partner.games.some(game => {
+            // 將遊戲名稱標準化：轉小寫並移除冒號和空格
+            const normalizedGame = game.toLowerCase().replace(/[:：\s]/g, '')
+            const normalizedFilter = gameFilterLower
+            // 使用 includes 進行部分匹配，支援 "csgo" 匹配 "CS:GO" 等情況
+            return normalizedGame.includes(normalizedFilter) || normalizedFilter.includes(normalizedGame)
+          })
+        })
+        console.log(`🎮 遊戲篩選 "${gameFilter}" 後，剩餘 ${partnersList.length} 個夥伴`)
+      }
 
       // 優化：一次性獲取所有夥伴的評價，避免 N+1 查詢問題
       const userIds = partnersList.map(p => p.userId)

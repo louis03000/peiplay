@@ -958,6 +958,7 @@ function BookingWizardContent() {
                               onFlip={() => handleCardFlip(p.id)}
                               isFavorite={favoritePartnerIds.has(p.id)}
                               onToggleFavorite={handleToggleFavorite}
+                              isChatOnlyFilter={onlyChat}
                             />
                           </div>
                         </div>
