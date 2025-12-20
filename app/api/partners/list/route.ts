@@ -91,6 +91,7 @@ export async function GET(request: NextRequest) {
                 customerMessage: true,
                 supportsChatOnly: true,
                 chatOnlyRate: true,
+                userId: true, // 用於查詢評價
                 user: {
                   select: {
                     isSuspended: true,
@@ -103,6 +104,36 @@ export async function GET(request: NextRequest) {
               take: 100, // 限制結果數量
             });
             console.log('[partners/list] 查詢到的夥伴數量:', allPartners.length);
+
+            // 批量查詢所有夥伴的平均星等（優化：避免 N+1 查詢）
+            const userIds = allPartners.map(p => p.userId).filter(Boolean) as string[];
+            let avgRatingsMap = new Map<string, { averageRating: number; totalReviews: number }>();
+            
+            if (userIds.length > 0) {
+              const reviews = await client.review.groupBy({
+                by: ['revieweeId'],
+                where: {
+                  revieweeId: { in: userIds },
+                  isApproved: true, // 只計算已批准的評價
+                },
+                _avg: {
+                  rating: true,
+                },
+                _count: {
+                  id: true,
+                },
+              });
+              
+              avgRatingsMap = new Map(
+                reviews.map(r => [
+                  r.revieweeId,
+                  {
+                    averageRating: r._avg.rating ? Math.round(r._avg.rating * 10) / 10 : 0,
+                    totalReviews: r._count.id,
+                  }
+                ])
+              );
+            }
 
             // 應用層過濾：排除被停權的用戶，以及「現在有空」超過30分鐘的夥伴
             const filtered = allPartners.filter(partner => {
@@ -158,7 +189,7 @@ export async function GET(request: NextRequest) {
               return true;
             });
             console.log('[partners/list] 過濾後的夥伴數量:', filtered.length);
-            return filtered;
+            return { partners: filtered, avgRatingsMap };
           },
           'partners:list:lightweight'
         );
@@ -167,14 +198,15 @@ export async function GET(request: NextRequest) {
     );
 
     // 應用層過濾遊戲（避免資料庫層面的複雜查詢）
+    const { partners: allPartnersData, avgRatingsMap } = partners;
     const filtered = game
-      ? partners.filter(partner => {
+      ? allPartnersData.filter(partner => {
           const lower = game.toLowerCase();
           return partner.games.some((g) => g.toLowerCase().includes(lower));
         })
-      : partners;
+      : allPartnersData;
 
-    // 格式化圖片
+    // 格式化圖片並添加平均星等
     const processed = filtered.map((partner) => {
       let images = partner.images ?? [];
       if ((!images || images.length === 0) && partner.coverImage) {
@@ -184,6 +216,9 @@ export async function GET(request: NextRequest) {
         images = [...images, ...partner.rankBoosterImages];
       }
       images = images.slice(0, 8);
+
+      // 獲取平均星等
+      const ratingData = avgRatingsMap.get(partner.userId) || { averageRating: 0, totalReviews: 0 };
 
       const result = {
         id: partner.id,
@@ -199,6 +234,8 @@ export async function GET(request: NextRequest) {
         supportsChatOnly: partner.supportsChatOnly,
         chatOnlyRate: partner.chatOnlyRate,
         images,
+        averageRating: ratingData.averageRating,
+        totalReviews: ratingData.totalReviews,
         // 不返回 schedules
         schedules: [], // 空陣列，時段需要另外查詢
       };

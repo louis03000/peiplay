@@ -120,7 +120,7 @@ export async function GET(
         comment: review.comment || null,
         createdAt: review.createdAt?.toISOString() || new Date().toISOString(),
         reviewer: {
-          name: review.reviewer?.name || '匿名'
+          name: '匿名' // 統一顯示為匿名，保護評價人隱私
         }
       })),
       user: {
