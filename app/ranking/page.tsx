@@ -124,7 +124,7 @@ export default function RankingPage() {
                 <button
                   key={option.value}
                   onClick={() => setSelectedGame(option.value)}
-                  className={`px-6 py-3 rounded-xl font-medium transition-all duration-300 hover:scale-105 ${
+                  className={`px-6 py-3 rounded-xl font-medium transition-all duration-300 hover:scale-105 flex items-center gap-2 ${
                     selectedGame === option.value 
                       ? 'shadow-lg transform scale-105' 
                       : 'hover:shadow-lg'
@@ -135,14 +135,12 @@ export default function RankingPage() {
                     boxShadow: selectedGame === option.value ? '0 8px 32px rgba(26, 115, 232, 0.3)' : '0 4px 20px rgba(0, 0, 0, 0.1)'
                   }}
                 >
-                  <span className="mr-2 flex items-center">
-                    {option.isGame ? (
-                      <GameIcon gameName={option.value} size={20} />
-                    ) : (
-                      <span>{option.icon}</span>
-                    )}
-                  </span>
-                  {option.label}
+                  {option.isGame ? (
+                    <GameIcon gameName={option.value} size={20} />
+                  ) : (
+                    <span>{option.icon}</span>
+                  )}
+                  <span>{option.label}</span>
                 </button>
               ))}
             </div>

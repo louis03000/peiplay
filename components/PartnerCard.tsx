@@ -256,20 +256,22 @@ const PartnerCard = memo(function PartnerCard({ partner, onQuickBook, showNextSt
             )}
 
             {/* 狀態標籤 - 左上角 */}
-            <div className="absolute top-2 left-2 flex flex-col gap-1 items-start z-30 max-w-[40%]">
-              {partner.isAvailableNow === true && (
-                <span className="bg-green-500 text-white px-2 py-1 rounded-full text-xs font-bold flex items-center gap-1 shadow-lg whitespace-nowrap">
-                  <FaBolt className="text-yellow-300" />
-                  現在有空
-                </span>
-              )}
-              {partner.isRankBooster === true && (
-                <span className="bg-purple-500 text-white px-2 py-1 rounded-full text-xs font-bold flex items-center gap-1 shadow-lg whitespace-nowrap">
-                  <FaCrown className="text-yellow-300" />
-                  上分高手
-                </span>
-              )}
-            </div>
+            {(partner.isAvailableNow === true || partner.isRankBooster === true) && (
+              <div className="absolute top-2 left-2 flex flex-col gap-1 items-start z-30 max-w-[40%]">
+                {partner.isAvailableNow === true && (
+                  <span className="bg-green-500 text-white px-2 py-1 rounded-full text-xs font-bold flex items-center gap-1 shadow-lg whitespace-nowrap">
+                    <FaBolt className="text-yellow-300" />
+                    現在有空
+                  </span>
+                )}
+                {partner.isRankBooster === true && (
+                  <span className="bg-purple-500 text-white px-2 py-1 rounded-full text-xs font-bold flex items-center gap-1 shadow-lg whitespace-nowrap">
+                    <FaCrown className="text-yellow-300" />
+                    上分高手
+                  </span>
+                )}
+              </div>
+            )}
 
             {/* 評分 - 右下角 */}
             {partner.averageRating && partner.averageRating > 0 && (

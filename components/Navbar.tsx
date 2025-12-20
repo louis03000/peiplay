@@ -272,6 +272,12 @@ export default function Navbar() {
                       </Link>
                     </div>
                     <div className="px-3 py-2">
+                      <Link href="/admin/order-records" className="flex items-center justify-center space-x-2 text-gray-900 hover:text-cyan-600 hover:bg-cyan-50 transition-colors rounded-lg px-2 py-2">
+                        <span className="text-lg">📊</span>
+                        <span className="font-medium text-sm">訂單記錄</span>
+                      </Link>
+                    </div>
+                    <div className="px-3 py-2">
                       <Link href="/admin/security" className="flex items-center justify-center space-x-2 text-gray-900 hover:text-red-600 hover:bg-red-50 transition-colors rounded-lg px-2 py-2">
                         <span className="text-lg">🔒</span>
                         <span className="font-medium text-sm">安全管理</span>

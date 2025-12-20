@@ -236,7 +236,7 @@ export default function PartnerProfilePage() {
           {/* 圖片輪播區（如果有圖片） */}
           {displayImages.length > 0 && (
             <div 
-              className="relative w-full h-96 md:h-[500px] lg:h-[600px] bg-gray-900"
+              className="relative w-full h-96 md:h-[500px] lg:h-[600px]"
               onTouchStart={onTouchStart}
               onTouchMove={onTouchMove}
               onTouchEnd={onTouchEnd}
