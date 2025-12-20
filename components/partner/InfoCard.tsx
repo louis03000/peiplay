@@ -7,7 +7,7 @@ interface InfoCardProps {
   className?: string
   padding?: 'sm' | 'md' | 'lg'
   noShadow?: boolean
-  bgColor?: 'white' | 'gray'
+  bgColor?: 'white' | 'gray' | 'green'
 }
 
 export default function InfoCard({
@@ -25,7 +25,8 @@ export default function InfoCard({
 
   const bgColorClass = {
     white: 'bg-white',
-    gray: 'bg-gray-50'
+    gray: 'bg-gray-50',
+    green: 'bg-green-50'
   }[bgColor]
 
   return (
