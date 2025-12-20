@@ -231,7 +231,7 @@ export default function PartnerProfilePage() {
         </div>
 
         {/* 主要內容 - 使用 GPU 加速優化滾動 */}
-        <div className="bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-200" style={{ transform: 'translateZ(0)', backfaceVisibility: 'hidden' }}>
+        <div className="bg-gray-800 rounded-2xl shadow-lg overflow-hidden border border-gray-700" style={{ transform: 'translateZ(0)', backfaceVisibility: 'hidden' }}>
           {/* 圖片輪播區（如果有圖片） */}
           {displayImages.length > 0 && (
             <div 
@@ -305,11 +305,11 @@ export default function PartnerProfilePage() {
           )}
           
           {/* 頭部區域 */}
-          <div className="relative bg-white p-8 border-b border-gray-200">
+          <div className="relative bg-gray-800 p-8 border-b border-gray-700">
             <div className="flex flex-col md:flex-row items-center space-y-4 md:space-y-0 md:space-x-6">
               {/* 頭像 */}
               <div className="relative">
-                <div className="w-32 h-32 rounded-full border-4 border-gray-200 shadow-lg overflow-hidden">
+                <div className="w-32 h-32 rounded-full border-4 border-gray-600 shadow-lg overflow-hidden">
                   {partner.images && partner.images.length > 0 ? (
                     <SecureImage
                       src={partner.images[0]}
@@ -325,7 +325,7 @@ export default function PartnerProfilePage() {
                     </div>
                   )}
                 </div>
-                <div className="absolute -bottom-2 -right-2 bg-green-500 w-8 h-8 rounded-full border-2 border-white flex items-center justify-center">
+                <div className="absolute -bottom-2 -right-2 bg-green-500 w-8 h-8 rounded-full border-2 border-gray-800 flex items-center justify-center">
                   <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                   </svg>
@@ -334,8 +334,8 @@ export default function PartnerProfilePage() {
 
               {/* 基本資訊 */}
               <div className="flex-1 text-center md:text-left">
-                <h1 className="text-3xl font-bold text-black mb-2">{partner.name}</h1>
-                <div className="flex flex-wrap justify-center md:justify-start gap-4 text-black">
+                <h1 className="text-3xl font-bold text-white mb-2">{partner.name}</h1>
+                <div className="flex flex-wrap justify-center md:justify-start gap-4 text-white">
                   <div className="flex items-center">
                     <svg className="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -368,8 +368,8 @@ export default function PartnerProfilePage() {
               <div className="lg:col-span-2 space-y-6">
                 {/* 興趣 */}
                 {partner.interests.length > 0 && (
-                  <div className="bg-gray-50 rounded-xl p-6 border border-gray-200" style={{ transform: 'translateZ(0)', contentVisibility: 'auto' }}>
-                    <h3 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
+                  <div className="bg-gray-700 rounded-xl p-6 border border-gray-600" style={{ transform: 'translateZ(0)', contentVisibility: 'auto' }}>
+                    <h3 className="text-xl font-semibold text-white mb-4 flex items-center">
                       <svg className="w-6 h-6 mr-2 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
                       </svg>
@@ -389,8 +389,8 @@ export default function PartnerProfilePage() {
                 )}
 
                 {/* 擅長遊戲 */}
-                <div className="bg-gray-50 rounded-xl p-6 border border-gray-200" style={{ transform: 'translateZ(0)', contentVisibility: 'auto' }}>
-                  <h3 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
+                <div className="bg-gray-700 rounded-xl p-6 border border-gray-600" style={{ transform: 'translateZ(0)', contentVisibility: 'auto' }}>
+                  <h3 className="text-xl font-semibold text-white mb-4 flex items-center">
                     <svg className="w-6 h-6 mr-2 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h1m4 0h1m-6 4h8m-9-4V9a2 2 0 012-2h4a2 2 0 012 2v1M7 7h10a2 2 0 012 2v8a2 2 0 01-2 2H7a2 2 0 01-2-2V9a2 2 0 012-2z" />
                     </svg>
@@ -410,8 +410,8 @@ export default function PartnerProfilePage() {
 
                 {/* 純聊天服務 */}
                 {partner.supportsChatOnly && (
-                  <div className="bg-gray-50 rounded-xl p-6 border border-gray-200" style={{ transform: 'translateZ(0)', contentVisibility: 'auto' }}>
-                    <h3 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
+                  <div className="bg-gray-700 rounded-xl p-6 border border-gray-600" style={{ transform: 'translateZ(0)', contentVisibility: 'auto' }}>
+                    <h3 className="text-xl font-semibold text-white mb-4 flex items-center">
                       <svg className="w-6 h-6 mr-2 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
                       </svg>
@@ -425,26 +425,26 @@ export default function PartnerProfilePage() {
                 )}
 
                 {/* 留言板 */}
-                <div className="bg-gray-50 rounded-xl p-6 border border-gray-200" style={{ transform: 'translateZ(0)', contentVisibility: 'auto' }}>
-                  <h3 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
+                <div className="bg-gray-700 rounded-xl p-6 border border-gray-600" style={{ transform: 'translateZ(0)', contentVisibility: 'auto' }}>
+                  <h3 className="text-xl font-semibold text-white mb-4 flex items-center">
                     <svg className="w-6 h-6 mr-2 text-indigo-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
                     </svg>
                     留言板
                   </h3>
                   {partner.customerMessage ? (
-                    <p className="text-gray-700 leading-relaxed whitespace-pre-wrap break-words">
+                    <p className="text-gray-200 leading-relaxed whitespace-pre-wrap break-words">
                       {partner.customerMessage}
                     </p>
                   ) : (
-                    <p className="text-gray-500 italic">夥伴還沒有留下任何訊息</p>
+                    <p className="text-gray-400 italic">夥伴還沒有留下任何訊息</p>
                   )}
                 </div>
 
                 {/* 所有照片 */}
                 {partner.images.length > 0 && (
-                  <div className="bg-gray-50 rounded-xl p-6 border border-gray-200" style={{ transform: 'translateZ(0)', contentVisibility: 'auto' }}>
-                    <h3 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
+                  <div className="bg-gray-700 rounded-xl p-6 border border-gray-600" style={{ transform: 'translateZ(0)', contentVisibility: 'auto' }}>
+                    <h3 className="text-xl font-semibold text-white mb-4 flex items-center">
                       <svg className="w-6 h-6 mr-2 text-pink-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                       </svg>
@@ -485,8 +485,8 @@ export default function PartnerProfilePage() {
 
               {/* 右側：評價 */}
               <div className="space-y-6" style={{ transform: 'translateZ(0)', contentVisibility: 'auto' }}>
-                <div className="bg-gray-50 rounded-xl p-6 border border-gray-200" style={{ transform: 'translateZ(0)', contentVisibility: 'auto' }}>
-                  <h3 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
+                <div className="bg-gray-700 rounded-xl p-6 border border-gray-600" style={{ transform: 'translateZ(0)', contentVisibility: 'auto' }}>
+                  <h3 className="text-xl font-semibold text-white mb-4 flex items-center">
                     <svg className="w-6 h-6 mr-2 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
                     </svg>
@@ -496,15 +496,15 @@ export default function PartnerProfilePage() {
                   {partner.reviewsReceived.length > 0 ? (
                     <div className="space-y-4">
                       {partner.reviewsReceived.map((review, index) => (
-                        <div key={review.id} className="bg-white rounded-lg p-4 border border-gray-200" style={{ transform: 'translateZ(0)', contentVisibility: index > 2 ? 'auto' : 'visible' }}>
+                        <div key={review.id} className="bg-gray-700 rounded-lg p-4 border border-gray-600" style={{ transform: 'translateZ(0)', contentVisibility: index > 2 ? 'auto' : 'visible' }}>
                           <div className="flex items-center justify-between mb-2">
                             <div className="flex items-center">
-                              <span className="text-gray-900 font-medium">{review.reviewer.name}</span>
+                              <span className="text-white font-medium">{review.reviewer.name}</span>
                               <div className="flex ml-2">
                                 {[...Array(5)].map((_, i) => (
                                   <svg
                                     key={i}
-                                    className={`w-4 h-4 ${i < review.rating ? 'text-yellow-400' : 'text-gray-600'}`}
+                                    className={`w-4 h-4 ${i < review.rating ? 'text-yellow-400' : 'text-gray-500'}`}
                                     fill="currentColor"
                                     viewBox="0 0 20 20"
                                   >
@@ -518,7 +518,7 @@ export default function PartnerProfilePage() {
                             </span>
                           </div>
                           {review.comment && (
-                            <p className="text-gray-700 text-sm">{review.comment}</p>
+                            <p className="text-gray-200 text-sm">{review.comment}</p>
                           )}
                         </div>
                       ))}

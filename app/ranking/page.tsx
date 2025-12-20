@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useSession } from 'next-auth/react'
 import SecureImage from '@/components/SecureImage'
+import GameIcon from '@/components/GameIcon'
 
 interface RankingData {
   id: string
@@ -24,12 +25,12 @@ export default function RankingPage() {
   const [timeFilter, setTimeFilter] = useState('week')
 
   const gameOptions = [
-    { value: 'all', label: '全部遊戲', icon: '🏆' },
-    { value: '英雄聯盟', label: '英雄聯盟', icon: '⚔️' },
-    { value: '特戰英豪', label: '特戰英豪', icon: '🎯' },
-    { value: 'Apex 英雄', label: 'Apex 英雄', icon: '🚀' },
-    { value: 'CS:GO', label: 'CS:GO', icon: '🔫' },
-    { value: 'PUBG', label: 'PUBG', icon: '🏃' }
+    { value: 'all', label: '全部遊戲', icon: '🏆', isGame: false },
+    { value: '英雄聯盟', label: '英雄聯盟', icon: null, isGame: true },
+    { value: '特戰英豪', label: '特戰英豪', icon: null, isGame: true },
+    { value: 'Apex 英雄', label: 'Apex 英雄', icon: null, isGame: true },
+    { value: 'CS:GO', label: 'CS:GO', icon: null, isGame: true },
+    { value: 'PUBG', label: 'PUBG', icon: null, isGame: true }
   ]
 
   const timeOptions = [
@@ -95,19 +96,7 @@ export default function RankingPage() {
     }
   }
 
-  const getGameIcon = (game: string) => {
-    const gameIcons: { [key: string]: string } = {
-      '英雄聯盟': '⚔️',
-      '特戰英豪': '🎯',
-      'Apex 英雄': '🚀',
-      'CS:GO': '🔫',
-      'PUBG': '🏃',
-      'Valorant': '🎯',
-      'LOL': '⚔️',
-      'APEX': '🚀'
-    }
-    return gameIcons[game] || '🎮'
-  }
+  // 已移除 getGameIcon 函數，改用 GameIcon 組件
 
   return (
     <div className="min-h-screen" style={{backgroundColor: '#E4E7EB'}}>
@@ -146,7 +135,13 @@ export default function RankingPage() {
                     boxShadow: selectedGame === option.value ? '0 8px 32px rgba(26, 115, 232, 0.3)' : '0 4px 20px rgba(0, 0, 0, 0.1)'
                   }}
                 >
-                  <span className="mr-2">{option.icon}</span>
+                  <span className="mr-2 flex items-center">
+                    {option.isGame ? (
+                      <GameIcon gameName={option.value} size={20} />
+                    ) : (
+                      <span>{option.icon}</span>
+                    )}
+                  </span>
                   {option.label}
                 </button>
               ))}
@@ -263,7 +258,7 @@ export default function RankingPage() {
                         {partner.games.map((game, gameIndex) => (
                           <div key={gameIndex} className="flex items-center gap-1 px-3 py-1 rounded-full text-sm" 
                                style={{backgroundColor: '#E4E7EB', color: '#333140'}}>
-                            <span>{getGameIcon(game)}</span>
+                            <GameIcon gameName={game} size={16} />
                             <span>{game}</span>
                           </div>
                         ))}

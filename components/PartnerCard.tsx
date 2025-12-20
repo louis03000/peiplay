@@ -2,6 +2,7 @@
 
 import { useState, useCallback, memo, useMemo, useEffect } from 'react'
 import SecureImage from './SecureImage'
+import GameIcon from './GameIcon'
 import { FaBolt, FaCrown, FaMedal, FaTrophy, FaComments, FaHeart, FaStar, FaQuoteLeft, FaQuoteRight, FaPaperPlane } from 'react-icons/fa'
 
 interface Partner {
@@ -61,19 +62,7 @@ const PartnerCard = memo(function PartnerCard({ partner, onQuickBook, showNextSt
     setImageError(true)
   }
 
-  const getGameIcon = (game: string) => {
-    const gameIcons: { [key: string]: string } = {
-      '英雄聯盟': '⚔️',
-      '特戰英豪': '🎯',
-      'Apex 英雄': '🚀',
-      'CS:GO': '🔫',
-      'PUBG': '🏃',
-      'Valorant': '🎯',
-      'LOL': '⚔️',
-      'APEX': '🚀'
-    }
-    return gameIcons[game] || '🎮'
-  }
+  // 已移除 getGameIcon 函數，改用 GameIcon 組件
 
   const handlePrevImage = useCallback(() => {
     if (displayImages.length > 1) {
@@ -282,9 +271,9 @@ const PartnerCard = memo(function PartnerCard({ partner, onQuickBook, showNextSt
               )}
             </div>
 
-            {/* 評分 - 右上角，確保不與左上角標籤重疊 */}
+            {/* 評分 - 右下角 */}
             {partner.averageRating && partner.averageRating > 0 && (
-              <div className="absolute top-2 right-28 bg-black bg-opacity-70 text-white px-2 py-1 rounded-full text-xs flex items-center gap-1 whitespace-nowrap z-30">
+              <div className="absolute bottom-2 right-2 bg-black bg-opacity-70 text-white px-2 py-1 rounded-full text-xs flex items-center gap-1 whitespace-nowrap z-30">
                 <FaStar className="text-yellow-400" />
                 {partner.averageRating.toFixed(1)}
                 {partner.totalReviews !== undefined && partner.totalReviews > 0 && ` (${partner.totalReviews})`}
@@ -317,9 +306,10 @@ const PartnerCard = memo(function PartnerCard({ partner, onQuickBook, showNextSt
               {partner.games.slice(0, 2).map((game, index) => (
                 <span
                   key={index}
-                  className="bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded-full text-xs font-medium"
+                  className="bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded-full text-xs font-medium flex items-center gap-1"
                 >
-                  {getGameIcon(game)} {game.length > 5 ? game.substring(0, 5) + '...' : game}
+                  <GameIcon gameName={game} size={14} />
+                  <span>{game.length > 5 ? game.substring(0, 5) + '...' : game}</span>
                 </span>
               ))}
               {partner.games.length > 2 && (
