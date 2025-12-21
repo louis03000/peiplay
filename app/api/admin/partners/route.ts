@@ -67,11 +67,29 @@ export async function PATCH(request: Request) {
     }
 
     const partner = await db.query(async (client) => {
-      return client.partner.update({
+      // 更新夥伴狀態
+      const updatedPartner = await client.partner.update({
         where: { id },
         data: { status },
         include: { user: true },
       })
+
+      // 如果狀態變為 APPROVED，更新用戶角色為 PARTNER
+      if (status === 'APPROVED' && updatedPartner.user) {
+        await client.user.update({
+          where: { id: updatedPartner.userId },
+          data: { role: 'PARTNER' },
+        })
+      }
+      // 如果狀態變為 REJECTED，將角色改回 CUSTOMER（如果原本是 PARTNER）
+      else if (status === 'REJECTED' && updatedPartner.user && updatedPartner.user.role === 'PARTNER') {
+        await client.user.update({
+          where: { id: updatedPartner.userId },
+          data: { role: 'CUSTOMER' },
+        })
+      }
+
+      return updatedPartner
     }, 'admin:partners:update-status')
 
     return NextResponse.json(partner)
