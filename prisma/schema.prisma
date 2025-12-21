@@ -429,20 +429,22 @@ model GroupBooking {
 }
 
 model MultiPlayerBooking {
-  id               String                   @id @default(cuid())
-  customerId       String
-  date             DateTime
-  startTime        DateTime
-  endTime          DateTime
-  games            String[]                 @default([])
-  status           MultiPlayerBookingStatus @default(PENDING)
-  totalAmount      Float                    @default(0)
-  createdAt        DateTime                 @default(now())
-  updatedAt        DateTime                 @updatedAt
-  lastAdjustmentAt DateTime? // 最後調整時間
-  customer         Customer                 @relation(fields: [customerId], references: [id])
-  bookings         Booking[]
-  chatRoom         ChatRoom?
+  id                   String                   @id @default(cuid())
+  customerId           String
+  date                 DateTime
+  startTime            DateTime
+  endTime              DateTime
+  games                String[]                 @default([])
+  status               MultiPlayerBookingStatus @default(PENDING)
+  totalAmount          Float                    @default(0)
+  createdAt            DateTime                 @default(now())
+  updatedAt            DateTime                 @updatedAt
+  lastAdjustmentAt     DateTime? // 最後調整時間
+  discordTextChannelId String?
+  discordVoiceChannelId String?
+  customer             Customer                 @relation(fields: [customerId], references: [id])
+  bookings             Booking[]
+  chatRoom             ChatRoom?
 
   @@index([customerId, status])
   @@index([status, createdAt(sort: Desc)])

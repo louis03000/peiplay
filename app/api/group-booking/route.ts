@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db-resilience";
 import { createErrorResponse } from "@/lib/api-helpers";
+import { sendBookingNotificationEmail } from "@/lib/email";
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -135,6 +136,24 @@ export async function POST(request: Request) {
         });
 
         console.log("✅ 群組預約創建成功:", groupBooking.id);
+
+        // 發送 email 通知給發起者（非阻塞）
+        sendBookingNotificationEmail(
+          user.email,
+          user.name || partner.name || '夥伴',
+          user.name || partner.name || '您',
+          {
+            bookingId: groupBooking.id,
+            startTime: groupBooking.startTime.toISOString(),
+            endTime: groupBooking.endTime.toISOString(),
+            duration: (groupBooking.endTime.getTime() - groupBooking.startTime.getTime()) / (1000 * 60 * 60),
+            totalCost: groupBooking.pricePerPerson || 0,
+            customerName: user.name || partner.name || '您',
+            customerEmail: user.email,
+          }
+        ).catch((error) => {
+          console.error('❌ Email 發送失敗:', error);
+        });
 
         return NextResponse.json({
           success: true,

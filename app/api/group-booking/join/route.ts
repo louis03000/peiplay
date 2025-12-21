@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { db } from '@/lib/db-resilience';
+import { sendBookingNotificationEmail } from "@/lib/email";
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -381,6 +382,52 @@ export async function POST(request: Request) {
         });
 
         console.log("✅ 成功加入群組預約:", groupBookingId);
+
+        // 發送 email 通知（非阻塞）
+        // 通知新加入者
+        sendBookingNotificationEmail(
+          user.email,
+          user.name || '您',
+          user.name || '您',
+          {
+            bookingId: groupBookingId,
+            startTime: (updatedGroupBooking?.startTime || groupBooking.startTime).toISOString(),
+            endTime: (updatedGroupBooking?.endTime || groupBooking.endTime).toISOString(),
+            duration: ((updatedGroupBooking?.endTime || groupBooking.endTime).getTime() - (updatedGroupBooking?.startTime || groupBooking.startTime).getTime()) / (1000 * 60 * 60),
+            totalCost: updatedGroupBooking?.pricePerPerson || groupBooking.pricePerPerson || 0,
+            customerName: user.name || '您',
+            customerEmail: user.email,
+          }
+        ).catch((error) => {
+          console.error('❌ Email 發送失敗:', error);
+        });
+
+        // 通知發起者（如果有）
+        if (groupBooking.initiatorId) {
+          const initiatorPartner = await client.partner.findUnique({
+            where: { id: groupBooking.initiatorId },
+            include: { user: { select: { email: true, name: true } } }
+          });
+          
+          if (initiatorPartner?.user?.email) {
+            sendBookingNotificationEmail(
+              initiatorPartner.user.email,
+              initiatorPartner.name || initiatorPartner.user.name || '夥伴',
+              user.name || '新成員',
+              {
+                bookingId: groupBookingId,
+                startTime: (updatedGroupBooking?.startTime || groupBooking.startTime).toISOString(),
+                endTime: (updatedGroupBooking?.endTime || groupBooking.endTime).toISOString(),
+                duration: ((updatedGroupBooking?.endTime || groupBooking.endTime).getTime() - (updatedGroupBooking?.startTime || groupBooking.startTime).getTime()) / (1000 * 60 * 60),
+                totalCost: updatedGroupBooking?.pricePerPerson || groupBooking.pricePerPerson || 0,
+                customerName: user.name || '新成員',
+                customerEmail: user.email,
+              }
+            ).catch((error) => {
+              console.error('❌ Email 發送失敗:', error);
+            });
+          }
+        }
 
         return NextResponse.json({
           success: true,
