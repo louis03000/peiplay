@@ -11,6 +11,7 @@ interface OrderRecord {
   partnerDiscord: string
   partnerName: string
   customerName: string
+  serviceType: string
   amount: number
   timestamp: Date
 }
@@ -207,6 +208,9 @@ export default function AdminOrderRecordsPage() {
                                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                       顧客
                                     </th>
+                                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                      服務款項
+                                    </th>
                                     <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                                       訂單金額
                                     </th>
@@ -226,6 +230,9 @@ export default function AdminOrderRecordsPage() {
                                       </td>
                                       <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
                                         {record.customerName}
+                                      </td>
+                                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
+                                        {record.serviceType || '一般預約'}
                                       </td>
                                       <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 text-right">
                                         NT$ {record.amount.toLocaleString()}

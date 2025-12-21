@@ -39,12 +39,17 @@ export async function GET(request: Request) {
       let halfHourlyRate: number | null = null
 
       // 如果有 bookingId 且不是 manual_ 前綴，從 Booking 獲取正確的用戶信息
+      let serviceType = '一般預約'
       if (bookingId && !bookingId.startsWith('manual_')) {
         const booking = await db.query(async (client) => {
           return await client.booking.findUnique({
             where: { id: bookingId },
             select: {
               finalAmount: true,
+              isInstantBooking: true,
+              groupBookingId: true,
+              multiPlayerBookingId: true,
+              serviceType: true,
               customer: {
                 select: {
                   user: {
@@ -81,6 +86,17 @@ export async function GET(request: Request) {
           customerName = booking.customer?.user?.name || ''
           finalAmount = booking.finalAmount
           halfHourlyRate = booking.schedule?.partner?.halfHourlyRate || null
+          
+          // 判斷服務類型
+          if (booking.isInstantBooking) {
+            serviceType = '即時預約'
+          } else if (booking.groupBookingId) {
+            serviceType = '群組預約'
+          } else if (booking.multiPlayerBookingId) {
+            serviceType = '多人陪玩'
+          } else if (booking.serviceType === 'CHAT_ONLY') {
+            serviceType = '純聊天'
+          }
         }
       }
 
@@ -126,6 +142,7 @@ export async function GET(request: Request) {
         partnerDiscord,
         partnerName,
         customerName,
+        serviceType,
         amount: orderAmount,
         timestamp: createdAt
       })
