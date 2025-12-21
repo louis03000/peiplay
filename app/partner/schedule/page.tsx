@@ -236,6 +236,13 @@ export default function PartnerSchedulePage() {
       router.replace('/auth/login');
       return;
     }
+    
+    // 檢查用戶角色，只有 PARTNER 角色才能訪問
+    if (mounted && session?.user?.role !== 'PARTNER') {
+      router.replace('/profile');
+      return;
+    }
+    
     if (mounted && session?.user?.id) {
       // 使用新的dashboard API一次性獲取所有數據
       fetch('/api/partner/dashboard')

@@ -385,15 +385,23 @@ export async function POST(request: Request) {
 
         // 發送 email 通知（非阻塞）
         // 通知新加入者
+        // 確保日期是 Date 對象
+        const startTimeForEmail = updatedGroupBooking?.startTime instanceof Date 
+          ? updatedGroupBooking.startTime 
+          : new Date(updatedGroupBooking?.startTime || groupBooking.startTime);
+        const endTimeForEmail = updatedGroupBooking?.endTime instanceof Date 
+          ? updatedGroupBooking.endTime 
+          : new Date(updatedGroupBooking?.endTime || groupBooking.endTime);
+        
         sendBookingNotificationEmail(
           user.email,
           user.name || '您',
           user.name || '您',
           {
             bookingId: groupBookingId,
-            startTime: (updatedGroupBooking?.startTime || groupBooking.startTime).toISOString(),
-            endTime: (updatedGroupBooking?.endTime || groupBooking.endTime).toISOString(),
-            duration: ((updatedGroupBooking?.endTime || groupBooking.endTime).getTime() - (updatedGroupBooking?.startTime || groupBooking.startTime).getTime()) / (1000 * 60 * 60),
+            startTime: startTimeForEmail.toISOString(),
+            endTime: endTimeForEmail.toISOString(),
+            duration: (endTimeForEmail.getTime() - startTimeForEmail.getTime()) / (1000 * 60 * 60),
             totalCost: updatedGroupBooking?.pricePerPerson || groupBooking.pricePerPerson || 0,
             customerName: user.name || '您',
             customerEmail: user.email,
@@ -402,23 +410,32 @@ export async function POST(request: Request) {
           console.error('❌ Email 發送失敗:', error);
         });
 
-        // 通知發起者（如果有）
+        // 通知發起者（如果有）- 在事務外查詢
         if (groupBooking.initiatorId) {
+          // 使用 client 而不是 tx，因為這是在事務外執行的
           const initiatorPartner = await client.partner.findUnique({
             where: { id: groupBooking.initiatorId },
             include: { user: { select: { email: true, name: true } } }
           });
           
           if (initiatorPartner?.user?.email) {
+            // 確保日期是 Date 對象
+            const startTime = updatedGroupBooking?.startTime instanceof Date 
+              ? updatedGroupBooking.startTime 
+              : new Date(updatedGroupBooking?.startTime || groupBooking.startTime);
+            const endTime = updatedGroupBooking?.endTime instanceof Date 
+              ? updatedGroupBooking.endTime 
+              : new Date(updatedGroupBooking?.endTime || groupBooking.endTime);
+            
             sendBookingNotificationEmail(
               initiatorPartner.user.email,
               initiatorPartner.name || initiatorPartner.user.name || '夥伴',
               user.name || '新成員',
               {
                 bookingId: groupBookingId,
-                startTime: (updatedGroupBooking?.startTime || groupBooking.startTime).toISOString(),
-                endTime: (updatedGroupBooking?.endTime || groupBooking.endTime).toISOString(),
-                duration: ((updatedGroupBooking?.endTime || groupBooking.endTime).getTime() - (updatedGroupBooking?.startTime || groupBooking.startTime).getTime()) / (1000 * 60 * 60),
+                startTime: startTime.toISOString(),
+                endTime: endTime.toISOString(),
+                duration: (endTime.getTime() - startTime.getTime()) / (1000 * 60 * 60),
                 totalCost: updatedGroupBooking?.pricePerPerson || groupBooking.pricePerPerson || 0,
                 customerName: user.name || '新成員',
                 customerEmail: user.email,
@@ -429,6 +446,14 @@ export async function POST(request: Request) {
           }
         }
 
+        // 確保日期是 Date 對象並轉換為 ISO 字符串
+        const startTimeResponse = updatedGroupBooking?.startTime instanceof Date 
+          ? updatedGroupBooking.startTime 
+          : new Date(updatedGroupBooking?.startTime || groupBooking.startTime);
+        const endTimeResponse = updatedGroupBooking?.endTime instanceof Date 
+          ? updatedGroupBooking.endTime 
+          : new Date(updatedGroupBooking?.endTime || groupBooking.endTime);
+        
         return NextResponse.json({
           success: true,
           message: '成功加入群組預約',
@@ -440,13 +465,13 @@ export async function POST(request: Request) {
             currentParticipants: updatedGroupBooking?.GroupBookingParticipant.length || (groupBooking.GroupBookingParticipant.length + 1),
             pricePerPerson: updatedGroupBooking?.pricePerPerson || groupBooking.pricePerPerson,
             status: updatedGroupBooking?.status || groupBooking.status,
-            startTime: updatedGroupBooking?.startTime.toISOString() || groupBooking.startTime.toISOString(),
-            endTime: updatedGroupBooking?.endTime.toISOString() || groupBooking.endTime.toISOString()
+            startTime: startTimeResponse.toISOString(),
+            endTime: endTimeResponse.toISOString()
           },
           booking: booking ? {
             id: booking.id,
             status: booking.status,
-            createdAt: booking.createdAt.toISOString()
+            createdAt: booking.createdAt instanceof Date ? booking.createdAt.toISOString() : new Date(booking.createdAt).toISOString()
           } : null
         });
       });

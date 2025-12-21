@@ -16,6 +16,21 @@ function formatTaiwanTime(dateString: string | Date): string {
   }).replace(/,/g, ' ').replace(/\//g, '/');
 }
 
+// 輔助函數：格式化時長為 "X 小時 Y 分鐘" 格式
+function formatDuration(hours: number): string {
+  const totalMinutes = Math.round(hours * 60);
+  const hoursPart = Math.floor(totalMinutes / 60);
+  const minutesPart = totalMinutes % 60;
+  
+  if (hoursPart === 0) {
+    return `${minutesPart} 分鐘`;
+  } else if (minutesPart === 0) {
+    return `${hoursPart} 小時`;
+  } else {
+    return `${hoursPart} 小時 ${minutesPart} 分鐘`;
+  }
+}
+
 // 創建 Gmail SMTP 傳輸器
 const createTransporter = () => {
   return nodemailer.createTransport({
@@ -700,7 +715,7 @@ export async function sendBookingNotificationEmail(
               </tr>
               <tr>
                 <td style="padding: 8px 0; color: #666;"><strong>時長：</strong></td>
-                <td style="padding: 8px 0; color: #333;">${bookingDetails.duration} 小時</td>
+                <td style="padding: 8px 0; color: #333;">${formatDuration(bookingDetails.duration)}</td>
               </tr>
               <tr>
                 <td style="padding: 8px 0; color: #666;"><strong>總費用：</strong></td>

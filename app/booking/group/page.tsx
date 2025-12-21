@@ -435,7 +435,7 @@ function GroupBookingContent() {
                   <div className="mb-3">
                     <h4 className="font-medium text-gray-900">{group.title}</h4>
                     {group.description && (
-                      <p className="text-sm text-gray-600 mt-1">{group.description}</p>
+                      <p className="text-sm text-gray-600 mt-1 line-clamp-2">{group.description}</p>
                     )}
                     {group.games && group.games.length > 0 && (
                       <div className="flex flex-wrap gap-1 mt-2">
@@ -448,10 +448,15 @@ function GroupBookingContent() {
                     )}
                   </div>
                   
-                  <div className="flex items-center justify-between text-sm text-gray-500 mb-3">
-                    <span>👥 {group.currentParticipants}/{group.maxParticipants} 人</span>
-                    <span>💰 ${group.pricePerPerson}/人</span>
-                    <span>📅 {new Date(group.startTime).toLocaleDateString('zh-TW')}</span>
+                  <div className="space-y-2 mb-3">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-gray-500">💰 價格：</span>
+                      <span className="font-semibold text-green-600 text-lg">${group.pricePerPerson}/人</span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm text-gray-500">
+                      <span>👥 參與人數：{group.currentParticipants}/{group.maxParticipants} 人</span>
+                      <span>📅 {new Date(group.startTime).toLocaleDateString('zh-TW')} {new Date(group.startTime).toLocaleTimeString('zh-TW', {hour: '2-digit', minute: '2-digit'})}</span>
+                    </div>
                   </div>
                   
                   {group.currentParticipants < group.maxParticipants ? (

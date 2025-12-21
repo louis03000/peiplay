@@ -305,7 +305,7 @@ export default function Navbar() {
                   )}
                 
                 {/* 時段管理 - 夥伴功能 */}
-                {isPartner && session.user.role !== 'ADMIN' && (
+                {session.user.role === 'PARTNER' && (
                   <div className="px-3 py-2">
                     <Link 
                       href="/partner/schedule" 

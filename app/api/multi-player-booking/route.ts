@@ -83,65 +83,65 @@ export async function POST(request: Request) {
         return { type: 'SUSPENDED' } as const
       }
 
-      return await client.$transaction(async (tx) => {
-        // 驗證所有夥伴的時段並計算總費用
-        const partnerData: Array<{
-          scheduleId: string
-          partnerId: string
-          partnerName: string
-          partnerEmail: string
-          amount: number
-        }> = []
+      // 先驗證所有夥伴的時段並檢查時間衝突（在事務外）
+      const partnerData: Array<{
+        scheduleId: string
+        partnerId: string
+        partnerName: string
+        partnerEmail: string
+        amount: number
+      }> = []
 
-        let totalAmount = 0
+      let totalAmount = 0
 
-        for (const scheduleId of partnerScheduleIds) {
-          const schedule = await tx.schedule.findUnique({
-            where: { id: scheduleId },
-            include: {
-              partner: {
-                include: {
-                  user: {
-                    select: {
-                      email: true,
-                      name: true,
-                    },
+      for (const scheduleId of partnerScheduleIds) {
+        const schedule = await client.schedule.findUnique({
+          where: { id: scheduleId },
+          include: {
+            partner: {
+              include: {
+                user: {
+                  select: {
+                    email: true,
+                    name: true,
                   },
                 },
               },
-              bookings: {
-                select: {
-                  id: true,
-                  status: true,
-                },
+            },
+            bookings: {
+              select: {
+                id: true,
+                status: true,
               },
             },
-          })
+          },
+        })
 
-          if (!schedule) {
-            throw new Error(`時段 ${scheduleId} 不存在`)
-          }
+        if (!schedule) {
+          throw new Error(`時段 ${scheduleId} 不存在`)
+        }
 
-          // 檢查時段是否可用
-          if (!schedule.isAvailable) {
-            throw new Error(`夥伴 ${schedule.partner.user.name} 的時段不可用`)
-          }
+        // 檢查時段是否可用
+        if (!schedule.isAvailable) {
+          throw new Error(`夥伴 ${schedule.partner.user.name} 的時段不可用`)
+        }
 
-          // 檢查時段是否已被預約（bookings 是單一關聯，不是陣列）
-          if (schedule.bookings && schedule.bookings.status !== 'CANCELLED' && schedule.bookings.status !== 'REJECTED') {
-            throw new Error(`夥伴 ${schedule.partner.user.name} 的時段已被預約`)
-          }
+        // 檢查時段是否已被預約（bookings 是單一關聯，不是陣列）
+        if (schedule.bookings && schedule.bookings.status !== 'CANCELLED' && schedule.bookings.status !== 'REJECTED') {
+          throw new Error(`夥伴 ${schedule.partner.user.name} 的時段已被預約`)
+        }
 
-          // 檢查時段是否完全匹配
-          const scheduleStart = new Date(schedule.startTime)
-          const scheduleEnd = new Date(schedule.endTime)
-          
-          if (scheduleStart.getTime() !== startDateTime.getTime() || 
-              scheduleEnd.getTime() !== endDateTime.getTime()) {
-            throw new Error(`夥伴 ${schedule.partner.user.name} 的時段不匹配`)
-          }
+        // 檢查時段是否完全匹配
+        const scheduleStart = new Date(schedule.startTime)
+        const scheduleEnd = new Date(schedule.endTime)
+        
+        if (scheduleStart.getTime() !== startDateTime.getTime() || 
+            scheduleEnd.getTime() !== endDateTime.getTime()) {
+          throw new Error(`夥伴 ${schedule.partner.user.name} 的時段不匹配`)
+        }
 
-          // 檢查時間衝突
+        // 檢查時間衝突（在事務外）
+        try {
           const conflictStartTime = schedule.startTime instanceof Date ? schedule.startTime : new Date(schedule.startTime)
           const conflictEndTime = schedule.endTime instanceof Date ? schedule.endTime : new Date(schedule.endTime)
           const conflict = await checkTimeConflict(
@@ -149,12 +149,25 @@ export async function POST(request: Request) {
             conflictStartTime,
             conflictEndTime,
             undefined,
-            tx
+            client
           )
 
           if (conflict.hasConflict) {
             throw new Error(`夥伴 ${schedule.partner.user.name} 的時間有衝突`)
           }
+        } catch (conflictError: any) {
+          // 如果錯誤訊息已經包含"時間衝突"，直接拋出
+          if (conflictError?.message?.includes('時間有衝突') || conflictError?.message?.includes('時間衝突')) {
+            throw conflictError
+          }
+          // 其他錯誤記錄詳細資訊
+          console.error(`❌ 檢查時間衝突失敗 (scheduleId: ${scheduleId}):`, {
+            error: conflictError,
+            message: conflictError?.message,
+            stack: conflictError?.stack,
+          })
+          throw new Error(`檢查時間衝突失敗: ${conflictError?.message || '未知錯誤'}`)
+        }
 
           // 計算費用
           const scheduleStartTime = schedule.startTime instanceof Date ? schedule.startTime : new Date(schedule.startTime)
@@ -171,6 +184,8 @@ export async function POST(request: Request) {
             amount,
           })
         }
+
+      return await client.$transaction(async (tx) => {
 
         // 創建多人陪玩群組
         const multiPlayerBooking = await tx.multiPlayerBooking.create({
@@ -272,6 +287,14 @@ export async function POST(request: Request) {
     })
   } catch (error) {
     console.error('創建多人陪玩群組失敗:', error)
+    // 記錄詳細錯誤資訊
+    if (error instanceof Error) {
+      console.error('錯誤詳情:', {
+        message: error.message,
+        stack: error.stack,
+        name: error.name,
+      })
+    }
     return createErrorResponse(error, 'multi-player-booking:create')
   }
 }

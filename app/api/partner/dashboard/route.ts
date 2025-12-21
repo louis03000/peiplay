@@ -15,6 +15,11 @@ export async function GET() {
       return NextResponse.json({ error: '請先登入' }, { status: 401 })
     }
 
+    // 檢查用戶角色，只有 PARTNER 角色才能訪問
+    if (session.user.role !== 'PARTNER') {
+      return NextResponse.json({ error: '只有夥伴才能訪問此頁面' }, { status: 403 })
+    }
+
     const result = await db.query(async (client) => {
       try {
         const now = new Date()

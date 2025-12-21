@@ -251,11 +251,21 @@ export async function GET(request: Request) {
                   select: {
                     id: true,
                     name: true,
+                    coverImage: true,
+                    halfHourlyRate: true,
+                    games: true,
                     user: {
                       select: {
                         id: true,
-                        name: true
+                        name: true,
+                        email: true,
+                        isSuspended: true,
+                        suspensionEndsAt: true
                       }
+                    },
+                    reviewsReceived: {
+                      where: { isApproved: true },
+                      select: { rating: true }
                     }
                   }
                 },
@@ -302,6 +312,15 @@ export async function GET(request: Request) {
           const initiatorParticipant = group.GroupBookingParticipant.find(p => p.partnerId === group.initiatorId);
           const initiatorPartner = initiatorParticipant?.Partner;
           
+          // 計算平均評分
+          let averageRating = 0;
+          let reviewCount = 0;
+          if (initiatorPartner?.reviewsReceived && initiatorPartner.reviewsReceived.length > 0) {
+            const ratings = initiatorPartner.reviewsReceived.map(r => r.rating);
+            averageRating = ratings.reduce((sum, rating) => sum + rating, 0) / ratings.length;
+            reviewCount = ratings.length;
+          }
+          
           return {
             id: group.id,
             partnerId: group.initiatorId,
@@ -318,14 +337,30 @@ export async function GET(request: Request) {
             partner: initiatorPartner ? {
               id: initiatorPartner.id,
               name: initiatorPartner.name,
+              coverImage: initiatorPartner.coverImage || '',
+              halfHourlyRate: initiatorPartner.halfHourlyRate || 0,
+              games: initiatorPartner.games || [],
+              averageRating,
+              reviewCount,
+              allowGroupBooking: true,
               user: {
-                name: initiatorPartner.user.name
+                email: initiatorPartner.user.email,
+                isSuspended: initiatorPartner.user.isSuspended || false,
+                suspensionEndsAt: initiatorPartner.user.suspensionEndsAt
               }
             } : {
               id: group.initiatorId,
               name: '未知夥伴',
+              coverImage: '',
+              halfHourlyRate: 0,
+              games: [],
+              averageRating: 0,
+              reviewCount: 0,
+              allowGroupBooking: false,
               user: {
-                name: '未知用戶'
+                email: '',
+                isSuspended: false,
+                suspensionEndsAt: null
               }
             },
             bookings: group.bookings.map(booking => ({
