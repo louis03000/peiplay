@@ -260,12 +260,12 @@ export async function GET(request: Request) {
                         name: true,
                         email: true,
                         isSuspended: true,
-                        suspensionEndsAt: true
+                        suspensionEndsAt: true,
+                        reviewsReceived: {
+                          where: { isApproved: true },
+                          select: { rating: true }
+                        }
                       }
-                    },
-                    reviewsReceived: {
-                      where: { isApproved: true },
-                      select: { rating: true }
                     }
                   }
                 },
@@ -312,11 +312,11 @@ export async function GET(request: Request) {
           const initiatorParticipant = group.GroupBookingParticipant.find(p => p.partnerId === group.initiatorId);
           const initiatorPartner = initiatorParticipant?.Partner;
           
-          // 計算平均評分
+          // 計算平均評分（從 user.reviewsReceived 獲取）
           let averageRating = 0;
           let reviewCount = 0;
-          if (initiatorPartner?.reviewsReceived && initiatorPartner.reviewsReceived.length > 0) {
-            const ratings = initiatorPartner.reviewsReceived.map(r => r.rating);
+          if (initiatorPartner?.user?.reviewsReceived && initiatorPartner.user.reviewsReceived.length > 0) {
+            const ratings = initiatorPartner.user.reviewsReceived.map(r => r.rating);
             averageRating = ratings.reduce((sum, rating) => sum + rating, 0) / ratings.length;
             reviewCount = ratings.length;
           }
