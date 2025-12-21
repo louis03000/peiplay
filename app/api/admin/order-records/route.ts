@@ -46,7 +46,7 @@ export async function GET(request: Request) {
             where: { id: bookingId },
             select: {
               finalAmount: true,
-              isInstantBooking: true,
+              paymentInfo: true,
               groupBookingId: true,
               multiPlayerBookingId: true,
               serviceType: true,
@@ -88,7 +88,8 @@ export async function GET(request: Request) {
           halfHourlyRate = booking.schedule?.partner?.halfHourlyRate || null
           
           // 判斷服務類型
-          if (booking.isInstantBooking) {
+          const paymentInfo = booking.paymentInfo as any
+          if (paymentInfo?.isInstantBooking === true || paymentInfo?.isInstantBooking === 'true') {
             serviceType = '即時預約'
           } else if (booking.groupBookingId) {
             serviceType = '群組預約'
