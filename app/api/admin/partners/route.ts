@@ -74,18 +74,26 @@ export async function PATCH(request: Request) {
         include: { user: true },
       })
 
-      // 如果狀態變為 APPROVED，更新用戶角色為 PARTNER
+      // 如果狀態變為 APPROVED，更新用戶角色為 PARTNER，並重置拒絕次數
       if (status === 'APPROVED' && updatedPartner.user) {
         await client.user.update({
           where: { id: updatedPartner.userId },
-          data: { role: 'PARTNER' },
+          data: { 
+            role: 'PARTNER',
+            partnerRejectionCount: 0, // 通過後重置拒絕次數
+          },
         })
       }
-      // 如果狀態變為 REJECTED，將角色改回 CUSTOMER（如果原本是 PARTNER）
-      else if (status === 'REJECTED' && updatedPartner.user && updatedPartner.user.role === 'PARTNER') {
+      // 如果狀態變為 REJECTED，將角色改回 CUSTOMER（如果原本是 PARTNER），並增加拒絕次數
+      else if (status === 'REJECTED' && updatedPartner.user) {
         await client.user.update({
           where: { id: updatedPartner.userId },
-          data: { role: 'CUSTOMER' },
+          data: { 
+            role: updatedPartner.user.role === 'PARTNER' ? 'CUSTOMER' : updatedPartner.user.role,
+            partnerRejectionCount: {
+              increment: 1,
+            },
+          },
         })
       }
 

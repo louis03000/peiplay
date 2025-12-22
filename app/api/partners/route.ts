@@ -392,6 +392,16 @@ export async function POST(request: Request) {
       inviteCode?: string
     }
     const result = await db.query(async (client) => {
+      // 檢查用戶是否已被拒絕3次
+      const user = await client.user.findUnique({
+        where: { id: session.user!.id },
+        select: { partnerRejectionCount: true },
+      })
+      
+      if (user && user.partnerRejectionCount >= 3) {
+        return { type: 'REJECTED_TOO_MANY_TIMES' } as const
+      }
+      
       const exist = await client.partner.findUnique({ where: { userId: session.user!.id } });
       if (exist) {
         return { type: 'ALREADY_EXISTS' } as const;
@@ -457,6 +467,8 @@ export async function POST(request: Request) {
     }
 
     switch (result.type) {
+      case 'REJECTED_TOO_MANY_TIMES':
+        return NextResponse.json({ error: '您的申請已被拒絕3次，無法再次申請' }, { status: 403 })
       case 'ALREADY_EXISTS':
         return NextResponse.json({ error: '你已經申請過，不可重複申請' }, { status: 400 })
       case 'INVALID_INVITE':

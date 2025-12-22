@@ -36,12 +36,12 @@ export async function GET() {
 
     // 優化：使用 Redis 快取（30秒快取，因為夥伴狀態可能變動）
     const cacheKey = CacheKeys.stats.user(session.user.id) + ':partner-self';
-    const partner = await Cache.getOrSet(
+    const result = await Cache.getOrSet(
       cacheKey,
       async () => {
         // 優化：使用索引優化的查詢（Partner.userId 索引）
         return await db.query(async (client) => {
-          return client.partner.findUnique({
+          const partner = await client.partner.findUnique({
             where: { userId: session.user.id },
             select: {
               id: true,
@@ -49,18 +49,36 @@ export async function GET() {
               status: true,
             },
           })
+          
+          const user = await client.user.findUnique({
+            where: { id: session.user.id },
+            select: {
+              partnerRejectionCount: true,
+            },
+          })
+          
+          return {
+            partner,
+            partnerRejectionCount: user?.partnerRejectionCount || 0,
+          }
         }, 'partners:self:get')
       },
       CacheTTL.SHORT // 30 秒快取
     )
 
-    if (!partner) {
-      return NextResponse.json({ partner: null })
+    if (!result.partner) {
+      return NextResponse.json({ 
+        partner: null,
+        partnerRejectionCount: result.partnerRejectionCount || 0,
+      })
     }
 
     // 個人資料使用 private cache（只快取在用戶瀏覽器中）
     return NextResponse.json(
-      { partner },
+      { 
+        partner: result.partner,
+        partnerRejectionCount: result.partnerRejectionCount || 0,
+      },
       {
         headers: {
           'Cache-Control': 'private, max-age=60, stale-while-revalidate=120',

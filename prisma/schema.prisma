@@ -35,9 +35,10 @@ model User {
   bookingNotifications          Boolean                @default(true)
   twoFactorEnabled              Boolean                @default(false)
   loginAlerts                   Boolean                @default(true)
-  securityAlerts                Boolean                @default(true)
-  customer                      Customer?
-  partner                       Partner?
+  securityAlerts                 Boolean                @default(true)
+  partnerRejectionCount          Int                    @default(0) // 夥伴申請被拒絕次數（達到3次後不能再申請）
+  customer                       Customer?
+  partner                        Partner?
   reviewsReceived               Review[]               @relation("Reviewee")
   reviewsGiven                  Review[]               @relation("Reviewer")
   securityLogs                  SecurityLog[]

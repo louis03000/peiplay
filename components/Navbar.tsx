@@ -11,6 +11,7 @@ export default function Navbar() {
   const [hasPartner, setHasPartner] = useState(false)
   const [isPartner, setIsPartner] = useState(false)
   const [partnerLoading, setPartnerLoading] = useState(false)
+  const [partnerRejectionCount, setPartnerRejectionCount] = useState(0)
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
 
@@ -85,9 +86,11 @@ export default function Navbar() {
           const data = await res.json()
           const hasPartner = !!data?.partner
           const isApproved = data?.partner?.status === 'APPROVED'
+          const rejectionCount = data?.partnerRejectionCount || 0
           
           setHasPartner(isApproved)
           setIsPartner(isApproved) // 只有已審核通過的夥伴才設為 true
+          setPartnerRejectionCount(rejectionCount)
           setPartnerLoading(false)
           
           // 緩存結果（僅在客戶端）
@@ -149,9 +152,11 @@ export default function Navbar() {
           const data = await res.json()
           const hasPartner = !!data?.partner
           const isApproved = data?.partner?.status === 'APPROVED'
+          const rejectionCount = data?.partnerRejectionCount || 0
           
           setHasPartner(isApproved)
-          setIsPartner(hasPartner)
+          setIsPartner(isApproved) // 只有已審核通過的夥伴才設為 true
+          setPartnerRejectionCount(rejectionCount)
           
           // 更新緩存（僅在客戶端）
           if (typeof window !== 'undefined' && session?.user?.id) {
@@ -208,7 +213,7 @@ export default function Navbar() {
             <span className="text-xl">🔍</span>
             <span className="font-medium">搜尋夥伴</span>
           </Link>
-          {!isPartner && (
+          {!isPartner && partnerRejectionCount < 3 && (
             <Link href="/join" className="flex items-center space-x-2 text-white hover:text-red-300 transition-colors">
               <span className="text-xl">💼</span>
               <span className="font-medium">加入我們</span>

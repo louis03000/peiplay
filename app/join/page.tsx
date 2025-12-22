@@ -95,10 +95,13 @@ export default function JoinPage() {
   const [countdown, setCountdown] = useState(0)
   const [applicationSubmitted, setApplicationSubmitted] = useState(false)
   const [idVerificationPhoto, setIdVerificationPhoto] = useState<string>('')
+  const [partnerRejectionCount, setPartnerRejectionCount] = useState(0)
+  const [isRejectedTooManyTimes, setIsRejectedTooManyTimes] = useState(false)
 
-  // 載入用戶資料
+  // 載入用戶資料和拒絕次數
   useEffect(() => {
     if (session?.user?.id) {
+      // 載入用戶資料
       fetch('/api/user/profile')
         .then(res => res.json())
         .then(data => {
@@ -120,6 +123,20 @@ export default function JoinPage() {
         })
         .catch(() => {
           setLoading(false);
+        });
+      
+      // 檢查拒絕次數
+      fetch('/api/partners/self')
+        .then(res => res.json())
+        .then(data => {
+          const rejectionCount = data?.partnerRejectionCount || 0
+          setPartnerRejectionCount(rejectionCount)
+          if (rejectionCount >= 3) {
+            setIsRejectedTooManyTimes(true)
+          }
+        })
+        .catch(() => {
+          // 忽略錯誤，繼續顯示表單
         });
     }
   }, [session, setValue]);
@@ -361,6 +378,29 @@ export default function JoinPage() {
       <div className="min-h-screen flex flex-col items-center justify-center">
         <div className="bg-white p-8 rounded-lg shadow-lg text-center">
           <h2 className="text-2xl font-bold mb-4 text-gray-800 text-center">載入中...</h2>
+        </div>
+      </div>
+    )
+  }
+
+  if (isRejectedTooManyTimes) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50">
+        <div className="bg-white p-8 rounded-lg shadow-lg text-center max-w-md">
+          <div className="text-6xl mb-4">😔</div>
+          <h2 className="text-2xl font-bold mb-4 text-gray-800">無法再次申請</h2>
+          <p className="mb-4 text-gray-600">
+            很抱歉，您的夥伴申請已被拒絕 {partnerRejectionCount} 次。
+          </p>
+          <p className="mb-6 text-gray-600">
+            根據平台規定，每位用戶最多只能申請3次。如果您有任何疑問，請聯繫客服。
+          </p>
+          <Link 
+            href="/" 
+            className="inline-block px-6 py-3 bg-indigo-600 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-700 transition-colors"
+          >
+            返回首頁
+          </Link>
         </div>
       </div>
     )
