@@ -173,21 +173,37 @@ export async function POST(request: Request) {
           },
         })
 
+        // 驗證時段並返回錯誤類型（不 throw）
         if (!schedule) {
           console.error(`[multi-player-booking] ❌ 時段不存在:`, scheduleId)
-          throw new Error(`時段 ${scheduleId} 不存在`)
+          return { type: 'INVALID_SCHEDULE', message: `時段 ${scheduleId} 不存在` } as const
         }
         
         console.log(`[multi-player-booking] ✅ 時段找到，夥伴:`, schedule.partner.user.name)
 
         // 檢查時段是否可用
         if (!schedule.isAvailable) {
-          throw new Error(`夥伴 ${schedule.partner.user.name} 的時段不可用`)
+          return { 
+            type: 'SCHEDULE_UNAVAILABLE', 
+            message: `夥伴 ${schedule.partner.user.name} 的時段不可用` 
+          } as const
         }
 
-        // 檢查時段是否已被預約（bookings 是單一關聯，不是陣列）
-        if (schedule.bookings && schedule.bookings.status !== 'CANCELLED' && schedule.bookings.status !== 'REJECTED') {
-          throw new Error(`夥伴 ${schedule.partner.user.name} 的時段已被預約`)
+        // 檢查時段是否已被預約
+        // 注意：根據 schema，bookings 是 Booking?（單一關聯），但為了安全，我們也檢查陣列情況
+        const hasActiveBooking = Array.isArray(schedule.bookings)
+          ? schedule.bookings.some(
+              (b: any) => b.status !== 'CANCELLED' && b.status !== 'REJECTED'
+            )
+          : schedule.bookings && 
+            schedule.bookings.status !== 'CANCELLED' && 
+            schedule.bookings.status !== 'REJECTED'
+        
+        if (hasActiveBooking) {
+          return { 
+            type: 'ALREADY_BOOKED', 
+            message: `夥伴 ${schedule.partner.user.name} 的時段已被預約` 
+          } as const
         }
 
         // 檢查時段是否完全匹配
@@ -196,7 +212,10 @@ export async function POST(request: Request) {
         
         if (scheduleStart.getTime() !== startDateTime.getTime() || 
             scheduleEnd.getTime() !== endDateTime.getTime()) {
-          throw new Error(`夥伴 ${schedule.partner.user.name} 的時段不匹配`)
+          return { 
+            type: 'SCHEDULE_MISMATCH', 
+            message: `夥伴 ${schedule.partner.user.name} 的時段不匹配` 
+          } as const
         }
 
         // 檢查時間衝突（在事務外）
@@ -212,20 +231,29 @@ export async function POST(request: Request) {
           )
 
           if (conflict.hasConflict) {
-            throw new Error(`夥伴 ${schedule.partner.user.name} 的時間有衝突`)
+            return { 
+              type: 'TIME_CONFLICT', 
+              message: `夥伴 ${schedule.partner.user.name} 的時間有衝突` 
+            } as const
           }
         } catch (conflictError: any) {
-          // 如果錯誤訊息已經包含"時間衝突"，直接拋出
+          // 如果錯誤訊息已經包含"時間衝突"，返回錯誤類型
           if (conflictError?.message?.includes('時間有衝突') || conflictError?.message?.includes('時間衝突')) {
-            throw conflictError
+            return { 
+              type: 'TIME_CONFLICT', 
+              message: conflictError.message 
+            } as const
           }
-          // 其他錯誤記錄詳細資訊
-          console.error(`❌ 檢查時間衝突失敗 (scheduleId: ${scheduleId}):`, {
+          // 其他錯誤記錄詳細資訊並返回
+          console.error(`[multi-player-booking] ❌ 檢查時間衝突失敗 (scheduleId: ${scheduleId}):`, {
             error: conflictError,
             message: conflictError?.message,
             stack: conflictError?.stack,
           })
-          throw new Error(`檢查時間衝突失敗: ${conflictError?.message || '未知錯誤'}`)
+          return { 
+            type: 'TIME_CONFLICT_CHECK_FAILED', 
+            message: `檢查時間衝突失敗: ${conflictError?.message || '未知錯誤'}` 
+          } as const
         }
 
         // 計算費用
@@ -377,17 +405,48 @@ export async function POST(request: Request) {
     console.log('[multi-player-booking] 🔍 事務結果類型:', result.type)
 
     if (result.type === 'NO_CUSTOMER') {
-      console.log('❌ 客戶資料不存在')
+      console.log('[multi-player-booking] ❌ 客戶資料不存在')
       return NextResponse.json({ error: '客戶資料不存在' }, { status: 404 })
     }
 
     if (result.type === 'SUSPENDED') {
-      console.log('❌ 帳號已被停權')
+      console.log('[multi-player-booking] ❌ 帳號已被停權')
       return NextResponse.json({ error: '您的帳號已被停權，無法創建預約' }, { status: 403 })
     }
     
+    // 處理驗證錯誤（400 狀態碼）
+    if (result.type === 'INVALID_SCHEDULE') {
+      console.log('[multi-player-booking] ❌', result.message)
+      return NextResponse.json({ error: result.message }, { status: 400 })
+    }
+    
+    if (result.type === 'SCHEDULE_UNAVAILABLE') {
+      console.log('[multi-player-booking] ❌', result.message)
+      return NextResponse.json({ error: result.message }, { status: 400 })
+    }
+    
+    if (result.type === 'ALREADY_BOOKED') {
+      console.log('[multi-player-booking] ❌', result.message)
+      return NextResponse.json({ error: result.message }, { status: 409 })
+    }
+    
+    if (result.type === 'SCHEDULE_MISMATCH') {
+      console.log('[multi-player-booking] ❌', result.message)
+      return NextResponse.json({ error: result.message }, { status: 400 })
+    }
+    
+    if (result.type === 'TIME_CONFLICT') {
+      console.log('[multi-player-booking] ❌', result.message)
+      return NextResponse.json({ error: result.message }, { status: 409 })
+    }
+    
+    if (result.type === 'TIME_CONFLICT_CHECK_FAILED') {
+      console.log('[multi-player-booking] ❌', result.message)
+      return NextResponse.json({ error: result.message }, { status: 500 })
+    }
+    
     if (result.type !== 'SUCCESS') {
-      console.error('❌ 未知的結果類型:', result)
+      console.error('[multi-player-booking] ❌ 未知的結果類型:', result)
       return NextResponse.json({ error: '創建預約失敗，請稍後再試' }, { status: 500 })
     }
     
