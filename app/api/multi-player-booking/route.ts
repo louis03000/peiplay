@@ -6,6 +6,12 @@ import { createErrorResponse } from '@/lib/api-helpers'
 import { sendBookingNotificationEmail } from '@/lib/email'
 import { BookingStatus } from '@prisma/client'
 import { checkTimeConflict } from '@/lib/time-conflict'
+import dayjs from 'dayjs'
+import utc from 'dayjs/plugin/utc'
+import timezone from 'dayjs/plugin/timezone'
+
+dayjs.extend(utc)
+dayjs.extend(timezone)
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -58,46 +64,75 @@ export async function POST(request: Request) {
     
     console.log('[multi-player-booking] ✅ 參數驗證通過，夥伴數量:', partnerScheduleIds.length)
 
-    // 檢查時段是否在「現在+2小時」之後
-    const now = new Date()
-    const twoHoursLater = new Date(now.getTime() + 2 * 60 * 60 * 1000)
-    
+    // 統一日期格式（處理可能的 / 或 - 分隔符）
+    const normalizedDate = date.replace(/\//g, '-')
+    const datePattern = /^\d{4}-\d{2}-\d{2}$/
+    if (!datePattern.test(normalizedDate)) {
+      console.log('[multi-player-booking] ❌ 日期格式錯誤:', date)
+      return NextResponse.json({ error: '日期格式錯誤，應為 YYYY-MM-DD' }, { status: 400 })
+    }
+
+    // 驗證時間格式
+    const timePattern = /^\d{2}:\d{2}$/
     const startTimeStr = startTime.includes(':') ? startTime : `${startTime.slice(0, 2)}:${startTime.slice(2)}`
     const endTimeStr = endTime.includes(':') ? endTime : `${endTime.slice(0, 2)}:${endTime.slice(2)}`
     
-    const selectedStartTime = new Date(`${date}T${startTimeStr}:00`)
-    
-    if (isNaN(selectedStartTime.getTime())) {
-      return NextResponse.json({ error: '開始時間格式錯誤' }, { status: 400 })
+    if (!timePattern.test(startTimeStr) || !timePattern.test(endTimeStr)) {
+      console.log('[multi-player-booking] ❌ 時間格式錯誤:', { startTime, endTime })
+      return NextResponse.json({ error: '時間格式錯誤，應為 HH:mm' }, { status: 400 })
     }
+
+    // 重要：前端傳來的是台灣本地時間（UTC+8）
+    // 使用 dayjs 正確將台灣時間轉換為 UTC 時間戳（與搜索 API 一致）
+    const dateTimeString = `${normalizedDate} ${startTimeStr}`
+    const endDateTimeString = `${normalizedDate} ${endTimeStr}`
     
-    if (selectedStartTime <= twoHoursLater) {
+    const startDateTimeUTC = dayjs
+      .tz(dateTimeString, 'Asia/Taipei')
+      .utc()
+      .toDate()
+    
+    const endDateTimeUTC = dayjs
+      .tz(endDateTimeString, 'Asia/Taipei')
+      .utc()
+      .toDate()
+    
+    if (!startDateTimeUTC || !endDateTimeUTC || isNaN(startDateTimeUTC.getTime()) || isNaN(endDateTimeUTC.getTime())) {
+      console.log('[multi-player-booking] ❌ 時間對象創建失敗:', { dateTimeString, endDateTimeString })
+      return NextResponse.json({ error: '時間對象創建失敗' }, { status: 400 })
+    }
+
+    // 檢查時段是否在「現在+2小時」之後（使用台灣時間檢查）
+    const now = dayjs().tz('Asia/Taipei')
+    const twoHoursLater = now.add(2, 'hour')
+    const searchStartTaipei = dayjs.tz(dateTimeString, 'Asia/Taipei')
+    
+    if (searchStartTaipei.isBefore(twoHoursLater)) {
+      console.log('[multi-player-booking] ❌ 預約時段必須在現在時間的2小時之後')
       return NextResponse.json({ 
         error: '預約時段必須在現在時間的2小時之後'
       }, { status: 400 })
     }
 
-    const startDateTime = new Date(`${date}T${startTimeStr}:00`)
-    const endDateTime = new Date(`${date}T${endTimeStr}:00`)
-    
-    if (isNaN(startDateTime.getTime())) {
-      console.log('[multi-player-booking] ❌ 開始時間格式錯誤:', `${date}T${startTimeStr}:00`)
-      return NextResponse.json({ error: '開始時間格式錯誤' }, { status: 400 })
-    }
-    
-    if (isNaN(endDateTime.getTime())) {
-      console.log('[multi-player-booking] ❌ 結束時間格式錯誤:', `${date}T${endTimeStr}:00`)
-      return NextResponse.json({ error: '結束時間格式錯誤' }, { status: 400 })
-    }
-
-    if (endDateTime <= startDateTime) {
+    if (endDateTimeUTC <= startDateTimeUTC) {
       console.log('[multi-player-booking] ❌ 結束時間必須晚於開始時間')
       return NextResponse.json({ error: '結束時間必須晚於開始時間' }, { status: 400 })
     }
     
+    // 使用 UTC 時間（與資料庫存儲一致）
+    const startDateTime = startDateTimeUTC
+    const endDateTime = endDateTimeUTC
+    
     console.log('[multi-player-booking] ✅ 時間驗證通過:', {
-      start: startDateTime.toISOString(),
-      end: endDateTime.toISOString(),
+      input: { date: normalizedDate, startTime: startTimeStr, endTime: endTimeStr },
+      taipeiView: {
+        start: dayjs(startDateTime).tz('Asia/Taipei').format('YYYY-MM-DD HH:mm'),
+        end: dayjs(endDateTime).tz('Asia/Taipei').format('YYYY-MM-DD HH:mm'),
+      },
+      utcView: {
+        start: startDateTime.toISOString(),
+        end: endDateTime.toISOString(),
+      },
     })
 
     console.log('[multi-player-booking] 🔍 開始資料庫查詢...')
@@ -206,15 +241,41 @@ export async function POST(request: Request) {
           } as const
         }
 
-        // 檢查時段是否完全匹配
-        const scheduleStart = new Date(schedule.startTime)
-        const scheduleEnd = new Date(schedule.endTime)
+        // 檢查時段是否完全匹配（考慮時區）
+        // schedule.startTime 和 schedule.endTime 是 UTC 時間（從資料庫）
+        const scheduleStart = schedule.startTime instanceof Date ? schedule.startTime : new Date(schedule.startTime)
+        const scheduleEnd = schedule.endTime instanceof Date ? schedule.endTime : new Date(schedule.endTime)
         
-        if (scheduleStart.getTime() !== startDateTime.getTime() || 
-            scheduleEnd.getTime() !== endDateTime.getTime()) {
+        // 允許 1 分鐘的誤差（避免浮點數精度問題）
+        const timeDiffStart = Math.abs(scheduleStart.getTime() - startDateTime.getTime())
+        const timeDiffEnd = Math.abs(scheduleEnd.getTime() - endDateTime.getTime())
+        const tolerance = 60 * 1000 // 1 分鐘
+        
+        console.log(`[multi-player-booking] 🔍 時段匹配檢查 (${schedule.partner.user.name}):`, {
+          scheduleStart: {
+            utc: scheduleStart.toISOString(),
+            taipei: dayjs(scheduleStart).tz('Asia/Taipei').format('YYYY-MM-DD HH:mm'),
+          },
+          requestStart: {
+            utc: startDateTime.toISOString(),
+            taipei: dayjs(startDateTime).tz('Asia/Taipei').format('YYYY-MM-DD HH:mm'),
+          },
+          timeDiffStart: timeDiffStart,
+          scheduleEnd: {
+            utc: scheduleEnd.toISOString(),
+            taipei: dayjs(scheduleEnd).tz('Asia/Taipei').format('YYYY-MM-DD HH:mm'),
+          },
+          requestEnd: {
+            utc: endDateTime.toISOString(),
+            taipei: dayjs(endDateTime).tz('Asia/Taipei').format('YYYY-MM-DD HH:mm'),
+          },
+          timeDiffEnd: timeDiffEnd,
+        })
+        
+        if (timeDiffStart > tolerance || timeDiffEnd > tolerance) {
           return { 
             type: 'SCHEDULE_MISMATCH', 
-            message: `夥伴 ${schedule.partner.user.name} 的時段不匹配` 
+            message: `夥伴 ${schedule.partner.user.name} 的時段不匹配。時段時間：${dayjs(scheduleStart).tz('Asia/Taipei').format('YYYY-MM-DD HH:mm')} - ${dayjs(scheduleEnd).tz('Asia/Taipei').format('HH:mm')}，請求時間：${dayjs(startDateTime).tz('Asia/Taipei').format('YYYY-MM-DD HH:mm')} - ${dayjs(endDateTime).tz('Asia/Taipei').format('HH:mm')}` 
           } as const
         }
 
