@@ -169,21 +169,21 @@ export async function POST(request: Request) {
           throw new Error(`檢查時間衝突失敗: ${conflictError?.message || '未知錯誤'}`)
         }
 
-          // 計算費用
-          const scheduleStartTime = schedule.startTime instanceof Date ? schedule.startTime : new Date(schedule.startTime)
-          const scheduleEndTime = schedule.endTime instanceof Date ? schedule.endTime : new Date(schedule.endTime)
-          const durationHours = (scheduleEndTime.getTime() - scheduleStartTime.getTime()) / (1000 * 60 * 60)
-          const amount = durationHours * schedule.partner.halfHourlyRate * 2
-          totalAmount += amount
+        // 計算費用
+        const scheduleStartTime = schedule.startTime instanceof Date ? schedule.startTime : new Date(schedule.startTime)
+        const scheduleEndTime = schedule.endTime instanceof Date ? schedule.endTime : new Date(schedule.endTime)
+        const durationHours = (scheduleEndTime.getTime() - scheduleStartTime.getTime()) / (1000 * 60 * 60)
+        const amount = durationHours * schedule.partner.halfHourlyRate * 2
+        totalAmount += amount
 
-          partnerData.push({
-            scheduleId: schedule.id,
-            partnerId: schedule.partnerId,
-            partnerName: schedule.partner.user.name || '夥伴',
-            partnerEmail: schedule.partner.user.email,
-            amount,
-          })
-        }
+        partnerData.push({
+          scheduleId: schedule.id,
+          partnerId: schedule.partnerId,
+          partnerName: schedule.partner.user.name || '夥伴',
+          partnerEmail: schedule.partner.user.email,
+          amount,
+        })
+      }
 
       return await client.$transaction(async (tx) => {
 
@@ -209,25 +209,65 @@ export async function POST(request: Request) {
         }> = []
 
         for (const partner of partnerData) {
-          const booking = await tx.booking.create({
-            data: {
-              customerId: customer.id,
-              partnerId: partner.partnerId,
-              scheduleId: partner.scheduleId,
-              status: BookingStatus.PAID_WAITING_PARTNER_CONFIRMATION,
-              originalAmount: partner.amount,
-              finalAmount: partner.amount,
-              isMultiPlayerBooking: true,
-              multiPlayerBookingId: multiPlayerBooking.id,
-            },
-          })
+          try {
+            const booking = await tx.booking.create({
+              data: {
+                customerId: customer.id,
+                partnerId: partner.partnerId,
+                scheduleId: partner.scheduleId,
+                status: BookingStatus.PAID_WAITING_PARTNER_CONFIRMATION,
+                originalAmount: partner.amount,
+                finalAmount: partner.amount,
+                isMultiPlayerBooking: true,
+                multiPlayerBookingId: multiPlayerBooking.id,
+                paymentInfo: {
+                  isInstantBooking: false,
+                  isMultiPlayerBooking: true,
+                },
+              },
+            })
 
-          bookingRecords.push({
-            bookingId: booking.id,
-            partnerEmail: partner.partnerEmail,
-            partnerName: partner.partnerName,
-            amount: partner.amount,
-          })
+            bookingRecords.push({
+              bookingId: booking.id,
+              partnerEmail: partner.partnerEmail,
+              partnerName: partner.partnerName,
+              amount: partner.amount,
+            })
+          } catch (createError: any) {
+            console.error(`❌ 創建預約失敗 (時段: ${partner.scheduleId}):`, {
+              code: createError?.code,
+              message: createError?.message,
+              meta: createError?.meta,
+              stack: createError?.stack,
+            })
+            
+            // 處理 Prisma 特定錯誤
+            if (createError?.code === 'P2002') {
+              const target = createError?.meta?.target as string[] || []
+              if (target.includes('scheduleId')) {
+                throw new Error(`夥伴 ${partner.partnerName} 的時段已被預約，請選擇其他時段`)
+              }
+              throw new Error(`資料衝突: ${target.join(', ')}`)
+            }
+            
+            if (createError?.code === 'P2003') {
+              throw new Error(`關聯資料錯誤: ${createError?.message}`)
+            }
+            
+            if (createError?.code === 'P2036') {
+              throw new Error(`資料庫欄位不存在: ${createError?.message}`)
+            }
+            
+            if (createError?.code === 'P2022') {
+              throw new Error(`資料值不符合欄位類型: ${createError?.message || '請檢查資料格式'}`)
+            }
+            
+            if (createError?.code === 'P2024' || createError?.code === 'P1008' || createError?.code === 'P1017') {
+              throw new Error(`資料庫操作超時，請稍後再試`)
+            }
+            
+            throw createError
+          }
         }
 
         return {

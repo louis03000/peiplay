@@ -237,14 +237,9 @@ export default function PartnerSchedulePage() {
       return;
     }
     
-    // 檢查用戶角色，只有 PARTNER 角色才能訪問
-    if (mounted && session?.user?.role !== 'PARTNER') {
-      router.replace('/profile');
-      return;
-    }
-    
     if (mounted && session?.user?.id) {
       // 使用新的dashboard API一次性獲取所有數據
+      // dashboard API 會檢查 role 或 partner status
       fetch('/api/partner/dashboard')
         .then(res => {
           if (!res.ok) throw new Error('Failed to fetch dashboard data');

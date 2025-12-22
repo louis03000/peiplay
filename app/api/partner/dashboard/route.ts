@@ -15,14 +15,37 @@ export async function GET() {
       return NextResponse.json({ error: '請先登入' }, { status: 401 })
     }
 
-    // 檢查用戶角色，只有 PARTNER 角色才能訪問
-    if (session.user.role !== 'PARTNER') {
-      return NextResponse.json({ error: '只有夥伴才能訪問此頁面' }, { status: 403 })
-    }
-
     const result = await db.query(async (client) => {
       try {
         const now = new Date()
+        
+        // 先檢查是否有已通過的夥伴資料（即使 role 還沒更新）
+        const partnerCheck = await client.partner.findUnique({
+          where: { userId: session.user.id },
+          select: { id: true, status: true }
+        })
+
+        // 檢查：用戶角色是 PARTNER 或夥伴狀態是 APPROVED
+        const isPartnerRole = session.user.role === 'PARTNER'
+        const hasApprovedPartner = partnerCheck?.status === 'APPROVED'
+        
+        if (!isPartnerRole && !hasApprovedPartner) {
+          return { type: 'NOT_PARTNER' } as const
+        }
+
+        // 如果有已通過的夥伴但 role 不是 PARTNER，自動更新 role
+        if (hasApprovedPartner && !isPartnerRole && partnerCheck) {
+          try {
+            await client.user.update({
+              where: { id: session.user.id },
+              data: { role: 'PARTNER' }
+            })
+            console.log(`✅ 自動更新用戶 ${session.user.id} 的 role 為 PARTNER`)
+          } catch (updateError) {
+            console.error('⚠️ 更新用戶 role 失敗:', updateError)
+            // 不阻塞，繼續執行
+          }
+        }
         
         // 優化：移除每次請求時的 updateMany 操作（這個操作很慢）
         // 應該移到後台任務（cron job）或只在用戶主動操作時執行
