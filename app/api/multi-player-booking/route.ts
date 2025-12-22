@@ -243,17 +243,16 @@ export async function POST(request: Request) {
 
       console.log('[multi-player-booking] 🔍 準備開始事務，夥伴數據:', partnerData.length, '筆')
       
-      try {
-        return await client.$transaction(async (tx) => {
-          console.log('[multi-player-booking] ✅ 事務開始')
-          console.log('[multi-player-booking] 📊 事務數據:', {
-            customerId: customer.id,
-            startDateTime: startDateTime.toISOString(),
-            endDateTime: endDateTime.toISOString(),
-            games: Array.isArray(games) ? games : [],
-            totalAmount,
-            partnerCount: partnerData.length,
-          })
+      return await client.$transaction(async (tx) => {
+        console.log('[multi-player-booking] ✅ 事務開始')
+        console.log('[multi-player-booking] 📊 事務數據:', {
+          customerId: customer.id,
+          startDateTime: startDateTime.toISOString(),
+          endDateTime: endDateTime.toISOString(),
+          games: Array.isArray(games) ? games : [],
+          totalAmount,
+          partnerCount: partnerData.length,
+        })
 
         // 創建多人陪玩群組
         let multiPlayerBooking
@@ -269,9 +268,9 @@ export async function POST(request: Request) {
               totalAmount,
             },
           })
-          console.log('✅ 多人陪玩群組創建成功:', multiPlayerBooking.id)
+          console.log('[multi-player-booking] ✅ 多人陪玩群組創建成功:', multiPlayerBooking.id)
         } catch (createError: any) {
-          console.error('❌ 創建多人陪玩群組失敗:', {
+          console.error('[multi-player-booking] ❌ 創建多人陪玩群組失敗:', {
             code: createError?.code,
             message: createError?.message,
             meta: createError?.meta,
@@ -290,7 +289,7 @@ export async function POST(request: Request) {
 
         for (const partner of partnerData) {
           try {
-            console.log(`📝 為夥伴 ${partner.partnerName} 創建預約...`)
+            console.log(`[multi-player-booking] 📝 為夥伴 ${partner.partnerName} 創建預約...`)
             const booking = await tx.booking.create({
               data: {
                 customerId: customer.id,
@@ -307,7 +306,7 @@ export async function POST(request: Request) {
                 },
               },
             })
-            console.log(`✅ 預約創建成功: ${booking.id}`)
+            console.log(`[multi-player-booking] ✅ 預約創建成功: ${booking.id}`)
 
             bookingRecords.push({
               bookingId: booking.id,
@@ -316,7 +315,7 @@ export async function POST(request: Request) {
               amount: partner.amount,
             })
           } catch (createError: any) {
-            console.error(`❌ 創建預約失敗 (時段: ${partner.scheduleId}):`, {
+            console.error(`[multi-player-booking] ❌ 創建預約失敗 (時段: ${partner.scheduleId}):`, {
               code: createError?.code,
               message: createError?.message,
               meta: createError?.meta,
@@ -352,28 +351,17 @@ export async function POST(request: Request) {
           }
         }
 
-          console.log('[multi-player-booking] ✅ 事務完成，共創建', bookingRecords.length, '個預約')
-          return {
-            type: 'SUCCESS' as const,
-            multiPlayerBooking,
-            bookings: bookingRecords,
-            customer,
-          }
-        }, {
-          maxWait: 10000,
-          timeout: 20000,
-        })
-      } catch (transactionError: any) {
-        console.error('[multi-player-booking] ❌ 事務失敗:', {
-          code: transactionError?.code,
-          message: transactionError?.message,
-          meta: transactionError?.meta,
-          stack: transactionError?.stack,
-          name: transactionError?.name,
-        })
-        // 重新拋出錯誤，讓外層 catch 處理
-        throw transactionError
-      }
+        console.log('[multi-player-booking] ✅ 事務完成，共創建', bookingRecords.length, '個預約')
+        return {
+          type: 'SUCCESS' as const,
+          multiPlayerBooking,
+          bookings: bookingRecords,
+          customer,
+        }
+      }, {
+        maxWait: 10000,
+        timeout: 20000,
+      })
     }, 'multi-player-booking:create')
     
     console.log('🔍 事務結果類型:', result.type)
