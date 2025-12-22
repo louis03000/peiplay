@@ -20,7 +20,7 @@ export default function Navbar() {
       if (session.user.partnerId) {
         const isApproved = session.user.partnerStatus === 'APPROVED'
         setHasPartner(isApproved)
-        setIsPartner(true)
+        setIsPartner(isApproved) // 只有已審核通過的夥伴才設為 true
         setPartnerLoading(false)
         
         // 緩存到 sessionStorage（用於其他組件）
@@ -48,7 +48,7 @@ export default function Navbar() {
         if (cacheAge < 5 * 60 * 1000) { // 5分鐘內有效
           const isApproved = cachedPartnerStatus === 'APPROVED'
           setHasPartner(isApproved)
-          setIsPartner(true)
+          setIsPartner(isApproved) // 只有已審核通過的夥伴才設為 true
           setPartnerLoading(false)
           
           // 在背景更新，不阻塞 UI
@@ -87,7 +87,7 @@ export default function Navbar() {
           const isApproved = data?.partner?.status === 'APPROVED'
           
           setHasPartner(isApproved)
-          setIsPartner(hasPartner)
+          setIsPartner(isApproved) // 只有已審核通過的夥伴才設為 true
           setPartnerLoading(false)
           
           // 緩存結果（僅在客戶端）
@@ -305,7 +305,7 @@ export default function Navbar() {
                   )}
                 
                 {/* 時段管理 - 夥伴功能 */}
-                {(session.user.role === 'PARTNER' || isPartner) && (
+                {(session.user.role === 'PARTNER' || hasPartner) && (
                   <div className="px-3 py-2">
                     <Link 
                       href="/partner/schedule" 
