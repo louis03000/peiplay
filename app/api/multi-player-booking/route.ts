@@ -99,37 +99,36 @@ export async function POST(request: Request) {
     console.log('[multi-player-booking] 🔍 開始資料庫查詢...')
     
     const result = await db.query(async (client) => {
-      try {
-        // 查找客戶資料
-        console.log('[multi-player-booking] 🔍 查詢客戶資料，userId:', session.user.id)
-        const customer = await client.customer.findUnique({
-          where: { userId: session.user.id },
-          select: {
-            id: true,
-            violationCount: true,
-            user: {
-              select: {
-                name: true,
-                email: true,
-              },
+      // 查找客戶資料
+      console.log('[multi-player-booking] 🔍 查詢客戶資料，userId:', session.user.id)
+      const customer = await client.customer.findUnique({
+        where: { userId: session.user.id },
+        select: {
+          id: true,
+          violationCount: true,
+          user: {
+            select: {
+              name: true,
+              email: true,
             },
           },
-        })
+        },
+      })
 
-        if (!customer) {
-          console.log('[multi-player-booking] ❌ 客戶資料不存在')
-          return { type: 'NO_CUSTOMER' } as const
-        }
-        
-        console.log('[multi-player-booking] ✅ 客戶資料找到:', customer.id)
+      if (!customer) {
+        console.log('[multi-player-booking] ❌ 客戶資料不存在')
+        return { type: 'NO_CUSTOMER' } as const
+      }
+      
+      console.log('[multi-player-booking] ✅ 客戶資料找到:', customer.id)
 
-        // 檢查違規次數
-        if (customer.violationCount >= 3) {
-          console.log('[multi-player-booking] ❌ 帳號已被停權，違規次數:', customer.violationCount)
-          return { type: 'SUSPENDED' } as const
-        }
-        
-        console.log('[multi-player-booking] ✅ 違規次數檢查通過:', customer.violationCount)
+      // 檢查違規次數
+      if (customer.violationCount >= 3) {
+        console.log('[multi-player-booking] ❌ 帳號已被停權，違規次數:', customer.violationCount)
+        return { type: 'SUSPENDED' } as const
+      }
+      
+      console.log('[multi-player-booking] ✅ 違規次數檢查通過:', customer.violationCount)
 
       // 先驗證所有夥伴的時段並檢查時間衝突（在事務外）
       const partnerData: Array<{
