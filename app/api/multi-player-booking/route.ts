@@ -15,7 +15,7 @@ export const runtime = 'nodejs'
  */
 export async function POST(request: Request) {
   try {
-    console.log('[multi-player-booking] POST 請求開始')
+    console.log('[multi-player-booking] ========== POST 請求開始 ==========')
     
     const session = await getServerSession(authOptions)
     if (!session?.user?.id) {
@@ -29,8 +29,12 @@ export async function POST(request: Request) {
     try {
       body = await request.json()
       console.log('[multi-player-booking] 📦 收到的 body:', JSON.stringify(body, null, 2))
-    } catch (parseError) {
-      console.error('[multi-player-booking] ❌ JSON 解析失敗:', parseError)
+    } catch (parseError: any) {
+      console.error('[multi-player-booking] ❌ JSON 解析失敗:', {
+        error: parseError,
+        message: parseError?.message,
+        stack: parseError?.stack,
+      })
       return NextResponse.json({ error: '請求格式錯誤' }, { status: 400 })
     }
     
@@ -363,7 +367,14 @@ export async function POST(request: Request) {
       })
     }, 'multi-player-booking:create')
     
-    console.log('🔍 事務結果類型:', result.type)
+    console.log('[multi-player-booking] 🔍 事務結果:', result)
+    
+    if (!result) {
+      console.error('[multi-player-booking] ❌ 事務結果為空')
+      return NextResponse.json({ error: '創建預約失敗，請稍後再試' }, { status: 500 })
+    }
+    
+    console.log('[multi-player-booking] 🔍 事務結果類型:', result.type)
 
     if (result.type === 'NO_CUSTOMER') {
       console.log('❌ 客戶資料不存在')
@@ -417,29 +428,48 @@ export async function POST(request: Request) {
         amount: b.amount,
       })),
     })
-  } catch (error) {
-    console.error('[multi-player-booking] ❌ 未捕捉的錯誤:', error)
+  } catch (error: any) {
+    console.error('[multi-player-booking] ========== ❌ 未捕捉的錯誤 ==========')
+    console.error('[multi-player-booking] ❌ 錯誤類型:', typeof error)
+    console.error('[multi-player-booking] ❌ 錯誤值:', error)
     
     // 記錄詳細錯誤資訊
     if (error instanceof Error) {
-      console.error('[multi-player-booking] ❌ 錯誤詳情:', {
+      console.error('[multi-player-booking] ❌ Error 物件詳情:', {
+        name: error.name,
         message: error.message,
         stack: error.stack,
-        name: error.name,
+      })
+    } else if (error && typeof error === 'object') {
+      console.error('[multi-player-booking] ❌ 錯誤物件:', {
+        code: error?.code,
+        message: error?.message,
+        meta: error?.meta,
+        stack: error?.stack,
+        name: error?.name,
+        fullError: JSON.stringify(error, Object.getOwnPropertyNames(error), 2),
       })
     } else {
-      console.error('[multi-player-booking] ❌ 非 Error 類型的錯誤:', JSON.stringify(error, null, 2))
+      console.error('[multi-player-booking] ❌ 非 Error 類型的錯誤:', String(error))
     }
     
     // 確保返回 JSON 響應，避免未定義的 response
     try {
-      return createErrorResponse(error, 'multi-player-booking:create')
-    } catch (responseError) {
-      console.error('[multi-player-booking] ❌ 創建錯誤響應失敗:', responseError)
+      const errorResponse = createErrorResponse(error, 'multi-player-booking:create')
+      console.log('[multi-player-booking] ✅ 錯誤響應已創建')
+      return errorResponse
+    } catch (responseError: any) {
+      console.error('[multi-player-booking] ❌ 創建錯誤響應失敗:', {
+        error: responseError,
+        message: responseError?.message,
+        stack: responseError?.stack,
+      })
       return NextResponse.json(
         { 
           error: '伺服器內部錯誤，請稍後再試',
-          details: process.env.NODE_ENV === 'development' ? (error instanceof Error ? error.message : String(error)) : undefined
+          details: process.env.NODE_ENV === 'development' 
+            ? (error instanceof Error ? error.message : String(error)) 
+            : undefined
         },
         { status: 500 }
       )
