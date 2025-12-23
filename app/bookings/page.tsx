@@ -356,7 +356,7 @@ export default function BookingsPage() {
       PARTNER_REJECTED: "夥伴已拒絕",
       CONFIRMED: "已確認",
       REJECTED: "已拒絕",
-      CANCELLED: "已取消",
+      CANCELLED: "已被取消",
       COMPLETED: "已完成",
       PENDING_PAYMENT: "待付款",
     };
@@ -646,7 +646,7 @@ export default function BookingsPage() {
                       {tab === "me" && (
                         <td className="py-4 px-6">
                           <div className="flex gap-2 items-center">
-                            {canCancel(booking) && (
+                            {booking.status !== "CANCELLED" && canCancel(booking) && (
                               <button
                                 onClick={() => handleCancelBooking(booking.id)}
                                 disabled={cancellingBooking === booking.id}
@@ -806,7 +806,8 @@ export default function BookingsPage() {
                       )}
                       {tab === "partner" && (
                         <td className="py-4 px-6">
-                          {booking.status ===
+                          {booking.status !== "CANCELLED" &&
+                            booking.status ===
                             "PAID_WAITING_PARTNER_CONFIRMATION" && (
                             <div className="flex gap-2">
                               <button
