@@ -146,13 +146,19 @@ export async function POST(
 
           // 如果一個禮拜內有三次或以上取消，通知管理員
           if (recentCancellations.length >= 3 && result.customerWithUser?.user) {
+            const userEmail = result.customerWithUser.user.email
+            const userName = result.customerWithUser.user.name ?? '用戶'
+
+            // 如果沒有 email，就不發送警告郵件，但仍可通知管理員
+            const canSendEmail = !!userEmail && typeof userEmail === 'string'
+
             // 發送管理員通知
             await sendAdminNotification(
               `⚠️ 用戶頻繁取消預約警告`,
               {
                 userId: result.customerWithUser.user.id,
-                userName: result.customerWithUser.user.name,
-                userEmail: result.customerWithUser.user.email,
+                userName,
+                userEmail,
                 cancellationCount: recentCancellations.length,
                 recentCancellations: recentCancellations.slice(0, 3).map(c => ({
                   bookingId: c.bookingId,
@@ -162,15 +168,17 @@ export async function POST(
               }
             );
 
-            // 發送警告郵件給用戶
-            await sendWarningEmail(
-              result.customerWithUser.user.email,
-              result.customerWithUser.user.name,
-              {
-                cancellationCount: recentCancellations.length,
-                warningType: 'FREQUENT_CANCELLATIONS',
-              }
-            );
+            // 發送警告郵件給用戶（需有有效 email）
+            if (canSendEmail) {
+              await sendWarningEmail(
+                userEmail as string,
+                userName,
+                {
+                  cancellationCount: recentCancellations.length,
+                  warningType: 'FREQUENT_CANCELLATIONS',
+                }
+              );
+            }
           }
         } catch (error) {
           console.error('❌ 檢查取消頻率失敗:', error);
