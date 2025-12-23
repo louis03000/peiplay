@@ -10,6 +10,8 @@ type Booking = {
   id: string;
   status: string;
   createdAt: string;
+  serviceType?: string; // 服務項目：一般預約、即時預約、群組預約、多人陪玩、純聊天
+  partnerResponseDeadline?: string | null; // 期限：夥伴需要在幾點幾分前決定是否接受
   schedule: {
     date: string;
     startTime: string;
@@ -504,8 +506,12 @@ export default function BookingsPage() {
                     )}
                     {tab === "me" && <th className="py-3 px-6">夥伴姓名</th>}
                     <th className="py-3 px-6">預約日期</th>
+                    <th className="py-3 px-6">服務項目</th>
                     <th className="py-3 px-6">服務時段</th>
                     <th className="py-3 px-6">預約狀態</th>
+                    {tab === "partner" && (
+                      <th className="py-3 px-6">期限</th>
+                    )}
                     <th className="py-3 px-6">建立時間</th>
                     {(tab === "me" || tab === "partner") && (
                       <th className="py-3 px-6">操作</th>
@@ -540,6 +546,11 @@ export default function BookingsPage() {
                           : "-"}
                       </td>
                       <td className="py-4 px-6 text-white font-medium">
+                        <span className="inline-block px-2 py-1 rounded text-xs font-semibold bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                          {booking.serviceType || '一般預約'}
+                        </span>
+                      </td>
+                      <td className="py-4 px-6 text-white font-medium">
                         {booking.schedule?.startTime &&
                         booking.schedule?.endTime
                           ? `${new Date(booking.schedule.startTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false })} - ${new Date(booking.schedule.endTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false })}`
@@ -569,6 +580,38 @@ export default function BookingsPage() {
                           {getStatusText(booking.status)}
                         </span>
                       </td>
+                      {tab === "partner" && (
+                        <td className="py-4 px-6 text-white font-medium">
+                          {booking.partnerResponseDeadline ? (() => {
+                            const deadline = new Date(booking.partnerResponseDeadline);
+                            const now = new Date();
+                            const diffMs = deadline.getTime() - now.getTime();
+                            
+                            // 格式化為「幾點幾分前」
+                            const deadlineTime = deadline.toLocaleTimeString("zh-TW", {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                              hour12: false,
+                            });
+                            
+                            if (diffMs <= 0) {
+                              return (
+                                <span className="text-red-400 font-semibold">
+                                  已過期 ({deadlineTime})
+                                </span>
+                              );
+                            }
+                            
+                            return (
+                              <span className="text-yellow-400 font-semibold">
+                                {deadlineTime} 前
+                              </span>
+                            );
+                          })() : (
+                            <span className="text-gray-400">-</span>
+                          )}
+                        </td>
+                      )}
                       <td className="py-4 px-6 text-white font-medium">
                         {booking.createdAt
                           ? new Date(booking.createdAt).toLocaleString(

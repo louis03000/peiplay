@@ -48,6 +48,10 @@ export async function GET() {
           status: true,
           createdAt: true,
           rejectReason: true,
+          paymentInfo: true,
+          groupBookingId: true,
+          multiPlayerBookingId: true,
+          serviceType: true,
           schedule: {
             select: {
               date: true,
@@ -71,7 +75,29 @@ export async function GET() {
         take: 30,
       });
 
-      return bookings;
+      // 為每個預約添加服務類型
+      const processedBookings = bookings.map((booking) => {
+        let serviceType = '一般預約'; // 預設值
+        
+        // 判斷服務類型（與 admin/order-records 邏輯一致）
+        const paymentInfo = booking.paymentInfo as any
+        if (paymentInfo?.isInstantBooking === true || paymentInfo?.isInstantBooking === 'true') {
+          serviceType = '即時預約'
+        } else if (booking.groupBookingId) {
+          serviceType = '群組預約'
+        } else if (booking.multiPlayerBookingId) {
+          serviceType = '多人陪玩'
+        } else if (booking.serviceType === 'CHAT_ONLY') {
+          serviceType = '純聊天'
+        }
+        
+        return {
+          ...booking,
+          serviceType,
+        }
+      });
+
+      return processedBookings;
     }, 'bookings:me');
 
     if (result === null) {
