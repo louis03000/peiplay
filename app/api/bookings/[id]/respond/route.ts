@@ -3,7 +3,8 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { db } from '@/lib/db-resilience';
 import { createErrorResponse } from '@/lib/api-helpers';
-import { sendBookingConfirmationEmail, sendBookingRejectionEmail } from '@/lib/email';
+import { sendBookingConfirmationEmail, sendBookingRejectionEmail, sendWarningEmail } from '@/lib/email';
+import { sendAdminNotification } from '@/lib/notifications';
 import { createChatRoomForBooking } from '@/lib/chat-helpers';
 import { BookingStatus, MultiPlayerBookingStatus } from '@prisma/client';
 
@@ -254,6 +255,55 @@ export async function POST(
           ).catch((error) => {
             console.error('❌ Email 發送失敗:', error);
           });
+        }
+      })(),
+
+      // 夥伴拒絕次數檢查（1 週內 3 次拒絕 → 管理員通知 + 警告信）
+      (async () => {
+        if (result.action !== 'reject') return;
+        const originalBooking = result.originalBooking;
+        if (!originalBooking) return;
+
+        const partnerId = originalBooking.schedule.partnerId;
+        const partnerUserEmail = originalBooking.schedule.partner.user.email;
+        const partnerUserName = originalBooking.schedule.partner.user.name || '夥伴';
+
+        if (!partnerId) return;
+
+        const oneWeekAgo = new Date();
+        oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+
+        const rejectionCount = await db.query(async (client) => {
+          return client.booking.count({
+            where: {
+              status: BookingStatus.REJECTED,
+              updatedAt: { gte: oneWeekAgo },
+              schedule: { partnerId },
+            },
+          });
+        }, 'bookings:respond:rejection-count');
+
+        if (rejectionCount >= 3) {
+          // 管理員通知
+          await sendAdminNotification('⚠️ 夥伴一週內拒絕預約達 3 次', {
+            partnerId,
+            partnerName: partnerUserName,
+            partnerEmail: partnerUserEmail,
+            rejectionCount,
+            bookingId: result.booking.id,
+          }).catch((error) => {
+            console.error('❌ 管理員通知失敗:', error);
+          });
+
+          // 警告信（若有 email）
+          if (partnerUserEmail) {
+            await sendWarningEmail(partnerUserEmail, partnerUserName, {
+              cancellationCount: rejectionCount,
+              warningType: 'FREQUENT_REJECTIONS',
+            }).catch((error) => {
+              console.error('❌ 警告郵件發送失敗:', error);
+            });
+          }
         }
       })(),
     ]).catch((error) => {
