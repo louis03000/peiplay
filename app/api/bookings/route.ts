@@ -109,8 +109,7 @@ export async function POST(request: Request) {
                   BookingStatus.CANCELLED,
                   BookingStatus.COMPLETED,
                   BookingStatus.REJECTED,
-                  BookingStatus.CUSTOMER_CANCELLED, // 若有自訂狀態，預留避免誤攔
-                ].filter((s) => s in BookingStatus) as BookingStatus[],
+                ],
               },
             },
             select: { id: true, status: true, scheduleId: true },
