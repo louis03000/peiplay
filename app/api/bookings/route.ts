@@ -99,27 +99,29 @@ export async function POST(request: Request) {
             }
           }
 
-          // 批量查詢所有現有預約，避免 N+1 查詢
-          // 只檢查「仍佔用」的預約，忽略已取消 / 已完成 / 已拒絕的紀錄，避免誤判衝突
+          // 批量查詢所有現有預約，檢查是否有活躍狀態的預約
+          // 由於 scheduleId 有唯一約束，每個時段最多只能有一個預約
+          // 我們需要檢查該預約的狀態是否為活躍狀態（非終止狀態）
           const existingBookings = await tx.booking.findMany({
             where: {
               scheduleId: { in: scheduleIds },
-              status: {
-                notIn: [
-                  BookingStatus.CANCELLED,
-                  BookingStatus.COMPLETED,
-                  BookingStatus.REJECTED,
-                ],
-              },
             },
             select: { id: true, status: true, scheduleId: true },
           });
-          const existingBookingMap = new Map(existingBookings.map(b => [b.scheduleId, b]));
-
-          // 檢查是否有已被預約的時段
-          for (const scheduleId of scheduleIds) {
-            const existingBooking = existingBookingMap.get(scheduleId);
-            if (existingBooking) {
+          
+          // 定義終止狀態：這些狀態的預約不會佔用時段
+          const terminalStatuses = [
+            BookingStatus.CANCELLED,
+            BookingStatus.COMPLETED,
+            BookingStatus.REJECTED,
+            BookingStatus.PARTNER_REJECTED,
+            BookingStatus.COMPLETED_WITH_AMOUNT_MISMATCH,
+          ];
+          
+          // 檢查是否有活躍狀態的預約（非終止狀態）
+          for (const booking of existingBookings) {
+            if (!terminalStatuses.includes(booking.status)) {
+              // 找到活躍狀態的預約，表示時段已被佔用
               throw new Error(`時段已被預約，請重新選擇其他時段`);
             }
           }
@@ -210,6 +212,41 @@ export async function POST(request: Request) {
               if (createError?.code === 'P2002') {
                 const target = createError?.meta?.target as string[] || [];
                 if (target.includes('scheduleId')) {
+                  // 唯一約束違反：可能是競態條件或時段已被預約
+                  // 再次查詢該時段的預約狀態，確認是否為活躍狀態
+                  try {
+                    const conflictingBooking = await tx.booking.findUnique({
+                      where: { scheduleId: schedule.id },
+                      select: { id: true, status: true },
+                    });
+                    
+                    if (conflictingBooking) {
+                      const terminalStatuses = [
+                        BookingStatus.CANCELLED,
+                        BookingStatus.COMPLETED,
+                        BookingStatus.REJECTED,
+                        BookingStatus.PARTNER_REJECTED,
+                        BookingStatus.COMPLETED_WITH_AMOUNT_MISMATCH,
+                      ];
+                      
+                      if (!terminalStatuses.includes(conflictingBooking.status)) {
+                        // 預約是活躍狀態，確實衝突
+                        throw new Error(`時段已被預約，請選擇其他時段`);
+                      } else {
+                        // 預約是終止狀態，但由於唯一約束無法創建新預約
+                        // 這可能是資料不一致的情況，記錄並拋出錯誤
+                        console.error(`⚠️ 時段 ${schedule.id} 有終止狀態的預約，但無法創建新預約`);
+                        throw new Error(`時段暫時無法預約，請稍後再試或選擇其他時段`);
+                      }
+                    }
+                  } catch (checkError: any) {
+                    // 如果檢查失敗，直接拋出原始錯誤訊息
+                    if (checkError.message.includes('時段已被預約') || checkError.message.includes('時段暫時無法預約')) {
+                      throw checkError;
+                    }
+                  }
+                  
+                  // 如果查詢失敗，使用預設錯誤訊息
                   throw new Error(`時段已被預約，請選擇其他時段`);
                 }
                 throw new Error(`資料衝突: ${target.join(', ')}`);

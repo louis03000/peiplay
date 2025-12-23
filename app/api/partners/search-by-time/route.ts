@@ -3,6 +3,16 @@ import { db } from '@/lib/db-resilience'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { taipeiToUTC } from '@/lib/time-utils'
+import { BookingStatus } from '@prisma/client'
+
+// 定義終止狀態：這些狀態的預約不會佔用時段
+const TERMINAL_BOOKING_STATUSES: BookingStatus[] = [
+  BookingStatus.CANCELLED,
+  BookingStatus.COMPLETED,
+  BookingStatus.REJECTED,
+  BookingStatus.PARTNER_REJECTED,
+  BookingStatus.COMPLETED_WITH_AMOUNT_MISMATCH,
+]
 
 export const dynamic = 'force-dynamic'
 
@@ -97,7 +107,18 @@ export async function GET(request: Request) {
               endTime: {
                 gte: endDateTime,
               },
-              isAvailable: true
+              isAvailable: true,
+              // 直接在資料庫層排除有活躍預約的時段
+              OR: [
+                { bookings: null },
+                {
+                  bookings: {
+                    status: {
+                      in: TERMINAL_BOOKING_STATUSES,
+                    },
+                  },
+                },
+              ],
             },
             select: {
               id: true,
@@ -181,15 +202,7 @@ export async function GET(request: Request) {
             ...partner,
             averageRating,
             totalReviews,
-            schedules: partner.schedules.filter(schedule => {
-              // 過濾掉已被預約的時段（排除已取消和已拒絕的預約）
-              if (schedule.bookings && schedule.bookings.status && 
-                  schedule.bookings.status !== 'CANCELLED' && 
-                  schedule.bookings.status !== 'REJECTED') {
-                return false;
-              }
-              return true;
-            }).map(schedule => ({
+            schedules: partner.schedules.map(schedule => ({
               ...schedule,
               // 添加搜尋時段限制信息
               searchTimeRestriction: {

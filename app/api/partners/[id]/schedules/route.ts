@@ -6,13 +6,14 @@ import { BookingStatus } from "@prisma/client";
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
-const ACTIVE_BOOKING_STATUSES: Set<BookingStatus> = new Set([
-  BookingStatus.PENDING,
-  BookingStatus.CONFIRMED,
-  BookingStatus.PENDING_PAYMENT,
-  BookingStatus.PAID_WAITING_PARTNER_CONFIRMATION,
-  BookingStatus.PARTNER_ACCEPTED,
-]);
+// 定義終止狀態：這些狀態的預約不會佔用時段
+const TERMINAL_BOOKING_STATUSES: BookingStatus[] = [
+  BookingStatus.CANCELLED,
+  BookingStatus.COMPLETED,
+  BookingStatus.REJECTED,
+  BookingStatus.PARTNER_REJECTED,
+  BookingStatus.COMPLETED_WITH_AMOUNT_MISMATCH,
+];
 
 /**
  * 查詢單一夥伴的可用時段（預約 Step 2）
@@ -79,12 +80,25 @@ export async function GET(
           }
         }
 
-        // 查詢可用時段
+        // 查詢可用時段，直接在資料庫層排除有活躍預約的時段
+        // 使用 NOT 條件：要麼沒有預約，要麼預約狀態是終止狀態
         const allSchedules = await client.schedule.findMany({
           where: {
             partnerId,
             isAvailable: true,
             date: scheduleDateFilter,
+            OR: [
+              // 沒有預約的時段
+              { bookings: null },
+              // 或預約狀態是終止狀態
+              {
+                bookings: {
+                  status: {
+                    in: TERMINAL_BOOKING_STATUSES,
+                  },
+                },
+              },
+            ],
           },
           select: {
             id: true,
@@ -102,12 +116,8 @@ export async function GET(
           take: 100, // 限制結果數量
         });
 
-        // 應用層過濾：排除有活躍預約的時段
-        return allSchedules.filter((schedule) => {
-          if (!schedule.bookings) return true;
-          const status = schedule.bookings.status;
-          return !ACTIVE_BOOKING_STATUSES.has(status);
-        });
+        // 返回所有查詢到的時段（已在資料庫層過濾）
+        return allSchedules;
       },
       'partners:schedules'
     );
@@ -118,7 +128,7 @@ export async function GET(
 
     return NextResponse.json({ schedules }, {
       headers: {
-        'Cache-Control': 'private, max-age=30, stale-while-revalidate=60',
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
       },
     });
   } catch (error) {

@@ -654,7 +654,16 @@ function BookingWizardContent() {
 
         if (!response.ok) {
           const errorData = await response.json();
-          throw new Error(errorData.error || "預約創建失敗");
+          
+          // 如果是 409 衝突，刷新可選時段
+          if (response.status === 409 && selectedPartner) {
+            // 強制重新載入時段（清除快取）
+            await loadPartnerSchedules(selectedPartner.id, true);
+            alert(errorData.error || "時段已被預約，請重新選擇其他時段");
+          } else {
+            throw new Error(errorData.error || "預約創建失敗");
+          }
+          return;
         }
 
         const data = await response.json();
@@ -670,9 +679,9 @@ function BookingWizardContent() {
   };
 
   // 載入夥伴時段
-  const loadPartnerSchedules = useCallback(async (partnerId: string) => {
-    // 如果已經載入過，直接返回
-    if (partnerSchedules.has(partnerId)) {
+  const loadPartnerSchedules = useCallback(async (partnerId: string, forceRefresh: boolean = false) => {
+    // 如果已經載入過且不是強制刷新，直接返回
+    if (!forceRefresh && partnerSchedules.has(partnerId)) {
       console.log('[預約頁面] 時段已載入，跳過:', partnerId);
       return;
     }
@@ -686,9 +695,9 @@ function BookingWizardContent() {
       
       console.log('[預約頁面] 時段 API URL:', url);
       const res = await fetch(url, {
-        cache: "force-cache",
+        cache: "no-store",
         headers: {
-          "Cache-Control": "max-age=30",
+          "Cache-Control": "no-store, no-cache, must-revalidate",
         },
       });
 
