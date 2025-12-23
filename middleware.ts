@@ -20,9 +20,18 @@ export async function middleware(request: NextRequest) {
     '/api/internal/cleanup-pre-chat', // GitHub Actions 清理任務
   ];
   
+  // 檢查是否為 Vercel 的健康檢查或部署檢查
+  const userAgent = request.headers.get('user-agent') || '';
+  const isVercelCheck = 
+    userAgent.includes('vercel') || 
+    userAgent.includes('Vercel') ||
+    request.headers.get('x-vercel-id') !== null ||
+    request.headers.get('x-vercel-deployment-url') !== null;
+  
   const shouldSkipGeoCheck = 
     process.env.SKIP_GEO_CHECK === 'true' ||
-    skipGeoCheckPaths.some(path => request.nextUrl.pathname.startsWith(path));
+    skipGeoCheckPaths.some(path => request.nextUrl.pathname.startsWith(path)) ||
+    isVercelCheck; // 允許 Vercel 的健康檢查
   
   // IP 地理位置檢查（僅允許台灣 IP）
   // 注意：可以通過環境變數 SKIP_GEO_CHECK=true 跳過此檢查（用於開發/測試）
