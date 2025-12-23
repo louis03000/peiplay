@@ -198,6 +198,7 @@ export async function GET(request: Request) {
               halfHourlyRate: true,
               supportsChatOnly: true,
               chatOnlyRate: true,
+              status: true,
             },
           },
         },

@@ -112,8 +112,8 @@ export default function JoinPage() {
             setValue('birthday', data.user.birthday ? data.user.birthday.slice(0, 10) : '');
             setValue('phone', data.user.phone || '');
             
-            // 檢查是否已有夥伴身份
-            if (data.user.partner) {
+            // 檢查是否已有已通過的夥伴身份（只有 APPROVED 狀態才需要阻止申請）
+            if (data.user.partner && data.user.partner.status === 'APPROVED') {
               setError('您已經有夥伴身份了！如需修改資料，請前往個人資料頁面。');
               setLoading(false);
               return;
