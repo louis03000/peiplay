@@ -110,17 +110,17 @@ export async function POST(request: Request) {
           });
           
           // 定義終止狀態：這些狀態的預約不會佔用時段
-          const terminalStatuses = [
+          const terminalStatuses = new Set<BookingStatus>([
             BookingStatus.CANCELLED,
             BookingStatus.COMPLETED,
             BookingStatus.REJECTED,
             BookingStatus.PARTNER_REJECTED,
             BookingStatus.COMPLETED_WITH_AMOUNT_MISMATCH,
-          ];
+          ]);
           
           // 檢查是否有活躍狀態的預約（非終止狀態）
           for (const booking of existingBookings) {
-            if (!terminalStatuses.includes(booking.status)) {
+            if (!terminalStatuses.has(booking.status)) {
               // 找到活躍狀態的預約，表示時段已被佔用
               throw new Error(`時段已被預約，請重新選擇其他時段`);
             }
@@ -221,15 +221,15 @@ export async function POST(request: Request) {
                     });
                     
                     if (conflictingBooking) {
-                      const terminalStatuses = [
+                      const terminalStatuses = new Set<BookingStatus>([
                         BookingStatus.CANCELLED,
                         BookingStatus.COMPLETED,
                         BookingStatus.REJECTED,
                         BookingStatus.PARTNER_REJECTED,
                         BookingStatus.COMPLETED_WITH_AMOUNT_MISMATCH,
-                      ];
+                      ]);
                       
-                      if (!terminalStatuses.includes(conflictingBooking.status)) {
+                      if (!terminalStatuses.has(conflictingBooking.status)) {
                         // 預約是活躍狀態，確實衝突
                         throw new Error(`時段已被預約，請選擇其他時段`);
                       } else {
