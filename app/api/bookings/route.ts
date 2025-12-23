@@ -100,8 +100,19 @@ export async function POST(request: Request) {
           }
 
           // 批量查詢所有現有預約，避免 N+1 查詢
+          // 只檢查「仍佔用」的預約，忽略已取消 / 已完成 / 已拒絕的紀錄，避免誤判衝突
           const existingBookings = await tx.booking.findMany({
-            where: { scheduleId: { in: scheduleIds } },
+            where: {
+              scheduleId: { in: scheduleIds },
+              status: {
+                notIn: [
+                  BookingStatus.CANCELLED,
+                  BookingStatus.COMPLETED,
+                  BookingStatus.REJECTED,
+                  BookingStatus.CUSTOMER_CANCELLED, // 若有自訂狀態，預留避免誤攔
+                ].filter((s) => s in BookingStatus) as BookingStatus[],
+              },
+            },
             select: { id: true, status: true, scheduleId: true },
           });
           const existingBookingMap = new Map(existingBookings.map(b => [b.scheduleId, b]));
@@ -110,7 +121,7 @@ export async function POST(request: Request) {
           for (const scheduleId of scheduleIds) {
             const existingBooking = existingBookingMap.get(scheduleId);
             if (existingBooking) {
-              throw new Error(`時段已被預約（預約編號: ${existingBooking.id}）`);
+              throw new Error(`時段已被預約，請重新選擇其他時段`);
             }
           }
 
