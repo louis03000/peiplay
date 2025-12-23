@@ -455,7 +455,7 @@ function GroupBookingContent() {
                     </div>
                     <div className="flex items-center justify-between text-sm text-gray-500">
                       <span>👥 參與人數：{group.currentParticipants}/{group.maxParticipants} 人</span>
-                      <span>📅 {new Date(group.startTime).toLocaleDateString('zh-TW')} {new Date(group.startTime).toLocaleTimeString('zh-TW', {hour: '2-digit', minute: '2-digit'})}</span>
+                      <span>📅 {new Date(group.startTime).toLocaleDateString('zh-TW', { timeZone: 'Asia/Taipei' })} {new Date(group.startTime).toLocaleTimeString('zh-TW', { timeZone: 'Asia/Taipei', hour: '2-digit', minute: '2-digit', hour12: false })} - {new Date(group.endTime).toLocaleTimeString('zh-TW', { timeZone: 'Asia/Taipei', hour: '2-digit', minute: '2-digit', hour12: false })}</span>
                     </div>
                   </div>
                   
@@ -632,10 +632,10 @@ function GroupBookingContent() {
                           {selectedGroupBooking.currentParticipants}/{selectedGroupBooking.maxParticipants} 人
                         </span>
                       </div>
-                      <div>
+                      <div className="col-span-2">
                         <span className="text-gray-500">日期時間：</span>
                         <span className="font-medium text-gray-900 ml-2">
-                          {new Date(selectedGroupBooking.startTime).toLocaleString('zh-TW')}
+                          {new Date(selectedGroupBooking.startTime).toLocaleDateString('zh-TW', { timeZone: 'Asia/Taipei' })} {new Date(selectedGroupBooking.startTime).toLocaleTimeString('zh-TW', { timeZone: 'Asia/Taipei', hour: '2-digit', minute: '2-digit', hour12: false })} - {new Date(selectedGroupBooking.endTime).toLocaleTimeString('zh-TW', { timeZone: 'Asia/Taipei', hour: '2-digit', minute: '2-digit', hour12: false })}
                         </span>
                       </div>
                     </div>
@@ -700,7 +700,7 @@ function GroupBookingContent() {
                         {booking.currentParticipants}/{booking.maxParticipants} 人
                       </div>
                       <div className="text-sm text-gray-500">
-                        {new Date(booking.startTime).toLocaleString('zh-TW')}
+                        {new Date(booking.startTime).toLocaleDateString('zh-TW', { timeZone: 'Asia/Taipei' })} {new Date(booking.startTime).toLocaleTimeString('zh-TW', { timeZone: 'Asia/Taipei', hour: '2-digit', minute: '2-digit', hour12: false })} - {new Date(booking.endTime).toLocaleTimeString('zh-TW', { timeZone: 'Asia/Taipei', hour: '2-digit', minute: '2-digit', hour12: false })}
                       </div>
                     </div>
                   </div>

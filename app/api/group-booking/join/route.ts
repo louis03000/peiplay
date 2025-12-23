@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { db } from '@/lib/db-resilience';
 import { sendBookingNotificationEmail } from "@/lib/email";
+import { getNowTaipei } from "@/lib/time-utils";
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -63,8 +64,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: '群組預約已關閉' }, { status: 400 });
     }
 
-    // 檢查時間是否已過
-    const now = new Date();
+    // 檢查時間是否已過（使用台灣時間）
+    const now = getNowTaipei();
     const endTime = new Date(groupBooking.endTime);
     if (endTime.getTime() <= now.getTime()) {
       return NextResponse.json({ error: '群組預約時間已過，無法加入' }, { status: 400 });
@@ -383,69 +384,6 @@ export async function POST(request: Request) {
 
         console.log("✅ 成功加入群組預約:", groupBookingId);
 
-        // 發送 email 通知（非阻塞）
-        // 通知新加入者
-        // 確保日期是 Date 對象
-        const startTimeForEmail = updatedGroupBooking?.startTime instanceof Date 
-          ? updatedGroupBooking.startTime 
-          : new Date(updatedGroupBooking?.startTime || groupBooking.startTime);
-        const endTimeForEmail = updatedGroupBooking?.endTime instanceof Date 
-          ? updatedGroupBooking.endTime 
-          : new Date(updatedGroupBooking?.endTime || groupBooking.endTime);
-        
-        sendBookingNotificationEmail(
-          user.email,
-          user.name || '您',
-          user.name || '您',
-          {
-            bookingId: groupBookingId,
-            startTime: startTimeForEmail.toISOString(),
-            endTime: endTimeForEmail.toISOString(),
-            duration: (endTimeForEmail.getTime() - startTimeForEmail.getTime()) / (1000 * 60 * 60),
-            totalCost: updatedGroupBooking?.pricePerPerson || groupBooking.pricePerPerson || 0,
-            customerName: user.name || '您',
-            customerEmail: user.email,
-          }
-        ).catch((error) => {
-          console.error('❌ Email 發送失敗:', error);
-        });
-
-        // 通知發起者（如果有）- 在事務外查詢
-        if (groupBooking.initiatorId) {
-          // 使用 client 而不是 tx，因為這是在事務外執行的
-          const initiatorPartner = await client.partner.findUnique({
-            where: { id: groupBooking.initiatorId },
-            include: { user: { select: { email: true, name: true } } }
-          });
-          
-          if (initiatorPartner?.user?.email) {
-            // 確保日期是 Date 對象
-            const startTime = updatedGroupBooking?.startTime instanceof Date 
-              ? updatedGroupBooking.startTime 
-              : new Date(updatedGroupBooking?.startTime || groupBooking.startTime);
-            const endTime = updatedGroupBooking?.endTime instanceof Date 
-              ? updatedGroupBooking.endTime 
-              : new Date(updatedGroupBooking?.endTime || groupBooking.endTime);
-            
-            sendBookingNotificationEmail(
-              initiatorPartner.user.email,
-              initiatorPartner.name || initiatorPartner.user.name || '夥伴',
-              user.name || '新成員',
-              {
-                bookingId: groupBookingId,
-                startTime: startTime.toISOString(),
-                endTime: endTime.toISOString(),
-                duration: (endTime.getTime() - startTime.getTime()) / (1000 * 60 * 60),
-                totalCost: updatedGroupBooking?.pricePerPerson || groupBooking.pricePerPerson || 0,
-                customerName: user.name || '新成員',
-                customerEmail: user.email,
-              }
-            ).catch((error) => {
-              console.error('❌ Email 發送失敗:', error);
-            });
-          }
-        }
-
         // 確保日期是 Date 對象並轉換為 ISO 字符串
         const startTimeResponse = updatedGroupBooking?.startTime instanceof Date 
           ? updatedGroupBooking.startTime 
@@ -454,7 +392,19 @@ export async function POST(request: Request) {
           ? updatedGroupBooking.endTime 
           : new Date(updatedGroupBooking?.endTime || groupBooking.endTime);
         
-        return NextResponse.json({
+        // 準備 email 發送所需的資料（在事務內準備，但不在事務內發送）
+        const emailData = {
+          groupBookingId,
+          userEmail: user.email,
+          userName: user.name || '您',
+          startTime: startTimeResponse,
+          endTime: endTimeResponse,
+          pricePerPerson: updatedGroupBooking?.pricePerPerson || groupBooking.pricePerPerson || 0,
+          initiatorId: groupBooking.initiatorId,
+        };
+        
+        // 返回成功響應（事務會在這裡提交）
+        return {
           success: true,
           message: '成功加入群組預約',
           groupBooking: {
@@ -472,9 +422,101 @@ export async function POST(request: Request) {
             id: booking.id,
             status: booking.status,
             createdAt: booking.createdAt instanceof Date ? booking.createdAt.toISOString() : new Date(booking.createdAt).toISOString()
-          } : null
-        });
+          } : null,
+          emailData // 傳遞 email 資料到事務外部
+        };
       });
+    }, 'group-booking/join');
+
+    // 檢查結果類型，確保只有成功的情況才發送 email
+    // 如果 result 是 NextResponse（錯誤響應），直接返回，不發送 email
+    if (result instanceof NextResponse) {
+      console.log('⚠️ 加入失敗，不發送 email，返回錯誤響應');
+      return result;
+    }
+
+    // 檢查是否為成功響應（必須有 success: true 和 emailData）
+    if (
+      result && 
+      typeof result === 'object' && 
+      'success' in result && 
+      result.success === true && 
+      'emailData' in result &&
+      !('alreadyJoined' in result && result.alreadyJoined === true) // 如果已經加入，不發送 email
+    ) {
+      const emailData = result.emailData as {
+        groupBookingId: string;
+        userEmail: string;
+        userName: string;
+        startTime: Date;
+        endTime: Date;
+        pricePerPerson: number;
+        initiatorId: string | null;
+      };
+      
+      console.log('✅ 事務成功，準備發送 email 通知');
+      
+      // 通知新加入者（非阻塞）
+      sendBookingNotificationEmail(
+        emailData.userEmail,
+        emailData.userName,
+        emailData.userName,
+        {
+          bookingId: emailData.groupBookingId,
+          startTime: emailData.startTime.toISOString(),
+          endTime: emailData.endTime.toISOString(),
+          duration: (emailData.endTime.getTime() - emailData.startTime.getTime()) / (1000 * 60 * 60),
+          totalCost: emailData.pricePerPerson,
+          customerName: emailData.userName,
+          customerEmail: emailData.userEmail,
+        }
+      ).catch((error) => {
+        console.error('❌ Email 發送失敗（新加入者）:', error);
+      });
+
+      // 通知發起者（如果有）（非阻塞）
+      if (emailData.initiatorId) {
+        // 在事務外查詢發起者資料（非阻塞，不等待完成）
+        db.query(async (client) => {
+          const initiatorPartner = await client.partner.findUnique({
+            where: { id: emailData.initiatorId! },
+            include: { user: { select: { email: true, name: true } } }
+          });
+          
+          if (initiatorPartner?.user?.email) {
+            sendBookingNotificationEmail(
+              initiatorPartner.user.email,
+              initiatorPartner.name || initiatorPartner.user.name || '夥伴',
+              emailData.userName,
+              {
+                bookingId: emailData.groupBookingId,
+                startTime: emailData.startTime.toISOString(),
+                endTime: emailData.endTime.toISOString(),
+                duration: (emailData.endTime.getTime() - emailData.startTime.getTime()) / (1000 * 60 * 60),
+                totalCost: emailData.pricePerPerson,
+                customerName: emailData.userName,
+                customerEmail: emailData.userEmail,
+              }
+            ).catch((error) => {
+              console.error('❌ Email 發送失敗（發起者）:', error);
+            });
+          }
+        }, 'group-booking/join:get-initiator').catch((error) => {
+          console.error('❌ 查詢發起者資料失敗:', error);
+        });
+      }
+
+      // 返回成功響應（移除 emailData）
+      const { emailData: _, ...responseData } = result;
+      return NextResponse.json(responseData);
+    }
+
+    // 其他情況（可能是錯誤響應或未知格式），不發送 email，直接返回
+    console.log('⚠️ 未知的響應格式，不發送 email');
+    if (result && typeof result === 'object' && 'error' in result) {
+      return NextResponse.json(result, { status: 400 });
+    }
+    return NextResponse.json({ error: '加入失敗', details: '未知錯誤' }, { status: 500 });
     }, 'group-booking/join');
 
   } catch (error: any) {
@@ -485,6 +527,17 @@ export async function POST(request: Request) {
       meta: error?.meta,
       stack: error?.stack
     });
+    
+    // 重要：確保在錯誤情況下不發送 email
+    // 所有錯誤都會在這裡被捕獲，不會執行 email 發送邏輯
+    
+    // 處理 Circuit Breaker 錯誤
+    if (error?.message?.includes('Circuit breaker is OPEN')) {
+      return NextResponse.json({ 
+        error: '加入群組預約失敗',
+        details: '資料庫暫時無法使用，請稍後再試'
+      }, { status: 503 }); // 503 Service Unavailable
+    }
     
     // 處理 Prisma 錯誤
     if (error?.code) {
@@ -506,6 +559,13 @@ export async function POST(request: Request) {
             error: '記錄不存在',
             details: '找不到要操作的記錄'
           }, { status: 404 });
+        case 'P1008':
+        case 'P1017':
+          // 資料庫連接錯誤
+          return NextResponse.json({ 
+            error: '加入群組預約失敗',
+            details: '資料庫連接失敗，請稍後再試'
+          }, { status: 503 });
         default:
           return NextResponse.json({ 
             error: '加入失敗',
