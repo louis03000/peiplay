@@ -6,6 +6,7 @@ import { createErrorResponse } from '@/lib/api-helpers';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
+export const revalidate = 0; // 禁用快取
 
 const EXCLUDED_STATUSES = new Set(['CANCELLED', 'REJECTED', 'COMPLETED']);
 const WAITING_STATUS = 'PAID_WAITING_PARTNER_CONFIRMATION';
@@ -105,12 +106,14 @@ export async function GET() {
       return NextResponse.json({ error: '夥伴資料不存在' }, { status: 404 });
     }
 
-    // 個人資料使用 private cache（只快取在用戶瀏覽器中）
+    // 禁用快取，確保即時反映最新狀態
     return NextResponse.json(
       { bookings },
       {
         headers: {
-          'Cache-Control': 'private, max-age=10, stale-while-revalidate=30',
+          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0',
         },
       }
     );
