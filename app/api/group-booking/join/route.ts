@@ -25,7 +25,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: '缺少群組預約 ID' }, { status: 400 });
     }
 
-    return await db.query(async (client) => {
+    const result = await db.query(async (client) => {
       // 查找群組預約（明確指定需要的欄位，避免查詢不存在的欄位）
       const groupBooking = await client.groupBooking.findUnique({
         where: { id: groupBookingId },
@@ -517,7 +517,6 @@ export async function POST(request: Request) {
       return NextResponse.json(result, { status: 400 });
     }
     return NextResponse.json({ error: '加入失敗', details: '未知錯誤' }, { status: 500 });
-    }, 'group-booking/join');
 
   } catch (error: any) {
     console.error('❌ 加入群組預約失敗:', error);
