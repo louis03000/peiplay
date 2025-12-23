@@ -6,6 +6,7 @@ import { createErrorResponse } from '@/lib/api-helpers';
 import { sendBookingNotificationEmail } from '@/lib/email';
 import { BookingStatus } from '@prisma/client';
 import { checkTimeConflict } from '@/lib/time-conflict';
+import { formatTaipeiLocale } from '@/lib/time-utils';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -139,7 +140,7 @@ export async function POST(request: Request) {
                 );
                 if (conflict.hasConflict) {
                   const conflictTimes = conflict.conflicts
-                    .map((c) => `${new Date(c.startTime).toLocaleString('zh-TW')} - ${new Date(c.endTime).toLocaleString('zh-TW')}`)
+                    .map((c) => `${formatTaipeiLocale(new Date(c.startTime))} - ${formatTaipeiLocale(new Date(c.endTime))}`)
                     .join(', ');
                   throw new Error(`時間衝突！該夥伴在以下時段已有預約：${conflictTimes}`);
                 }

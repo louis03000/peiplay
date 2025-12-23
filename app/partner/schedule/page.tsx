@@ -1130,8 +1130,13 @@ export default function PartnerSchedulePage() {
                               <h5 className="font-medium text-gray-900">{group.title}</h5>
                               <p className="text-sm text-gray-600">{group.description}</p>
                               <div className="flex items-center space-x-4 mt-2 text-sm text-gray-500">
-                                <span>📅 {new Date(group.startTime).toLocaleDateString('zh-TW')}</span>
-                                <span>⏰ {new Date(group.startTime).toLocaleTimeString('zh-TW', {hour: '2-digit', minute: '2-digit'})}</span>
+                                <span>📅 {new Date(group.startTime).toLocaleDateString('zh-TW', { timeZone: 'Asia/Taipei' })}</span>
+                                <span>⏰ {new Date(group.startTime).toLocaleTimeString('zh-TW', { 
+                                  timeZone: 'Asia/Taipei',
+                                  hour: '2-digit', 
+                                  minute: '2-digit',
+                                  hour12: false 
+                                })}</span>
                                 <span>💰 ${group.pricePerPerson}/人</span>
                                 <span>👥 {group.currentParticipants}/{group.maxParticipants} 人</span>
                               </div>

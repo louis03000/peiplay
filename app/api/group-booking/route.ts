@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db-resilience";
 import { createErrorResponse } from "@/lib/api-helpers";
 import { sendBookingNotificationEmail } from "@/lib/email";
+import { parseTaipeiDateTime } from "@/lib/time-utils";
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -83,15 +84,15 @@ export async function POST(request: Request) {
           }
         }
 
-        // 創建群組預約
+        // 創建群組預約（使用台灣時區解析時間）
         const groupBooking = await tx.groupBooking.create({
           data: {
             type: 'PARTNER_INITIATED',
             title,
             description: description || null,
-            date: new Date(startTime),
-            startTime: new Date(startTime),
-            endTime: new Date(endTime),
+            date: parseTaipeiDateTime(startTime),
+            startTime: parseTaipeiDateTime(startTime),
+            endTime: parseTaipeiDateTime(endTime),
             maxParticipants: maxParticipants || 4,
             currentParticipants: 0,
             pricePerPerson,

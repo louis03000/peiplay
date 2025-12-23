@@ -3,6 +3,12 @@ import { getServerSession } from 'next-auth/next'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db-resilience'
 import { createErrorResponse } from '@/lib/api-helpers'
+import dayjs from 'dayjs'
+import utc from 'dayjs/plugin/utc'
+import timezone from 'dayjs/plugin/timezone'
+
+dayjs.extend(utc)
+dayjs.extend(timezone)
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -201,14 +207,14 @@ export async function POST(request: Request) {
       }
 
       // 轉換日期時間格式
-      // 前端送來的格式：date = "2025-12-04", startTime = "22:00"
-      // 需要組合成 ISO 格式：2025-12-04T22:00:00
+      // 前端送來的格式：date = "2025-12-23", startTime = "10:00"（台灣時間）
+      // 使用 dayjs 明確指定台灣時區，然後轉換為 UTC 存儲
       const normalizedStartTime = normalizeTime(startTimeStr)
       const normalizedEndTime = normalizeTime(endTimeStr)
       
-      // 組合成完整的 ISO 日期時間字串
-      const startDateTimeStr = `${dateStr}T${normalizedStartTime}`
-      const endDateTimeStr = `${dateStr}T${normalizedEndTime}`
+      // 組合成完整的日期時間字串（台灣時間）
+      const startDateTimeStr = `${dateStr} ${normalizedStartTime}`
+      const endDateTimeStr = `${dateStr} ${normalizedEndTime}`
       
       console.log('🔍 日期時間組合:', {
         dateStr,
@@ -220,13 +226,22 @@ export async function POST(request: Request) {
         endDateTimeStr,
       })
       
-      // 創建 Date 對象
-      const startTime = new Date(startDateTimeStr)
-      const endTime = new Date(endDateTimeStr)
+      // 使用 dayjs 將台灣時間轉換為 UTC 時間（與其他 API 一致）
+      const startTime = dayjs
+        .tz(startDateTimeStr, 'Asia/Taipei')
+        .utc()
+        .toDate()
       
-      console.log('🔍 創建的 Date 對象:', {
-        startTime: startTime.toISOString(),
-        endTime: endTime.toISOString(),
+      const endTime = dayjs
+        .tz(endDateTimeStr, 'Asia/Taipei')
+        .utc()
+        .toDate()
+      
+      console.log('🔍 創建的 Date 對象（UTC）:', {
+        startTimeUTC: startTime.toISOString(),
+        endTimeUTC: endTime.toISOString(),
+        startTimeTaipei: dayjs(startTime).tz('Asia/Taipei').format('YYYY-MM-DD HH:mm:ss'),
+        endTimeTaipei: dayjs(endTime).tz('Asia/Taipei').format('YYYY-MM-DD HH:mm:ss'),
         startTimeValid: !isNaN(startTime.getTime()),
         endTimeValid: !isNaN(endTime.getTime()),
       })

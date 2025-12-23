@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db-resilience'
+import { parseTaipeiDateTime, getNowTaipei, formatTaipeiLocale } from '@/lib/time-utils'
 
 
 export const dynamic = 'force-dynamic';
@@ -13,8 +14,9 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    const start = new Date(startTime)
-    const end = new Date(endTime)
+    // 解析時間（假設為台灣時間）
+    const start = parseTaipeiDateTime(startTime)
+    const end = parseTaipeiDateTime(endTime)
 
     return await db.query(async (client) => {
       // 檢查夥伴是否存在
@@ -29,8 +31,8 @@ export async function POST(request: NextRequest) {
 
       // 檢查夥伴是否被停權
       if (partner.user?.isSuspended) {
-        const now = new Date()
-        const endsAt = partner.user.suspensionEndsAt ? new Date(partner.user.suspensionEndsAt) : null
+        const now = getNowTaipei()
+        const endsAt = partner.user.suspensionEndsAt ? parseTaipeiDateTime(partner.user.suspensionEndsAt) : null
         
         if (endsAt && endsAt > now) {
           return NextResponse.json({ 
@@ -85,7 +87,7 @@ export async function POST(request: NextRequest) {
 
     if (conflictingBookings.length > 0) {
       const conflictTimes = conflictingBookings.map(b => 
-        `${b.schedule.startTime.toLocaleString('zh-TW')} - ${b.schedule.endTime.toLocaleString('zh-TW')}`
+        `${formatTaipeiLocale(b.schedule.startTime)} - ${formatTaipeiLocale(b.schedule.endTime)}`
       ).join(', ')
       
       return NextResponse.json({ 
@@ -102,9 +104,10 @@ export async function POST(request: NextRequest) {
     }
 
       // 檢查夥伴是否「現在有空」
+      const now = getNowTaipei()
       const isAvailableNow = partner.isAvailableNow && 
         partner.availableNowSince && 
-        new Date(partner.availableNowSince) <= new Date()
+        parseTaipeiDateTime(partner.availableNowSince) <= now
 
       return NextResponse.json({
         available: true,

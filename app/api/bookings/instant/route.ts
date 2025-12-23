@@ -6,6 +6,7 @@ import { createErrorResponse } from '@/lib/api-helpers'
 import { sendBookingNotificationEmail } from '@/lib/email'
 import { BookingStatus } from '@prisma/client'
 import { checkPartnerCurrentlyBusy, checkTimeConflict } from '@/lib/time-conflict'
+import { getNowTaipei, addTaipeiTime } from '@/lib/time-utils'
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -82,9 +83,10 @@ export async function POST(request: NextRequest) {
           return { type: 'BUSY', busyCheck } as const
         }
 
-        const now = new Date()
-        const startTime = new Date(now.getTime() + 15 * 60 * 1000)
-        const endTime = new Date(startTime.getTime() + duration * 60 * 60 * 1000)
+        // 使用台灣時間：當前時間 + 15 分鐘後開始
+        const now = getNowTaipei()
+        const startTime = addTaipeiTime(now, 15, 'minute')
+        const endTime = addTaipeiTime(startTime, duration, 'hour')
 
         console.log('🔍 檢查時間衝突...')
         const conflict = await checkTimeConflict(partner.id, startTime, endTime, undefined, client)

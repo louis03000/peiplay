@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { db } from '@/lib/db-resilience'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
+import { taipeiToUTC } from '@/lib/time-utils'
 
 export const dynamic = 'force-dynamic'
 
@@ -23,9 +24,9 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: '缺少必要參數' }, { status: 400 })
     }
 
-    // 轉換時間格式為 Date 對象
-    const startDateTime = new Date(`${startDate}T${startTime}:00`)
-    const endDateTime = new Date(`${endDate}T${endTime}:00`)
+    // 轉換時間格式為 Date 對象（使用台灣時區）
+    const startDateTime = taipeiToUTC(startDate, startTime)
+    const endDateTime = taipeiToUTC(endDate, endTime)
 
     const result = await db.query(async (client) => {
       // 優化：使用 select 而非 include，只查詢必要欄位
@@ -39,14 +40,14 @@ export async function GET(request: Request) {
           schedules: {
             some: {
               date: {
-                gte: new Date(startDate),
-                lte: new Date(endDate),
+                gte: taipeiToUTC(startDate, '00:00'),
+                lte: taipeiToUTC(endDate, '23:59'),
               },
               startTime: {
-                lte: startTime, // 時段開始時間不晚於搜尋開始時間
+                lte: startDateTime, // 時段開始時間不晚於搜尋開始時間
               },
               endTime: {
-                gte: endTime, // 時段結束時間不早於搜尋結束時間
+                gte: endDateTime, // 時段結束時間不早於搜尋結束時間
               },
               isAvailable: true
             }
@@ -87,14 +88,14 @@ export async function GET(request: Request) {
           schedules: {
             where: {
               date: {
-                gte: new Date(startDate),
-                lte: new Date(endDate),
+                gte: taipeiToUTC(startDate, '00:00'),
+                lte: taipeiToUTC(endDate, '23:59'),
               },
               startTime: {
-                lte: startTime,
+                lte: startDateTime,
               },
               endTime: {
-                gte: endTime,
+                gte: endDateTime,
               },
               isAvailable: true
             },

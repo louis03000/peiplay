@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth/next'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db-resilience'
 import { createErrorResponse } from '@/lib/api-helpers'
+import { parseTaipeiDateTime } from '@/lib/time-utils'
 
 export const dynamic = 'force-dynamic'
 
@@ -31,9 +32,9 @@ export async function POST(request: Request) {
           where: {
             partnerId: partner.id,
             OR: schedules.map((s) => ({
-              date: new Date(s.date),
-              startTime: new Date(s.startTime),
-              endTime: new Date(s.endTime),
+              date: parseTaipeiDateTime(s.date),
+              startTime: parseTaipeiDateTime(s.startTime),
+              endTime: parseTaipeiDateTime(s.endTime),
             })),
           },
         })
@@ -45,9 +46,9 @@ export async function POST(request: Request) {
         const created = await client.schedule.createMany({
           data: schedules.map((s) => ({
             partnerId: partner.id,
-            date: new Date(s.date),
-            startTime: new Date(s.startTime),
-            endTime: new Date(s.endTime),
+            date: parseTaipeiDateTime(s.date),
+            startTime: parseTaipeiDateTime(s.startTime),
+            endTime: parseTaipeiDateTime(s.endTime),
             isAvailable: true,
           })),
           skipDuplicates: true,
@@ -64,9 +65,9 @@ export async function POST(request: Request) {
       const existingSchedule = await client.schedule.findFirst({
         where: {
           partnerId: partner.id,
-          date: new Date(date),
-          startTime: new Date(startTime),
-          endTime: new Date(endTime),
+          date: parseTaipeiDateTime(date),
+          startTime: parseTaipeiDateTime(startTime),
+          endTime: parseTaipeiDateTime(endTime),
         },
       })
 
@@ -77,9 +78,9 @@ export async function POST(request: Request) {
       const schedule = await client.schedule.create({
         data: {
           partnerId: partner.id,
-          date: new Date(date),
-          startTime: new Date(startTime),
-          endTime: new Date(endTime),
+          date: parseTaipeiDateTime(date),
+          startTime: parseTaipeiDateTime(startTime),
+          endTime: parseTaipeiDateTime(endTime),
           isAvailable: true,
         },
       })
@@ -183,9 +184,9 @@ export async function DELETE(request: Request) {
         where: {
           partnerId: partner.id,
           OR: payload.map((s) => ({
-            date: new Date(s.date),
-            startTime: new Date(s.startTime),
-            endTime: new Date(s.endTime),
+            date: parseTaipeiDateTime(s.date),
+            startTime: parseTaipeiDateTime(s.startTime),
+            endTime: parseTaipeiDateTime(s.endTime),
           })),
         },
         include: { bookings: true },

@@ -4,14 +4,22 @@ import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db-resilience'
 import { createErrorResponse } from '@/lib/api-helpers'
 import { withRateLimit } from '@/lib/middleware-rate-limit'
+import { parseTaipeiDateTime, taipeiToUTC, addTaipeiTime } from '@/lib/time-utils'
+import dayjs from 'dayjs'
+import utc from 'dayjs/plugin/utc'
+import timezone from 'dayjs/plugin/timezone'
+
+dayjs.extend(utc)
+dayjs.extend(timezone)
 
 export const dynamic = 'force-dynamic'
 
 function parseDateRange(start?: string | null, end?: string | null) {
   if (!start || !end) return undefined
 
-  const startDate = new Date(start)
-  const endDate = new Date(end)
+  // 使用台灣時區解析日期
+  const startDate = parseTaipeiDateTime(start)
+  const endDate = parseTaipeiDateTime(end)
 
   if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) {
     return undefined
@@ -66,10 +74,10 @@ export async function GET(request: NextRequest) {
                   ...(dateRange ? { date: dateRange } : {}),
                   ...(partnerId ? { partnerId } : {}),
                   OR: [
-                    { date: { gt: new Date(cursorData.date) } },
+                    { date: { gt: parseTaipeiDateTime(cursorData.date) } },
                     {
-                      date: new Date(cursorData.date),
-                      startTime: { gt: cursorData.startTime },
+                      date: parseTaipeiDateTime(cursorData.date),
+                      startTime: { gt: parseTaipeiDateTime(cursorData.startTime) },
                     },
                   ],
                 },
@@ -250,8 +258,8 @@ export async function POST(request: NextRequest) {
             }[]
 
             for (let i = 1; i < recurringWeeks; i++) {
-              const nextDate = new Date(scheduleDate)
-              nextDate.setDate(nextDate.getDate() + i * 7)
+              // 使用台灣時區計算下一個日期（加 7 天）
+              const nextDate = addTaipeiTime(scheduleDate, i * 7, 'day')
 
               entries.push({
                 partnerId: partner.id,

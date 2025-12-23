@@ -1,5 +1,6 @@
 import type { PrismaClient, Prisma } from '@prisma/client'
 import { prisma as defaultPrisma } from '@/lib/prisma'
+import { getNowTaipei } from '@/lib/time-utils'
 
 // 支持普通客户端和事务客户端
 type PrismaClientLike = 
@@ -102,7 +103,7 @@ export async function checkPartnerCurrentlyBusy(
   client?: PrismaClientLike
 ) {
   const dbClient = resolveClient(client)
-  const now = new Date();
+  const now = getNowTaipei(); // 使用台灣時間
   
   // 查詢當前時間在進行中的預約
   const activeBooking = await dbClient.booking.findFirst({
