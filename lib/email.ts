@@ -867,8 +867,9 @@ export async function sendWarningEmail(
   userEmail: string,
   userName: string,
   warningData: {
-    cancellationCount: number;
-    warningType: 'FREQUENT_CANCELLATIONS';
+    cancellationCount?: number;
+    rejectionCount?: number;
+    warningType: 'FREQUENT_CANCELLATIONS' | 'FREQUENT_REJECTIONS';
   }
 ) {
   try {
@@ -891,6 +892,22 @@ export async function sendWarningEmail(
         </p>
         <p style="color: #666; font-size: 16px; line-height: 1.6;">
           建議您在預約前仔細確認時間安排，避免不必要的取消。
+        </p>
+      `;
+    } else if (warningData.warningType === 'FREQUENT_REJECTIONS') {
+      subject = `⚠️ 預約拒絕頻繁警告 - PeiPlay`;
+      warningMessage = `
+        <p style="color: #666; font-size: 16px; line-height: 1.6;">
+          我們注意到您在過去一週內已拒絕 ${warningData.rejectionCount} 次預約請求。
+        </p>
+        <p style="color: #666; font-size: 16px; line-height: 1.6;">
+          頻繁拒絕預約會影響顧客的體驗，也可能影響您的夥伴評級。
+        </p>
+        <p style="color: #666; font-size: 16px; line-height: 1.6;">
+          <strong>請注意：</strong>如果持續出現頻繁拒絕的情況，我們可能會採取進一步的措施。
+        </p>
+        <p style="color: #666; font-size: 16px; line-height: 1.6;">
+          建議您仔細評估預約請求，只有在確實無法接受時才拒絕。
         </p>
       `;
     }

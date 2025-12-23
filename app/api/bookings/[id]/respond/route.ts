@@ -323,7 +323,7 @@ export async function POST(
           // 警告信（若有 email）
           if (partnerUserEmail) {
             await sendWarningEmail(partnerUserEmail, partnerUserName, {
-              cancellationCount: rejectionCount,
+              rejectionCount: rejectionCount,
               warningType: 'FREQUENT_REJECTIONS',
             }).catch((error) => {
               console.error('❌ 警告郵件發送失敗:', error);
