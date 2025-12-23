@@ -4,7 +4,6 @@ import { authOptions } from '@/lib/auth';
 import { db } from '@/lib/db-resilience';
 import { createErrorResponse } from '@/lib/api-helpers';
 import { sendBookingConfirmationEmail, sendBookingRejectionEmail, sendWarningEmail } from '@/lib/email';
-import { sendAdminNotification } from '@/lib/notifications';
 import { createChatRoomForBooking } from '@/lib/chat-helpers';
 import { BookingStatus, MultiPlayerBookingStatus } from '@prisma/client';
 
@@ -258,7 +257,7 @@ export async function POST(
         }
       })(),
 
-      // 夥伴拒絕次數檢查（1 週內 3 次拒絕 → 管理員通知 + 警告信）
+      // 夥伴拒絕次數檢查（1 週內 3 次拒絕 → 站內通知 + 警告信）
       (async () => {
         if (result.action !== 'reject') return;
         const originalBooking = result.originalBooking;
@@ -284,16 +283,42 @@ export async function POST(
         }, 'bookings:respond:rejection-count');
 
         if (rejectionCount >= 3) {
-          // 管理員通知
-          await sendAdminNotification('⚠️ 夥伴一週內拒絕預約達 3 次', {
-            partnerId,
-            partnerName: partnerUserName,
-            partnerEmail: partnerUserEmail,
-            rejectionCount,
-            bookingId: result.booking.id,
-          }).catch((error) => {
-            console.error('❌ 管理員通知失敗:', error);
-          });
+          // 查詢所有管理員
+          const admins = await db.query(async (client) => {
+            return client.user.findMany({
+              where: { role: 'ADMIN' },
+              select: { id: true },
+            });
+          }, 'bookings:respond:find-admins');
+
+          // 建立站內通知（夥伴本人 + 管理員）
+          await db.query(async (client) => {
+            // 夥伴本人
+            await client.personalNotification.create({
+              data: {
+                userId: partnerId,
+                senderId: partnerId,
+                title: '頻繁拒絕預約警告',
+                content: `您在 7 天內已拒絕 ${rejectionCount} 次預約，請留意後續使用規範。`,
+                type: 'WARNING',
+                priority: 'HIGH',
+              },
+            });
+
+            // 管理員
+            for (const admin of admins) {
+              await client.personalNotification.create({
+                data: {
+                  userId: admin.id,
+                  senderId: partnerId,
+                  title: '夥伴頻繁拒絕預約警告',
+                  content: `夥伴 ${partnerUserName} 在 7 天內拒絕 ${rejectionCount} 次預約，請留意。`,
+                  type: 'WARNING',
+                  priority: 'HIGH',
+                },
+              });
+            }
+          }, 'bookings:respond:notify-admins');
 
           // 警告信（若有 email）
           if (partnerUserEmail) {

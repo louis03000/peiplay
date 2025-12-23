@@ -4,7 +4,6 @@ import { authOptions } from '@/lib/auth';
 import { db } from '@/lib/db-resilience';
 import { createErrorResponse } from '@/lib/api-helpers';
 import { BookingStatus } from '@prisma/client';
-import { sendAdminNotification } from '@/lib/notifications';
 import { sendWarningEmail } from '@/lib/email';
 
 export const dynamic = 'force-dynamic';
@@ -144,29 +143,51 @@ export async function POST(
             });
           }, 'bookings:cancel:check-frequency');
 
-          // 如果一個禮拜內有三次或以上取消，通知管理員
+          // 如果一個禮拜內有三次或以上取消，通知（站內 + Email）
           if (recentCancellations.length >= 3 && result.customerWithUser?.user) {
-            const userEmail = result.customerWithUser.user.email
-            const userName = result.customerWithUser.user.name ?? '用戶'
+            const userId = result.customerWithUser.user.id;
+            const userEmail = result.customerWithUser.user.email;
+            const userName = result.customerWithUser.user.name ?? '用戶';
 
             // 如果沒有 email，就不發送警告郵件，但仍可通知管理員
-            const canSendEmail = !!userEmail && typeof userEmail === 'string'
+            const canSendEmail = !!userEmail && typeof userEmail === 'string';
 
-            // 發送管理員通知
-            await sendAdminNotification(
-              `⚠️ 用戶頻繁取消預約警告`,
-              {
-                userId: result.customerWithUser.user.id,
-                userName,
-                userEmail,
-                cancellationCount: recentCancellations.length,
-                recentCancellations: recentCancellations.slice(0, 3).map(c => ({
-                  bookingId: c.bookingId,
-                  reason: c.reason,
-                  createdAt: c.createdAt,
-                })),
+            // 查詢所有管理員
+            const admins = await db.query(async (client) => {
+              return client.user.findMany({
+                where: { role: 'ADMIN' },
+                select: { id: true },
+              });
+            }, 'bookings:cancel:find-admins');
+
+            // 建立站內通知（用戶本人 + 管理員）
+            await db.query(async (client) => {
+              // 用戶本人
+              await client.personalNotification.create({
+                data: {
+                  userId,
+                  senderId: userId,
+                  title: '頻繁取消預約警告',
+                  content: `您在 7 天內已取消 ${recentCancellations.length} 次預約，請留意後續使用規範。`,
+                  type: 'WARNING',
+                  priority: 'HIGH',
+                },
+              });
+
+              // 管理員
+              for (const admin of admins) {
+                await client.personalNotification.create({
+                  data: {
+                    userId: admin.id,
+                    senderId: userId,
+                    title: '用戶頻繁取消預約警告',
+                    content: `用戶 ${userName} 在 7 天內取消 ${recentCancellations.length} 次預約，請留意。`,
+                    type: 'WARNING',
+                    priority: 'HIGH',
+                  },
+                });
               }
-            );
+            }, 'bookings:cancel:notify-admins');
 
             // 發送警告郵件給用戶（需有有效 email）
             if (canSendEmail) {
