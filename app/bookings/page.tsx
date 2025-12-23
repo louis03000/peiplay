@@ -553,7 +553,24 @@ export default function BookingsPage() {
                       <td className="py-4 px-6 text-white font-medium">
                         {booking.schedule?.startTime &&
                         booking.schedule?.endTime
-                          ? `${new Date(booking.schedule.startTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false })} - ${new Date(booking.schedule.endTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false })}`
+                          ? (() => {
+                              // 使用固定時區（Asia/Taipei）確保時間顯示一致
+                              const startTime = new Date(booking.schedule.startTime);
+                              const endTime = new Date(booking.schedule.endTime);
+                              const startStr = startTime.toLocaleTimeString('zh-TW', { 
+                                timeZone: 'Asia/Taipei',
+                                hour: "2-digit", 
+                                minute: "2-digit", 
+                                hour12: false 
+                              });
+                              const endStr = endTime.toLocaleTimeString('zh-TW', { 
+                                timeZone: 'Asia/Taipei',
+                                hour: "2-digit", 
+                                minute: "2-digit", 
+                                hour12: false 
+                              });
+                              return `${startStr} - ${endStr}`;
+                            })()
                           : "-"}
                       </td>
                       <td className="py-4 px-6">

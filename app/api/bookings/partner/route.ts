@@ -28,9 +28,13 @@ export async function GET() {
       }
 
       // 優化：使用 select 而非 include，只查詢必要欄位
+      // 直接在查詢時過濾掉已取消、已拒絕、已完成的預約
       const rows = await client.booking.findMany({
         where: {
           schedule: { partnerId: partner.id },
+          status: {
+            notIn: ['CANCELLED', 'REJECTED', 'COMPLETED'],
+          },
         },
         select: {
           id: true,
@@ -65,10 +69,8 @@ export async function GET() {
 
       const now = Date.now();
 
+      // 過濾掉已過期的預約（保留等待確認的預約，給30分鐘緩衝）
       const filtered = rows.filter((booking) => {
-        if (EXCLUDED_STATUSES.has(booking.status)) {
-          return false;
-        }
         const endTime = new Date(booking.schedule.endTime).getTime();
         const buffer = booking.status === WAITING_STATUS ? 30 * 60 * 1000 : 0;
         return endTime >= now - buffer;
