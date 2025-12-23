@@ -101,12 +101,16 @@ function GroupBookingContent() {
       if (response.ok) {
         const data = await response.json()
         const now = new Date()
+        const thirtyMinutesLater = new Date(now.getTime() + 30 * 60 * 1000) // 30分鐘後
         // 過濾掉時間已過的群組，並檢查用戶是否已加入
         const updatedBookings = data
           .filter((booking: GroupBooking) => {
-            // 過濾掉結束時間已過的群組
             const endTime = new Date(booking.endTime)
-            return endTime.getTime() > now.getTime()
+            const startTime = new Date(booking.startTime)
+            // 過濾條件：
+            // 1. 結束時間必須在未來（還沒結束）
+            // 2. 開始時間必須在30分鐘後（剩餘時間至少30分鐘才能加入）
+            return endTime.getTime() > now.getTime() && startTime.getTime() > thirtyMinutesLater.getTime()
           })
           .map((booking: GroupBooking) => {
             // 檢查參與者列表中是否有當前用戶
@@ -152,12 +156,16 @@ function GroupBookingContent() {
         const data = await response.json()
         setPartners(data.partners || [])
         const now = new Date()
+        const thirtyMinutesLater = new Date(now.getTime() + 30 * 60 * 1000) // 30分鐘後
         // 過濾掉時間已過的群組，並檢查用戶是否已加入
         const updatedGroupBookings = (data.groupBookings || [])
           .filter((booking: GroupBooking) => {
-            // 過濾掉結束時間已過的群組
             const endTime = new Date(booking.endTime)
-            return endTime.getTime() > now.getTime()
+            const startTime = new Date(booking.startTime)
+            // 過濾條件：
+            // 1. 結束時間必須在未來（還沒結束）
+            // 2. 開始時間必須在30分鐘後（剩餘時間至少30分鐘才能加入）
+            return endTime.getTime() > now.getTime() && startTime.getTime() > thirtyMinutesLater.getTime()
           })
           .map((booking: GroupBooking) => {
             const isJoined = booking.GroupBookingParticipant?.some(
@@ -678,7 +686,10 @@ function GroupBookingContent() {
 
         {/* 現有群組預約 */}
         <div className="bg-white rounded-lg shadow-md p-6">
-          <h2 className="text-xl font-semibold mb-4 text-gray-900">🔥 熱門群組預約</h2>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
+            <h2 className="text-xl font-semibold text-gray-900">🔥 熱門群組預約</h2>
+            <span className="text-xs sm:text-sm text-yellow-600 font-medium whitespace-nowrap">⚠️ 提醒：時間剩下30分鐘將會自動關閉群組，將無法加入群組</span>
+          </div>
           {loading ? (
             <div className="text-center py-8">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>

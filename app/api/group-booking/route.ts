@@ -4,7 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db-resilience";
 import { createErrorResponse } from "@/lib/api-helpers";
 import { sendBookingNotificationEmail } from "@/lib/email";
-import { parseTaipeiDateTime } from "@/lib/time-utils";
+import { parseTaipeiDateTime, getNowTaipei, addTaipeiTime } from "@/lib/time-utils";
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -210,7 +210,11 @@ export async function GET(request: Request) {
 
     const result = await db.query(async (client) => {
       try {
-        const now = new Date();
+        // 使用台灣時間
+        const now = getNowTaipei();
+        // 計算30分鐘後的時間（剩餘時間少於30分鐘的群組也要過濾掉）
+        const thirtyMinutesLater = addTaipeiTime(now, 30, 'minute');
+        
         // 構建查詢條件
         const where: any = {};
         if (partnerId) {
@@ -220,8 +224,11 @@ export async function GET(request: Request) {
         if (status) {
           where.status = status;
         }
-        // 過濾掉時間已過的群組（結束時間必須在未來）
+        // 過濾條件：
+        // 1. 結束時間必須在未來（還沒結束）
+        // 2. 開始時間必須在30分鐘後（剩餘時間至少30分鐘才能加入）
         where.endTime = { gt: now };
+        where.startTime = { gt: thirtyMinutesLater };
 
         // 查詢群組預約
         // 注意：暫時不查詢 games 字段，因為數據庫中可能還沒有這個字段

@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { db } from '@/lib/db-resilience';
 import { sendBookingNotificationEmail } from "@/lib/email";
-import { getNowTaipei } from "@/lib/time-utils";
+import { getNowTaipei, addTaipeiTime } from "@/lib/time-utils";
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -67,8 +67,17 @@ export async function POST(request: Request) {
     // 檢查時間是否已過（使用台灣時間）
     const now = getNowTaipei();
     const endTime = new Date(groupBooking.endTime);
+    const startTime = new Date(groupBooking.startTime);
+    
+    // 檢查結束時間是否已過
     if (endTime.getTime() <= now.getTime()) {
       return NextResponse.json({ error: '群組預約時間已過，無法加入' }, { status: 400 });
+    }
+    
+    // 檢查剩餘時間是否少於30分鐘（開始時間必須在30分鐘後）
+    const thirtyMinutesLater = addTaipeiTime(now, 30, 'minute');
+    if (startTime.getTime() <= thirtyMinutesLater.getTime()) {
+      return NextResponse.json({ error: '群組預約即將開始，剩餘時間不足30分鐘，無法加入' }, { status: 400 });
     }
 
     if (groupBooking.GroupBookingParticipant.length >= groupBooking.maxParticipants) {
