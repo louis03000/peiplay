@@ -433,12 +433,27 @@ export default function PartnerSchedulePage() {
       setSaving(true);
       setError(null);
       
+      // 調試：記錄發送的資料
+      console.log('🔍 準備發送群組預約資料:', groupForm);
+      console.log('🔍 資料類型檢查:', {
+        title: { value: groupForm.title, type: typeof groupForm.title },
+        date: { value: groupForm.date, type: typeof groupForm.date },
+        startTime: { value: groupForm.startTime, type: typeof groupForm.startTime },
+        endTime: { value: groupForm.endTime, type: typeof groupForm.endTime },
+        pricePerPerson: { value: groupForm.pricePerPerson, type: typeof groupForm.pricePerPerson },
+        maxParticipants: { value: groupForm.maxParticipants, type: typeof groupForm.maxParticipants },
+        games: { value: groupForm.games, type: typeof groupForm.games, isArray: Array.isArray(groupForm.games) },
+      });
+      
+      const requestBody = JSON.stringify(groupForm);
+      console.log('🔍 實際發送的 JSON:', requestBody);
+      
       const response = await fetch('/api/partner/groups', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(groupForm)
+        body: requestBody
       });
 
       const result = await response.json();

@@ -186,7 +186,15 @@ export async function POST(request: Request) {
       }
 
       console.log('🔍 查詢用戶資料...')
-      const user = await client.user.findUnique({ where: { id: session.user.id } })
+      // 明確指定 select，只查詢需要的欄位，避免查詢不存在的欄位導致錯誤
+      const user = await client.user.findUnique({ 
+        where: { id: session.user.id },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+        }
+      })
       if (!user) {
         console.log('❌ 找不到用戶資料')
         return { type: 'USER_NOT_FOUND' } as const
@@ -259,9 +267,12 @@ export async function POST(request: Request) {
         }
       }
 
-      // 生成唯一的群組預約ID
-      const groupBookingId = `gb-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`
-      console.log('🔍 生成群組預約ID:', groupBookingId)
+      // 生成唯一的群組預約ID（使用 cuid 格式，確保符合 Prisma 的 String 類型要求）
+      // Prisma 的 String 類型沒有長度限制，但為了安全，我們使用簡短的 ID
+      const timestamp = Date.now()
+      const randomStr = Math.random().toString(36).substring(2, 11)
+      const groupBookingId = `gb${timestamp}${randomStr}`.substring(0, 25) // 限制長度，避免過長
+      console.log('🔍 生成群組預約ID:', groupBookingId, '長度:', groupBookingId.length)
 
       // 如果沒有 games 字段，使用原始 SQL 執行整個操作
       if (!hasGamesColumn) {
@@ -434,22 +445,33 @@ export async function POST(request: Request) {
           }
 
           // 創建群組預約
+          // 確保所有資料類型正確
           const createData = {
             id: groupBookingId,
             type: 'PARTNER_INITIATED' as const,
-            title: title || null,
-            description: description || null,
-            date: startTime,
-            startTime: startTime,
-            endTime: endTime,
-            maxParticipants: maxParticipants,
+            title: title && title.length > 0 ? title : null,
+            description: description && description.length > 0 ? description : null,
+            date: startTime, // DateTime
+            startTime: startTime, // DateTime
+            endTime: endTime, // DateTime
+            maxParticipants: Number(maxParticipants), // 確保是數字
             currentParticipants: 0,
-            pricePerPerson: pricePerPerson,
+            pricePerPerson: Number(pricePerPerson), // 確保是數字，可能為 null
             status: 'ACTIVE' as const,
-            initiatorId: partner.id,
+            initiatorId: String(partner.id), // 確保是字串
             initiatorType: 'PARTNER',
-            games: games.length > 0 ? games : [],
+            games: Array.isArray(games) ? games.map(g => String(g)) : [], // 確保是字串陣列
           }
+          
+          // 最終驗證資料類型
+          console.log('🔍 最終資料驗證:', {
+            id: { value: createData.id, type: typeof createData.id, length: createData.id.length },
+            maxParticipants: { value: createData.maxParticipants, type: typeof createData.maxParticipants },
+            pricePerPerson: { value: createData.pricePerPerson, type: typeof createData.pricePerPerson },
+            games: { value: createData.games, type: typeof createData.games, isArray: Array.isArray(createData.games) },
+            startTime: { value: createData.startTime, type: typeof createData.startTime, isValid: createData.startTime instanceof Date },
+            endTime: { value: createData.endTime, type: typeof createData.endTime, isValid: createData.endTime instanceof Date },
+          })
           
           console.log('🔍 準備創建群組預約，Prisma 資料:', {
             ...createData,
@@ -618,6 +640,18 @@ export async function POST(request: Request) {
       console.error('❌ Prisma 錯誤 meta:', JSON.stringify(prismaError.meta, null, 2))
       
       // 根據錯誤代碼返回更詳細的錯誤訊息
+      if (prismaError.code === 'P2022') {
+        console.error('❌ P2022 錯誤詳情:', {
+          message: prismaError.message,
+          meta: prismaError.meta,
+        })
+        return NextResponse.json({
+          error: '資料值不符合欄位類型或超出範圍',
+          details: prismaError.message,
+          code: prismaError.code,
+          meta: process.env.NODE_ENV === 'development' ? prismaError.meta : undefined,
+        }, { status: 400 })
+      }
       if (prismaError.code === 'P2009') {
         return NextResponse.json({
           error: '資料型別不符合',
