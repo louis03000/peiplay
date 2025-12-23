@@ -862,6 +862,80 @@ export async function sendBookingRejectionEmail(
 }
 
 // 通用 Email 發送函數
+// 發送警告郵件給用戶
+export async function sendWarningEmail(
+  userEmail: string,
+  userName: string,
+  warningData: {
+    cancellationCount: number;
+    warningType: 'FREQUENT_CANCELLATIONS';
+  }
+) {
+  try {
+    const transporter = createTransporter();
+    
+    let subject = '';
+    let warningMessage = '';
+    
+    if (warningData.warningType === 'FREQUENT_CANCELLATIONS') {
+      subject = `⚠️ 預約取消頻繁警告 - PeiPlay`;
+      warningMessage = `
+        <p style="color: #666; font-size: 16px; line-height: 1.6;">
+          我們注意到您在過去一週內已取消 ${warningData.cancellationCount} 次預約。
+        </p>
+        <p style="color: #666; font-size: 16px; line-height: 1.6;">
+          頻繁取消預約會影響其他用戶的權益，也可能影響夥伴的排程安排。
+        </p>
+        <p style="color: #666; font-size: 16px; line-height: 1.6;">
+          <strong>請注意：</strong>如果持續出現頻繁取消的情況，我們可能會採取進一步的措施。
+        </p>
+        <p style="color: #666; font-size: 16px; line-height: 1.6;">
+          建議您在預約前仔細確認時間安排，避免不必要的取消。
+        </p>
+      `;
+    }
+    
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <div style="background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%); color: white; padding: 20px; text-align: center; border-radius: 10px 10px 0 0;">
+          <h1 style="margin: 0; font-size: 24px;">⚠️ 警告通知</h1>
+        </div>
+        
+        <div style="background: #f8f9fa; padding: 30px; border-radius: 0 0 10px 10px;">
+          <h2 style="color: #333; margin-top: 0;">親愛的 ${userName}，</h2>
+          
+          ${warningMessage}
+          
+          <div style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 20px 0; border-radius: 4px;">
+            <p style="color: #856404; margin: 0; font-size: 14px;">
+              <strong>💡 提醒：</strong>如有任何疑問或需要協助，請聯繫我們的客服團隊。
+            </p>
+          </div>
+          
+          <div style="text-align: center; margin-top: 30px;">
+            <p style="color: #999; font-size: 12px;">
+              此為系統自動發送的警告通知，請勿回覆此郵件。
+            </p>
+          </div>
+        </div>
+      </div>
+    `;
+    
+    await transporter.sendMail({
+      from: `"PeiPlay" <${process.env.EMAIL_USER}>`,
+      to: userEmail,
+      subject,
+      html,
+    });
+    
+    console.log(`✅ 警告郵件已發送給 ${userEmail}`);
+    return true;
+  } catch (error) {
+    console.error('❌ 發送警告郵件失敗:', error);
+    return false;
+  }
+}
+
 export async function sendEmail({
   to,
   subject,

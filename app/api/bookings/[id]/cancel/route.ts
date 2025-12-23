@@ -4,6 +4,8 @@ import { authOptions } from '@/lib/auth';
 import { db } from '@/lib/db-resilience';
 import { createErrorResponse } from '@/lib/api-helpers';
 import { BookingStatus } from '@prisma/client';
+import { sendAdminNotification } from '@/lib/notifications';
+import { sendWarningEmail } from '@/lib/email';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -14,6 +16,8 @@ export async function POST(
 ) {
   try {
     const { id: bookingId } = await params;
+    const body = await request.json();
+    const { reason } = body;
 
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
@@ -22,6 +26,10 @@ export async function POST(
 
     if (!bookingId) {
       return NextResponse.json({ error: '預約 ID 是必需的' }, { status: 400 });
+    }
+
+    if (!reason || reason.trim().length === 0) {
+      return NextResponse.json({ error: '請提供取消理由' }, { status: 400 });
     }
 
     const result = await db.query(async (client) => {
@@ -51,6 +59,7 @@ export async function POST(
         return { type: 'ALREADY_CANCELLED', booking } as const;
       }
 
+      // 更新預約狀態為已取消
       const updatedBooking = await client.booking.update({
         where: { id: bookingId },
         data: { status: BookingStatus.CANCELLED },
@@ -65,7 +74,35 @@ export async function POST(
         },
       });
 
-      return { type: 'SUCCESS', booking: updatedBooking } as const;
+      // 記錄取消記錄
+      await client.bookingCancellation.create({
+        data: {
+          bookingId: bookingId,
+          customerId: customer.id,
+          reason: reason.trim(),
+        },
+      });
+
+      // 獲取用戶信息（用於後續通知）
+      const customerWithUser = await client.customer.findUnique({
+        where: { id: customer.id },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
+        },
+      });
+
+      return { 
+        type: 'SUCCESS', 
+        booking: updatedBooking,
+        customerId: customer.id,
+        customerWithUser,
+      } as const;
     }, 'bookings:cancel');
 
     if (result.type === 'NO_CUSTOMER') {
@@ -82,6 +119,65 @@ export async function POST(
         success: true,
         message: '預約已經被取消',
         booking: result.booking,
+      });
+    }
+
+    // 在事務外檢查是否需要通知管理員（避免阻塞取消流程）
+    if (result.type === 'SUCCESS' && result.customerId && result.customerWithUser) {
+      // 異步檢查一個禮拜內是否有三次取消記錄（不阻塞響應）
+      Promise.resolve().then(async () => {
+        try {
+          const oneWeekAgo = new Date();
+          oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+          
+          const recentCancellations = await db.query(async (client) => {
+            return await client.bookingCancellation.findMany({
+              where: {
+                customerId: result.customerId,
+                createdAt: {
+                  gte: oneWeekAgo,
+                },
+              },
+              orderBy: {
+                createdAt: 'desc',
+              },
+            });
+          }, 'bookings:cancel:check-frequency');
+
+          // 如果一個禮拜內有三次或以上取消，通知管理員
+          if (recentCancellations.length >= 3 && result.customerWithUser?.user) {
+            // 發送管理員通知
+            await sendAdminNotification(
+              `⚠️ 用戶頻繁取消預約警告`,
+              {
+                userId: result.customerWithUser.user.id,
+                userName: result.customerWithUser.user.name,
+                userEmail: result.customerWithUser.user.email,
+                cancellationCount: recentCancellations.length,
+                recentCancellations: recentCancellations.slice(0, 3).map(c => ({
+                  bookingId: c.bookingId,
+                  reason: c.reason,
+                  createdAt: c.createdAt,
+                })),
+              }
+            );
+
+            // 發送警告郵件給用戶
+            await sendWarningEmail(
+              result.customerWithUser.user.email,
+              result.customerWithUser.user.name,
+              {
+                cancellationCount: recentCancellations.length,
+                warningType: 'FREQUENT_CANCELLATIONS',
+              }
+            );
+          }
+        } catch (error) {
+          console.error('❌ 檢查取消頻率失敗:', error);
+          // 不影響取消預約的成功
+        }
+      }).catch((error) => {
+        console.error('❌ 異步檢查取消頻率失敗:', error);
       });
     }
 

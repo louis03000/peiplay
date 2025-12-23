@@ -153,6 +153,7 @@ model Customer {
   GroupBookingParticipant GroupBookingParticipant[]
   GroupBookingReview      GroupBookingReview[]
   orders                  Order[]
+  bookingCancellations    BookingCancellation[]
 
   @@index([userId])
 }
@@ -218,6 +219,7 @@ model Booking {
   payments                  Payment[]
   refundRequests            RefundRequest[]
   supportTickets            SupportTicket[]     @relation("SupportTicketBooking")
+  cancellations             BookingCancellation[]
 
   @@index([status])
   @@index([status, createdAt(sort: Desc)])
@@ -240,6 +242,21 @@ model Order {
   customer   Customer @relation(fields: [customerId], references: [id])
 
   @@index([customerId])
+  @@index([bookingId])
+  @@index([createdAt])
+}
+
+// 預約取消記錄模型
+model BookingCancellation {
+  id          String   @id @default(cuid())
+  bookingId   String
+  booking     Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  customerId  String
+  customer    Customer @relation(fields: [customerId], references: [id])
+  reason      String   // 取消理由
+  createdAt   DateTime @default(now())
+
+  @@index([customerId, createdAt])
   @@index([bookingId])
   @@index([createdAt])
 }

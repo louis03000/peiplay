@@ -49,6 +49,9 @@ export default function BookingsPage() {
     right?: number;
   } | null>(null);
   const buttonRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [cancelBookingId, setCancelBookingId] = useState<string | null>(null);
+  const [cancelReason, setCancelReason] = useState('');
 
   // 使用 ref 追蹤正在進行的請求，防止重複請求
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -262,19 +265,32 @@ export default function BookingsPage() {
     return hoursUntilBooking >= 2;
   };
 
-  // 取消預約
-  const handleCancelBooking = async (bookingId: string) => {
-    if (!confirm("確定要取消這個預約嗎？取消後無法復原。")) {
+  // 打開取消預約 Modal
+  const handleCancelBookingClick = (bookingId: string) => {
+    setCancelBookingId(bookingId);
+    setCancelReason('');
+    setShowCancelModal(true);
+  };
+
+  // 確認取消預約
+  const handleCancelBooking = async () => {
+    if (!cancelBookingId) return;
+    
+    if (!cancelReason.trim()) {
+      alert("請提供取消理由");
       return;
     }
 
-    setCancellingBooking(bookingId);
+    setCancellingBooking(cancelBookingId);
     try {
-      const response = await fetch(`/api/bookings/${bookingId}/cancel`, {
+      const response = await fetch(`/api/bookings/${cancelBookingId}/cancel`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
+        body: JSON.stringify({
+          reason: cancelReason.trim(),
+        }),
       });
 
       const data = await response.json();
@@ -284,11 +300,14 @@ export default function BookingsPage() {
         // 直接更新本地狀態，將預約狀態改為已取消
         setBookings((prevBookings) =>
           prevBookings.map((booking) =>
-            booking.id === bookingId
+            booking.id === cancelBookingId
               ? { ...booking, status: "CANCELLED" }
               : booking,
           ),
         );
+        setShowCancelModal(false);
+        setCancelBookingId(null);
+        setCancelReason('');
       } else {
         alert(data.error || "取消預約失敗");
       }
@@ -648,7 +667,7 @@ export default function BookingsPage() {
                           <div className="flex gap-2 items-center">
                             {booking.status !== "CANCELLED" && canCancel(booking) && (
                               <button
-                                onClick={() => handleCancelBooking(booking.id)}
+                                onClick={() => handleCancelBookingClick(booking.id)}
                                 disabled={cancellingBooking === booking.id}
                                 className="px-3 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                               >
@@ -1003,6 +1022,50 @@ export default function BookingsPage() {
           )}
         </div>
       </InfoCard>
+
+      {/* 取消預約理由 Modal */}
+      {showCancelModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">取消預約</h2>
+            <p className="text-gray-600 mb-4">
+              請提供取消預約的理由。取消後無法復原。
+            </p>
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                取消理由 <span className="text-red-500">*</span>
+              </label>
+              <textarea
+                value={cancelReason}
+                onChange={(e) => setCancelReason(e.target.value)}
+                placeholder="請說明取消預約的原因..."
+                rows={4}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
+                required
+              />
+            </div>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => {
+                  setShowCancelModal(false);
+                  setCancelBookingId(null);
+                  setCancelReason('');
+                }}
+                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+              >
+                取消
+              </button>
+              <button
+                onClick={handleCancelBooking}
+                disabled={!cancelReason.trim() || cancellingBooking !== null}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {cancellingBooking ? "取消中..." : "確認取消"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </PartnerPageLayout>
   );
 }
