@@ -669,38 +669,36 @@ export default function PartnerSchedulePage() {
     });
   }, [schedules]);
 
-  // 獲取指定日期和時間的時段（使用 UTC timestamp 精確比對）- 使用useCallback優化
+  // ⚠️ 關鍵修復：使用 UTC timestamp 精確比對，完全避免時區轉換問題
+  // 核心原則：UI 是 DB 的投影，不是判斷來源
   const getScheduleAtTime = useCallback((date: Date, timeSlot: string) => {
     const dateStr = getLocalDateString(date);
     const [hour, minute] = timeSlot.split(':');
-    const slotHour = Number(hour);
-    const slotMinute = Number(minute);
     
-    // ⚠️ 關鍵修復：使用 UTC timestamp 精確比對，避免時區轉換問題
-    // 1. 將前端選擇的台灣時間轉換為 UTC timestamp
+    // 🔪 第一刀：將前端選擇的台灣時間轉換為 UTC timestamp（只准用 number 比）
     const slotTaipeiDateTimeStr = `${dateStr} ${hour.padStart(2, '0')}:${minute.padStart(2, '0')}`;
     const slotStartUtc = dayjs.tz(slotTaipeiDateTimeStr, 'Asia/Taipei').utc().valueOf(); // UTC timestamp (毫秒)
     
-    // 2. 在數據庫時段中查找匹配的時段（使用 UTC timestamp 比對）
-    const matched = schedulesTaipei.find(schedule => {
-      // 先快速過濾：比較日期（台灣時區）- 這是快速篩選
-      if (schedule._taipei.date !== dateStr) {
-        return false;
-      }
-      
-      // 再精確比對：使用 UTC timestamp（避免時區轉換誤差）
+    // 🔪 第二刀：先用 DB 資料決定格子狀態，再畫 UI（UI 不准自己猜）
+    // 在數據庫時段中查找匹配的時段（使用 UTC timestamp 精確比對）
+    const matched = schedules.find(schedule => {
+      // 只准用 UTC timestamp 比對，不依賴任何字串或 local time
       const scheduleStartUtc = new Date(schedule.startTime).getTime(); // UTC timestamp (毫秒)
       
       // 允許 1 分鐘的誤差（60000 毫秒）
       const timeDiff = Math.abs(slotStartUtc - scheduleStartUtc);
       const isMatch = timeDiff <= 60000; // 1 分鐘 = 60000 毫秒
       
-      // 調試：記錄比對過程
-      if (schedule._taipei.hour === slotHour && Math.abs(schedule._taipei.minute - slotMinute) <= 1) {
-        console.log(`🔍 時段比對: ${dateStr} ${timeSlot}`, {
-          slotStartUtc: new Date(slotStartUtc).toISOString(),
-          scheduleStartUtc: new Date(scheduleStartUtc).toISOString(),
+      // 調試：記錄比對過程（只在接近匹配時記錄）
+      if (timeDiff <= 5 * 60000) { // 5 分鐘內
+        console.log(`🔍 UTC timestamp 比對:`, {
+          slotTaipei: slotTaipeiDateTimeStr,
+          slotStartUtc: slotStartUtc,
+          slotStartUtcISO: new Date(slotStartUtc).toISOString(),
+          scheduleStartUtc: scheduleStartUtc,
+          scheduleStartUtcISO: new Date(scheduleStartUtc).toISOString(),
           timeDiff: timeDiff,
+          timeDiffMinutes: Math.round(timeDiff / 60000),
           isMatch: isMatch,
           scheduleId: schedule.id,
         });
@@ -710,45 +708,61 @@ export default function PartnerSchedulePage() {
     });
     
     // 調試：如果沒有匹配到，記錄一下
-    if (!matched && schedulesTaipei.length > 0) {
-      const similarSchedules = schedulesTaipei.filter(s => s._taipei.date === dateStr);
-      if (similarSchedules.length > 0) {
-        console.log(`⚠️ 未匹配到時段: ${dateStr} ${timeSlot} (UTC: ${new Date(slotStartUtc).toISOString()})`, {
+    if (!matched && schedules.length > 0) {
+      // 查找接近的時段（30 分鐘內）
+      const nearbySchedules = schedules.filter(s => {
+        const scheduleStartUtc = new Date(s.startTime).getTime();
+        return Math.abs(slotStartUtc - scheduleStartUtc) <= 30 * 60000; // 30 分鐘內
+      });
+      
+      if (nearbySchedules.length > 0) {
+        console.log(`⚠️ 未匹配到時段: ${dateStr} ${timeSlot}`, {
           slotStartUtc: slotStartUtc,
-          similarSchedules: similarSchedules.map(s => ({
-            id: s.id,
-            taipeiTime: `${s._taipei.hour.toString().padStart(2, '0')}:${s._taipei.minute.toString().padStart(2, '0')}`,
-            scheduleStartUtc: new Date(s.startTime).getTime(),
-            scheduleStartUtcISO: new Date(s.startTime).toISOString(),
-            diff: Math.abs(slotStartUtc - new Date(s.startTime).getTime()),
-          })),
+          slotStartUtcISO: new Date(slotStartUtc).toISOString(),
+          nearbySchedules: nearbySchedules.map(s => {
+            const scheduleStartUtc = new Date(s.startTime).getTime();
+            return {
+              id: s.id,
+              scheduleStartUtc: scheduleStartUtc,
+              scheduleStartUtcISO: new Date(s.startTime).toISOString(),
+              diff: Math.abs(slotStartUtc - scheduleStartUtc),
+              diffMinutes: Math.round(Math.abs(slotStartUtc - scheduleStartUtc) / 60000),
+            };
+          }),
         });
       }
     }
     
-    return matched ? { ...matched, _taipei: undefined } : undefined; // 移除內部字段
-  }, [schedulesTaipei, getLocalDateString]);
+    return matched ? { ...matched } : undefined;
+  }, [schedules, getLocalDateString]);
 
-  // ⚠️ 性能優化：預先計算所有 cell 的狀態，避免在渲染時重複計算
+  // ⚠️ 關鍵修復：預先計算所有 cell 的狀態，使用 UTC timestamp 精確比對
+  // 核心原則：UI 是 DB 的投影，先用 DB 資料決定格子狀態，再畫 UI
   const cellStatesMap = useMemo(() => {
     const now = new Date();
     const map = new Map<string, CellState>();
     
     console.log('🔄 重新計算 cellStatesMap，schedules 數量:', schedules.length, 'pendingAdd 數量:', Object.keys(pendingAdd).length, 'pendingDelete 數量:', Object.keys(pendingDelete).length, 'scheduleUpdateKey:', scheduleUpdateKey);
     
-    // 調試：打印 schedulesTaipei 的前幾個時段
-    if (schedulesTaipei.length > 0) {
-      console.log('🔍 schedulesTaipei 前5個時段:', schedulesTaipei.slice(0, 5).map(s => ({
-        id: s.id,
-        taipeiDate: s._taipei.date,
-        taipeiTime: `${s._taipei.hour.toString().padStart(2, '0')}:${s._taipei.minute.toString().padStart(2, '0')}`,
-        booked: s.booked,
-      })));
-    }
+    // 🔪 第一刀：先建立 DB 時段的 UTC timestamp 映射表（只准用 number 比）
+    const dbSlotMap = new Map<number, Schedule>();
+    schedules.forEach(schedule => {
+      const scheduleStartUtc = new Date(schedule.startTime).getTime();
+      dbSlotMap.set(scheduleStartUtc, schedule);
+    });
+    
+    console.log('📊 DB 時段 UTC timestamp 映射表:', Array.from(dbSlotMap.entries()).slice(0, 5).map(([utc, s]) => ({
+      utc: utc,
+      utcISO: new Date(utc).toISOString(),
+      id: s.id,
+      booked: s.booked,
+    })));
     
     let savedCount = 0;
     let emptyCount = 0;
     let toAddCount = 0;
+    let bookedCount = 0;
+    let toDeleteCount = 0;
     
     dateSlots.forEach(date => {
       const dateStr = getLocalDateString(date);
@@ -764,33 +778,49 @@ export default function PartnerSchedulePage() {
           return;
         }
         
-        const schedule = getScheduleAtTime(date, timeSlot);
-        if (schedule) {
-          // 時段已存在於數據庫中
-          if (schedule.booked) {
+        // 🔪 第二刀：先用 DB 資料決定格子狀態，再畫 UI（UI 不准自己猜）
+        // 將前端選擇的台灣時間轉換為 UTC timestamp
+        const slotTaipeiDateTimeStr = `${dateStr} ${hour.padStart(2, '0')}:${minute.padStart(2, '0')}`;
+        const slotStartUtc = dayjs.tz(slotTaipeiDateTimeStr, 'Asia/Taipei').utc().valueOf();
+        
+        // 在 DB 映射表中查找匹配的時段（允許 1 分鐘誤差）
+        let matchedSchedule: Schedule | undefined = undefined;
+        for (const [dbUtc, schedule] of dbSlotMap.entries()) {
+          const timeDiff = Math.abs(slotStartUtc - dbUtc);
+          if (timeDiff <= 60000) { // 1 分鐘 = 60000 毫秒
+            matchedSchedule = schedule;
+            break;
+          }
+        }
+        
+        if (matchedSchedule) {
+          // 時段已存在於數據庫中（PERSISTED 狀態）
+          if (matchedSchedule.booked) {
             map.set(key, 'booked');
-          } else if (pendingDelete[schedule.id]) {
+            bookedCount++;
+          } else if (pendingDelete[matchedSchedule.id]) {
             map.set(key, 'toDelete');
+            toDeleteCount++;
           } else {
-            map.set(key, 'saved');
+            map.set(key, 'saved'); // PERSISTED 狀態 → 灰色，可刪除
             savedCount++;
           }
         } else {
-          // 時段不存在於數據庫中
-          // 如果該時段在 pendingAdd 中，顯示為待新增
-          // 否則顯示為空白
+          // 時段不存在於數據庫中（EMPTY 狀態）
+          // 如果該時段在 pendingAdd 中，顯示為待新增（SELECTING 狀態）
+          // 否則顯示為空白（EMPTY 狀態）
           if (pendingAdd[key]) {
-            map.set(key, 'toAdd');
+            map.set(key, 'toAdd'); // SELECTING 狀態 → 綠色
             toAddCount++;
           } else {
-            map.set(key, 'empty');
+            map.set(key, 'empty'); // EMPTY 狀態 → 白色
             emptyCount++;
           }
         }
       });
     });
     
-    console.log(`📊 cellStatesMap 統計: saved=${savedCount}, empty=${emptyCount}, toAdd=${toAddCount}`);
+    console.log(`📊 cellStatesMap 統計: saved=${savedCount} (PERSISTED), empty=${emptyCount} (EMPTY), toAdd=${toAddCount} (SELECTING), booked=${bookedCount}, toDelete=${toDeleteCount}`);
     
     console.log('✅ cellStatesMap 計算完成，總共', map.size, '個 cell');
     
@@ -809,6 +839,18 @@ export default function PartnerSchedulePage() {
       }
     });
     console.log('📊 cellStatesMap 狀態統計:', stateCounts);
+    
+    // 驗證：確保 PERSISTED 狀態的數量與 DB 中的時段數量一致
+    if (savedCount + bookedCount + toDeleteCount !== schedules.length) {
+      console.warn('⚠️ 狀態統計不一致:', {
+        savedCount,
+        bookedCount,
+        toDeleteCount,
+        totalFromStates: savedCount + bookedCount + toDeleteCount,
+        schedulesCount: schedules.length,
+        difference: (savedCount + bookedCount + toDeleteCount) - schedules.length,
+      });
+    }
     
     return map;
   }, [dateSlots, timeSlots, getLocalDateString, getScheduleAtTime, pendingDelete, pendingAdd, scheduleUpdateKey]);
@@ -974,11 +1016,45 @@ export default function PartnerSchedulePage() {
       console.log('💾 開始儲存時段:', { addCount: addList.length, deleteCount: deleteList.length });
       
       if (addList.length > 0) {
-        console.log('📤 發送新增請求:', addList);
+        // 🔪 第三刀：禁止 PERSISTED 進 POST（應該進 DELETE）
+        // 在發送前再次檢查，確保沒有已存在的時段被誤送
+        const validatedAddList = addList.filter(addItem => {
+          // 檢查這個時段是否已經存在於 schedules 中
+          const slotStartUtc = new Date(addItem.startTime).getTime();
+          const exists = schedules.some(s => {
+            const scheduleStartUtc = new Date(s.startTime).getTime();
+            return Math.abs(slotStartUtc - scheduleStartUtc) <= 60000; // 1 分鐘誤差
+          });
+          
+          if (exists) {
+            console.warn('⚠️ 阻止已存在時段進入 POST:', {
+              addItem,
+              reason: '該時段已存在於 DB，應該使用 DELETE 而不是 POST',
+            });
+          }
+          
+          return !exists; // 只保留不存在的時段
+        });
+        
+        if (validatedAddList.length === 0) {
+          console.warn('⚠️ 所有待新增時段都已存在，跳過 POST 請求');
+          // 清除 pendingAdd 並刷新數據
+          setPendingAdd({});
+          await refreshData();
+          alert('所有時段都已存在，無法重複新增。已存在的時段已顯示為灰色。');
+          setSaving(false);
+          return;
+        }
+        
+        if (validatedAddList.length < addList.length) {
+          console.warn(`⚠️ 過濾掉 ${addList.length - validatedAddList.length} 個已存在的時段`);
+        }
+        
+        console.log('📤 發送新增請求:', validatedAddList);
         const addResponse = await fetch('/api/partner/schedule', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(addList.length === 1 ? addList[0] : addList)
+          body: JSON.stringify(validatedAddList.length === 1 ? validatedAddList[0] : validatedAddList)
         });
         
         const addResult = await addResponse.json().catch(() => ({}));
