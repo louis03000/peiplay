@@ -109,6 +109,8 @@ export async function POST(request: Request) {
             select: { id: true, status: true, scheduleId: true },
           });
           
+          console.log(`🔍 檢查 ${scheduleIds.length} 個時段的預約狀態，找到 ${existingBookings.length} 個現有預約`);
+          
           // 定義終止狀態：這些狀態的預約不會佔用時段
           const terminalStatuses = new Set<BookingStatus>([
             BookingStatus.CANCELLED,
@@ -120,10 +122,18 @@ export async function POST(request: Request) {
           
           // 檢查是否有活躍狀態的預約（非終止狀態）
           for (const booking of existingBookings) {
+            console.log(`🔍 檢查預約 ${booking.id} (時段: ${booking.scheduleId}, 狀態: ${booking.status})`);
             if (!terminalStatuses.has(booking.status)) {
               // 找到活躍狀態的預約，表示時段已被佔用
+              console.error(`❌ 時段 ${booking.scheduleId} 已有活躍預約 ${booking.id} (狀態: ${booking.status})`);
               throw new Error(`時段已被預約，請重新選擇其他時段`);
+            } else {
+              console.log(`✅ 時段 ${booking.scheduleId} 的預約 ${booking.id} 是終止狀態 (${booking.status})，可以重新預約`);
             }
+          }
+          
+          if (existingBookings.length === 0) {
+            console.log(`✅ 所有 ${scheduleIds.length} 個時段都沒有現有預約，可以創建`);
           }
 
           // 批量檢查時間衝突（收集所有需要檢查的夥伴和時間）

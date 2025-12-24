@@ -108,17 +108,6 @@ export async function GET(request: Request) {
                 gte: endDateTime,
               },
               isAvailable: true,
-              // 直接在資料庫層排除有活躍預約的時段
-              OR: [
-                { bookings: null },
-                {
-                  bookings: {
-                    status: {
-                      in: TERMINAL_BOOKING_STATUSES,
-                    },
-                  },
-                },
-              ],
             },
             select: {
               id: true,
@@ -190,6 +179,7 @@ export async function GET(request: Request) {
     })
 
       // 只返回有可用時段的夥伴，並為每個時段添加搜尋時段限制，同時使用批量查詢的平均星等
+      const terminalStatusSet = new Set(TERMINAL_BOOKING_STATUSES);
       const partnersWithAvailableSchedules = availablePartners
         .map(partner => {
           // 從批量查詢結果獲取平均評分
@@ -202,16 +192,25 @@ export async function GET(request: Request) {
             ...partner,
             averageRating,
             totalReviews,
-            schedules: partner.schedules.map(schedule => ({
-              ...schedule,
-              // 添加搜尋時段限制信息
-              searchTimeRestriction: {
-                startTime,
-                endTime,
-                startDate,
-                endDate
-              }
-            }))
+            schedules: partner.schedules
+              .filter(schedule => {
+                // 過濾：只保留沒有預約或預約狀態是終止狀態的時段
+                if (!schedule.bookings) {
+                  return true; // 沒有預約，可以選擇
+                }
+                // 有預約，檢查狀態是否為終止狀態
+                return terminalStatusSet.has(schedule.bookings.status);
+              })
+              .map(schedule => ({
+                ...schedule,
+                // 添加搜尋時段限制信息
+                searchTimeRestriction: {
+                  startTime,
+                  endTime,
+                  startDate,
+                  endDate
+                }
+              }))
           };
         })
         .filter(partner => partner.schedules.length > 0)

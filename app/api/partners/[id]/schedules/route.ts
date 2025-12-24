@@ -80,25 +80,12 @@ export async function GET(
           }
         }
 
-        // 查詢可用時段，直接在資料庫層排除有活躍預約的時段
-        // 使用 NOT 條件：要麼沒有預約，要麼預約狀態是終止狀態
+        // 查詢所有可用時段（包含預約資訊）
         const allSchedules = await client.schedule.findMany({
           where: {
             partnerId,
             isAvailable: true,
             date: scheduleDateFilter,
-            OR: [
-              // 沒有預約的時段
-              { bookings: null },
-              // 或預約狀態是終止狀態
-              {
-                bookings: {
-                  status: {
-                    in: TERMINAL_BOOKING_STATUSES,
-                  },
-                },
-              },
-            ],
           },
           select: {
             id: true,
@@ -116,8 +103,16 @@ export async function GET(
           take: 100, // 限制結果數量
         });
 
-        // 返回所有查詢到的時段（已在資料庫層過濾）
-        return allSchedules;
+        // 在應用層過濾：只返回沒有預約或預約狀態是終止狀態的時段
+        const terminalStatusSet = new Set(TERMINAL_BOOKING_STATUSES);
+        return allSchedules.filter((schedule) => {
+          // 沒有預約，可以選擇
+          if (!schedule.bookings) {
+            return true;
+          }
+          // 有預約，檢查狀態是否為終止狀態
+          return terminalStatusSet.has(schedule.bookings.status);
+        });
       },
       'partners:schedules'
     );
