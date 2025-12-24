@@ -883,11 +883,37 @@ export default function PartnerSchedulePage() {
         return null;
       }
       
-      // ⚠️ 確保所有字段都是字符串格式（API 返回的可能是 Date 對象或字符串）
-      // schedule.date, schedule.startTime, schedule.endTime 都是 ISO 字符串（UTC）
-      const dateStr = typeof schedule.date === 'string' ? schedule.date : new Date(schedule.date).toISOString();
-      const startTimeStr = typeof schedule.startTime === 'string' ? schedule.startTime : new Date(schedule.startTime).toISOString();
-      const endTimeStr = typeof schedule.endTime === 'string' ? schedule.endTime : new Date(schedule.endTime).toISOString();
+      // ⚠️ 確保所有字段都是正確的 ISO 字符串格式（UTC）
+      // schedule.date 可能是 Date 對象或 ISO 字符串
+      // 如果是字符串，需要確保是完整的 ISO 格式（包含時間部分）
+      let dateStr: string;
+      if (typeof schedule.date === 'string') {
+        // 如果是字符串，檢查是否已經是 ISO 格式
+        if (schedule.date.includes('T')) {
+          dateStr = schedule.date;
+        } else {
+          // 如果是 "YYYY-MM-DD" 格式，轉換為 ISO 格式（UTC 00:00:00）
+          dateStr = new Date(`${schedule.date}T00:00:00.000Z`).toISOString();
+        }
+      } else {
+        // 如果是 Date 對象，轉換為 ISO 字符串
+        dateStr = new Date(schedule.date).toISOString();
+      }
+      
+      // startTime 和 endTime 應該已經是 ISO 字符串格式
+      const startTimeStr = typeof schedule.startTime === 'string' 
+        ? schedule.startTime 
+        : new Date(schedule.startTime).toISOString();
+      const endTimeStr = typeof schedule.endTime === 'string' 
+        ? schedule.endTime 
+        : new Date(schedule.endTime).toISOString();
+      
+      console.log('🗑️ 準備刪除的時段:', {
+        id: schedule.id,
+        date: dateStr,
+        startTime: startTimeStr,
+        endTime: endTimeStr,
+      });
       
       return {
         date: dateStr,
