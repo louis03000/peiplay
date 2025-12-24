@@ -400,7 +400,7 @@ export default function PartnerSchedulePage() {
         
         // 調試：檢查新時段詳情（在更新前）
         if (newSchedules.length > 0) {
-          console.log('🔍 refreshData 收到的所有時段詳情:', newSchedules.map(s => {
+          console.log('🔍 refreshData 收到的所有時段詳情:', newSchedules.map((s: Schedule) => {
             const date = new Date(s.date);
             const start = new Date(s.startTime);
             const end = new Date(s.endTime);
