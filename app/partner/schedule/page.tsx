@@ -36,6 +36,7 @@ export default function PartnerSchedulePage() {
     end: new Date(Date.now() + 6 * 24 * 60 * 60 * 1000)
   });
   const [saving, setSaving] = useState(false);
+  const [isSaving, setIsSaving] = useState(false); // 🛡 第一層：UI 操作鎖
   const [showSuccess, setShowSuccess] = useState(false);
   const [partnerStatus, setPartnerStatus] = useState<{ 
     id: string;
@@ -420,9 +421,18 @@ export default function PartnerSchedulePage() {
           }));
         }
         
+        // 🛡 第三層：防止空數據覆蓋現有狀態
         // 使用函數式更新確保獲取最新狀態
         setSchedules(prevSchedules => {
           console.log('🔄 setSchedules 被調用，prev 數量:', prevSchedules.length, 'new 數量:', newSchedules.length);
+          
+          // 防止空數據覆蓋現有狀態（避免競態條件）
+          if (newSchedules.length === 0 && prevSchedules.length > 0) {
+            console.warn('⚠️ 防止用空數據覆蓋現有狀態，保留當前狀態');
+            // 不更新，保留現有狀態
+            return prevSchedules;
+          }
+          
           // 使用展開運算符確保創建新數組，觸發重新渲染
           const newState = [...newSchedules];
           console.log('✅ setSchedules 返回新狀態，數量:', newState.length);
@@ -863,6 +873,12 @@ export default function PartnerSchedulePage() {
 
   // ⚠️ 關鍵修復：點擊 cell 時，強制檢查時段是否已存在，確保狀態機正確
   const handleCellClick = useCallback((date: Date, timeSlot: string) => {
+    // 🛡 第一層：儲存中禁止操作
+    if (isSaving) {
+      console.warn('⚠️ 儲存中，禁止點擊操作');
+      return;
+    }
+    
     const now = new Date();
     const [hour, minute] = timeSlot.split(':');
     const timeDate = new Date(date);
@@ -928,6 +944,12 @@ export default function PartnerSchedulePage() {
 
   // 儲存所有變更
   const handleSave = async () => {
+    // 🛡 第一層：UI 操作鎖 - 防止操作太快
+    if (isSaving) {
+      console.warn('⚠️ 儲存中，忽略重複請求');
+      return;
+    }
+    
     console.log('🚀 handleSave 被調用');
     console.log('📊 當前狀態:', {
       pendingAddCount: Object.keys(pendingAdd).length,
@@ -938,6 +960,7 @@ export default function PartnerSchedulePage() {
     });
     
     setSaving(true);
+    setIsSaving(true); // 🔒 鎖定所有操作
     const addList = Object.keys(pendingAdd).map(key => {
       const [dateStr, timeSlot] = key.split('_');
       const [hour, minute] = timeSlot.split(':');
@@ -1041,8 +1064,9 @@ export default function PartnerSchedulePage() {
           // 清除 pendingAdd 並刷新數據
           setPendingAdd({});
           await refreshData();
-          alert('所有時段都已存在，無法重複新增。已存在的時段已顯示為灰色。');
+          // 不顯示 alert，只刷新數據讓用戶看到灰色時段
           setSaving(false);
+          setIsSaving(false); // 🔓 解鎖所有操作
           return;
         }
         
@@ -1129,14 +1153,15 @@ export default function PartnerSchedulePage() {
               await refreshData();
             }
             
-            // 顯示友好的錯誤消息
-            const errorMessage = addResult.error || '以下時段與現有時段重疊，無法新增。衝突的時段已顯示為灰色，您可以點擊它們來刪除。';
-            alert(errorMessage);
+            // 確保在所有情況下都解鎖
+            setIsSaving(false); // 🔓 解鎖所有操作
             
-            // 不拋出錯誤，讓用戶可以看到已保存的時段
-            // 但也不繼續執行後續的刪除操作，因為新增失敗了
-            setSaving(false);
-            return;
+          // 不顯示 alert，只刷新數據讓用戶看到灰色時段
+          // 不拋出錯誤，讓用戶可以看到已保存的時段
+          // 但也不繼續執行後續的刪除操作，因為新增失敗了
+          setSaving(false);
+          setIsSaving(false); // 🔓 解鎖所有操作
+          return;
           }
           
           throw new Error(addResult.error || `新增時段失敗 (${addResponse.status})`);
@@ -1151,8 +1176,9 @@ export default function PartnerSchedulePage() {
           // 重新獲取已保存的時段，清除pendingAdd狀態
           await refreshData();
           setPendingAdd({});
-          alert('所有時段都已存在，無法重複新增。已存在的時段已顯示為灰色。');
+          // 不顯示 alert，只刷新數據讓用戶看到灰色時段
           setSaving(false);
+          setIsSaving(false); // 🔓 解鎖所有操作
           return;
         }
       }
@@ -1169,18 +1195,18 @@ export default function PartnerSchedulePage() {
         console.log('📥 刪除響應:', { status: deleteResponse.status, ok: deleteResponse.ok, result: deleteResult });
         
         if (!deleteResponse.ok) {
-          // 如果是 409 冲突（已被预约），显示友好消息
+          // 如果是 409 衝突（已被預約），不顯示 alert，只刷新數據
           if (deleteResponse.status === 409) {
-            const errorMsg = deleteResult.error || '時段已被預約，無法刪除';
-            alert(errorMsg);
-            // 不抛出错误，让用户可以继续操作其他时段
-            // 但需要刷新数据以更新状态
+            console.warn('⚠️ 時段已被預約，無法刪除');
+            // 不拋出錯誤，讓用戶可以繼續操作其他時段
+            // 但需要刷新數據以更新狀態
             await refreshData();
             setSaving(false);
+            setIsSaving(false); // 🔓 解鎖所有操作
             return;
           }
           
-          // 如果是 400 错误，可能是数据格式问题
+          // 如果是 400 錯誤，可能是數據格式問題
           if (deleteResponse.status === 400) {
             console.error('❌ 刪除請求格式錯誤:', deleteResult);
             throw new Error(deleteResult.error || `刪除時段失敗：請求格式錯誤 (${deleteResponse.status})`);
@@ -1192,20 +1218,58 @@ export default function PartnerSchedulePage() {
         console.log('✅ 刪除成功，刪除數量:', deleteResult.count || 0);
       }
       
-      // 只有所有操作都成功後，才清空 pending 狀態和刷新資料
+      // 🛡 第二層：POST 成功後強制 GET 最新數據（以 DB 為準）
       console.log('🔄 清空 pending 狀態並刷新資料...');
       
       // 先清空 pending 狀態
       setPendingAdd({});
       setPendingDelete({});
       
-      // 強制刷新資料，並等待完成
-      console.log('🔄 開始刷新資料...');
-      await refreshData();
+      // 🛡 關鍵：POST 成功後，強制重新獲取最新數據（不依賴 POST 返回的數據）
+      console.log('🔄 強制重新獲取最新時段數據（以 DB 為準）...');
+      try {
+        const freshResponse = await fetch('/api/partner/schedule', {
+          method: 'GET',
+          cache: 'no-store', // 強制不使用緩存
+          headers: {
+            'Cache-Control': 'no-cache',
+          },
+        });
+        
+        if (freshResponse.ok) {
+          const freshSchedules = await freshResponse.json();
+          console.log('✅ 獲取到最新時段數據，數量:', freshSchedules.length);
+          
+          // 🛡 第三層：防止空數據覆蓋現有狀態
+          if (freshSchedules.length === 0 && schedules.length > 0) {
+            console.warn('⚠️ 防止用空數據覆蓋現有狀態，保留當前狀態');
+            // 不更新，保留現有狀態
+          } else {
+            // 更新 schedules 狀態（使用函數式更新確保正確）
+            setSchedules(prev => {
+              console.log('🔄 更新 schedules，prev 數量:', prev.length, 'fresh 數量:', freshSchedules.length);
+              // 確保返回新數組引用，觸發重新渲染
+              const newSchedules = freshSchedules.map((s: Schedule) => ({ ...s }));
+              console.log('✅ 返回新 schedules 數組，數量:', newSchedules.length);
+              return newSchedules;
+            });
+            
+            // 強制觸發 cellStatesMap 重新計算
+            setScheduleUpdateKey(prev => prev + 1);
+          }
+        } else {
+          console.error('❌ 獲取最新數據失敗，使用 refreshData');
+          await refreshData();
+        }
+      } catch (fetchError) {
+        console.error('❌ 獲取最新數據時發生錯誤，使用 refreshData:', fetchError);
+        await refreshData();
+      }
+      
       console.log('✅ 資料刷新完成');
       
       // 等待一個 tick 確保 React 狀態更新完成
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise(resolve => setTimeout(resolve, 200));
       
       // 顯示成功提示
       console.log('✅ 儲存完成，顯示成功提示');
@@ -1214,15 +1278,16 @@ export default function PartnerSchedulePage() {
       
       // 強制觸發重新渲染（通過更新一個不影響功能的狀態）
       // 這確保 React 會重新計算所有依賴 schedules 的 useCallback
-      setSaving(false); // 這會觸發重新渲染
+      setSaving(false);
+      setIsSaving(false); // 🔓 解鎖所有操作
       
       // 可選：自動滾到頂部
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (e) {
       console.error('❌ 儲存時段失敗:', e);
-      const errorMessage = e instanceof Error ? e.message : '儲存失敗，請重試';
-      alert(errorMessage);
+      // 不顯示 alert，只在控制台記錄錯誤
       // 失敗時不刷新資料，保留 pending 狀態，讓用戶可以重試
+      setIsSaving(false); // 🔓 解鎖所有操作（即使失敗也要解鎖）
     }
     setSaving(false);
   };
@@ -1798,7 +1863,7 @@ export default function PartnerSchedulePage() {
                           <div
                             key={cellKey}
                             className={`h-8 border-b border-gray-100 transition-colors ${getCellStyle(state)}`}
-                            onClick={() => ['empty', 'toAdd', 'saved', 'toDelete'].includes(state) && handleCellClick(date, time)}
+                            onClick={() => !isSaving && ['empty', 'toAdd', 'saved', 'toDelete'].includes(state) && handleCellClick(date, time)}
                             title={
                               state === 'past' ? '過去的時間無法操作' :
                               state === 'empty' ? '點擊新增時段' :
@@ -1858,7 +1923,7 @@ export default function PartnerSchedulePage() {
                   console.warn('⚠️ 按鈕被禁用或沒有待保存的變更');
                 }
               }}
-              disabled={saving || (Object.keys(pendingAdd).length === 0 && Object.keys(pendingDelete).length === 0)}
+              disabled={saving || isSaving || (Object.keys(pendingAdd).length === 0 && Object.keys(pendingDelete).length === 0)}
             >
               {saving ? '儲存中...' : '儲存時段'}
             </button>
