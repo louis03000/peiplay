@@ -398,20 +398,21 @@ export default function PartnerSchedulePage() {
         // 強制更新 schedules 狀態
         console.log('🔄 準備更新 schedules 狀態，當前數量:', schedules.length, '新數量:', newSchedules.length);
         
-        // 調試：檢查新時段詳情（在更新前）
+        // 調試：檢查新時段詳情（在更新前）- 使用 dayjs 正確轉換為台灣時區
         if (newSchedules.length > 0) {
           console.log('🔍 refreshData 收到的所有時段詳情:', newSchedules.map((s: Schedule) => {
-            const date = new Date(s.date);
-            const start = new Date(s.startTime);
-            const end = new Date(s.endTime);
+            // 使用 dayjs 將 UTC 時間轉換為台灣時區
+            const dateTaipei = dayjs.utc(s.date).tz('Asia/Taipei');
+            const startTaipei = dayjs.utc(s.startTime).tz('Asia/Taipei');
+            const endTaipei = dayjs.utc(s.endTime).tz('Asia/Taipei');
             return {
               id: s.id,
               dateISO: s.date,
               startTimeISO: s.startTime,
               endTimeISO: s.endTime,
-              dateLocal: getLocalDateString(date),
-              startTimeLocal: `${start.getHours().toString().padStart(2, '0')}:${start.getMinutes().toString().padStart(2, '0')}`,
-              endTimeLocal: `${end.getHours().toString().padStart(2, '0')}:${end.getMinutes().toString().padStart(2, '0')}`,
+              dateTaipei: dateTaipei.format('YYYY-MM-DD'),
+              startTimeTaipei: startTaipei.format('HH:mm'),
+              endTimeTaipei: endTaipei.format('HH:mm'),
               isAvailable: s.isAvailable,
               booked: s.booked,
             };
@@ -626,31 +627,28 @@ export default function PartnerSchedulePage() {
     const dateStr = getLocalDateString(date);
     const [hour, minute] = timeSlot.split(':');
     
-    // 創建本地時間的 slotStart（使用台灣時區）
+    // 創建本地時間的 slotStart（台灣時區）
     const slotStart = new Date(date);
     slotStart.setHours(Number(hour), Number(minute), 0, 0);
     
     const matched = schedules.find(schedule => {
-      // 將資料庫的 UTC 時間轉換為本地時間進行比較
-      // schedule.date 和 schedule.startTime 都是 ISO 字符串（UTC）
-      const scheduleDate = new Date(schedule.date);
-      const scheduleStart = new Date(schedule.startTime);
+      // schedule.startTime 是 UTC ISO 字符串（例如 "2025-12-24T16:30:00.000Z"）
+      // schedule.date 是 UTC 日期字符串（例如 "2025-12-24"）
+      // 使用 dayjs 將 UTC 時間轉換為台灣時區進行比較
+      const scheduleStartTaipei = dayjs.utc(schedule.startTime).tz('Asia/Taipei');
+      const scheduleDateTaipei = dayjs.utc(schedule.date).tz('Asia/Taipei');
       
-      // 比較日期（本地時區）- 使用 toLocaleDateString 確保一致性
-      const scheduleDateStr = getLocalDateString(scheduleDate);
+      // 比較日期（台灣時區）
+      const scheduleDateStr = scheduleDateTaipei.format('YYYY-MM-DD');
       if (scheduleDateStr !== dateStr) {
         return false;
       }
       
-      // 比較時間（本地時區），允許 1 分鐘的誤差（處理時區轉換和精度問題）
-      const scheduleStartLocal = new Date(scheduleStart);
-      const slotStartLocal = new Date(slotStart);
-      
-      // 獲取本地時間的小時和分鐘
-      const scheduleHour = scheduleStartLocal.getHours();
-      const scheduleMinute = scheduleStartLocal.getMinutes();
-      const slotHour = slotStartLocal.getHours();
-      const slotMinute = slotStartLocal.getMinutes();
+      // 比較時間（台灣時區），允許 1 分鐘的誤差
+      const scheduleHour = scheduleStartTaipei.hour();
+      const scheduleMinute = scheduleStartTaipei.minute();
+      const slotHour = slotStart.getHours();
+      const slotMinute = slotStart.getMinutes();
       
       // 比較小時和分鐘（允許 1 分鐘誤差）
       if (scheduleHour !== slotHour) {
@@ -658,7 +656,26 @@ export default function PartnerSchedulePage() {
       }
       
       const minuteDiff = Math.abs(scheduleMinute - slotMinute);
-      return minuteDiff <= 1; // 允許最多 1 分鐘的誤差
+      const isMatch = minuteDiff <= 1; // 允許最多 1 分鐘的誤差
+      
+      // 調試：記錄匹配結果
+      if (isMatch && process.env.NODE_ENV === 'development') {
+        console.log('✅ getScheduleAtTime 找到匹配:', {
+          scheduleId: schedule.id,
+          searching: { dateStr, timeSlot },
+          scheduleTaipei: {
+            date: scheduleDateStr,
+            time: `${scheduleHour}:${scheduleMinute}`,
+          },
+          slotTaipei: {
+            date: dateStr,
+            time: `${slotHour}:${slotMinute}`,
+          },
+          minuteDiff,
+        });
+      }
+      
+      return isMatch;
     });
     
     return matched;
@@ -754,12 +771,29 @@ export default function PartnerSchedulePage() {
     });
     const deleteList = Object.keys(pendingDelete).map(id => {
       const schedule = schedules.find(s => s.id === id);
-      return schedule ? {
-        date: schedule.date,
-        startTime: schedule.startTime,
-        endTime: schedule.endTime
-      } : null;
+      if (!schedule) {
+        console.warn('⚠️ 找不到要刪除的時段:', id);
+        return null;
+      }
+      if (!schedule.date || !schedule.startTime || !schedule.endTime) {
+        console.error('❌ 時段數據不完整:', { id, schedule });
+        return null;
+      }
+      
+      // ⚠️ 確保所有字段都是字符串格式（API 返回的可能是 Date 對象或字符串）
+      // schedule.date, schedule.startTime, schedule.endTime 都是 ISO 字符串（UTC）
+      const dateStr = typeof schedule.date === 'string' ? schedule.date : new Date(schedule.date).toISOString();
+      const startTimeStr = typeof schedule.startTime === 'string' ? schedule.startTime : new Date(schedule.startTime).toISOString();
+      const endTimeStr = typeof schedule.endTime === 'string' ? schedule.endTime : new Date(schedule.endTime).toISOString();
+      
+      return {
+        date: dateStr,
+        startTime: startTimeStr,
+        endTime: endTimeStr
+      };
     }).filter(Boolean);
+    
+    console.log('🗑️ 準備刪除的時段列表:', deleteList);
     try {
       console.log('💾 開始儲存時段:', { addCount: addList.length, deleteCount: deleteList.length });
       

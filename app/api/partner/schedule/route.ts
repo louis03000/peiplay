@@ -293,7 +293,15 @@ export async function DELETE(request: Request) {
       }
 
       if (!Array.isArray(payload) || payload.length === 0) {
-        return { type: 'INVALID_BODY' } as const
+        console.log('❌ DELETE: 請求格式錯誤 - 不是陣列或為空')
+        return { type: 'INVALID_BODY', reason: '請傳入要刪除的時段陣列' } as const
+      }
+
+      // 驗證每個時段都有必要的字段
+      const invalidSchedules = payload.filter(s => !s.date || !s.startTime || !s.endTime)
+      if (invalidSchedules.length > 0) {
+        console.log('❌ DELETE: 請求格式錯誤 - 缺少必要字段:', invalidSchedules)
+        return { type: 'INVALID_BODY', reason: '時段數據缺少必要字段 (date, startTime, endTime)' } as const
       }
 
       console.log(`🔍 DELETE: 收到 ${payload.length} 個要刪除的時段請求`)
@@ -421,7 +429,9 @@ export async function DELETE(request: Request) {
       case 'NOT_PARTNER':
         return NextResponse.json({ error: '不是夥伴' }, { status: 403 })
       case 'INVALID_BODY':
-        return NextResponse.json({ error: '請傳入要刪除的時段陣列' }, { status: 400 })
+        const errorMsg = result.reason || '請傳入要刪除的時段陣列'
+        console.log('❌ DELETE: 返回 400 錯誤:', errorMsg)
+        return NextResponse.json({ error: errorMsg }, { status: 400 })
       case 'NO_DELETABLE':
         return NextResponse.json({ error: '沒有可刪除的時段（可能已被預約）' }, { status: 409 })
       case 'SUCCESS':
