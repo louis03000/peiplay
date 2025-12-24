@@ -379,7 +379,7 @@ export default function PartnerSchedulePage() {
         const newSchedules = data.schedules || [];
         console.log('🔄 refreshData 更新時段:', {
           count: newSchedules.length,
-          schedules: newSchedules.slice(0, 3).map(s => ({
+          schedules: newSchedules.slice(0, 3).map((s: Schedule) => ({
             id: s.id,
             date: s.date,
             startTime: s.startTime,
