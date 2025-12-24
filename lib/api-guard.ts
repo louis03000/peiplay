@@ -38,14 +38,17 @@ export function createErrorResponse(
     message = error.message || message
     
     // 處理 Prisma 錯誤
-    if ((error as any).code) {
-      code = (error as any).code
+    const errorCode = (error as any).code
+    if (errorCode) {
+      code = errorCode
       
       // 根據錯誤代碼設置狀態碼
-      if (code.startsWith('P2')) {
-        statusCode = 400 // 客戶端錯誤
-      } else if (code.startsWith('P1')) {
-        statusCode = 503 // 服務不可用
+      if (typeof code === 'string') {
+        if (code.startsWith('P2')) {
+          statusCode = 400 // 客戶端錯誤
+        } else if (code.startsWith('P1')) {
+          statusCode = 503 // 服務不可用
+        }
       }
     }
   }
