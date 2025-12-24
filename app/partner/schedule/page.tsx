@@ -326,11 +326,20 @@ export default function PartnerSchedulePage() {
 
   const refreshData = async () => {
     try {
-      const response = await fetch('/api/partner/dashboard');
+      const response = await fetch('/api/partner/dashboard', {
+        cache: 'no-store',
+      });
+      
+      if (!response.ok) {
+        console.error('❌ refreshData 失敗:', response.status, response.statusText);
+        return; // 失敗時不更新狀態，保留現有資料
+      }
+      
       const data = await response.json();
       
-      // 無論 API 是否成功，都嘗試處理數據
+      // 處理數據
       if (data && data.partner) {
+        console.log('✅ refreshData 成功，載入時段數量:', data.schedules?.length || 0);
         // 直接使用 API 返回的狀態（數據庫中的真實狀態）
         let isAvailableNow = !!data.partner.isAvailableNow;
         let availableNowSince = data.partner.availableNowSince;
@@ -644,20 +653,32 @@ export default function PartnerSchedulePage() {
     }).filter(Boolean);
     try {
       if (addList.length > 0) {
-        await fetch('/api/partner/schedule', {
+        const addResponse = await fetch('/api/partner/schedule', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(addList.length === 1 ? addList[0] : addList)
         });
+        
+        if (!addResponse.ok) {
+          const errorData = await addResponse.json().catch(() => ({}));
+          throw new Error(errorData.error || `新增時段失敗 (${addResponse.status})`);
+        }
       }
+      
       if (deleteList.length > 0) {
-        await fetch('/api/partner/schedule', {
+        const deleteResponse = await fetch('/api/partner/schedule', {
           method: 'DELETE',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(deleteList)
         });
+        
+        if (!deleteResponse.ok) {
+          const errorData = await deleteResponse.json().catch(() => ({}));
+          throw new Error(errorData.error || `刪除時段失敗 (${deleteResponse.status})`);
+        }
       }
-      // 立即清空 pending 狀態，提升體感速度
+      
+      // 只有所有操作都成功後，才清空 pending 狀態和刷新資料
       setPendingAdd({});
       setPendingDelete({});
       await refreshData(); // 先 fetch 最新資料再顯示成功提示
@@ -666,7 +687,10 @@ export default function PartnerSchedulePage() {
       // 可選：自動滾到頂部
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (e) {
-      alert('儲存失敗，請重試');
+      console.error('儲存時段失敗:', e);
+      const errorMessage = e instanceof Error ? e.message : '儲存失敗，請重試';
+      alert(errorMessage);
+      // 失敗時不刷新資料，保留 pending 狀態，讓用戶可以重試
     }
     setSaving(false);
   };
