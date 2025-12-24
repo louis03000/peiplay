@@ -621,9 +621,20 @@ export default function PartnerSchedulePage() {
     }), [dateRange.start]
   );
 
-  // 取得 yyyy-mm-dd（本地時區）- 使用useCallback優化
+  // 取得 yyyy-mm-dd（台灣時區）- 使用useCallback優化
   const getLocalDateString = useCallback((date: Date) => {
-    return `${date.getFullYear()}-${(date.getMonth()+1).toString().padStart(2,'0')}-${date.getDate().toString().padStart(2,'0')}`;
+    // ⚠️ 重要：使用台灣時區來格式化日期，確保與 schedulesTaipei 中的日期格式一致
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'Asia/Taipei',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    });
+    const parts = formatter.formatToParts(date);
+    const year = parts.find(p => p.type === 'year')?.value;
+    const month = parts.find(p => p.type === 'month')?.value;
+    const day = parts.find(p => p.type === 'day')?.value;
+    return `${year}-${month}-${day}`;
   }, []);
 
   // ⚠️ 性能優化：預先將所有 schedules 轉換為台灣時區格式，避免在每次調用時重複轉換
@@ -658,7 +669,7 @@ export default function PartnerSchedulePage() {
     });
   }, [schedules]);
 
-  // 獲取指定日期和時間的時段（本地時區比對）- 使用useCallback優化
+  // 獲取指定日期和時間的時段（台灣時區比對）- 使用useCallback優化
   const getScheduleAtTime = useCallback((date: Date, timeSlot: string) => {
     const dateStr = getLocalDateString(date);
     const [hour, minute] = timeSlot.split(':');
@@ -681,6 +692,14 @@ export default function PartnerSchedulePage() {
       return minuteDiff <= 1; // 允許最多 1 分鐘的誤差
     });
     
+    // 調試：如果沒有匹配到，記錄一下
+    if (!matched && schedulesTaipei.length > 0) {
+      const similarSchedules = schedulesTaipei.filter(s => s._taipei.date === dateStr);
+      if (similarSchedules.length > 0) {
+        console.log(`🔍 未匹配到時段: ${dateStr} ${timeSlot}, 但同一天有 ${similarSchedules.length} 個時段:`, similarSchedules.map(s => `${s._taipei.hour.toString().padStart(2, '0')}:${s._taipei.minute.toString().padStart(2, '0')}`));
+      }
+    }
+    
     return matched ? { ...matched, _taipei: undefined } : undefined; // 移除內部字段
   }, [schedulesTaipei, getLocalDateString]);
 
@@ -691,13 +710,24 @@ export default function PartnerSchedulePage() {
     
     console.log('🔄 重新計算 cellStatesMap，schedules 數量:', schedules.length, 'pendingAdd 數量:', Object.keys(pendingAdd).length, 'pendingDelete 數量:', Object.keys(pendingDelete).length);
     
+    // 調試：打印 schedulesTaipei 的前幾個時段
+    if (schedulesTaipei.length > 0) {
+      console.log('🔍 schedulesTaipei 前3個時段:', schedulesTaipei.slice(0, 3).map(s => ({
+        id: s.id,
+        taipeiDate: s._taipei.date,
+        taipeiTime: `${s._taipei.hour.toString().padStart(2, '0')}:${s._taipei.minute.toString().padStart(2, '0')}`,
+        booked: s.booked,
+      })));
+    }
+    
     dateSlots.forEach(date => {
+      const dateStr = getLocalDateString(date);
       timeSlots.forEach(timeSlot => {
         const [hour, minute] = timeSlot.split(':');
         const timeDate = new Date(date);
         timeDate.setHours(Number(hour), Number(minute), 0, 0);
         
-        const key = `${getLocalDateString(date)}_${timeSlot}`;
+        const key = `${dateStr}_${timeSlot}`;
         
         if (timeDate.getTime() <= now.getTime()) {
           map.set(key, 'past');
@@ -707,6 +737,7 @@ export default function PartnerSchedulePage() {
         const schedule = getScheduleAtTime(date, timeSlot);
         if (schedule) {
           // 時段已存在於數據庫中
+          console.log(`✅ 找到已存在的時段: ${key}, schedule.id: ${schedule.id}, booked: ${schedule.booked}`);
           if (schedule.booked) {
             map.set(key, 'booked');
           } else if (pendingDelete[schedule.id]) {
