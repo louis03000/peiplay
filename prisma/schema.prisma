@@ -211,7 +211,7 @@ model Booking {
   partner                   Partner             @relation("BookingPartner", fields: [partnerId], references: [id])
   groupBooking              GroupBooking?       @relation(fields: [groupBookingId], references: [id])
   multiPlayerBooking        MultiPlayerBooking? @relation(fields: [multiPlayerBookingId], references: [id])
-  schedule                  Schedule            @relation(fields: [scheduleId], references: [id])
+  schedule                  Schedule            @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
   orders                    Order[]
   referralEarnings          ReferralEarning[]
   reviews                   Review[]

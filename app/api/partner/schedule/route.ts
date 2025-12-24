@@ -429,9 +429,20 @@ export async function DELETE(request: Request) {
       }
 
       const ids = deletable.map((s) => s.id)
-      const deleted = await client.schedule.deleteMany({ where: { id: { in: ids } } })
-
-      return { type: 'SUCCESS', count: deleted.count }
+      
+      // 使用 deleteMany 批量删除，onDelete: Cascade 会自动处理关联的 booking
+      try {
+        const deleted = await client.schedule.deleteMany({ where: { id: { in: ids } } })
+        console.log(`✅ DELETE: 成功刪除 ${deleted.count} 個時段`)
+        return { type: 'SUCCESS', count: deleted.count }
+      } catch (deleteError: any) {
+        // 如果删除失败，可能是外键约束问题
+        console.error('❌ DELETE: 刪除時段失敗:', deleteError)
+        if (deleteError.code === 'P2003' || deleteError.message?.includes('Foreign key constraint')) {
+          return { type: 'NO_DELETABLE', reason: '時段已被預約，無法刪除' } as const
+        }
+        throw deleteError
+      }
     }, 'partner:schedule:delete')
 
     switch (result.type) {

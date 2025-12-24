@@ -1037,6 +1037,23 @@ export default function PartnerSchedulePage() {
         console.log('📥 刪除響應:', { status: deleteResponse.status, ok: deleteResponse.ok, result: deleteResult });
         
         if (!deleteResponse.ok) {
+          // 如果是 409 冲突（已被预约），显示友好消息
+          if (deleteResponse.status === 409) {
+            const errorMsg = deleteResult.error || '時段已被預約，無法刪除';
+            alert(errorMsg);
+            // 不抛出错误，让用户可以继续操作其他时段
+            // 但需要刷新数据以更新状态
+            await refreshData();
+            setSaving(false);
+            return;
+          }
+          
+          // 如果是 400 错误，可能是数据格式问题
+          if (deleteResponse.status === 400) {
+            console.error('❌ 刪除請求格式錯誤:', deleteResult);
+            throw new Error(deleteResult.error || `刪除時段失敗：請求格式錯誤 (${deleteResponse.status})`);
+          }
+          
           throw new Error(deleteResult.error || `刪除時段失敗 (${deleteResponse.status})`);
         }
         
