@@ -30,26 +30,35 @@ export async function POST(request: Request) {
 
         console.log(`🔍 檢查 ${schedules.length} 個時段是否重複...`)
         
-        // 先查詢該夥伴在相關日期範圍內的所有時段
-        // ⚠️ API 層：直接使用 Date，不做時區轉換
-        const dateRange = schedules.reduce((acc, s) => {
-          const date = new Date(s.date)
-          if (!acc.min || date < acc.min) acc.min = date
-          if (!acc.max || date > acc.max) acc.max = date
+        // ⚠️ 查詢該夥伴的所有時段，檢查時間重疊 - 不依賴 date 字段
+        // 因為台灣時間轉換為 UTC 可能會跨日，date 字段可能不一致但時間實際重疊
+        // 使用 startTime 的日期範圍來查詢
+        const timeRange = schedules.reduce((acc, s) => {
+          const start = new Date(s.startTime)
+          if (!acc.min || start < acc.min) acc.min = start
+          if (!acc.max || start > acc.max) acc.max = start
           return acc
         }, { min: null as Date | null, max: null as Date | null })
 
-        if (!dateRange.min || !dateRange.max) {
+        if (!timeRange.min || !timeRange.max) {
           return { type: 'INVALID_BODY' } as const
         }
 
-        // 查詢該日期範圍內的所有時段
+        // 擴展查詢範圍，包括前一天和後一天（因為跨日時段）
+        const queryStart = new Date(timeRange.min)
+        queryStart.setUTCHours(0, 0, 0, 0)
+        queryStart.setUTCDate(queryStart.getUTCDate() - 1)
+        const queryEnd = new Date(timeRange.max)
+        queryEnd.setUTCHours(23, 59, 59, 999)
+        queryEnd.setUTCDate(queryEnd.getUTCDate() + 1)
+
+        // 查詢該時間範圍內的所有時段（使用 startTime 而不是 date）
         const allSchedules = await client.schedule.findMany({
           where: {
             partnerId: partner.id,
-            date: {
-              gte: dateRange.min,
-              lte: dateRange.max,
+            startTime: {
+              gte: queryStart,
+              lte: queryEnd,
             },
           },
           select: {
@@ -60,47 +69,40 @@ export async function POST(request: Request) {
           },
         })
 
-        console.log(`🔍 找到 ${allSchedules.length} 個現有時段在日期範圍內`)
+        console.log(`🔍 找到 ${allSchedules.length} 個現有時段在時間範圍內`)
 
         // 檢查是否有重複（完全匹配或時間重疊）
         // ⚠️ API 層：直接使用 Date，不做時區轉換，所有時間都是 UTC
+        // ⚠️ 重要：不依賴 date 字段比較，直接比較 startTime/endTime 的時間重疊
+        // 因為台灣時間轉換為 UTC 可能會跨日，導致 date 字段不一致但時間實際重疊
         const duplicates: any[] = []
         for (const newSchedule of schedules) {
-          const newDate = new Date(newSchedule.date)
           const newStart = new Date(newSchedule.startTime)
           const newEnd = new Date(newSchedule.endTime)
 
           console.log(`🔍 POST: 檢查新時段 (UTC):`, {
             original: { date: newSchedule.date, startTime: newSchedule.startTime, endTime: newSchedule.endTime },
             parsed: { 
-              date: newDate.toISOString(), 
               startTime: newStart.toISOString(), 
               endTime: newEnd.toISOString() 
             },
           })
 
           for (const existing of allSchedules) {
-            // 檢查是否同一天（比較 UTC 日期）
-            const existingDate = new Date(existing.date)
-            existingDate.setUTCHours(0, 0, 0, 0)
-            const newDateOnly = new Date(newDate)
-            newDateOnly.setUTCHours(0, 0, 0, 0)
+            // ⚠️ 直接比較時間重疊，不依賴 date 字段
+            // 因為台灣時間轉換為 UTC 可能會跨日，date 字段可能不一致但時間實際重疊
+            const existingStart = new Date(existing.startTime)
+            const existingEnd = new Date(existing.endTime)
             
-            if (existingDate.getTime() === newDateOnly.getTime()) {
-              // 同一天，檢查時間是否重疊（UTC 時間比較）
-              const existingStart = new Date(existing.startTime)
-              const existingEnd = new Date(existing.endTime)
-              
-              // 時間重疊：新時段的開始時間 < 現有時段的結束時間 且 新時段的結束時間 > 現有時段的開始時間
-              // ⚠️ 所有時間都是 UTC，直接比較
-              if (newStart.getTime() < existingEnd.getTime() && newEnd.getTime() > existingStart.getTime()) {
-                duplicates.push({
-                  existing,
-                  new: { date: newSchedule.date, startTime: newSchedule.startTime, endTime: newSchedule.endTime },
-                })
-                console.log(`❌ 發現重複時段: 現有 ${existing.id} (${existing.date.toISOString()} ${existingStart.toISOString()}-${existingEnd.toISOString()}) vs 新增 (${newDate.toISOString()} ${newStart.toISOString()}-${newEnd.toISOString()})`)
-                break
-              }
+            // 時間重疊：新時段的開始時間 < 現有時段的結束時間 且 新時段的結束時間 > 現有時段的開始時間
+            // ⚠️ 所有時間都是 UTC，直接比較
+            if (newStart.getTime() < existingEnd.getTime() && newEnd.getTime() > existingStart.getTime()) {
+              duplicates.push({
+                existing,
+                new: { date: newSchedule.date, startTime: newSchedule.startTime, endTime: newSchedule.endTime },
+              })
+              console.log(`❌ 發現重複時段: 現有 ${existing.id} (date: ${existing.date.toISOString()}, ${existingStart.toISOString()}-${existingEnd.toISOString()}) vs 新增 (date: ${newSchedule.date}, ${newStart.toISOString()}-${newEnd.toISOString()})`)
+              break
             }
           }
         }
@@ -134,20 +136,27 @@ export async function POST(request: Request) {
       const newStart = new Date(startTime)
       const newEnd = new Date(endTime)
 
-      console.log(`🔍 檢查單一時段是否重複 (UTC): ${newDate.toISOString()} ${newStart.toISOString()}-${newEnd.toISOString()}`)
+      console.log(`🔍 檢查單一時段是否重複 (UTC): date=${newDate.toISOString()}, ${newStart.toISOString()}-${newEnd.toISOString()}`)
 
-      // ⚠️ 查詢同一天的所有時段，檢查時間重疊 - 使用 UTC
-      const dayStart = new Date(newDate)
+      // ⚠️ 查詢該夥伴的所有時段，檢查時間重疊 - 不依賴 date 字段
+      // 因為台灣時間轉換為 UTC 可能會跨日，date 字段可能不一致但時間實際重疊
+      // 使用 startTime 的日期範圍來查詢，但最終比較時只比較時間重疊
+      const dayStart = new Date(newStart)
       dayStart.setUTCHours(0, 0, 0, 0)
-      const dayEnd = new Date(newDate)
+      const dayEnd = new Date(newStart)
       dayEnd.setUTCHours(23, 59, 59, 999)
+      // 也檢查前一天和後一天，因為跨日時段可能在前一天或後一天
+      const prevDayStart = new Date(dayStart)
+      prevDayStart.setUTCDate(prevDayStart.getUTCDate() - 1)
+      const nextDayEnd = new Date(dayEnd)
+      nextDayEnd.setUTCDate(nextDayEnd.getUTCDate() + 1)
 
       const existingSchedules = await client.schedule.findMany({
         where: {
           partnerId: partner.id,
-          date: {
-            gte: dayStart,
-            lte: dayEnd,
+          startTime: {
+            gte: prevDayStart,
+            lte: nextDayEnd,
           },
         },
         select: {
@@ -158,16 +167,16 @@ export async function POST(request: Request) {
         },
       })
 
-      console.log(`🔍 找到 ${existingSchedules.length} 個同一天的現有時段`)
+      console.log(`🔍 找到 ${existingSchedules.length} 個相關時間範圍的現有時段`)
 
-      // 檢查是否有時間重疊
+      // 檢查是否有時間重疊（不依賴 date 字段）
       for (const existing of existingSchedules) {
         const existingStart = new Date(existing.startTime)
         const existingEnd = new Date(existing.endTime)
         
         // 時間重疊檢查
         if (newStart.getTime() < existingEnd.getTime() && newEnd.getTime() > existingStart.getTime()) {
-          console.log(`❌ 發現重複時段: 現有 ${existing.id} (${existingStart.toISOString()}-${existingEnd.toISOString()}) vs 新增 (${newStart.toISOString()}-${newEnd.toISOString()})`)
+          console.log(`❌ 發現重複時段: 現有 ${existing.id} (date: ${existing.date.toISOString()}, ${existingStart.toISOString()}-${existingEnd.toISOString()}) vs 新增 (date: ${newDate.toISOString()}, ${newStart.toISOString()}-${newEnd.toISOString()})`)
           return { type: 'DUPLICATED', details: [existing] } as const
         }
       }
