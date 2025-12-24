@@ -1,4 +1,4 @@
-import { prisma } from './prisma'
+import { prisma } from './db/client'
 
 // 資料庫操作的安全包裝器
 export class DatabaseManager {
@@ -12,7 +12,8 @@ export class DatabaseManager {
       console.error('Database connection failed:', error)
       return { success: false, error: error instanceof Error ? error.message : 'Unknown error' }
     } finally {
-      await prisma.$disconnect()
+      // ⚠️ 注意：在 Serverless 環境中不應 disconnect
+      // 只有在應用關閉時才應 disconnect
     }
   }
 

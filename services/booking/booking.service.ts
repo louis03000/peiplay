@@ -10,7 +10,9 @@
 
 import { PrismaClient, Prisma, BookingStatus } from '@prisma/client'
 import { prisma } from '@/lib/db/client'
-import { taipeiToUTC, fromISOString } from '@/lib/time'
+import { formatTaipeiLocale } from '@/lib/time-utils'
+import { checkTimeConflict } from '@/lib/time-conflict'
+import { sendBookingNotificationEmail } from '@/lib/email'
 import type { 
   CreateBookingInput, 
   CancelBookingInput, 
@@ -40,17 +42,17 @@ export async function createBooking(
   try {
     // 在 transaction 內執行所有操作
     const result = await prisma.$transaction(async (tx) => {
-      // 1. 驗證客戶存在
-      const customer = await tx.customer.findUnique({
+      // 1. 驗證客戶存在（稍後會再次查詢以獲取完整資訊）
+      const customerCheck = await tx.customer.findUnique({
         where: { id: input.customerId },
         select: { id: true },
       })
 
-      if (!customer) {
+      if (!customerCheck) {
         return { type: 'NO_CUSTOMER' } as const
       }
 
-      // 2. 批量查詢時段
+      // 2. 批量查詢時段（包含夥伴和客戶資訊）
       const schedules = await tx.schedule.findMany({
         where: { id: { in: input.scheduleIds } },
         select: {
@@ -61,6 +63,12 @@ export async function createBooking(
           partner: {
             select: {
               halfHourlyRate: true,
+              user: {
+                select: {
+                  email: true,
+                  name: true,
+                },
+              },
             },
           },
         },
@@ -87,7 +95,58 @@ export async function createBooking(
         }
       }
 
-      // 4. 創建預約
+      // 4. 檢查時間衝突（為每個夥伴檢查）
+      const partnerTimeChecks = new Map<string, Array<{ startTime: Date; endTime: Date; scheduleId: string }>>()
+      for (const schedule of schedules) {
+        if (!partnerTimeChecks.has(schedule.partnerId)) {
+          partnerTimeChecks.set(schedule.partnerId, [])
+        }
+        partnerTimeChecks.get(schedule.partnerId)!.push({
+          startTime: schedule.startTime,
+          endTime: schedule.endTime,
+          scheduleId: schedule.id,
+        })
+      }
+
+      for (const [partnerId, timeRanges] of partnerTimeChecks) {
+        for (const timeRange of timeRanges) {
+          const conflict = await checkTimeConflict(
+            partnerId,
+            timeRange.startTime,
+            timeRange.endTime,
+            undefined,
+            tx
+          )
+          if (conflict.hasConflict) {
+            const conflictTimes = conflict.conflicts
+              .map((c) => `${formatTaipeiLocale(new Date(c.startTime))} - ${formatTaipeiLocale(new Date(c.endTime))}`)
+              .join(', ')
+            return { 
+              type: 'TIME_CONFLICT',
+              message: `時間衝突！該夥伴在以下時段已有預約：${conflictTimes}`,
+            } as const
+          }
+        }
+      }
+
+      // 5. 獲取客戶資訊（用於 email）
+      const customer = await tx.customer.findUnique({
+        where: { id: input.customerId },
+        select: {
+          user: {
+            select: {
+              name: true,
+              email: true,
+            },
+          },
+        },
+      })
+
+      if (!customer) {
+        return { type: 'NO_CUSTOMER' } as const
+      }
+
+      // 6. 創建預約
       const createdBookings = await Promise.all(
         schedules.map(async (schedule) => {
           const durationHours =
@@ -107,7 +166,23 @@ export async function createBooking(
         })
       )
 
-      return { type: 'SUCCESS', bookings: createdBookings } as const
+      // 7. 準備 email 通知資料
+      const emailEntries = createdBookings.map((booking, index) => {
+        const schedule = schedules[index]
+        return {
+          bookingId: booking.id,
+          partnerEmail: schedule.partner.user.email,
+          partnerName: schedule.partner.user.name || '夥伴',
+          customerName: customer.user.name || '客戶',
+          customerEmail: customer.user.email,
+          startTime: schedule.startTime,
+          endTime: schedule.endTime,
+          durationHours: (schedule.endTime.getTime() - schedule.startTime.getTime()) / (1000 * 60 * 60),
+          totalCost: (schedule.endTime.getTime() - schedule.startTime.getTime()) / (1000 * 60 * 60) * schedule.partner.halfHourlyRate * 2,
+        }
+      })
+
+      return { type: 'SUCCESS', bookings: createdBookings, emailEntries, schedules } as const
     }, {
       maxWait: 10000,
       timeout: 20000,
@@ -139,18 +214,51 @@ export async function createBooking(
       }
     }
 
+    if (result.type === 'TIME_CONFLICT') {
+      return {
+        success: false,
+        error: {
+          type: 'CONFLICT',
+          message: result.message,
+        },
+      }
+    }
+
+    // 發送 email 通知（非阻塞）
+    for (const entry of result.emailEntries) {
+      sendBookingNotificationEmail(
+        entry.partnerEmail,
+        entry.partnerName,
+        entry.customerName,
+        {
+          bookingId: entry.bookingId,
+          startTime: entry.startTime.toISOString(),
+          endTime: entry.endTime.toISOString(),
+          duration: entry.durationHours,
+          totalCost: entry.totalCost,
+          customerName: entry.customerName,
+          customerEmail: entry.customerEmail,
+        }
+      ).catch((error) => {
+        console.error('❌ Email 發送失敗:', error)
+      })
+    }
+
     // 轉換為 DTO
-    const dtos: BookingDTO[] = result.bookings.map((booking) => ({
-      id: booking.id,
-      status: booking.status,
-      customerId: booking.customerId,
-      partnerId: booking.partnerId,
-      scheduleId: booking.scheduleId,
-      startTime: booking.createdAt.toISOString(), // 實際應從 schedule 獲取
-      endTime: booking.updatedAt.toISOString(), // 實際應從 schedule 獲取
-      createdAt: booking.createdAt.toISOString(),
-      updatedAt: booking.updatedAt.toISOString(),
-    }))
+    const dtos: BookingDTO[] = result.bookings.map((booking, index) => {
+      const schedule = result.schedules[index]
+      return {
+        id: booking.id,
+        status: booking.status,
+        customerId: booking.customerId,
+        partnerId: booking.partnerId,
+        scheduleId: booking.scheduleId,
+        startTime: schedule.startTime.toISOString(),
+        endTime: schedule.endTime.toISOString(),
+        createdAt: booking.createdAt.toISOString(),
+        updatedAt: booking.updatedAt.toISOString(),
+      }
+    })
 
     return { success: true, data: dtos }
   } catch (error: any) {

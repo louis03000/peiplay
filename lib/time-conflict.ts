@@ -1,5 +1,5 @@
 import type { PrismaClient, Prisma } from '@prisma/client'
-import { prisma as defaultPrisma } from '@/lib/prisma'
+import { prisma as defaultPrisma } from '@/lib/db/client'
 import { getNowTaipei } from '@/lib/time-utils'
 
 // 支持普通客户端和事务客户端

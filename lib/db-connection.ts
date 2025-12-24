@@ -1,4 +1,9 @@
+/**
+ * @deprecated 此檔案已棄用，請使用 @/lib/db/client 代替
+ * 此檔案僅保留用於向後兼容，將在未來版本中移除
+ */
 import { PrismaClient } from '@prisma/client'
+import { prisma as newPrisma } from './db/client'
 
 // 連接池配置
 const CONNECTION_POOL_CONFIG = {
