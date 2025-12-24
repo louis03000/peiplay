@@ -105,14 +105,21 @@ export async function GET(
 
         // 在應用層過濾：只返回沒有預約或預約狀態是終止狀態的時段
         const terminalStatusSet = new Set(TERMINAL_BOOKING_STATUSES);
-        return allSchedules.filter((schedule) => {
+        const filteredSchedules = allSchedules.filter((schedule) => {
           // 沒有預約，可以選擇
           if (!schedule.bookings) {
             return true;
           }
           // 有預約，檢查狀態是否為終止狀態
-          return terminalStatusSet.has(schedule.bookings.status);
+          const isTerminal = terminalStatusSet.has(schedule.bookings.status);
+          if (!isTerminal) {
+            console.log(`🚫 時段 ${schedule.id} 有活躍預約 (狀態: ${schedule.bookings.status})，已過濾`);
+          }
+          return isTerminal;
         });
+        
+        console.log(`✅ 查詢到 ${allSchedules.length} 個時段，過濾後剩餘 ${filteredSchedules.length} 個可用時段`);
+        return filteredSchedules;
       },
       'partners:schedules'
     );

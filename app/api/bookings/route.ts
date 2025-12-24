@@ -223,14 +223,18 @@ export async function POST(request: Request) {
                 const target = createError?.meta?.target as string[] || [];
                 if (target.includes('scheduleId')) {
                   // 唯一約束違反：可能是競態條件或時段已被預約
+                  console.log(`⚠️ 時段 ${schedule.id} 唯一約束違反，檢查現有預約狀態...`);
+                  
                   // 再次查詢該時段的預約狀態，確認是否為活躍狀態
                   try {
                     const conflictingBooking = await tx.booking.findUnique({
                       where: { scheduleId: schedule.id },
-                      select: { id: true, status: true },
+                      select: { id: true, status: true, createdAt: true },
                     });
                     
                     if (conflictingBooking) {
+                      console.log(`🔍 找到衝突預約: ${conflictingBooking.id}, 狀態: ${conflictingBooking.status}, 創建時間: ${conflictingBooking.createdAt}`);
+                      
                       const terminalStatuses = new Set<BookingStatus>([
                         BookingStatus.CANCELLED,
                         BookingStatus.COMPLETED,
@@ -241,23 +245,30 @@ export async function POST(request: Request) {
                       
                       if (!terminalStatuses.has(conflictingBooking.status)) {
                         // 預約是活躍狀態，確實衝突
+                        console.error(`❌ 時段 ${schedule.id} 有活躍預約 ${conflictingBooking.id} (狀態: ${conflictingBooking.status})`);
                         throw new Error(`時段已被預約，請選擇其他時段`);
                       } else {
                         // 預約是終止狀態，但由於唯一約束無法創建新預約
                         // 這可能是資料不一致的情況，記錄並拋出錯誤
-                        console.error(`⚠️ 時段 ${schedule.id} 有終止狀態的預約，但無法創建新預約`);
+                        console.error(`⚠️ 時段 ${schedule.id} 有終止狀態的預約 ${conflictingBooking.id} (狀態: ${conflictingBooking.status})，但無法創建新預約`);
                         throw new Error(`時段暫時無法預約，請稍後再試或選擇其他時段`);
                       }
+                    } else {
+                      // 查詢不到預約，但唯一約束違反，這可能是競態條件
+                      console.error(`⚠️ 時段 ${schedule.id} 唯一約束違反，但查詢不到預約（可能是競態條件）`);
+                      throw new Error(`時段已被其他用戶預約，請重新選擇其他時段`);
                     }
                   } catch (checkError: any) {
                     // 如果檢查失敗，直接拋出原始錯誤訊息
-                    if (checkError.message.includes('時段已被預約') || checkError.message.includes('時段暫時無法預約')) {
+                    if (checkError.message.includes('時段已被預約') || 
+                        checkError.message.includes('時段暫時無法預約') ||
+                        checkError.message.includes('時段已被其他用戶預約')) {
                       throw checkError;
                     }
+                    // 其他錯誤，記錄並拋出
+                    console.error(`❌ 檢查衝突預約時發生錯誤:`, checkError);
+                    throw new Error(`時段已被預約，請選擇其他時段`);
                   }
-                  
-                  // 如果查詢失敗，使用預設錯誤訊息
-                  throw new Error(`時段已被預約，請選擇其他時段`);
                 }
                 throw new Error(`資料衝突: ${target.join(', ')}`);
               }

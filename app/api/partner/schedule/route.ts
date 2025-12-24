@@ -28,19 +28,73 @@ export async function POST(request: Request) {
           return { type: 'INVALID_BODY' } as const
         }
 
-        const existing = await client.schedule.findMany({
+        console.log(`🔍 檢查 ${schedules.length} 個時段是否重複...`)
+        
+        // 先查詢該夥伴在相關日期範圍內的所有時段
+        const dateRange = schedules.reduce((acc, s) => {
+          const date = parseTaipeiDateTime(s.date)
+          if (!acc.min || date < acc.min) acc.min = date
+          if (!acc.max || date > acc.max) acc.max = date
+          return acc
+        }, { min: null as Date | null, max: null as Date | null })
+
+        if (!dateRange.min || !dateRange.max) {
+          return { type: 'INVALID_BODY' } as const
+        }
+
+        // 查詢該日期範圍內的所有時段
+        const allSchedules = await client.schedule.findMany({
           where: {
             partnerId: partner.id,
-            OR: schedules.map((s) => ({
-              date: parseTaipeiDateTime(s.date),
-              startTime: parseTaipeiDateTime(s.startTime),
-              endTime: parseTaipeiDateTime(s.endTime),
-            })),
+            date: {
+              gte: dateRange.min,
+              lte: dateRange.max,
+            },
+          },
+          select: {
+            id: true,
+            date: true,
+            startTime: true,
+            endTime: true,
           },
         })
 
-        if (existing.length > 0) {
-          return { type: 'DUPLICATED', details: existing } as const
+        console.log(`🔍 找到 ${allSchedules.length} 個現有時段在日期範圍內`)
+
+        // 檢查是否有重複（完全匹配或時間重疊）
+        const duplicates: any[] = []
+        for (const newSchedule of schedules) {
+          const newDate = parseTaipeiDateTime(newSchedule.date)
+          const newStart = parseTaipeiDateTime(newSchedule.startTime)
+          const newEnd = parseTaipeiDateTime(newSchedule.endTime)
+
+          for (const existing of allSchedules) {
+            // 檢查是否同一天
+            const existingDate = new Date(existing.date)
+            existingDate.setHours(0, 0, 0, 0)
+            const newDateOnly = new Date(newDate)
+            newDateOnly.setHours(0, 0, 0, 0)
+            
+            if (existingDate.getTime() === newDateOnly.getTime()) {
+              // 同一天，檢查時間是否重疊
+              const existingStart = new Date(existing.startTime)
+              const existingEnd = new Date(existing.endTime)
+              
+              // 時間重疊：新時段的開始時間 < 現有時段的結束時間 且 新時段的結束時間 > 現有時段的開始時間
+              if (newStart.getTime() < existingEnd.getTime() && newEnd.getTime() > existingStart.getTime()) {
+                duplicates.push({
+                  existing,
+                  new: { date: newSchedule.date, startTime: newSchedule.startTime, endTime: newSchedule.endTime },
+                })
+                console.log(`❌ 發現重複時段: 現有 ${existing.id} (${existing.date.toISOString()} ${existingStart.toISOString()}-${existingEnd.toISOString()}) vs 新增 (${newDate.toISOString()} ${newStart.toISOString()}-${newEnd.toISOString()})`)
+                break
+              }
+            }
+          }
+        }
+
+        if (duplicates.length > 0) {
+          return { type: 'DUPLICATED', details: duplicates } as const
         }
 
         const created = await client.schedule.createMany({
@@ -62,17 +116,46 @@ export async function POST(request: Request) {
         return { type: 'INVALID_BODY' } as const
       }
 
-      const existingSchedule = await client.schedule.findFirst({
+      const newDate = parseTaipeiDateTime(date)
+      const newStart = parseTaipeiDateTime(startTime)
+      const newEnd = parseTaipeiDateTime(endTime)
+
+      console.log(`🔍 檢查單一時段是否重複: ${newDate.toISOString()} ${newStart.toISOString()}-${newEnd.toISOString()}`)
+
+      // 查詢同一天的所有時段，檢查時間重疊
+      const dayStart = new Date(newDate)
+      dayStart.setHours(0, 0, 0, 0)
+      const dayEnd = new Date(newDate)
+      dayEnd.setHours(23, 59, 59, 999)
+
+      const existingSchedules = await client.schedule.findMany({
         where: {
           partnerId: partner.id,
-          date: parseTaipeiDateTime(date),
-          startTime: parseTaipeiDateTime(startTime),
-          endTime: parseTaipeiDateTime(endTime),
+          date: {
+            gte: dayStart,
+            lte: dayEnd,
+          },
+        },
+        select: {
+          id: true,
+          date: true,
+          startTime: true,
+          endTime: true,
         },
       })
 
-      if (existingSchedule) {
-        return { type: 'DUPLICATED' } as const
+      console.log(`🔍 找到 ${existingSchedules.length} 個同一天的現有時段`)
+
+      // 檢查是否有時間重疊
+      for (const existing of existingSchedules) {
+        const existingStart = new Date(existing.startTime)
+        const existingEnd = new Date(existing.endTime)
+        
+        // 時間重疊檢查
+        if (newStart.getTime() < existingEnd.getTime() && newEnd.getTime() > existingStart.getTime()) {
+          console.log(`❌ 發現重複時段: 現有 ${existing.id} (${existingStart.toISOString()}-${existingEnd.toISOString()}) vs 新增 (${newStart.toISOString()}-${newEnd.toISOString()})`)
+          return { type: 'DUPLICATED', details: [existing] } as const
+        }
       }
 
       const schedule = await client.schedule.create({
@@ -94,7 +177,15 @@ export async function POST(request: Request) {
       case 'INVALID_BODY':
         return NextResponse.json({ error: '沒有有效的時段數據' }, { status: 400 })
       case 'DUPLICATED':
-        return NextResponse.json({ error: '該時段已存在，不可重複新增', details: result.details }, { status: 409 })
+        const errorMessage = result.details && Array.isArray(result.details) && result.details.length > 0
+          ? `以下時段與現有時段重疊，無法新增：${result.details.map((d: any) => {
+              const existing = d.existing || d
+              const existingStart = new Date(existing.startTime)
+              const existingEnd = new Date(existing.endTime)
+              return `${existingStart.toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' })}-${existingEnd.toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' })}`
+            }).join(', ')}`
+          : '該時段已存在或與現有時段重疊，不可重複新增'
+        return NextResponse.json({ error: errorMessage, details: result.details }, { status: 409 })
       case 'BATCH_SUCCESS':
         return NextResponse.json({ success: true, count: result.count })
       case 'SINGLE_SUCCESS':
