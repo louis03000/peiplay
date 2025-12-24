@@ -1444,14 +1444,14 @@ export default function PartnerSchedulePage() {
                 {dateSlots.map((date) => {
                   const dateKey = getLocalDateString(date);
                   return (
-                  <div key={dateKey} className="flex-1 min-w-[90px] bg-gray-50 border-r border-gray-200 p-1 text-center">
-                    <div className="text-xs sm:text-sm font-medium text-gray-800">
-                      <div className="leading-tight">
-                        <div className="font-bold">{date.getDate()}</div>
-                        <div className="text-xs text-gray-600">{['日', '一', '二', '三', '四', '五', '六'][date.getDay()]}</div>
+                    <div key={dateKey} className="flex-1 min-w-[90px] bg-gray-50 border-r border-gray-200 p-1 text-center">
+                      <div className="text-xs sm:text-sm font-medium text-gray-800">
+                        <div className="leading-tight">
+                          <div className="font-bold">{date.getDate()}</div>
+                          <div className="text-xs text-gray-600">{['日', '一', '二', '三', '四', '五', '六'][date.getDay()]}</div>
+                        </div>
                       </div>
                     </div>
-                  </div>
                   );
                 })}
               </div>
@@ -1466,28 +1466,29 @@ export default function PartnerSchedulePage() {
                 {dateSlots.map((date) => {
                   const dateKey = getLocalDateString(date);
                   return (
-                  <div key={dateKey} className="flex-1 min-w-[90px] border-r border-gray-200">
-                    {timeSlots.map((time) => {
-                      const cellKey = `${dateKey}_${time}`;
-                      const state = getCellState(date, time);
-                      return (
-                        <div
-                          key={cellKey}
-                          className={`h-8 border-b border-gray-100 transition-colors ${getCellStyle(state)}`}
-                          onClick={() => ['empty', 'toAdd', 'saved', 'toDelete'].includes(state) && handleCellClick(date, time)}
-                          title={
-                            state === 'past' ? '過去的時間無法操作' :
-                            state === 'empty' ? '點擊新增時段' :
-                            state === 'toAdd' ? '點擊取消新增' :
-                            state === 'saved' ? '點擊標記刪除' :
-                            state === 'toDelete' ? '點擊取消刪除' :
-                            state === 'booked' ? '已預約的時段無法操作' : ''
-                          }
-                        />
-                      );
-                    })}
-                  </div>
-                ))}
+                    <div key={dateKey} className="flex-1 min-w-[90px] border-r border-gray-200">
+                      {timeSlots.map((time) => {
+                        const cellKey = `${dateKey}_${time}`;
+                        const state = getCellState(date, time);
+                        return (
+                          <div
+                            key={cellKey}
+                            className={`h-8 border-b border-gray-100 transition-colors ${getCellStyle(state)}`}
+                            onClick={() => ['empty', 'toAdd', 'saved', 'toDelete'].includes(state) && handleCellClick(date, time)}
+                            title={
+                              state === 'past' ? '過去的時間無法操作' :
+                              state === 'empty' ? '點擊新增時段' :
+                              state === 'toAdd' ? '點擊取消新增' :
+                              state === 'saved' ? '點擊標記刪除' :
+                              state === 'toDelete' ? '點擊取消刪除' :
+                              state === 'booked' ? '已預約的時段無法操作' : ''
+                            }
+                          />
+                        );
+                      })}
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </div>
