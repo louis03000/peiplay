@@ -82,11 +82,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: '時間格式錯誤，應為 HH:mm' }, { status: 400 })
     }
 
-    // 重要：前端傳來的是台灣本地時間（UTC+8）
-    // 使用 dayjs 正確將台灣時間轉換為 UTC 時間戳（與搜索 API 一致）
+    // ⚠️ API 層：前端發送的是台灣時間字符串，需要轉換為 UTC 存儲
+    // 但之後所有比較都用 UTC，不再轉換
     const dateTimeString = `${normalizedDate} ${startTimeStr}`
     const endDateTimeString = `${normalizedDate} ${endTimeStr}`
     
+    // 將台灣時間轉換為 UTC（僅此一次）
     const startDateTimeUTC = dayjs
       .tz(dateTimeString, 'Asia/Taipei')
       .utc()
@@ -102,12 +103,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: '時間對象創建失敗' }, { status: 400 })
     }
 
-    // 檢查時段是否在「現在+2小時」之後（使用台灣時間檢查）
-    const now = dayjs().tz('Asia/Taipei')
-    const twoHoursLater = now.add(2, 'hour')
-    const searchStartTaipei = dayjs.tz(dateTimeString, 'Asia/Taipei')
+    // ⚠️ 時間比較：使用 UTC，不再轉換
+    const now = new Date() // UTC
+    const twoHoursLater = new Date(now.getTime() + 2 * 60 * 60 * 1000) // UTC + 2小時
     
-    if (searchStartTaipei.isBefore(twoHoursLater)) {
+    if (startDateTimeUTC.getTime() < twoHoursLater.getTime()) {
       console.log('[multi-player-booking] ❌ 預約時段必須在現在時間的2小時之後')
       return NextResponse.json({ 
         error: '預約時段必須在現在時間的2小時之後'
@@ -251,31 +251,20 @@ export async function POST(request: Request) {
         const timeDiffEnd = Math.abs(scheduleEnd.getTime() - endDateTime.getTime())
         const tolerance = 60 * 1000 // 1 分鐘
         
-        console.log(`[multi-player-booking] 🔍 時段匹配檢查 (${schedule.partner.user.name}):`, {
-          scheduleStart: {
-            utc: scheduleStart.toISOString(),
-            taipei: dayjs(scheduleStart).tz('Asia/Taipei').format('YYYY-MM-DD HH:mm'),
-          },
-          requestStart: {
-            utc: startDateTime.toISOString(),
-            taipei: dayjs(startDateTime).tz('Asia/Taipei').format('YYYY-MM-DD HH:mm'),
-          },
+        // ⚠️ 時間比較：只使用 UTC，不轉換時區
+        console.log(`[multi-player-booking] 🔍 時段匹配檢查 (${schedule.partner.user.name}) - UTC:`, {
+          scheduleStart: scheduleStart.toISOString(),
+          requestStart: startDateTime.toISOString(),
           timeDiffStart: timeDiffStart,
-          scheduleEnd: {
-            utc: scheduleEnd.toISOString(),
-            taipei: dayjs(scheduleEnd).tz('Asia/Taipei').format('YYYY-MM-DD HH:mm'),
-          },
-          requestEnd: {
-            utc: endDateTime.toISOString(),
-            taipei: dayjs(endDateTime).tz('Asia/Taipei').format('YYYY-MM-DD HH:mm'),
-          },
+          scheduleEnd: scheduleEnd.toISOString(),
+          requestEnd: endDateTime.toISOString(),
           timeDiffEnd: timeDiffEnd,
         })
         
         if (timeDiffStart > tolerance || timeDiffEnd > tolerance) {
           return { 
             type: 'SCHEDULE_MISMATCH', 
-            message: `夥伴 ${schedule.partner.user.name} 的時段不匹配。時段時間：${dayjs(scheduleStart).tz('Asia/Taipei').format('YYYY-MM-DD HH:mm')} - ${dayjs(scheduleEnd).tz('Asia/Taipei').format('HH:mm')}，請求時間：${dayjs(startDateTime).tz('Asia/Taipei').format('YYYY-MM-DD HH:mm')} - ${dayjs(endDateTime).tz('Asia/Taipei').format('HH:mm')}` 
+            message: `夥伴 ${schedule.partner.user.name} 的時段不匹配。時段時間：${scheduleStart.toISOString()} - ${scheduleEnd.toISOString()}，請求時間：${startDateTime.toISOString()} - ${endDateTime.toISOString()}` 
           } as const
         }
 

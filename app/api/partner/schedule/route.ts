@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth/next'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db-resilience'
 import { createErrorResponse } from '@/lib/api-helpers'
-import { parseTaipeiDateTime } from '@/lib/time-utils'
+// ⚠️ API 層不使用時區轉換，直接使用 Date 對象（UTC）
 
 export const dynamic = 'force-dynamic'
 
@@ -31,8 +31,9 @@ export async function POST(request: Request) {
         console.log(`🔍 檢查 ${schedules.length} 個時段是否重複...`)
         
         // 先查詢該夥伴在相關日期範圍內的所有時段
+        // ⚠️ API 層：直接使用 Date，不做時區轉換
         const dateRange = schedules.reduce((acc, s) => {
-          const date = parseTaipeiDateTime(s.date)
+          const date = new Date(s.date)
           if (!acc.min || date < acc.min) acc.min = date
           if (!acc.max || date > acc.max) acc.max = date
           return acc
@@ -62,25 +63,36 @@ export async function POST(request: Request) {
         console.log(`🔍 找到 ${allSchedules.length} 個現有時段在日期範圍內`)
 
         // 檢查是否有重複（完全匹配或時間重疊）
+        // ⚠️ API 層：直接使用 Date，不做時區轉換，所有時間都是 UTC
         const duplicates: any[] = []
         for (const newSchedule of schedules) {
-          const newDate = parseTaipeiDateTime(newSchedule.date)
-          const newStart = parseTaipeiDateTime(newSchedule.startTime)
-          const newEnd = parseTaipeiDateTime(newSchedule.endTime)
+          const newDate = new Date(newSchedule.date)
+          const newStart = new Date(newSchedule.startTime)
+          const newEnd = new Date(newSchedule.endTime)
+
+          console.log(`🔍 POST: 檢查新時段 (UTC):`, {
+            original: { date: newSchedule.date, startTime: newSchedule.startTime, endTime: newSchedule.endTime },
+            parsed: { 
+              date: newDate.toISOString(), 
+              startTime: newStart.toISOString(), 
+              endTime: newEnd.toISOString() 
+            },
+          })
 
           for (const existing of allSchedules) {
-            // 檢查是否同一天
+            // 檢查是否同一天（比較 UTC 日期）
             const existingDate = new Date(existing.date)
-            existingDate.setHours(0, 0, 0, 0)
+            existingDate.setUTCHours(0, 0, 0, 0)
             const newDateOnly = new Date(newDate)
-            newDateOnly.setHours(0, 0, 0, 0)
+            newDateOnly.setUTCHours(0, 0, 0, 0)
             
             if (existingDate.getTime() === newDateOnly.getTime()) {
-              // 同一天，檢查時間是否重疊
+              // 同一天，檢查時間是否重疊（UTC 時間比較）
               const existingStart = new Date(existing.startTime)
               const existingEnd = new Date(existing.endTime)
               
               // 時間重疊：新時段的開始時間 < 現有時段的結束時間 且 新時段的結束時間 > 現有時段的開始時間
+              // ⚠️ 所有時間都是 UTC，直接比較
               if (newStart.getTime() < existingEnd.getTime() && newEnd.getTime() > existingStart.getTime()) {
                 duplicates.push({
                   existing,
@@ -97,12 +109,13 @@ export async function POST(request: Request) {
           return { type: 'DUPLICATED', details: duplicates } as const
         }
 
+        // ⚠️ API 層：直接使用 Date，不做時區轉換
         const created = await client.schedule.createMany({
           data: schedules.map((s) => ({
             partnerId: partner.id,
-            date: parseTaipeiDateTime(s.date),
-            startTime: parseTaipeiDateTime(s.startTime),
-            endTime: parseTaipeiDateTime(s.endTime),
+            date: new Date(s.date),
+            startTime: new Date(s.startTime),
+            endTime: new Date(s.endTime),
             isAvailable: true,
           })),
           skipDuplicates: true,
@@ -116,17 +129,18 @@ export async function POST(request: Request) {
         return { type: 'INVALID_BODY' } as const
       }
 
-      const newDate = parseTaipeiDateTime(date)
-      const newStart = parseTaipeiDateTime(startTime)
-      const newEnd = parseTaipeiDateTime(endTime)
+      // ⚠️ API 層：直接使用 Date，不做時區轉換
+      const newDate = new Date(date)
+      const newStart = new Date(startTime)
+      const newEnd = new Date(endTime)
 
-      console.log(`🔍 檢查單一時段是否重複: ${newDate.toISOString()} ${newStart.toISOString()}-${newEnd.toISOString()}`)
+      console.log(`🔍 檢查單一時段是否重複 (UTC): ${newDate.toISOString()} ${newStart.toISOString()}-${newEnd.toISOString()}`)
 
-      // 查詢同一天的所有時段，檢查時間重疊
+      // ⚠️ 查詢同一天的所有時段，檢查時間重疊 - 使用 UTC
       const dayStart = new Date(newDate)
-      dayStart.setHours(0, 0, 0, 0)
+      dayStart.setUTCHours(0, 0, 0, 0)
       const dayEnd = new Date(newDate)
-      dayEnd.setHours(23, 59, 59, 999)
+      dayEnd.setUTCHours(23, 59, 59, 999)
 
       const existingSchedules = await client.schedule.findMany({
         where: {
@@ -158,12 +172,13 @@ export async function POST(request: Request) {
         }
       }
 
+      // ⚠️ API 層：直接使用 Date，不做時區轉換
       const schedule = await client.schedule.create({
         data: {
           partnerId: partner.id,
-          date: parseTaipeiDateTime(date),
-          startTime: parseTaipeiDateTime(startTime),
-          endTime: parseTaipeiDateTime(endTime),
+          date: new Date(date),
+          startTime: new Date(startTime),
+          endTime: new Date(endTime),
           isAvailable: true,
         },
       })
@@ -278,26 +293,12 @@ export async function DELETE(request: Request) {
         endTime: s.endTime,
       })))
 
-      // 前端發送的是 ISO 字符串（從 API 返回的），需要轉換為 Date 對象
-      // 但要注意：如果前端發送的是 ISO 字符串，它已經是 UTC 時間
-      // 如果前端發送的是日期字符串（如 "2025-12-25"），需要通過 parseTaipeiDateTime 解析
+      // ⚠️ API 層：直接使用 Date，不做時區轉換
+      // 前端發送的是 ISO 字符串（已經是 UTC），直接轉換為 Date
       const scheduleConditions = payload.map((s) => {
-        // 判斷是 ISO 字符串還是日期字符串
-        const dateStr = String(s.date)
-        const startTimeStr = String(s.startTime)
-        const endTimeStr = String(s.endTime)
-        
-        // 如果是 ISO 字符串（包含 'T' 或 'Z'），直接轉換為 Date
-        // 否則使用 parseTaipeiDateTime 解析（假設是台灣時區）
-        const date = dateStr.includes('T') || dateStr.includes('Z') 
-          ? new Date(dateStr)
-          : parseTaipeiDateTime(dateStr)
-        const startTime = startTimeStr.includes('T') || startTimeStr.includes('Z')
-          ? new Date(startTimeStr)
-          : parseTaipeiDateTime(startTimeStr)
-        const endTime = endTimeStr.includes('T') || endTimeStr.includes('Z')
-          ? new Date(endTimeStr)
-          : parseTaipeiDateTime(endTimeStr)
+        const date = new Date(s.date)
+        const startTime = new Date(s.startTime)
+        const endTime = new Date(s.endTime)
         
         console.log(`🔍 DELETE: 解析後的時間:`, {
           original: { date: s.date, startTime: s.startTime, endTime: s.endTime },
@@ -328,34 +329,26 @@ export async function DELETE(request: Request) {
 
       console.log(`🔍 DELETE: 查詢到 ${allSchedules.length} 個夥伴的所有時段`)
 
+      // ⚠️ API 層：直接使用 Date，不做時區轉換
       // 在應用層進行精確匹配（允許 1 分鐘的誤差）
       const matchedSchedules = allSchedules.filter(schedule => {
         return payload.some((req) => {
-          const dateStr = String(req.date)
-          const startTimeStr = String(req.startTime)
-          const endTimeStr = String(req.endTime)
+          // 前端發送的是 ISO 字符串（已經是 UTC），直接轉換為 Date
+          const reqDate = new Date(req.date)
+          const reqStartTime = new Date(req.startTime)
+          const reqEndTime = new Date(req.endTime)
           
-          const reqDate = dateStr.includes('T') || dateStr.includes('Z') 
-            ? new Date(dateStr)
-            : parseTaipeiDateTime(dateStr)
-          const reqStartTime = startTimeStr.includes('T') || startTimeStr.includes('Z')
-            ? new Date(startTimeStr)
-            : parseTaipeiDateTime(startTimeStr)
-          const reqEndTime = endTimeStr.includes('T') || endTimeStr.includes('Z')
-            ? new Date(endTimeStr)
-            : parseTaipeiDateTime(endTimeStr)
-          
-          // 比較日期（只比較年月日，忽略時間）
+          // 比較日期（只比較年月日，忽略時間）- 使用 UTC
           const scheduleDate = new Date(schedule.date)
-          scheduleDate.setHours(0, 0, 0, 0)
+          scheduleDate.setUTCHours(0, 0, 0, 0)
           const reqDateOnly = new Date(reqDate)
-          reqDateOnly.setHours(0, 0, 0, 0)
+          reqDateOnly.setUTCHours(0, 0, 0, 0)
           
           if (scheduleDate.getTime() !== reqDateOnly.getTime()) {
             return false
           }
           
-          // 比較時間（允許 1 分鐘的誤差）
+          // 比較時間（允許 1 分鐘的誤差）- 所有時間都是 UTC
           const scheduleStart = new Date(schedule.startTime).getTime()
           const scheduleEnd = new Date(schedule.endTime).getTime()
           const reqStart = reqStartTime.getTime()
@@ -382,12 +375,30 @@ export async function DELETE(request: Request) {
 
       const schedules = matchedSchedules
 
-      const deletable = schedules.filter(
-        (s) => !s.bookings || !['CONFIRMED', 'PENDING'].includes(String(s.bookings.status))
-      )
+      // 刪除 schedule 時，只檢查是否有活躍的 booking（CONFIRMED 或 PENDING）
+      // 如果有，則不能刪除；否則可以刪除
+      const deletable = schedules.filter((s) => {
+        // 如果沒有 booking，可以刪除
+        if (!s.bookings) {
+          return true
+        }
+        // 如果有 booking，但狀態是終端狀態（CANCELLED, REJECTED, COMPLETED），可以刪除
+        const status = String(s.bookings.status)
+        const terminalStatuses = ['CANCELLED', 'REJECTED', 'COMPLETED', 'COMPLETED_WITH_AMOUNT_MISMATCH']
+        if (terminalStatuses.includes(status)) {
+          return true
+        }
+        // 如果是活躍狀態（CONFIRMED, PENDING），不能刪除
+        return false
+      })
 
+      console.log(`🔍 DELETE: 可刪除的時段: ${deletable.length}/${schedules.length}`)
       if (deletable.length === 0) {
-        return { type: 'NO_DELETABLE' } as const
+        const hasBookings = schedules.some(s => s.bookings)
+        if (hasBookings) {
+          return { type: 'NO_DELETABLE', reason: '時段已被預約，無法刪除' } as const
+        }
+        return { type: 'NO_DELETABLE', reason: '找不到匹配的時段' } as const
       }
 
       const ids = deletable.map((s) => s.id)

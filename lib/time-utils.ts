@@ -41,23 +41,23 @@ export function taipeiToUTC(dateStr: string, timeStr: string): Date {
 }
 
 /**
- * 將 ISO 字串或 Date 對象轉換為台灣時間的 Date 對象（UTC）
- * @param dateTime ISO 字串或 Date 對象
- * @returns UTC Date 對象（代表台灣時間）
+ * ⚠️ 此函數已廢棄，不應在 API/DB 層使用
+ * 
+ * 時區轉換原則：
+ * - API/DB 層：直接使用 Date 對象（UTC），不做任何時區轉換
+ * - 前端顯示層：使用 dayjs().tz('Asia/Taipei') 轉換顯示
+ * 
+ * 此函數保留僅為向後兼容，新代碼應直接使用 new Date()
  */
 export function parseTaipeiDateTime(dateTime: string | Date): Date {
-  if (typeof dateTime === 'string') {
-    // 如果是 ISO 字串，假設它是台灣時間
-    if (dateTime.includes('T')) {
-      // 移除時區信息，假設為台灣時間
-      const dateTimeStr = dateTime.replace(/[Z+-].*$/, '')
-      return _taipeiToUTC(dayjs.tz(dateTimeStr, TAIWAN_TIMEZONE))
-    }
-    // 如果是 "YYYY-MM-DD HH:mm:ss" 格式
-    return _taipeiToUTC(dayjs.tz(dateTime, TAIWAN_TIMEZONE))
+  // ⚠️ API/DB 層：直接返回 Date，不做時區轉換
+  if (dateTime instanceof Date) {
+    return dateTime
   }
-  // 如果是 Date 對象，假設它已經是 UTC，直接返回
-  return dateTime
+  
+  // 如果是字符串，直接轉換為 Date（假設已經是 UTC 或正確格式）
+  // 前端發送的 ISO 字符串已經是 UTC，直接使用
+  return new Date(dateTime)
 }
 
 /**

@@ -226,7 +226,7 @@ export async function POST(request: Request) {
         endDateTimeStr,
       })
       
-      // 使用 dayjs 將台灣時間轉換為 UTC 時間（與其他 API 一致）
+      // ⚠️ API 層：將台灣時間轉換為 UTC（僅此一次），之後所有比較都用 UTC
       const startTime = dayjs
         .tz(startDateTimeStr, 'Asia/Taipei')
         .utc()
@@ -240,8 +240,6 @@ export async function POST(request: Request) {
       console.log('🔍 創建的 Date 對象（UTC）:', {
         startTimeUTC: startTime.toISOString(),
         endTimeUTC: endTime.toISOString(),
-        startTimeTaipei: dayjs(startTime).tz('Asia/Taipei').format('YYYY-MM-DD HH:mm:ss'),
-        endTimeTaipei: dayjs(endTime).tz('Asia/Taipei').format('YYYY-MM-DD HH:mm:ss'),
         startTimeValid: !isNaN(startTime.getTime()),
         endTimeValid: !isNaN(endTime.getTime()),
       })

@@ -2,7 +2,13 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
-import { Switch } from '@headlessui/react';
+import { Switch } from '@headlessui/react'
+import dayjs from 'dayjs'
+import utc from 'dayjs/plugin/utc'
+import timezone from 'dayjs/plugin/timezone'
+
+dayjs.extend(utc)
+dayjs.extend(timezone)
 
 interface Schedule {
   id: string
@@ -727,17 +733,19 @@ export default function PartnerSchedulePage() {
       const [dateStr, timeSlot] = key.split('_');
       const [hour, minute] = timeSlot.split(':');
       
-      // 創建本地時間的 Date 對象
-      const startTime = new Date(dateStr);
-      startTime.setHours(Number(hour), Number(minute), 0, 0);
-      const endTime = new Date(startTime.getTime() + 30 * 60 * 1000);
+      // ⚠️ 前端：用戶選擇的是台灣時間，需要轉換為 UTC 後發送給 API
+      // 組合台灣時間字符串：YYYY-MM-DD HH:mm
+      const taipeiDateTimeStr = `${dateStr} ${hour.padStart(2, '0')}:${minute.padStart(2, '0')}`;
       
-      // 格式化為 API 期望的格式：date 為 "YYYY-MM-DD"，startTime/endTime 為 "HH:mm:ss" 或 ISO 字符串
-      // API 的 parseTaipeiDateTime 可以處理 ISO 字符串，但為了確保一致性，我們發送 ISO 字符串
+      // 將台灣時間轉換為 UTC
+      const startTimeUTC = dayjs.tz(taipeiDateTimeStr, 'Asia/Taipei').utc().toDate();
+      const endTimeUTC = dayjs.tz(taipeiDateTimeStr, 'Asia/Taipei').add(30, 'minute').utc().toDate();
+      
+      // API 層不做時區轉換，直接發送 UTC ISO 字符串
       return {
-        date: dateStr, // "YYYY-MM-DD"
-        startTime: startTime.toISOString(), // ISO 字符串，API 會解析為台灣時區
-        endTime: endTime.toISOString() // ISO 字符串，API 會解析為台灣時區
+        date: dateStr, // "YYYY-MM-DD"（用於查詢範圍）
+        startTime: startTimeUTC.toISOString(), // UTC ISO 字符串
+        endTime: endTimeUTC.toISOString() // UTC ISO 字符串
       };
     });
     const deleteList = Object.keys(pendingDelete).map(id => {

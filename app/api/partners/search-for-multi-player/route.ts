@@ -94,22 +94,20 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: '結束時間必須晚於開始時間' }, { status: 400 })
     }
     
-    // 檢查時段是否在「現在+2小時」之後（使用台灣時間檢查）
-    const now = dayjs().tz('Asia/Taipei')
-    const twoHoursLater = now.add(2, 'hour')
-    const searchStartTaipei = dayjs.tz(dateTimeString, 'Asia/Taipei')
+    // ⚠️ 時間比較：使用 UTC，不再轉換
+    const now = new Date() // UTC
+    const twoHoursLater = new Date(now.getTime() + 2 * 60 * 60 * 1000) // UTC + 2小時
     
-    if (searchStartTaipei.isBefore(twoHoursLater)) {
+    if (startDateTimeUTC.getTime() < twoHoursLater.getTime()) {
       return NextResponse.json({ 
         error: '預約時段必須在現在時間的2小時之後'
       }, { status: 400 })
     }
     
-    // 調試：驗證時間轉換是否正確
-    console.log('⏰ [多人陪玩搜索] 時間轉換驗證:', {
+    // 調試：驗證時間轉換（只顯示 UTC）
+    console.log('⏰ [多人陪玩搜索] 時間轉換驗證 (UTC):', {
       input: `${normalizedDate} ${startTime}`,
       searchStartUTC: startDateTimeUTC.toISOString(),
-      taipeiView: dayjs(startDateTimeUTC).tz('Asia/Taipei').format('YYYY-MM-DD HH:mm'),
     })
 
     // 解析遊戲列表
