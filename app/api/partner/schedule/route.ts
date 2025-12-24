@@ -192,12 +192,22 @@ export async function POST(request: Request) {
       case 'INVALID_BODY':
         return NextResponse.json({ error: '沒有有效的時段數據' }, { status: 400 })
       case 'DUPLICATED':
+        // ⚠️ 錯誤訊息：將 UTC 時間正確轉換為台灣時間顯示
         const errorMessage = result.details && Array.isArray(result.details) && result.details.length > 0
           ? `以下時段與現有時段重疊，無法新增：${result.details.map((d: any) => {
               const existing = d.existing || d
               const existingStart = new Date(existing.startTime)
               const existingEnd = new Date(existing.endTime)
-              return `${existingStart.toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' })}-${existingEnd.toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' })}`
+              
+              // 使用 Intl.DateTimeFormat 明確指定台灣時區
+              const formatter = new Intl.DateTimeFormat('zh-TW', {
+                timeZone: 'Asia/Taipei',
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: false,
+              })
+              
+              return `${formatter.format(existingStart)}-${formatter.format(existingEnd)}`
             }).join(', ')}`
           : '該時段已存在或與現有時段重疊，不可重複新增'
         return NextResponse.json({ error: errorMessage, details: result.details }, { status: 409 })

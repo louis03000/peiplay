@@ -741,9 +741,13 @@ export default function PartnerSchedulePage() {
       const startTimeUTC = dayjs.tz(taipeiDateTimeStr, 'Asia/Taipei').utc().toDate();
       const endTimeUTC = dayjs.tz(taipeiDateTimeStr, 'Asia/Taipei').add(30, 'minute').utc().toDate();
       
+      // ⚠️ 重要：date 字段應該從 UTC 時間中提取，因為台灣時間轉換為 UTC 可能會跨日
+      // 例如：台灣時間 2025-12-25 00:30 = UTC 2025-12-24 16:30
+      const dateUTC = dayjs.utc(startTimeUTC).format('YYYY-MM-DD');
+      
       // API 層不做時區轉換，直接發送 UTC ISO 字符串
       return {
-        date: dateStr, // "YYYY-MM-DD"（用於查詢範圍）
+        date: dateUTC, // UTC 日期（從 startTime 提取）
         startTime: startTimeUTC.toISOString(), // UTC ISO 字符串
         endTime: endTimeUTC.toISOString() // UTC ISO 字符串
       };
