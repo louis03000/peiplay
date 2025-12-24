@@ -66,6 +66,7 @@ export default function PartnerSchedulePage() {
   const [retryCount, setRetryCount] = useState(0);
   const autoCloseTimerRef = useRef<NodeJS.Timeout | null>(null);
   const [currentTime, setCurrentTime] = useState(new Date()); // 用於定期更新時間提醒
+  const [scheduleUpdateKey, setScheduleUpdateKey] = useState(0); // 用於強制觸發 cellStatesMap 重新計算
 
   useEffect(() => {
     setMounted(true);
@@ -439,6 +440,9 @@ export default function PartnerSchedulePage() {
             }));
           }
           
+          // 強制觸發 cellStatesMap 重新計算
+          setScheduleUpdateKey(prev => prev + 1);
+          
           return newState;
         });
         
@@ -685,6 +689,8 @@ export default function PartnerSchedulePage() {
     const now = new Date();
     const map = new Map<string, CellState>();
     
+    console.log('🔄 重新計算 cellStatesMap，schedules 數量:', schedules.length, 'pendingAdd 數量:', Object.keys(pendingAdd).length, 'pendingDelete 數量:', Object.keys(pendingDelete).length);
+    
     dateSlots.forEach(date => {
       timeSlots.forEach(timeSlot => {
         const [hour, minute] = timeSlot.split(':');
@@ -700,6 +706,7 @@ export default function PartnerSchedulePage() {
         
         const schedule = getScheduleAtTime(date, timeSlot);
         if (schedule) {
+          // 時段已存在於數據庫中
           if (schedule.booked) {
             map.set(key, 'booked');
           } else if (pendingDelete[schedule.id]) {
@@ -708,6 +715,9 @@ export default function PartnerSchedulePage() {
             map.set(key, 'saved');
           }
         } else {
+          // 時段不存在於數據庫中
+          // 如果該時段在 pendingAdd 中，顯示為待新增
+          // 否則顯示為空白
           if (pendingAdd[key]) {
             map.set(key, 'toAdd');
           } else {
@@ -717,8 +727,26 @@ export default function PartnerSchedulePage() {
       });
     });
     
+    console.log('✅ cellStatesMap 計算完成，總共', map.size, '個 cell');
+    
+    // 調試：統計各種狀態的數量
+    const stateCounts = {
+      empty: 0,
+      toAdd: 0,
+      saved: 0,
+      toDelete: 0,
+      booked: 0,
+      past: 0,
+    };
+    map.forEach(state => {
+      if (state in stateCounts) {
+        stateCounts[state as keyof typeof stateCounts]++;
+      }
+    });
+    console.log('📊 cellStatesMap 狀態統計:', stateCounts);
+    
     return map;
-  }, [dateSlots, timeSlots, getLocalDateString, getScheduleAtTime, pendingDelete, pendingAdd]);
+  }, [dateSlots, timeSlots, getLocalDateString, getScheduleAtTime, pendingDelete, pendingAdd, scheduleUpdateKey]);
 
   // 決定每個 cell 的狀態（從緩存的 map 中獲取）
   const getCellState = useCallback((date: Date, timeSlot: string): CellState => {
@@ -737,9 +765,22 @@ export default function PartnerSchedulePage() {
     const key = `${getLocalDateString(date)}_${timeSlot}`;
     const schedule = getScheduleAtTime(date, timeSlot);
     
-    // ⚠️ 只做狀態切換，不做任何重計算
+    // ⚠️ 改進邏輯：如果該時段在 pendingAdd 中，但實際上已經存在於 schedules 中
+    // 應該將其從 pendingAdd 中移除，並標記為刪除（因為它已經存在）
     if (schedule) {
-      if (schedule.booked) return;
+      // 時段已存在於數據庫中
+      if (schedule.booked) return; // 已預約的時段不能操作
+      
+      // 如果該時段在 pendingAdd 中，先清除它（因為它已經存在，不應該新增）
+      if (pendingAdd[key]) {
+        setPendingAdd(prev => {
+          const copy = { ...prev };
+          delete copy[key];
+          return copy;
+        });
+      }
+      
+      // 切換刪除狀態
       if (pendingDelete[schedule.id]) {
         setPendingDelete(prev => {
           const copy = { ...prev };
@@ -750,6 +791,9 @@ export default function PartnerSchedulePage() {
         setPendingDelete(prev => ({ ...prev, [schedule.id]: true }));
       }
     } else {
+      // 時段不存在於數據庫中
+      // 如果該時段在 pendingAdd 中，取消新增
+      // 否則，標記為新增
       if (pendingAdd[key]) {
         setPendingAdd(prev => {
           const copy = { ...prev };
@@ -841,12 +885,60 @@ export default function PartnerSchedulePage() {
           if (addResponse.status === 409) {
             console.log('⚠️ 檢測到時段衝突，重新獲取已保存的時段...');
             
-            // 重新獲取已保存的時段數據
-            await refreshData();
-            
-            // 清除所有pendingAdd狀態（因為衝突的時段已經存在，應該顯示為灰色）
-            // 這樣用戶就能看到哪些時段已經存在，並可以點擊它們來刪除
-            setPendingAdd({});
+            // 直接調用 /api/partner/schedule GET 端點獲取最新的時段數據
+            try {
+              const scheduleResponse = await fetch('/api/partner/schedule', {
+                method: 'GET',
+                cache: 'no-store',
+              });
+              
+              if (scheduleResponse.ok) {
+                const latestSchedules = await scheduleResponse.json();
+                console.log('✅ 獲取到最新的時段數據，數量:', latestSchedules.length);
+                
+                // 調試：檢查獲取到的時段詳情
+                if (latestSchedules.length > 0) {
+                  console.log('🔍 衝突後獲取的時段詳情（前3個）:', latestSchedules.slice(0, 3).map((s: Schedule) => {
+                    const dateTaipei = dayjs.utc(s.date).tz('Asia/Taipei');
+                    const startTaipei = dayjs.utc(s.startTime).tz('Asia/Taipei');
+                    return {
+                      id: s.id,
+                      dateTaipei: dateTaipei.format('YYYY-MM-DD'),
+                      startTimeTaipei: startTaipei.format('HH:mm'),
+                      booked: s.booked,
+                    };
+                  }));
+                }
+                
+                // 清除所有pendingAdd狀態（因為衝突的時段已經存在，應該顯示為灰色）
+                // 這樣用戶就能看到哪些時段已經存在，並可以點擊它們來刪除
+                setPendingAdd({});
+                
+                // 更新 schedules 狀態（使用函數式更新確保正確）
+                setSchedules(prev => {
+                  console.log('🔄 衝突後更新 schedules，prev 數量:', prev.length, 'new 數量:', latestSchedules.length);
+                  return [...latestSchedules];
+                });
+                
+                // 強制觸發 cellStatesMap 重新計算
+                setScheduleUpdateKey(prev => prev + 1);
+                
+                // 等待一個 tick 確保 React 狀態更新完成
+                await new Promise(resolve => setTimeout(resolve, 200));
+                
+                console.log('✅ 衝突處理完成，schedules 已更新，cellStatesMap 將重新計算');
+              } else {
+                console.error('❌ 獲取時段數據失敗:', scheduleResponse.status);
+                // 如果獲取失敗，仍然清除 pendingAdd 並刷新數據
+                setPendingAdd({});
+                await refreshData();
+              }
+            } catch (fetchError) {
+              console.error('❌ 獲取時段數據時發生錯誤:', fetchError);
+              // 如果獲取失敗，仍然清除 pendingAdd 並刷新數據
+              setPendingAdd({});
+              await refreshData();
+            }
             
             // 顯示友好的錯誤消息
             const errorMessage = addResult.error || '以下時段與現有時段重疊，無法新增。衝突的時段已顯示為灰色，您可以點擊它們來刪除。';
