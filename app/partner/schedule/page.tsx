@@ -1022,7 +1022,7 @@ export default function PartnerSchedulePage() {
                 setSchedules(prev => {
                   console.log('🔄 衝突後更新 schedules，prev 數量:', prev.length, 'new 數量:', latestSchedules.length);
                   // 確保返回新數組引用，觸發重新渲染
-                  const newSchedules = latestSchedules.map(s => ({ ...s }));
+                  const newSchedules = latestSchedules.map((s: Schedule) => ({ ...s }));
                   console.log('✅ 返回新 schedules 數組，數量:', newSchedules.length);
                   return newSchedules;
                 });
