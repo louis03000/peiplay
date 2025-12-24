@@ -1,14 +1,20 @@
 /**
  * 統一的時間處理工具函數
  * 所有時間相關操作都必須使用台灣時區 (Asia/Taipei)
+ * 
+ * ⚠️ 此檔案為向後兼容層，新代碼應使用 lib/time/index.ts
  */
 
-import dayjs from 'dayjs'
-import utc from 'dayjs/plugin/utc'
-import timezone from 'dayjs/plugin/timezone'
-
-dayjs.extend(utc)
-dayjs.extend(timezone)
+import {
+  getNowTaipei as _getNowTaipei,
+  fromDateAndTime as _fromDateAndTime,
+  taipeiToUTC as _taipeiToUTC,
+  formatTaipei as _formatTaipei,
+  formatLocale as _formatLocale,
+  addTaipeiTime as _addTaipeiTime,
+  compareTaipeiTime as _compareTaipeiTime,
+  dayjs,
+} from './time'
 
 const TAIWAN_TIMEZONE = 'Asia/Taipei'
 
@@ -16,7 +22,7 @@ const TAIWAN_TIMEZONE = 'Asia/Taipei'
  * 獲取當前台灣時間的 Date 對象（UTC）
  */
 export function getNowTaipei(): Date {
-  return dayjs().tz(TAIWAN_TIMEZONE).utc().toDate()
+  return _getNowTaipei().utc().toDate()
 }
 
 /**
@@ -26,13 +32,12 @@ export function getNowTaipei(): Date {
  * @returns UTC Date 對象
  */
 export function taipeiToUTC(dateStr: string, timeStr: string): Date {
-  // 標準化時間格式為 HH:mm:ss
+  // 標準化時間格式為 HH:mm
   const normalizedTime = timeStr.includes(':') 
-    ? (timeStr.split(':').length === 2 ? `${timeStr}:00` : timeStr)
-    : `${timeStr.slice(0, 2)}:${timeStr.slice(2)}:00`
+    ? timeStr.split(':').slice(0, 2).join(':')
+    : `${timeStr.slice(0, 2)}:${timeStr.slice(2)}`
   
-  const dateTimeStr = `${dateStr} ${normalizedTime}`
-  return dayjs.tz(dateTimeStr, TAIWAN_TIMEZONE).utc().toDate()
+  return _taipeiToUTC(_fromDateAndTime(dateStr, normalizedTime))
 }
 
 /**
@@ -46,10 +51,10 @@ export function parseTaipeiDateTime(dateTime: string | Date): Date {
     if (dateTime.includes('T')) {
       // 移除時區信息，假設為台灣時間
       const dateTimeStr = dateTime.replace(/[Z+-].*$/, '')
-      return dayjs.tz(dateTimeStr, TAIWAN_TIMEZONE).utc().toDate()
+      return _taipeiToUTC(dayjs.tz(dateTimeStr, TAIWAN_TIMEZONE))
     }
     // 如果是 "YYYY-MM-DD HH:mm:ss" 格式
-    return dayjs.tz(dateTime, TAIWAN_TIMEZONE).utc().toDate()
+    return _taipeiToUTC(dayjs.tz(dateTime, TAIWAN_TIMEZONE))
   }
   // 如果是 Date 對象，假設它已經是 UTC，直接返回
   return dateTime
@@ -62,7 +67,7 @@ export function parseTaipeiDateTime(dateTime: string | Date): Date {
  * @returns 台灣時間字串
  */
 export function formatTaipeiTime(date: Date, format: string = 'YYYY-MM-DD HH:mm:ss'): string {
-  return dayjs.utc(date).tz(TAIWAN_TIMEZONE).format(format)
+  return _formatTaipei(date, format)
 }
 
 /**
@@ -82,7 +87,7 @@ export function formatTaipeiLocale(
     minute: '2-digit'
   }
 ): string {
-  return new Date(date).toLocaleString('zh-TW', options)
+  return _formatLocale(date, options)
 }
 
 /**
@@ -125,7 +130,8 @@ export function addTaipeiTime(
   amount: number,
   unit: 'millisecond' | 'second' | 'minute' | 'hour' | 'day' | 'week' | 'month' | 'year'
 ): Date {
-  return dayjs.utc(date).tz(TAIWAN_TIMEZONE).add(amount, unit).utc().toDate()
+  const result = _addTaipeiTime(date, amount, unit)
+  return dayjs.isDayjs(result) ? result.utc().toDate() : result
 }
 
 /**
@@ -135,10 +141,9 @@ export function addTaipeiTime(
  * @returns 比較結果: -1 (date1 < date2), 0 (date1 === date2), 1 (date1 > date2)
  */
 export function compareTaipeiTime(date1: Date, date2: Date): number {
-  const time1 = date1.getTime()
-  const time2 = date2.getTime()
-  if (time1 < time2) return -1
-  if (time1 > time2) return 1
+  const diff = _compareTaipeiTime(date1, date2)
+  if (diff < 0) return -1
+  if (diff > 0) return 1
   return 0
 }
 

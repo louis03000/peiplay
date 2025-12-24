@@ -374,7 +374,19 @@ export default function PartnerSchedulePage() {
         setPartnerStatus(newStatus);
         setRankBoosterImages(data.partner.rankBoosterImages || []);
         setPartnerGames(data.partner.games || []);
-        setSchedules(data.schedules || []);
+        
+        // 更新時段資料
+        const newSchedules = data.schedules || [];
+        console.log('🔄 refreshData 更新時段:', {
+          count: newSchedules.length,
+          schedules: newSchedules.slice(0, 3).map(s => ({
+            id: s.id,
+            date: s.date,
+            startTime: s.startTime,
+            endTime: s.endTime,
+          })),
+        });
+        setSchedules(newSchedules);
         setMyGroups(data.groups || []);
         
         // 如果有錯誤信息，在控制台顯示但不影響用戶體驗
@@ -558,7 +570,7 @@ export default function PartnerSchedulePage() {
     const slotStart = new Date(date);
     slotStart.setHours(Number(hour), Number(minute), 0, 0);
     
-    return schedules.find(schedule => {
+    const matched = schedules.find(schedule => {
       // 將資料庫的 UTC 時間轉換為本地時間進行比較
       const scheduleDate = new Date(schedule.date);
       const scheduleStart = new Date(schedule.startTime);
@@ -567,12 +579,32 @@ export default function PartnerSchedulePage() {
       const scheduleDateStr = getLocalDateString(scheduleDate);
       if (scheduleDateStr !== dateStr) return false;
       
-      // 比較時間（本地時區）
+      // 比較時間（本地時區），允許 1 分鐘的誤差（處理時區轉換和精度問題）
       const scheduleStartLocal = new Date(scheduleStart);
       const slotStartLocal = new Date(slotStart);
+      const timeDiff = Math.abs(scheduleStartLocal.getTime() - slotStartLocal.getTime());
       
-      return scheduleStartLocal.getTime() === slotStartLocal.getTime();
+      // 允許最多 1 分鐘的誤差
+      return timeDiff <= 60 * 1000;
     });
+    
+    // 調試日誌（只在找不到匹配時記錄）
+    if (!matched && schedules.length > 0) {
+      const firstSchedule = schedules[0];
+      const firstDate = new Date(firstSchedule.date);
+      const firstStart = new Date(firstSchedule.startTime);
+      console.log('🔍 getScheduleAtTime 調試:', {
+        searching: { dateStr, timeSlot, slotStart: slotStart.toISOString() },
+        firstSchedule: {
+          date: firstDate.toISOString(),
+          startTime: firstStart.toISOString(),
+          dateStr: getLocalDateString(firstDate),
+        },
+        totalSchedules: schedules.length,
+      });
+    }
+    
+    return matched;
   }, [schedules, getLocalDateString]);
 
   // 決定每個 cell 的狀態（本地時區比對）- 使用useCallback優化
@@ -652,42 +684,66 @@ export default function PartnerSchedulePage() {
       } : null;
     }).filter(Boolean);
     try {
+      console.log('💾 開始儲存時段:', { addCount: addList.length, deleteCount: deleteList.length });
+      
       if (addList.length > 0) {
+        console.log('📤 發送新增請求:', addList);
         const addResponse = await fetch('/api/partner/schedule', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(addList.length === 1 ? addList[0] : addList)
         });
         
+        const addResult = await addResponse.json().catch(() => ({}));
+        console.log('📥 新增響應:', { status: addResponse.status, ok: addResponse.ok, result: addResult });
+        
         if (!addResponse.ok) {
-          const errorData = await addResponse.json().catch(() => ({}));
-          throw new Error(errorData.error || `新增時段失敗 (${addResponse.status})`);
+          throw new Error(addResult.error || `新增時段失敗 (${addResponse.status})`);
+        }
+        
+        const createdCount = addResult.count !== undefined ? addResult.count : (addResult.success ? 1 : 0);
+        console.log('✅ 新增成功，創建數量:', createdCount, '請求數量:', addList.length);
+        
+        // 如果創建數量為 0，但請求數量 > 0，表示所有時段都被跳過（可能是重複）
+        if (createdCount === 0 && addList.length > 0) {
+          console.warn('⚠️ 所有時段都被跳過（可能是重複）');
+          // 不拋出錯誤，但記錄警告
         }
       }
       
       if (deleteList.length > 0) {
+        console.log('📤 發送刪除請求:', deleteList);
         const deleteResponse = await fetch('/api/partner/schedule', {
           method: 'DELETE',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(deleteList)
         });
         
+        const deleteResult = await deleteResponse.json().catch(() => ({}));
+        console.log('📥 刪除響應:', { status: deleteResponse.status, ok: deleteResponse.ok, result: deleteResult });
+        
         if (!deleteResponse.ok) {
-          const errorData = await deleteResponse.json().catch(() => ({}));
-          throw new Error(errorData.error || `刪除時段失敗 (${deleteResponse.status})`);
+          throw new Error(deleteResult.error || `刪除時段失敗 (${deleteResponse.status})`);
         }
+        
+        console.log('✅ 刪除成功，刪除數量:', deleteResult.count || 0);
       }
       
       // 只有所有操作都成功後，才清空 pending 狀態和刷新資料
+      console.log('🔄 清空 pending 狀態並刷新資料...');
       setPendingAdd({});
       setPendingDelete({});
-      await refreshData(); // 先 fetch 最新資料再顯示成功提示
+      
+      // 強制刷新資料
+      await refreshData();
+      
+      console.log('✅ 儲存完成，顯示成功提示');
       setShowSuccess(true);
       setTimeout(() => setShowSuccess(false), 3000);
       // 可選：自動滾到頂部
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (e) {
-      console.error('儲存時段失敗:', e);
+      console.error('❌ 儲存時段失敗:', e);
       const errorMessage = e instanceof Error ? e.message : '儲存失敗，請重試';
       alert(errorMessage);
       // 失敗時不刷新資料，保留 pending 狀態，讓用戶可以重試

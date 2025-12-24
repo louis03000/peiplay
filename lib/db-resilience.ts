@@ -1,5 +1,5 @@
-import { PrismaClient, Prisma } from '@prisma/client'
-import { prisma } from './prisma'
+import { Prisma, PrismaClient } from '@prisma/client'
+import { prisma } from './db/client'
 
 /**
  * 資料庫彈性處理工具
