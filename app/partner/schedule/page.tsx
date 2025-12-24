@@ -669,34 +669,60 @@ export default function PartnerSchedulePage() {
     });
   }, [schedules]);
 
-  // 獲取指定日期和時間的時段（台灣時區比對）- 使用useCallback優化
+  // 獲取指定日期和時間的時段（使用 UTC timestamp 精確比對）- 使用useCallback優化
   const getScheduleAtTime = useCallback((date: Date, timeSlot: string) => {
     const dateStr = getLocalDateString(date);
     const [hour, minute] = timeSlot.split(':');
     const slotHour = Number(hour);
     const slotMinute = Number(minute);
     
-    // ⚠️ 性能優化：使用預先轉換的台灣時區數據，避免每次調用都轉換
+    // ⚠️ 關鍵修復：使用 UTC timestamp 精確比對，避免時區轉換問題
+    // 1. 將前端選擇的台灣時間轉換為 UTC timestamp
+    const slotTaipeiDateTimeStr = `${dateStr} ${hour.padStart(2, '0')}:${minute.padStart(2, '0')}`;
+    const slotStartUtc = dayjs.tz(slotTaipeiDateTimeStr, 'Asia/Taipei').utc().valueOf(); // UTC timestamp (毫秒)
+    
+    // 2. 在數據庫時段中查找匹配的時段（使用 UTC timestamp 比對）
     const matched = schedulesTaipei.find(schedule => {
-      // 比較日期（台灣時區）
+      // 先快速過濾：比較日期（台灣時區）- 這是快速篩選
       if (schedule._taipei.date !== dateStr) {
         return false;
       }
       
-      // 比較時間（台灣時區），允許 1 分鐘的誤差
-      if (schedule._taipei.hour !== slotHour) {
-        return false;
+      // 再精確比對：使用 UTC timestamp（避免時區轉換誤差）
+      const scheduleStartUtc = new Date(schedule.startTime).getTime(); // UTC timestamp (毫秒)
+      
+      // 允許 1 分鐘的誤差（60000 毫秒）
+      const timeDiff = Math.abs(slotStartUtc - scheduleStartUtc);
+      const isMatch = timeDiff <= 60000; // 1 分鐘 = 60000 毫秒
+      
+      // 調試：記錄比對過程
+      if (schedule._taipei.hour === slotHour && Math.abs(schedule._taipei.minute - slotMinute) <= 1) {
+        console.log(`🔍 時段比對: ${dateStr} ${timeSlot}`, {
+          slotStartUtc: new Date(slotStartUtc).toISOString(),
+          scheduleStartUtc: new Date(scheduleStartUtc).toISOString(),
+          timeDiff: timeDiff,
+          isMatch: isMatch,
+          scheduleId: schedule.id,
+        });
       }
       
-      const minuteDiff = Math.abs(schedule._taipei.minute - slotMinute);
-      return minuteDiff <= 1; // 允許最多 1 分鐘的誤差
+      return isMatch;
     });
     
     // 調試：如果沒有匹配到，記錄一下
     if (!matched && schedulesTaipei.length > 0) {
       const similarSchedules = schedulesTaipei.filter(s => s._taipei.date === dateStr);
       if (similarSchedules.length > 0) {
-        console.log(`🔍 未匹配到時段: ${dateStr} ${timeSlot}, 但同一天有 ${similarSchedules.length} 個時段:`, similarSchedules.map(s => `${s._taipei.hour.toString().padStart(2, '0')}:${s._taipei.minute.toString().padStart(2, '0')}`));
+        console.log(`⚠️ 未匹配到時段: ${dateStr} ${timeSlot} (UTC: ${new Date(slotStartUtc).toISOString()})`, {
+          slotStartUtc: slotStartUtc,
+          similarSchedules: similarSchedules.map(s => ({
+            id: s.id,
+            taipeiTime: `${s._taipei.hour.toString().padStart(2, '0')}:${s._taipei.minute.toString().padStart(2, '0')}`,
+            scheduleStartUtc: new Date(s.startTime).getTime(),
+            scheduleStartUtcISO: new Date(s.startTime).toISOString(),
+            diff: Math.abs(slotStartUtc - new Date(s.startTime).getTime()),
+          })),
+        });
       }
     }
     
@@ -708,17 +734,21 @@ export default function PartnerSchedulePage() {
     const now = new Date();
     const map = new Map<string, CellState>();
     
-    console.log('🔄 重新計算 cellStatesMap，schedules 數量:', schedules.length, 'pendingAdd 數量:', Object.keys(pendingAdd).length, 'pendingDelete 數量:', Object.keys(pendingDelete).length);
+    console.log('🔄 重新計算 cellStatesMap，schedules 數量:', schedules.length, 'pendingAdd 數量:', Object.keys(pendingAdd).length, 'pendingDelete 數量:', Object.keys(pendingDelete).length, 'scheduleUpdateKey:', scheduleUpdateKey);
     
     // 調試：打印 schedulesTaipei 的前幾個時段
     if (schedulesTaipei.length > 0) {
-      console.log('🔍 schedulesTaipei 前3個時段:', schedulesTaipei.slice(0, 3).map(s => ({
+      console.log('🔍 schedulesTaipei 前5個時段:', schedulesTaipei.slice(0, 5).map(s => ({
         id: s.id,
         taipeiDate: s._taipei.date,
         taipeiTime: `${s._taipei.hour.toString().padStart(2, '0')}:${s._taipei.minute.toString().padStart(2, '0')}`,
         booked: s.booked,
       })));
     }
+    
+    let savedCount = 0;
+    let emptyCount = 0;
+    let toAddCount = 0;
     
     dateSlots.forEach(date => {
       const dateStr = getLocalDateString(date);
@@ -737,13 +767,13 @@ export default function PartnerSchedulePage() {
         const schedule = getScheduleAtTime(date, timeSlot);
         if (schedule) {
           // 時段已存在於數據庫中
-          console.log(`✅ 找到已存在的時段: ${key}, schedule.id: ${schedule.id}, booked: ${schedule.booked}`);
           if (schedule.booked) {
             map.set(key, 'booked');
           } else if (pendingDelete[schedule.id]) {
             map.set(key, 'toDelete');
           } else {
             map.set(key, 'saved');
+            savedCount++;
           }
         } else {
           // 時段不存在於數據庫中
@@ -751,12 +781,16 @@ export default function PartnerSchedulePage() {
           // 否則顯示為空白
           if (pendingAdd[key]) {
             map.set(key, 'toAdd');
+            toAddCount++;
           } else {
             map.set(key, 'empty');
+            emptyCount++;
           }
         }
       });
     });
+    
+    console.log(`📊 cellStatesMap 統計: saved=${savedCount}, empty=${emptyCount}, toAdd=${toAddCount}`);
     
     console.log('✅ cellStatesMap 計算完成，總共', map.size, '個 cell');
     
@@ -785,7 +819,7 @@ export default function PartnerSchedulePage() {
     return cellStatesMap.get(key) || 'empty';
   }, [cellStatesMap, getLocalDateString]);
 
-  // ⚠️ 性能優化：點擊 cell 只做狀態切換，不做重計算
+  // ⚠️ 關鍵修復：點擊 cell 時，強制檢查時段是否已存在，確保狀態機正確
   const handleCellClick = useCallback((date: Date, timeSlot: string) => {
     const now = new Date();
     const [hour, minute] = timeSlot.split(':');
@@ -796,14 +830,25 @@ export default function PartnerSchedulePage() {
     const key = `${getLocalDateString(date)}_${timeSlot}`;
     const schedule = getScheduleAtTime(date, timeSlot);
     
-    // ⚠️ 改進邏輯：如果該時段在 pendingAdd 中，但實際上已經存在於 schedules 中
-    // 應該將其從 pendingAdd 中移除，並標記為刪除（因為它已經存在）
+    console.log(`🖱️ 點擊時段: ${key}`, {
+      scheduleExists: !!schedule,
+      scheduleId: schedule?.id,
+      scheduleBooked: schedule?.booked,
+      inPendingAdd: !!pendingAdd[key],
+      inPendingDelete: schedule ? !!pendingDelete[schedule.id] : false,
+    });
+    
+    // ⚠️ 關鍵修復：已存在的時段 → 強制進入「刪除模式」
     if (schedule) {
-      // 時段已存在於數據庫中
-      if (schedule.booked) return; // 已預約的時段不能操作
+      // 時段已存在於數據庫中 → 必須是刪除模式
+      if (schedule.booked) {
+        console.log('⚠️ 時段已被預約，無法操作');
+        return; // 已預約的時段不能操作
+      }
       
-      // 如果該時段在 pendingAdd 中，先清除它（因為它已經存在，不應該新增）
+      // 如果該時段在 pendingAdd 中，立即清除（因為它已經存在，不應該新增）
       if (pendingAdd[key]) {
+        console.log('🔧 清除錯誤的 pendingAdd 狀態（時段已存在）');
         setPendingAdd(prev => {
           const copy = { ...prev };
           delete copy[key];
@@ -811,27 +856,29 @@ export default function PartnerSchedulePage() {
         });
       }
       
-      // 切換刪除狀態
+      // 切換刪除狀態（這是唯一正確的操作）
       if (pendingDelete[schedule.id]) {
+        console.log('✅ 取消刪除標記');
         setPendingDelete(prev => {
           const copy = { ...prev };
           delete copy[schedule.id];
           return copy;
         });
       } else {
+        console.log('✅ 標記為刪除');
         setPendingDelete(prev => ({ ...prev, [schedule.id]: true }));
       }
     } else {
-      // 時段不存在於數據庫中
-      // 如果該時段在 pendingAdd 中，取消新增
-      // 否則，標記為新增
+      // 時段不存在於數據庫中 → 新增模式
       if (pendingAdd[key]) {
+        console.log('✅ 取消新增標記');
         setPendingAdd(prev => {
           const copy = { ...prev };
           delete copy[key];
           return copy;
         });
       } else {
+        console.log('✅ 標記為新增');
         setPendingAdd(prev => ({ ...prev, [key]: true }));
       }
     }
@@ -974,16 +1021,25 @@ export default function PartnerSchedulePage() {
                 // 更新 schedules 狀態（使用函數式更新確保正確）
                 setSchedules(prev => {
                   console.log('🔄 衝突後更新 schedules，prev 數量:', prev.length, 'new 數量:', latestSchedules.length);
-                  return [...latestSchedules];
+                  // 確保返回新數組引用，觸發重新渲染
+                  const newSchedules = latestSchedules.map(s => ({ ...s }));
+                  console.log('✅ 返回新 schedules 數組，數量:', newSchedules.length);
+                  return newSchedules;
                 });
                 
-                // 強制觸發 cellStatesMap 重新計算
+                // 強制觸發 cellStatesMap 重新計算（先觸發一次）
                 setScheduleUpdateKey(prev => prev + 1);
                 
-                // 等待一個 tick 確保 React 狀態更新完成
-                await new Promise(resolve => setTimeout(resolve, 200));
+                // 等待 React 狀態更新完成
+                await new Promise(resolve => setTimeout(resolve, 100));
                 
-                console.log('✅ 衝突處理完成，schedules 已更新，cellStatesMap 將重新計算');
+                // 再次觸發，確保 cellStatesMap 重新計算
+                setScheduleUpdateKey(prev => prev + 1);
+                
+                // 再等待一個 tick
+                await new Promise(resolve => setTimeout(resolve, 100));
+                
+                console.log('✅ 衝突處理完成，schedules 已更新，cellStatesMap 已強制重新計算');
               } else {
                 console.error('❌ 獲取時段數據失敗:', scheduleResponse.status);
                 // 如果獲取失敗，仍然清除 pendingAdd 並刷新數據

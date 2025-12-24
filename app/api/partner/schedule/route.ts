@@ -219,7 +219,25 @@ export async function POST(request: Request) {
               return `${formatter.format(existingStart)}-${formatter.format(existingEnd)}`
             }).join(', ')}`
           : '該時段已存在或與現有時段重疊，不可重複新增'
-        return NextResponse.json({ error: errorMessage, details: result.details }, { status: 409 })
+        // ⚠️ Debug 用：暫時改為更清楚的錯誤訊息
+        const debugErrorMessage = result.details && Array.isArray(result.details) && result.details.length > 0
+          ? `此時段已存在，但前端未正確顯示。衝突時段：${result.details.map((d: any) => {
+              const existing = d.existing || d
+              const existingStart = new Date(existing.startTime)
+              const existingEnd = new Date(existing.endTime)
+              
+              // 使用 Intl.DateTimeFormat 明確指定台灣時區
+              const formatter = new Intl.DateTimeFormat('zh-TW', {
+                timeZone: 'Asia/Taipei',
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: false,
+              })
+              
+              return `${formatter.format(existingStart)}-${formatter.format(existingEnd)}`
+            }).join(', ')}。請刷新頁面查看。`
+          : errorMessage
+        return NextResponse.json({ error: debugErrorMessage, details: result.details }, { status: 409 })
       case 'BATCH_SUCCESS':
         return NextResponse.json({ success: true, count: result.count })
       case 'SINGLE_SUCCESS':
