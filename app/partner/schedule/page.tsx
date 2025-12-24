@@ -622,94 +622,122 @@ export default function PartnerSchedulePage() {
     return `${date.getFullYear()}-${(date.getMonth()+1).toString().padStart(2,'0')}-${date.getDate().toString().padStart(2,'0')}`;
   }, []);
 
+  // ⚠️ 性能優化：預先將所有 schedules 轉換為台灣時區格式，避免在每次調用時重複轉換
+  const schedulesTaipei = useMemo(() => {
+    return schedules.map(schedule => {
+      // 使用 Intl.DateTimeFormat 快速轉換為台灣時區（比 dayjs.tz 快很多）
+      const scheduleStartUTC = new Date(schedule.startTime);
+      const scheduleDateUTC = new Date(schedule.date);
+      
+      // 使用 Intl API 獲取台灣時區的時間（不創建新 Date，只格式化）
+      const formatter = new Intl.DateTimeFormat('en-US', {
+        timeZone: 'Asia/Taipei',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+      });
+      
+      const startParts = formatter.formatToParts(scheduleStartUTC);
+      const dateParts = formatter.formatToParts(scheduleDateUTC);
+      
+      return {
+        ...schedule,
+        _taipei: {
+          date: `${dateParts.find(p => p.type === 'year')?.value}-${dateParts.find(p => p.type === 'month')?.value}-${dateParts.find(p => p.type === 'day')?.value}`,
+          hour: parseInt(startParts.find(p => p.type === 'hour')?.value || '0'),
+          minute: parseInt(startParts.find(p => p.type === 'minute')?.value || '0'),
+        }
+      };
+    });
+  }, [schedules]);
+
   // 獲取指定日期和時間的時段（本地時區比對）- 使用useCallback優化
   const getScheduleAtTime = useCallback((date: Date, timeSlot: string) => {
     const dateStr = getLocalDateString(date);
     const [hour, minute] = timeSlot.split(':');
+    const slotHour = Number(hour);
+    const slotMinute = Number(minute);
     
-    // 創建本地時間的 slotStart（台灣時區）
-    const slotStart = new Date(date);
-    slotStart.setHours(Number(hour), Number(minute), 0, 0);
-    
-    const matched = schedules.find(schedule => {
-      // schedule.startTime 是 UTC ISO 字符串（例如 "2025-12-24T16:30:00.000Z"）
-      // schedule.date 是 UTC 日期字符串（例如 "2025-12-24"）
-      // 使用 dayjs 將 UTC 時間轉換為台灣時區進行比較
-      const scheduleStartTaipei = dayjs.utc(schedule.startTime).tz('Asia/Taipei');
-      const scheduleDateTaipei = dayjs.utc(schedule.date).tz('Asia/Taipei');
-      
+    // ⚠️ 性能優化：使用預先轉換的台灣時區數據，避免每次調用都轉換
+    const matched = schedulesTaipei.find(schedule => {
       // 比較日期（台灣時區）
-      const scheduleDateStr = scheduleDateTaipei.format('YYYY-MM-DD');
-      if (scheduleDateStr !== dateStr) {
+      if (schedule._taipei.date !== dateStr) {
         return false;
       }
       
       // 比較時間（台灣時區），允許 1 分鐘的誤差
-      const scheduleHour = scheduleStartTaipei.hour();
-      const scheduleMinute = scheduleStartTaipei.minute();
-      const slotHour = slotStart.getHours();
-      const slotMinute = slotStart.getMinutes();
-      
-      // 比較小時和分鐘（允許 1 分鐘誤差）
-      if (scheduleHour !== slotHour) {
+      if (schedule._taipei.hour !== slotHour) {
         return false;
       }
       
-      const minuteDiff = Math.abs(scheduleMinute - slotMinute);
-      const isMatch = minuteDiff <= 1; // 允許最多 1 分鐘的誤差
-      
-      // 調試：記錄匹配結果
-      if (isMatch && process.env.NODE_ENV === 'development') {
-        console.log('✅ getScheduleAtTime 找到匹配:', {
-          scheduleId: schedule.id,
-          searching: { dateStr, timeSlot },
-          scheduleTaipei: {
-            date: scheduleDateStr,
-            time: `${scheduleHour}:${scheduleMinute}`,
-          },
-          slotTaipei: {
-            date: dateStr,
-            time: `${slotHour}:${slotMinute}`,
-          },
-          minuteDiff,
-        });
-      }
-      
-      return isMatch;
+      const minuteDiff = Math.abs(schedule._taipei.minute - slotMinute);
+      return minuteDiff <= 1; // 允許最多 1 分鐘的誤差
     });
     
-    return matched;
-  }, [schedules, getLocalDateString]);
+    return matched ? { ...matched, _taipei: undefined } : undefined; // 移除內部字段
+  }, [schedulesTaipei, getLocalDateString]);
 
-  // 決定每個 cell 的狀態（本地時區比對）- 使用useCallback優化
-  const getCellState = useCallback((date: Date, timeSlot: string): CellState => {
+  // ⚠️ 性能優化：預先計算所有 cell 的狀態，避免在渲染時重複計算
+  const cellStatesMap = useMemo(() => {
     const now = new Date();
-    const [hour, minute] = timeSlot.split(':');
-    const timeDate = new Date(date);
-    timeDate.setHours(Number(hour), Number(minute), 0, 0);
-    if (timeDate.getTime() <= now.getTime()) return 'past';
-    const key = `${getLocalDateString(date)}_${timeSlot}`;
-    const schedule = getScheduleAtTime(date, timeSlot);
+    const map = new Map<string, CellState>();
     
-    if (schedule) {
-      if (schedule.booked) return 'booked';
-      if (pendingDelete[schedule.id]) return 'toDelete';
-      return 'saved';
-    } else {
-      if (pendingAdd[key]) return 'toAdd';
-      return 'empty';
-    }
-  }, [getLocalDateString, getScheduleAtTime, pendingDelete, pendingAdd]);
+    dateSlots.forEach(date => {
+      timeSlots.forEach(timeSlot => {
+        const [hour, minute] = timeSlot.split(':');
+        const timeDate = new Date(date);
+        timeDate.setHours(Number(hour), Number(minute), 0, 0);
+        
+        const key = `${getLocalDateString(date)}_${timeSlot}`;
+        
+        if (timeDate.getTime() <= now.getTime()) {
+          map.set(key, 'past');
+          return;
+        }
+        
+        const schedule = getScheduleAtTime(date, timeSlot);
+        if (schedule) {
+          if (schedule.booked) {
+            map.set(key, 'booked');
+          } else if (pendingDelete[schedule.id]) {
+            map.set(key, 'toDelete');
+          } else {
+            map.set(key, 'saved');
+          }
+        } else {
+          if (pendingAdd[key]) {
+            map.set(key, 'toAdd');
+          } else {
+            map.set(key, 'empty');
+          }
+        }
+      });
+    });
+    
+    return map;
+  }, [dateSlots, timeSlots, getLocalDateString, getScheduleAtTime, pendingDelete, pendingAdd]);
 
-  // 點擊 cell 的行為
-  const handleCellClick = (date: Date, timeSlot: string) => {
+  // 決定每個 cell 的狀態（從緩存的 map 中獲取）
+  const getCellState = useCallback((date: Date, timeSlot: string): CellState => {
+    const key = `${getLocalDateString(date)}_${timeSlot}`;
+    return cellStatesMap.get(key) || 'empty';
+  }, [cellStatesMap, getLocalDateString]);
+
+  // ⚠️ 性能優化：點擊 cell 只做狀態切換，不做重計算
+  const handleCellClick = useCallback((date: Date, timeSlot: string) => {
     const now = new Date();
     const [hour, minute] = timeSlot.split(':');
     const timeDate = new Date(date);
     timeDate.setHours(Number(hour), Number(minute), 0, 0);
     if (timeDate.getTime() <= now.getTime()) return;
+    
     const key = `${getLocalDateString(date)}_${timeSlot}`;
     const schedule = getScheduleAtTime(date, timeSlot);
+    
+    // ⚠️ 只做狀態切換，不做任何重計算
     if (schedule) {
       if (schedule.booked) return;
       if (pendingDelete[schedule.id]) {
@@ -732,7 +760,7 @@ export default function PartnerSchedulePage() {
         setPendingAdd(prev => ({ ...prev, [key]: true }));
       }
     }
-  };
+  }, [getLocalDateString, getScheduleAtTime, pendingDelete, pendingAdd]);
 
   // 儲存所有變更
   const handleSave = async () => {
@@ -1413,8 +1441,10 @@ export default function PartnerSchedulePage() {
             <div className="min-w-full">
               <div className="flex border-b border-gray-200">
                 <div className="w-16 sm:w-20 bg-gray-50 border-r border-gray-200 sticky left-0 z-10"></div>
-                {dateSlots.map((date, index) => (
-                  <div key={index} className="flex-1 min-w-[90px] bg-gray-50 border-r border-gray-200 p-1 text-center">
+                {dateSlots.map((date) => {
+                  const dateKey = getLocalDateString(date);
+                  return (
+                  <div key={dateKey} className="flex-1 min-w-[90px] bg-gray-50 border-r border-gray-200 p-1 text-center">
                     <div className="text-xs sm:text-sm font-medium text-gray-800">
                       <div className="leading-tight">
                         <div className="font-bold">{date.getDate()}</div>
@@ -1422,23 +1452,27 @@ export default function PartnerSchedulePage() {
                       </div>
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
               <div className="flex">
                 <div className="w-16 sm:w-20 border-r border-gray-200 sticky left-0 z-10 bg-white">
-                  {timeSlots.map((time, index) => (
-                    <div key={index} className="h-8 border-b border-gray-100 flex items-center justify-center">
+                  {timeSlots.map((time) => (
+                    <div key={time} className="h-8 border-b border-gray-100 flex items-center justify-center">
                       <span className="text-xs text-gray-700">{time}</span>
                     </div>
                   ))}
                 </div>
-                {dateSlots.map((date, dateIndex) => (
-                  <div key={dateIndex} className="flex-1 min-w-[90px] border-r border-gray-200">
-                    {timeSlots.map((time, timeIndex) => {
+                {dateSlots.map((date) => {
+                  const dateKey = getLocalDateString(date);
+                  return (
+                  <div key={dateKey} className="flex-1 min-w-[90px] border-r border-gray-200">
+                    {timeSlots.map((time) => {
+                      const cellKey = `${dateKey}_${time}`;
                       const state = getCellState(date, time);
                       return (
                         <div
-                          key={timeIndex}
+                          key={cellKey}
                           className={`h-8 border-b border-gray-100 transition-colors ${getCellStyle(state)}`}
                           onClick={() => ['empty', 'toAdd', 'saved', 'toDelete'].includes(state) && handleCellClick(date, time)}
                           title={
