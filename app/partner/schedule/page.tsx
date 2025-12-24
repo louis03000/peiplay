@@ -379,15 +379,69 @@ export default function PartnerSchedulePage() {
         const newSchedules = data.schedules || [];
         console.log('🔄 refreshData 更新時段:', {
           count: newSchedules.length,
-          schedules: newSchedules.slice(0, 3).map((s: Schedule) => ({
+          schedules: newSchedules.slice(0, 5).map((s: Schedule) => ({
             id: s.id,
             date: s.date,
             startTime: s.startTime,
             endTime: s.endTime,
+            isAvailable: s.isAvailable,
+            booked: s.booked,
           })),
         });
-        setSchedules(newSchedules);
+        
+        // 強制更新 schedules 狀態
+        console.log('🔄 準備更新 schedules 狀態，當前數量:', schedules.length, '新數量:', newSchedules.length);
+        
+        // 調試：檢查新時段詳情（在更新前）
+        if (newSchedules.length > 0) {
+          console.log('🔍 refreshData 收到的所有時段詳情:', newSchedules.map(s => {
+            const date = new Date(s.date);
+            const start = new Date(s.startTime);
+            const end = new Date(s.endTime);
+            return {
+              id: s.id,
+              dateISO: s.date,
+              startTimeISO: s.startTime,
+              endTimeISO: s.endTime,
+              dateLocal: getLocalDateString(date),
+              startTimeLocal: `${start.getHours().toString().padStart(2, '0')}:${start.getMinutes().toString().padStart(2, '0')}`,
+              endTimeLocal: `${end.getHours().toString().padStart(2, '0')}:${end.getMinutes().toString().padStart(2, '0')}`,
+              isAvailable: s.isAvailable,
+              booked: s.booked,
+            };
+          }));
+        }
+        
+        // 使用函數式更新確保獲取最新狀態
+        setSchedules(prevSchedules => {
+          console.log('🔄 setSchedules 被調用，prev 數量:', prevSchedules.length, 'new 數量:', newSchedules.length);
+          // 使用展開運算符確保創建新數組，觸發重新渲染
+          const newState = [...newSchedules];
+          console.log('✅ setSchedules 返回新狀態，數量:', newState.length);
+          
+          // 調試：驗證新狀態中的時段
+          if (newState.length > 0) {
+            console.log('🔍 setSchedules 新狀態中的前3個時段:', newState.slice(0, 3).map(s => {
+              const date = new Date(s.date);
+              const start = new Date(s.startTime);
+              return {
+                id: s.id,
+                dateLocal: getLocalDateString(date),
+                startTimeLocal: `${start.getHours().toString().padStart(2, '0')}:${start.getMinutes().toString().padStart(2, '0')}`,
+              };
+            }));
+          }
+          
+          return newState;
+        });
+        
         setMyGroups(data.groups || []);
+        
+        console.log('✅ schedules 狀態已更新，數量:', newSchedules.length);
+        
+        // 強制觸發一次重新渲染（通過更新一個不影響功能的狀態）
+        // 這確保 React 會重新計算所有依賴 schedules 的 useCallback
+        setSaving(prev => prev); // 觸發重新渲染
         
         // 如果有錯誤信息，在控制台顯示但不影響用戶體驗
         if (data.error) {
@@ -566,43 +620,40 @@ export default function PartnerSchedulePage() {
     const dateStr = getLocalDateString(date);
     const [hour, minute] = timeSlot.split(':');
     
-    // 創建本地時間的 slotStart
+    // 創建本地時間的 slotStart（使用台灣時區）
     const slotStart = new Date(date);
     slotStart.setHours(Number(hour), Number(minute), 0, 0);
     
     const matched = schedules.find(schedule => {
       // 將資料庫的 UTC 時間轉換為本地時間進行比較
+      // schedule.date 和 schedule.startTime 都是 ISO 字符串（UTC）
       const scheduleDate = new Date(schedule.date);
       const scheduleStart = new Date(schedule.startTime);
       
-      // 比較日期（本地時區）
+      // 比較日期（本地時區）- 使用 toLocaleDateString 確保一致性
       const scheduleDateStr = getLocalDateString(scheduleDate);
-      if (scheduleDateStr !== dateStr) return false;
+      if (scheduleDateStr !== dateStr) {
+        return false;
+      }
       
       // 比較時間（本地時區），允許 1 分鐘的誤差（處理時區轉換和精度問題）
       const scheduleStartLocal = new Date(scheduleStart);
       const slotStartLocal = new Date(slotStart);
-      const timeDiff = Math.abs(scheduleStartLocal.getTime() - slotStartLocal.getTime());
       
-      // 允許最多 1 分鐘的誤差
-      return timeDiff <= 60 * 1000;
+      // 獲取本地時間的小時和分鐘
+      const scheduleHour = scheduleStartLocal.getHours();
+      const scheduleMinute = scheduleStartLocal.getMinutes();
+      const slotHour = slotStartLocal.getHours();
+      const slotMinute = slotStartLocal.getMinutes();
+      
+      // 比較小時和分鐘（允許 1 分鐘誤差）
+      if (scheduleHour !== slotHour) {
+        return false;
+      }
+      
+      const minuteDiff = Math.abs(scheduleMinute - slotMinute);
+      return minuteDiff <= 1; // 允許最多 1 分鐘的誤差
     });
-    
-    // 調試日誌（只在找不到匹配時記錄）
-    if (!matched && schedules.length > 0) {
-      const firstSchedule = schedules[0];
-      const firstDate = new Date(firstSchedule.date);
-      const firstStart = new Date(firstSchedule.startTime);
-      console.log('🔍 getScheduleAtTime 調試:', {
-        searching: { dateStr, timeSlot, slotStart: slotStart.toISOString() },
-        firstSchedule: {
-          date: firstDate.toISOString(),
-          startTime: firstStart.toISOString(),
-          dateStr: getLocalDateString(firstDate),
-        },
-        totalSchedules: schedules.length,
-      });
-    }
     
     return matched;
   }, [schedules, getLocalDateString]);
@@ -662,17 +713,31 @@ export default function PartnerSchedulePage() {
 
   // 儲存所有變更
   const handleSave = async () => {
+    console.log('🚀 handleSave 被調用');
+    console.log('📊 當前狀態:', {
+      pendingAddCount: Object.keys(pendingAdd).length,
+      pendingDeleteCount: Object.keys(pendingDelete).length,
+      pendingAddKeys: Object.keys(pendingAdd),
+      pendingDeleteIds: Object.keys(pendingDelete),
+      schedulesCount: schedules.length,
+    });
+    
     setSaving(true);
     const addList = Object.keys(pendingAdd).map(key => {
       const [dateStr, timeSlot] = key.split('_');
       const [hour, minute] = timeSlot.split(':');
+      
+      // 創建本地時間的 Date 對象
       const startTime = new Date(dateStr);
       startTime.setHours(Number(hour), Number(minute), 0, 0);
       const endTime = new Date(startTime.getTime() + 30 * 60 * 1000);
+      
+      // 格式化為 API 期望的格式：date 為 "YYYY-MM-DD"，startTime/endTime 為 "HH:mm:ss" 或 ISO 字符串
+      // API 的 parseTaipeiDateTime 可以處理 ISO 字符串，但為了確保一致性，我們發送 ISO 字符串
       return {
-        date: dateStr,
-        startTime: startTime.toISOString(),
-        endTime: endTime.toISOString()
+        date: dateStr, // "YYYY-MM-DD"
+        startTime: startTime.toISOString(), // ISO 字符串，API 會解析為台灣時區
+        endTime: endTime.toISOString() // ISO 字符串，API 會解析為台灣時區
       };
     });
     const deleteList = Object.keys(pendingDelete).map(id => {
@@ -731,15 +796,28 @@ export default function PartnerSchedulePage() {
       
       // 只有所有操作都成功後，才清空 pending 狀態和刷新資料
       console.log('🔄 清空 pending 狀態並刷新資料...');
+      
+      // 先清空 pending 狀態
       setPendingAdd({});
       setPendingDelete({});
       
-      // 強制刷新資料
+      // 強制刷新資料，並等待完成
+      console.log('🔄 開始刷新資料...');
       await refreshData();
+      console.log('✅ 資料刷新完成');
       
+      // 等待一個 tick 確保 React 狀態更新完成
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // 顯示成功提示
       console.log('✅ 儲存完成，顯示成功提示');
       setShowSuccess(true);
       setTimeout(() => setShowSuccess(false), 3000);
+      
+      // 強制觸發重新渲染（通過更新一個不影響功能的狀態）
+      // 這確保 React 會重新計算所有依賴 schedules 的 useCallback
+      setSaving(false); // 這會觸發重新渲染
+      
       // 可選：自動滾到頂部
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (e) {
@@ -1362,7 +1440,19 @@ export default function PartnerSchedulePage() {
             </div>
             <button
               className={`px-6 py-2 rounded-lg font-bold text-white transition ${saving ? 'bg-gray-400' : 'bg-indigo-600 hover:bg-indigo-700'}`}
-              onClick={handleSave}
+              onClick={(e) => {
+                console.log('🖱️ 按鈕被點擊！', {
+                  saving,
+                  pendingAddCount: Object.keys(pendingAdd).length,
+                  pendingDeleteCount: Object.keys(pendingDelete).length,
+                  isDisabled: saving || (Object.keys(pendingAdd).length === 0 && Object.keys(pendingDelete).length === 0),
+                });
+                if (!saving && (Object.keys(pendingAdd).length > 0 || Object.keys(pendingDelete).length > 0)) {
+                  handleSave();
+                } else {
+                  console.warn('⚠️ 按鈕被禁用或沒有待保存的變更');
+                }
+              }}
               disabled={saving || (Object.keys(pendingAdd).length === 0 && Object.keys(pendingDelete).length === 0)}
             >
               {saving ? '儲存中...' : '儲存時段'}

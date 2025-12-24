@@ -271,17 +271,116 @@ export async function DELETE(request: Request) {
         return { type: 'INVALID_BODY' } as const
       }
 
-      const schedules = await client.schedule.findMany({
+      console.log(`🔍 DELETE: 收到 ${payload.length} 個要刪除的時段請求`)
+      console.log(`🔍 DELETE: 請求內容:`, payload.map(s => ({
+        date: s.date,
+        startTime: s.startTime,
+        endTime: s.endTime,
+      })))
+
+      // 前端發送的是 ISO 字符串（從 API 返回的），需要轉換為 Date 對象
+      // 但要注意：如果前端發送的是 ISO 字符串，它已經是 UTC 時間
+      // 如果前端發送的是日期字符串（如 "2025-12-25"），需要通過 parseTaipeiDateTime 解析
+      const scheduleConditions = payload.map((s) => {
+        // 判斷是 ISO 字符串還是日期字符串
+        const dateStr = String(s.date)
+        const startTimeStr = String(s.startTime)
+        const endTimeStr = String(s.endTime)
+        
+        // 如果是 ISO 字符串（包含 'T' 或 'Z'），直接轉換為 Date
+        // 否則使用 parseTaipeiDateTime 解析（假設是台灣時區）
+        const date = dateStr.includes('T') || dateStr.includes('Z') 
+          ? new Date(dateStr)
+          : parseTaipeiDateTime(dateStr)
+        const startTime = startTimeStr.includes('T') || startTimeStr.includes('Z')
+          ? new Date(startTimeStr)
+          : parseTaipeiDateTime(startTimeStr)
+        const endTime = endTimeStr.includes('T') || endTimeStr.includes('Z')
+          ? new Date(endTimeStr)
+          : parseTaipeiDateTime(endTimeStr)
+        
+        console.log(`🔍 DELETE: 解析後的時間:`, {
+          original: { date: s.date, startTime: s.startTime, endTime: s.endTime },
+          parsed: { 
+            date: date.toISOString(), 
+            startTime: startTime.toISOString(), 
+            endTime: endTime.toISOString() 
+          },
+        })
+        
+        return {
+          AND: [
+            { date: { equals: date } },
+            { startTime: { equals: startTime } },
+            { endTime: { equals: endTime } },
+          ],
+        }
+      })
+
+      // 先查詢該夥伴的所有時段，然後在應用層進行精確匹配
+      // 這樣可以避免 Prisma 的 Date 比較精度問題
+      const allSchedules = await client.schedule.findMany({
         where: {
           partnerId: partner.id,
-          OR: payload.map((s) => ({
-            date: parseTaipeiDateTime(s.date),
-            startTime: parseTaipeiDateTime(s.startTime),
-            endTime: parseTaipeiDateTime(s.endTime),
-          })),
         },
         include: { bookings: true },
       })
+
+      console.log(`🔍 DELETE: 查詢到 ${allSchedules.length} 個夥伴的所有時段`)
+
+      // 在應用層進行精確匹配（允許 1 分鐘的誤差）
+      const matchedSchedules = allSchedules.filter(schedule => {
+        return payload.some((req) => {
+          const dateStr = String(req.date)
+          const startTimeStr = String(req.startTime)
+          const endTimeStr = String(req.endTime)
+          
+          const reqDate = dateStr.includes('T') || dateStr.includes('Z') 
+            ? new Date(dateStr)
+            : parseTaipeiDateTime(dateStr)
+          const reqStartTime = startTimeStr.includes('T') || startTimeStr.includes('Z')
+            ? new Date(startTimeStr)
+            : parseTaipeiDateTime(startTimeStr)
+          const reqEndTime = endTimeStr.includes('T') || endTimeStr.includes('Z')
+            ? new Date(endTimeStr)
+            : parseTaipeiDateTime(endTimeStr)
+          
+          // 比較日期（只比較年月日，忽略時間）
+          const scheduleDate = new Date(schedule.date)
+          scheduleDate.setHours(0, 0, 0, 0)
+          const reqDateOnly = new Date(reqDate)
+          reqDateOnly.setHours(0, 0, 0, 0)
+          
+          if (scheduleDate.getTime() !== reqDateOnly.getTime()) {
+            return false
+          }
+          
+          // 比較時間（允許 1 分鐘的誤差）
+          const scheduleStart = new Date(schedule.startTime).getTime()
+          const scheduleEnd = new Date(schedule.endTime).getTime()
+          const reqStart = reqStartTime.getTime()
+          const reqEnd = reqEndTime.getTime()
+          
+          const startDiff = Math.abs(scheduleStart - reqStart)
+          const endDiff = Math.abs(scheduleEnd - reqEnd)
+          
+          return startDiff <= 60 * 1000 && endDiff <= 60 * 1000 // 允許 1 分鐘誤差
+        })
+      })
+
+      console.log(`🔍 DELETE: 找到 ${matchedSchedules.length} 個匹配的時段`)
+      if (matchedSchedules.length > 0) {
+        console.log(`🔍 DELETE: 匹配的時段詳情:`, matchedSchedules.map(s => ({
+          id: s.id,
+          date: s.date.toISOString(),
+          startTime: s.startTime.toISOString(),
+          endTime: s.endTime.toISOString(),
+          hasBooking: !!s.bookings,
+          bookingStatus: s.bookings?.status,
+        })))
+      }
+
+      const schedules = matchedSchedules
 
       const deletable = schedules.filter(
         (s) => !s.bookings || !['CONFIRMED', 'PENDING'].includes(String(s.bookings.status))
