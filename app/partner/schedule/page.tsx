@@ -470,7 +470,7 @@ export default function PartnerSchedulePage() {
         
         // 調試：驗證新狀態中的時段（顯示 UTC 和台灣時區）
         if (newState.length > 0) {
-          console.log('🔍 setSchedules 新狀態中的前5個時段:', newState.slice(0, 5).map(s => {
+          console.log('🔍 setSchedules 新狀態中的前5個時段:', newState.slice(0, 5).map((s: Schedule) => {
             const dateTaipei = dayjs.utc(s.date).tz('Asia/Taipei');
             const startTaipei = dayjs.utc(s.startTime).tz('Asia/Taipei');
             return {
@@ -489,56 +489,21 @@ export default function PartnerSchedulePage() {
         
         return newState;
       });
-        
-        setMyGroups(data.groups || []);
-        
-        console.log('✅ schedules 狀態已更新，數量:', newSchedules.length);
-        
-        // 強制觸發一次重新渲染（通過更新一個不影響功能的狀態）
-        // 這確保 React 會重新計算所有依賴 schedules 的 useCallback
-        setSaving(prev => prev); // 觸發重新渲染
-        
-        // 如果有錯誤信息，在控制台顯示但不影響用戶體驗
-        if (data.error) {
-          console.warn('API 警告:', data.error);
-        }
-      } else {
-        // 如果沒有數據，只有在初始化時才設置默認值（不重置已有狀態）
-        setPartnerStatus(prev => {
-          if (!prev) {
-            return {
-              id: '',
-              isAvailableNow: false,
-              isRankBooster: false,
-              allowGroupBooking: false,
-              availableNowSince: null
-            };
-          }
-          // 如果已有狀態，保持不變
-          return prev;
-        });
-        // 其他數據只有在沒有數據時才重置
-        if (!data || !data.partner) {
-          // 只有在真正沒有數據時才重置（避免覆蓋已存在的狀態）
-          // 這裡不重置，因為可能是臨時錯誤
-        }
+      
+      // 更新群組資料（如果有）
+      if (dashboardData?.groups) {
+        setMyGroups(dashboardData.groups);
+      }
+      
+      console.log('✅ schedules 狀態已更新，數量:', newSchedules.length);
+      
+      // 如果有錯誤信息，在控制台顯示但不影響用戶體驗
+      if (dashboardData?.error) {
+        console.warn('API 警告:', dashboardData.error);
       }
     } catch (error) {
       console.error('Error refreshing data:', error);
       // 錯誤時不重置狀態，保持當前狀態（避免網絡問題導致狀態丟失）
-      // 只有在初始化時才設置默認值
-      setPartnerStatus(prev => {
-        if (!prev) {
-          return {
-            id: '',
-            isAvailableNow: false,
-            isRankBooster: false,
-            allowGroupBooking: false,
-            availableNowSince: null
-          };
-        }
-        return prev;
-      });
     }
   };
 
@@ -1302,7 +1267,7 @@ export default function PartnerSchedulePage() {
           }
         } else {
           console.error('❌ 獲取最新數據失敗，使用 refreshData');
-          await refreshData();
+      await refreshData();
         }
       } catch (fetchError) {
         console.error('❌ 獲取最新數據時發生錯誤，使用 refreshData:', fetchError);
