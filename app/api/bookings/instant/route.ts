@@ -13,19 +13,37 @@ export const runtime = 'nodejs';
 
 export async function POST(request: NextRequest) {
   const requestStartTime = Date.now()
+  const requestId = request.headers.get('x-request-id') || `req-${Date.now()}`
+  
+  // 🔥 強制 log 所有請求
+  console.log(`[${requestId}] 📥 收到即時預約請求`)
+  
   let requestData: any
   try {
     requestData = await request.json()
+    console.log(`[${requestId}] 📦 請求 body:`, JSON.stringify(requestData))
   } catch (error) {
+    console.error(`[${requestId}] ❌ 解析請求 body 失敗:`, error)
     return NextResponse.json({ error: '無效的請求數據' }, { status: 400 })
   }
 
   try {
-    console.log('📥 收到即時預約請求:', { partnerId: requestData.partnerId, duration: requestData.duration })
+    // 🔥 強制 log 所有關鍵步驟
+    console.log(`[${requestId}] 📥 收到即時預約請求:`, { 
+      partnerId: requestData?.partnerId, 
+      duration: requestData?.duration,
+      bodyKeys: Object.keys(requestData || {})
+    })
     
     const session = await getServerSession(authOptions)
+    console.log(`[${requestId}] 🔐 Session 狀態:`, { 
+      hasSession: !!session, 
+      hasUser: !!session?.user, 
+      userId: session?.user?.id 
+    })
+    
     if (!session?.user?.id) {
-      console.log('❌ 未登入')
+      console.error(`[${requestId}] ❌ 未登入或 session 無效`)
       return NextResponse.json({ error: '請先登入' }, { status: 401 })
     }
 
@@ -46,7 +64,7 @@ export async function POST(request: NextRequest) {
 
     const result = await db.query(async (client) => {
       try {
-        console.log('🔍 開始查詢客戶資料...')
+        console.log(`[${requestId}] 🔍 開始查詢客戶資料...`, { userId: session.user.id })
         const customer = await client.customer.findUnique({
           where: { userId: session.user.id },
           include: {
@@ -61,11 +79,12 @@ export async function POST(request: NextRequest) {
         })
 
         if (!customer) {
-          console.log('❌ 客戶資料不存在')
+          console.error(`[${requestId}] ❌ 客戶資料不存在`, { userId: session.user.id })
           return { type: 'NO_CUSTOMER' } as const
         }
+        console.log(`[${requestId}] ✅ 客戶資料查詢成功:`, { customerId: customer.id, customerName: customer.user?.name })
 
-        console.log('🔍 開始查詢夥伴資料...')
+        console.log(`[${requestId}] 🔍 開始查詢夥伴資料...`, { partnerId })
         const partner = await client.partner.findUnique({
           where: { id: partnerId },
           include: {
@@ -80,20 +99,26 @@ export async function POST(request: NextRequest) {
         })
 
         if (!partner) {
-          console.log('❌ 夥伴不存在')
+          console.error(`[${requestId}] ❌ 夥伴不存在`, { partnerId })
           return { type: 'NO_PARTNER' } as const
         }
+        console.log(`[${requestId}] ✅ 夥伴資料查詢成功:`, { partnerId: partner.id, partnerName: partner.name })
 
-        console.log('🔍 檢查夥伴是否忙碌...')
+        console.log(`[${requestId}] 🔍 檢查夥伴是否忙碌...`, { partnerId: partner.id })
         let busyCheck
         try {
           busyCheck = await checkPartnerCurrentlyBusy(partner.id, client)
+          console.log(`[${requestId}] ✅ 忙碌檢查完成:`, { isBusy: busyCheck.isBusy })
         } catch (error) {
-          console.error('❌ 檢查夥伴忙碌狀態失敗:', error)
+          console.error(`[${requestId}] ❌ 檢查夥伴忙碌狀態失敗:`, error)
+          console.error(`[${requestId}] 錯誤詳情:`, {
+            message: error instanceof Error ? error.message : 'Unknown error',
+            stack: error instanceof Error ? error.stack : undefined,
+          })
           throw new Error(`檢查夥伴忙碌狀態失敗: ${error instanceof Error ? error.message : 'Unknown error'}`)
         }
         if (busyCheck.isBusy) {
-          console.log('❌ 夥伴目前忙碌')
+          console.error(`[${requestId}] ❌ 夥伴目前忙碌:`, busyCheck)
           return { type: 'BUSY', busyCheck } as const
         }
 
@@ -103,16 +128,27 @@ export async function POST(request: NextRequest) {
         const startTime = new Date(now.getTime() + 15 * 60 * 1000) // UTC + 15分鐘
         const endTime = new Date(startTime.getTime() + durationNum * 60 * 60 * 1000) // UTC + durationNum小時
 
-        console.log('🔍 檢查時間衝突...', { partnerId: partner.id, startTime: startTime.toISOString(), endTime: endTime.toISOString() })
+        console.log(`[${requestId}] 🔍 檢查時間衝突...`, { 
+          partnerId: partner.id, 
+          startTime: startTime.toISOString(), 
+          endTime: endTime.toISOString(),
+          duration: durationNum,
+          now: now.toISOString()
+        })
         let conflict
         try {
           conflict = await checkTimeConflict(partner.id, startTime, endTime, undefined, client)
+          console.log(`[${requestId}] ✅ 時間衝突檢查完成:`, { hasConflict: conflict.hasConflict, conflictsCount: conflict.conflicts.length })
         } catch (error) {
-          console.error('❌ 檢查時間衝突失敗:', error)
+          console.error(`[${requestId}] ❌ 檢查時間衝突失敗:`, error)
+          console.error(`[${requestId}] 錯誤詳情:`, {
+            message: error instanceof Error ? error.message : 'Unknown error',
+            stack: error instanceof Error ? error.stack : undefined,
+          })
           throw new Error(`檢查時間衝突失敗: ${error instanceof Error ? error.message : 'Unknown error'}`)
         }
         if (conflict.hasConflict) {
-          console.log('❌ 時間衝突')
+          console.error(`[${requestId}] ❌ 時間衝突:`, conflict)
           return { type: 'CONFLICT', conflict } as const
         }
 
@@ -121,12 +157,24 @@ export async function POST(request: NextRequest) {
           originalAmount: durationNum * partner.halfHourlyRate * 2,
         }
 
-        console.log('🔍 開始創建預約（事務）...')
+        console.log(`[${requestId}] 🔍 開始創建預約（事務）...`, {
+          partnerId: partner.id,
+          customerId: customer.id,
+          startTime: startTime.toISOString(),
+          endTime: endTime.toISOString(),
+          duration: durationNum,
+          amount: pricing.originalAmount
+        })
         let schedule, booking
         try {
           const transactionResult = await client.$transaction(
             async (tx) => {
-              console.log('📝 創建時段...')
+              console.log(`[${requestId}] 📝 創建時段...`, {
+                partnerId: partner.id,
+                date: startTime.toISOString(),
+                startTime: startTime.toISOString(),
+                endTime: endTime.toISOString(),
+              })
               const createdSchedule = await tx.schedule.create({
                 data: {
                   partnerId: partner.id,
@@ -136,8 +184,14 @@ export async function POST(request: NextRequest) {
                   isAvailable: false,
                 },
               })
+              console.log(`[${requestId}] ✅ 時段創建成功:`, { scheduleId: createdSchedule.id })
 
-              console.log('📝 創建預約...')
+              console.log(`[${requestId}] 📝 創建預約...`, {
+                customerId: customer.id,
+                partnerId: partner.id,
+                scheduleId: createdSchedule.id,
+                amount: pricing.originalAmount,
+              })
               const createdBooking = await tx.booking.create({
                 data: {
                   customerId: customer.id,
@@ -151,6 +205,7 @@ export async function POST(request: NextRequest) {
                   },
                 },
               })
+              console.log(`[${requestId}] ✅ 預約創建成功:`, { bookingId: createdBooking.id })
 
               return { schedule: createdSchedule, booking: createdBooking }
             },
@@ -162,23 +217,27 @@ export async function POST(request: NextRequest) {
           schedule = transactionResult.schedule
           booking = transactionResult.booking
         } catch (transactionError) {
-          console.error('❌ 事務執行失敗:', transactionError)
-          console.error('事務錯誤詳情:', {
+          console.error(`[${requestId}] ❌ 事務執行失敗:`, transactionError)
+          console.error(`[${requestId}] 事務錯誤詳情:`, {
             message: transactionError instanceof Error ? transactionError.message : 'Unknown error',
             stack: transactionError instanceof Error ? transactionError.stack : undefined,
             name: transactionError instanceof Error ? transactionError.name : undefined,
+            code: (transactionError as any)?.code,
+            meta: (transactionError as any)?.meta,
           })
           throw new Error(`創建預約事務失敗: ${transactionError instanceof Error ? transactionError.message : 'Unknown error'}`)
         }
 
-        console.log('✅ 預約創建成功')
+        console.log(`[${requestId}] ✅ 預約創建成功`)
         return { type: 'SUCCESS', customer, partner, schedule, booking, pricing, startTime, endTime } as const
       } catch (dbError) {
-        console.error('❌ 資料庫操作錯誤:', dbError)
-        console.error('錯誤詳情:', {
+        console.error(`[${requestId}] ❌ 資料庫操作錯誤:`, dbError)
+        console.error(`[${requestId}] 錯誤詳情:`, {
           message: dbError instanceof Error ? dbError.message : 'Unknown error',
           stack: dbError instanceof Error ? dbError.stack : undefined,
           name: dbError instanceof Error ? dbError.name : undefined,
+          code: (dbError as any)?.code,
+          meta: (dbError as any)?.meta,
         })
         throw dbError
       }
@@ -250,21 +309,53 @@ export async function POST(request: NextRequest) {
       },
     })
   } catch (error) {
-    console.error('❌ 即時預約創建失敗:', error)
-    console.error('錯誤詳情:', {
-      message: error instanceof Error ? error.message : 'Unknown error',
-      stack: error instanceof Error ? error.stack : undefined,
-      name: error instanceof Error ? error.name : undefined,
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    const errorStack = error instanceof Error ? error.stack : undefined
+    const errorName = error instanceof Error ? error.name : undefined
+    const errorCode = (error as any)?.code
+    const errorMeta = (error as any)?.meta
+    
+    // 🔥 強制 log 所有錯誤（這是關鍵！）
+    console.error(`[${requestId}] ❌ 即時預約創建失敗:`)
+    console.error(`[${requestId}] 錯誤對象:`, error)
+    console.error(`[${requestId}] 錯誤詳情:`, {
+      message: errorMessage,
+      stack: errorStack,
+      name: errorName,
+      code: errorCode,
+      meta: errorMeta,
+      requestData: requestData ? { 
+        partnerId: requestData.partnerId, 
+        duration: requestData.duration,
+        bodyKeys: Object.keys(requestData)
+      } : undefined,
+      requestTime: Date.now() - requestStartTime,
     })
     
-    // 返回更詳細的錯誤信息給前端
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    // 檢查是否是資料庫相關錯誤
     const isDatabaseError = errorMessage.includes('database') || 
                            errorMessage.includes('connection') ||
                            errorMessage.includes('timeout') ||
                            errorMessage.includes('P1001') ||
                            errorMessage.includes('P1002') ||
-                           errorMessage.includes('P1017')
+                           errorMessage.includes('P1017') ||
+                           errorMessage.includes('Prisma') ||
+                           errorMessage.includes('transaction')
+    
+    // 檢查是否是參數驗證錯誤
+    const isValidationError = errorMessage.includes('缺少') ||
+                             errorMessage.includes('無效') ||
+                             errorMessage.includes('驗證')
+    
+    if (isValidationError) {
+      return NextResponse.json(
+        {
+          error: errorMessage || '參數驗證失敗',
+          code: 'VALIDATION_ERROR',
+        },
+        { status: 400 }
+      )
+    }
     
     if (isDatabaseError) {
       return NextResponse.json(
@@ -277,6 +368,14 @@ export async function POST(request: NextRequest) {
       )
     }
     
-    return createErrorResponse(error, 'bookings:instant')
+    // 返回通用錯誤響應
+    return NextResponse.json(
+      {
+        error: '伺服器錯誤，請稍後再試',
+        details: process.env.NODE_ENV === 'development' ? errorMessage : undefined,
+        code: 'INTERNAL_ERROR',
+      },
+      { status: 500 }
+    )
   }
 }
