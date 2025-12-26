@@ -12,19 +12,39 @@ export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 export async function POST(request: NextRequest) {
+  // 🔥 立即生成 requestId，確保即使早期錯誤也能追蹤
   const requestStartTime = Date.now()
-  const requestId = request.headers.get('x-request-id') || `req-${Date.now()}`
+  const requestId = request.headers.get('x-request-id') || `req-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`
   
-  // 🔥 強制 log 所有請求
-  console.log(`[${requestId}] 📥 收到即時預約請求`)
+  // 🔥 強制 log 所有請求（立即記錄，不等待任何操作）
+  try {
+    console.log(`[${requestId}] 📥 ========== 收到即時預約請求 ==========`)
+    console.log(`[${requestId}] 📥 請求開始時間:`, new Date().toISOString())
+    console.log(`[${requestId}] 📥 Request ID:`, requestId)
+    console.log(`[${requestId}] 📥 Request URL:`, request.url)
+    console.log(`[${requestId}] 📥 Request Method:`, request.method)
+  } catch (logError) {
+    // 即使日誌記錄失敗，也要繼續執行
+    console.error('無法記錄初始日誌:', logError)
+  }
   
   let requestData: any
   try {
+    console.log(`[${requestId}] 📦 開始解析請求 body...`)
     requestData = await request.json()
-    console.log(`[${requestId}] 📦 請求 body:`, JSON.stringify(requestData))
+    console.log(`[${requestId}] 📦 請求 body 解析成功:`, JSON.stringify(requestData))
   } catch (error) {
     console.error(`[${requestId}] ❌ 解析請求 body 失敗:`, error)
-    return NextResponse.json({ error: '無效的請求數據' }, { status: 400 })
+    console.error(`[${requestId}] 錯誤詳情:`, {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+      name: error instanceof Error ? error.name : undefined,
+    })
+    return NextResponse.json({ 
+      error: '無效的請求數據',
+      code: 'INVALID_REQUEST_BODY',
+      requestId 
+    }, { status: 400 })
   }
 
   try {
@@ -32,18 +52,45 @@ export async function POST(request: NextRequest) {
     console.log(`[${requestId}] 📥 收到即時預約請求:`, { 
       partnerId: requestData?.partnerId, 
       duration: requestData?.duration,
-      bodyKeys: Object.keys(requestData || {})
+      bodyKeys: Object.keys(requestData || {}),
+      headers: {
+        contentType: request.headers.get('content-type'),
+        userAgent: request.headers.get('user-agent'),
+      }
     })
     
-    const session = await getServerSession(authOptions)
-    console.log(`[${requestId}] 🔐 Session 狀態:`, { 
-      hasSession: !!session, 
-      hasUser: !!session?.user, 
-      userId: session?.user?.id 
-    })
+    // 🔥 包裹 getServerSession，防止它拋出未捕獲的錯誤
+    let session
+    try {
+      console.log(`[${requestId}] 🔐 開始獲取 session...`)
+      session = await getServerSession(authOptions)
+      console.log(`[${requestId}] 🔐 Session 狀態:`, { 
+        hasSession: !!session, 
+        hasUser: !!session?.user, 
+        userId: session?.user?.id,
+        sessionKeys: session ? Object.keys(session) : []
+      })
+    } catch (sessionError) {
+      console.error(`[${requestId}] ❌ 獲取 session 失敗:`, sessionError)
+      console.error(`[${requestId}] Session 錯誤詳情:`, {
+        message: sessionError instanceof Error ? sessionError.message : 'Unknown error',
+        stack: sessionError instanceof Error ? sessionError.stack : undefined,
+        name: sessionError instanceof Error ? sessionError.name : undefined,
+      })
+      return NextResponse.json(
+        { 
+          error: 'Session 驗證失敗，請重新登入',
+          code: 'SESSION_ERROR',
+          details: process.env.NODE_ENV === 'development' 
+            ? (sessionError instanceof Error ? sessionError.message : 'Unknown error')
+            : undefined
+        },
+        { status: 500 }
+      )
+    }
     
     if (!session?.user?.id) {
-      console.error(`[${requestId}] ❌ 未登入或 session 無效`)
+      console.error(`[${requestId}] ❌ 未登入或 session 無效`, { session })
       return NextResponse.json({ error: '請先登入' }, { status: 401 })
     }
 
@@ -62,7 +109,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '缺少或無效的預約時長' }, { status: 400 })
     }
 
-    const result = await db.query(async (client) => {
+    console.log(`[${requestId}] 🔍 開始執行資料庫查詢...`)
+    let result
+    try {
+      result = await db.query(async (client) => {
       try {
         console.log(`[${requestId}] 🔍 開始查詢客戶資料...`, { userId: session.user.id })
         const customer = await client.customer.findUnique({
@@ -242,6 +292,19 @@ export async function POST(request: NextRequest) {
         throw dbError
       }
     }, 'bookings:instant')
+    console.log(`[${requestId}] ✅ 資料庫查詢完成:`, { resultType: result.type })
+    } catch (dbQueryError) {
+      console.error(`[${requestId}] ❌ db.query 調用失敗:`, dbQueryError)
+      console.error(`[${requestId}] db.query 錯誤詳情:`, {
+        message: dbQueryError instanceof Error ? dbQueryError.message : 'Unknown error',
+        stack: dbQueryError instanceof Error ? dbQueryError.stack : undefined,
+        name: dbQueryError instanceof Error ? dbQueryError.name : undefined,
+        code: (dbQueryError as any)?.code,
+        meta: (dbQueryError as any)?.meta,
+      })
+      // 重新拋出錯誤，讓外層 catch 處理
+      throw dbQueryError
+    }
 
     if (result.type === 'NO_CUSTOMER') {
       return NextResponse.json({ error: '客戶資料不存在' }, { status: 404 })
