@@ -256,14 +256,24 @@ export default function PartnerSchedulePage() {
     }
     
     if (mounted && session?.user?.id) {
-      // 使用新的dashboard API一次性獲取所有數據
-      // dashboard API 會檢查 role 或 partner status
-      fetch('/api/partner/dashboard')
-        .then(res => {
-          if (!res.ok) throw new Error('Failed to fetch dashboard data');
-          return res.json();
+      // 🔧 關鍵修復：同時調用 dashboard 和 schedule API
+      // dashboard API 用於獲取 partner 狀態，schedule API 用於獲取所有時段（無限制）
+      Promise.all([
+        fetch('/api/partner/dashboard', { cache: 'no-store' }),
+        fetch('/api/partner/schedule', { 
+          method: 'GET',
+          cache: 'no-store',
+          headers: { 'Cache-Control': 'no-cache' },
+        }),
+      ])
+        .then(([dashboardRes, scheduleRes]) => {
+          if (!dashboardRes.ok) throw new Error('Failed to fetch dashboard data');
+          return Promise.all([
+            dashboardRes.json(),
+            scheduleRes.ok ? scheduleRes.json() : Promise.resolve([]),
+          ]);
         })
-        .then(data => {
+        .then(([data, schedules]) => {
           if (data && data.partner) {
             setHasPartner(true);
             setLoading(false);
@@ -308,10 +318,17 @@ export default function PartnerSchedulePage() {
               allowGroupBooking: partnerStatusData.allowGroupBooking
             });
             
+            console.log('📥 從 schedule API 載入時段數量:', Array.isArray(schedules) ? schedules.length : 0);
+            
             setPartnerStatus(partnerStatusData);
             setRankBoosterImages(data.partner.rankBoosterImages || []);
             setPartnerGames(data.partner.games || []);
-            setSchedules(data.schedules || []);
+            // ✅ 必做修正 2：render 用的資料 = 原始 DB schedules，不先 filter
+            // 🔧 關鍵：使用 schedule API 返回的完整時段數據，而不是 dashboard 的限制版本
+            // 直接使用 API 返回的完整數據，不進行任何 filter
+            const initialSchedules = Array.isArray(schedules) ? schedules : (data.schedules || []);
+            console.log('✅ 初始載入時段數據，數量:', initialSchedules.length, '（完整原始數據，未 filter）');
+            setSchedules(initialSchedules.map((s: Schedule) => ({ ...s })));
             setMyGroups(data.groups || []);
           } else {
             router.replace('/profile');
@@ -334,23 +351,36 @@ export default function PartnerSchedulePage() {
 
   const refreshData = async () => {
     try {
-      const response = await fetch('/api/partner/dashboard', {
-        cache: 'no-store',
-      });
+      // 🔧 關鍵修復：使用專門的 /api/partner/schedule API 獲取所有時段
+      // dashboard API 有日期過濾和 limit 限制，可能只返回部分時段
+      const [dashboardResponse, scheduleResponse] = await Promise.all([
+        fetch('/api/partner/dashboard', { cache: 'no-store' }),
+        fetch('/api/partner/schedule', { 
+          method: 'GET',
+          cache: 'no-store',
+          headers: { 'Cache-Control': 'no-cache' },
+        }),
+      ]);
       
-      if (!response.ok) {
-        console.error('❌ refreshData 失敗:', response.status, response.statusText);
-        return; // 失敗時不更新狀態，保留現有資料
+      if (!dashboardResponse.ok) {
+        console.error('❌ refreshData dashboard 失敗:', dashboardResponse.status, dashboardResponse.statusText);
+        // 如果 dashboard 失敗，仍然嘗試獲取時段數據
       }
       
-      const data = await response.json();
+      if (!scheduleResponse.ok) {
+        console.error('❌ refreshData schedule 失敗:', scheduleResponse.status, scheduleResponse.statusText);
+        // 如果 schedule 也失敗，使用 dashboard 的時段數據作為 fallback
+      }
       
-      // 處理數據
-      if (data && data.partner) {
-        console.log('✅ refreshData 成功，載入時段數量:', data.schedules?.length || 0);
+      const dashboardData = dashboardResponse.ok ? await dashboardResponse.json() : null;
+      const newSchedules = scheduleResponse.ok ? await scheduleResponse.json() : (dashboardData?.schedules || []);
+      
+      // 處理 dashboard 數據（用於更新 partner 狀態）
+      if (dashboardData && dashboardData.partner) {
+        console.log('✅ refreshData 成功，載入時段數量:', newSchedules.length);
         // 直接使用 API 返回的狀態（數據庫中的真實狀態）
-        let isAvailableNow = !!data.partner.isAvailableNow;
-        let availableNowSince = data.partner.availableNowSince;
+        let isAvailableNow = !!dashboardData.partner.isAvailableNow;
+        let availableNowSince = dashboardData.partner.availableNowSince;
         
         // 如果「現在有空」是開啟的，檢查是否超過30分鐘
         if (isAvailableNow && availableNowSince) {
@@ -366,10 +396,10 @@ export default function PartnerSchedulePage() {
         
         // 使用 API 返回的狀態（數據庫中的真實狀態）
         const newStatus = {
-          id: data.partner.id,
+          id: dashboardData.partner.id,
           isAvailableNow: isAvailableNow,
-          isRankBooster: !!data.partner.isRankBooster, // 使用 API 返回的狀態（數據庫中的真實狀態）
-          allowGroupBooking: !!data.partner.allowGroupBooking, // 使用 API 返回的狀態（數據庫中的真實狀態）
+          isRankBooster: !!dashboardData.partner.isRankBooster, // 使用 API 返回的狀態（數據庫中的真實狀態）
+          allowGroupBooking: !!dashboardData.partner.allowGroupBooking, // 使用 API 返回的狀態（數據庫中的真實狀態）
           availableNowSince: availableNowSince
         };
         
@@ -380,81 +410,85 @@ export default function PartnerSchedulePage() {
         });
         
         setPartnerStatus(newStatus);
-        setRankBoosterImages(data.partner.rankBoosterImages || []);
-        setPartnerGames(data.partner.games || []);
-        
-        // 更新時段資料
-        const newSchedules = data.schedules || [];
-        console.log('🔄 refreshData 更新時段:', {
-          count: newSchedules.length,
-          schedules: newSchedules.slice(0, 5).map((s: Schedule) => ({
+        setRankBoosterImages(dashboardData.partner.rankBoosterImages || []);
+        setPartnerGames(dashboardData.partner.games || []);
+      }
+      
+      // 更新時段資料（使用專門的 schedule API 獲取的完整數據）
+      console.log('🔄 refreshData 更新時段:', {
+        count: newSchedules.length,
+        schedules: newSchedules.slice(0, 5).map((s: Schedule) => ({
+          id: s.id,
+          date: s.date,
+          startTime: s.startTime,
+          endTime: s.endTime,
+          isAvailable: s.isAvailable,
+          booked: s.booked,
+        })),
+      });
+      
+      // 強制更新 schedules 狀態
+      console.log('🔄 準備更新 schedules 狀態，當前數量:', schedules.length, '新數量:', newSchedules.length);
+      
+      // 調試：檢查新時段詳情（在更新前）- 使用 dayjs 正確轉換為台灣時區
+      if (newSchedules.length > 0) {
+        console.log('🔍 refreshData 收到的所有時段詳情:', newSchedules.map((s: Schedule) => {
+          // 使用 dayjs 將 UTC 時間轉換為台灣時區
+          const dateTaipei = dayjs.utc(s.date).tz('Asia/Taipei');
+          const startTaipei = dayjs.utc(s.startTime).tz('Asia/Taipei');
+          const endTaipei = dayjs.utc(s.endTime).tz('Asia/Taipei');
+          return {
             id: s.id,
-            date: s.date,
-            startTime: s.startTime,
-            endTime: s.endTime,
+            dateISO: s.date,
+            startTimeISO: s.startTime,
+            endTimeISO: s.endTime,
+            dateTaipei: dateTaipei.format('YYYY-MM-DD'),
+            startTimeTaipei: startTaipei.format('HH:mm'),
+            endTimeTaipei: endTaipei.format('HH:mm'),
             isAvailable: s.isAvailable,
             booked: s.booked,
-          })),
-        });
+          };
+        }));
+      }
+      
+      // 🛡 第三層：防止空數據覆蓋現有狀態
+      // 使用函數式更新確保獲取最新狀態
+      setSchedules(prevSchedules => {
+        console.log('🔄 setSchedules 被調用，prev 數量:', prevSchedules.length, 'new 數量:', newSchedules.length);
         
-        // 強制更新 schedules 狀態
-        console.log('🔄 準備更新 schedules 狀態，當前數量:', schedules.length, '新數量:', newSchedules.length);
+        // ✅ 必做修正 3：refetch 時禁止覆蓋有資料的 state
+        if (newSchedules.length === 0 && prevSchedules.length > 0) {
+          console.warn('⚠️ 防止用空數據覆蓋現有狀態，保留當前狀態');
+          // 不更新，保留現有狀態
+          return prevSchedules;
+        }
         
-        // 調試：檢查新時段詳情（在更新前）- 使用 dayjs 正確轉換為台灣時區
-        if (newSchedules.length > 0) {
-          console.log('🔍 refreshData 收到的所有時段詳情:', newSchedules.map((s: Schedule) => {
-            // 使用 dayjs 將 UTC 時間轉換為台灣時區
+        // ✅ 必做修正 2：render 用的資料 = 原始 DB schedules，不先 filter
+        // 直接使用 API 返回的完整數據，不進行任何 filter
+        const newState = newSchedules.map((s: Schedule) => ({ ...s }));
+        console.log('✅ setSchedules 返回新狀態，數量:', newState.length, '（完整原始數據，未 filter）');
+        
+        // 調試：驗證新狀態中的時段（顯示 UTC 和台灣時區）
+        if (newState.length > 0) {
+          console.log('🔍 setSchedules 新狀態中的前5個時段:', newState.slice(0, 5).map(s => {
             const dateTaipei = dayjs.utc(s.date).tz('Asia/Taipei');
             const startTaipei = dayjs.utc(s.startTime).tz('Asia/Taipei');
-            const endTaipei = dayjs.utc(s.endTime).tz('Asia/Taipei');
             return {
               id: s.id,
-              dateISO: s.date,
-              startTimeISO: s.startTime,
-              endTimeISO: s.endTime,
+              dateUTC: s.date,
+              startTimeUTC: s.startTime,
               dateTaipei: dateTaipei.format('YYYY-MM-DD'),
-              startTimeTaipei: startTaipei.format('HH:mm'),
-              endTimeTaipei: endTaipei.format('HH:mm'),
-              isAvailable: s.isAvailable,
+              startTimeTaipei: startTaipei.format('YYYY-MM-DD HH:mm'),
               booked: s.booked,
             };
           }));
         }
         
-        // 🛡 第三層：防止空數據覆蓋現有狀態
-        // 使用函數式更新確保獲取最新狀態
-        setSchedules(prevSchedules => {
-          console.log('🔄 setSchedules 被調用，prev 數量:', prevSchedules.length, 'new 數量:', newSchedules.length);
-          
-          // 防止空數據覆蓋現有狀態（避免競態條件）
-          if (newSchedules.length === 0 && prevSchedules.length > 0) {
-            console.warn('⚠️ 防止用空數據覆蓋現有狀態，保留當前狀態');
-            // 不更新，保留現有狀態
-            return prevSchedules;
-          }
-          
-          // 使用展開運算符確保創建新數組，觸發重新渲染
-          const newState = [...newSchedules];
-          console.log('✅ setSchedules 返回新狀態，數量:', newState.length);
-          
-          // 調試：驗證新狀態中的時段
-          if (newState.length > 0) {
-            console.log('🔍 setSchedules 新狀態中的前3個時段:', newState.slice(0, 3).map(s => {
-              const date = new Date(s.date);
-              const start = new Date(s.startTime);
-              return {
-                id: s.id,
-                dateLocal: getLocalDateString(date),
-                startTimeLocal: `${start.getHours().toString().padStart(2, '0')}:${start.getMinutes().toString().padStart(2, '0')}`,
-              };
-            }));
-          }
-          
-          // 強制觸發 cellStatesMap 重新計算
-          setScheduleUpdateKey(prev => prev + 1);
-          
-          return newState;
-        });
+        // 強制觸發 cellStatesMap 重新計算
+        setScheduleUpdateKey(prev => prev + 1);
+        
+        return newState;
+      });
         
         setMyGroups(data.groups || []);
         
@@ -776,6 +810,11 @@ export default function PartnerSchedulePage() {
     
     dateSlots.forEach(date => {
       const dateStr = getLocalDateString(date);
+      // ✅ 必做修正 1：「一天」只能用 UTC date + slotStartTime 算
+      // 計算這個 UI 日期對應的 UTC 日期範圍（用於調試）
+      const dateUtcStart = dayjs.tz(dateStr + ' 00:00', 'Asia/Taipei').utc();
+      const dateUtcEnd = dayjs.tz(dateStr + ' 23:59', 'Asia/Taipei').utc();
+      
       timeSlots.forEach(timeSlot => {
         const [hour, minute] = timeSlot.split(':');
         const timeDate = new Date(date);
@@ -788,12 +827,15 @@ export default function PartnerSchedulePage() {
           return;
         }
         
-        // 🔪 第二刀：先用 DB 資料決定格子狀態，再畫 UI（UI 不准自己猜）
-        // 將前端選擇的台灣時間轉換為 UTC timestamp
+        // ✅ 必做修正 1：「一天」只能用 UTC date + slotStartTime 算
+        // ❌ 不准用 schedule.date 判斷顯示
+        // ❌ 不准用 local Date 直接比
+        // ✅ 正確方式：將前端選擇的台灣時間轉換為 UTC timestamp
         const slotTaipeiDateTimeStr = `${dateStr} ${hour.padStart(2, '0')}:${minute.padStart(2, '0')}`;
         const slotStartUtc = dayjs.tz(slotTaipeiDateTimeStr, 'Asia/Taipei').utc().valueOf();
         
-        // 在 DB 映射表中查找匹配的時段（允許 1 分鐘誤差）
+        // ✅ 必做修正 1：在 DB 映射表中查找匹配的時段（使用 UTC timestamp，不依賴 schedule.date）
+        // 允許 1 分鐘誤差
         let matchedSchedule: Schedule | undefined = undefined;
         for (const [dbUtc, schedule] of dbSlotMap.entries()) {
           const timeDiff = Math.abs(slotStartUtc - dbUtc);
@@ -1240,17 +1282,18 @@ export default function PartnerSchedulePage() {
           const freshSchedules = await freshResponse.json();
           console.log('✅ 獲取到最新時段數據，數量:', freshSchedules.length);
           
-          // 🛡 第三層：防止空數據覆蓋現有狀態
+          // ✅ 必做修正 3：refetch 時禁止覆蓋有資料的 state
           if (freshSchedules.length === 0 && schedules.length > 0) {
             console.warn('⚠️ 防止用空數據覆蓋現有狀態，保留當前狀態');
             // 不更新，保留現有狀態
           } else {
+            // ✅ 必做修正 2：render 用的資料 = 原始 DB schedules，不先 filter
             // 更新 schedules 狀態（使用函數式更新確保正確）
             setSchedules(prev => {
               console.log('🔄 更新 schedules，prev 數量:', prev.length, 'fresh 數量:', freshSchedules.length);
-              // 確保返回新數組引用，觸發重新渲染
+              // ✅ 必做修正 2：直接使用 API 返回的完整數據，不進行任何 filter
               const newSchedules = freshSchedules.map((s: Schedule) => ({ ...s }));
-              console.log('✅ 返回新 schedules 數組，數量:', newSchedules.length);
+              console.log('✅ 返回新 schedules 數組，數量:', newSchedules.length, '（完整原始數據，未 filter）');
               return newSchedules;
             });
             
