@@ -1,8 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth/next'
-import { authOptions } from '@/lib/auth'
-import { db } from '@/lib/db-resilience'
-import { BookingStatus } from '@prisma/client'
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs'; // ⚠️ 必須是 nodejs，Prisma/PostgreSQL/transaction 都需要
@@ -39,6 +35,14 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    // 🔥 動態導入所有可能有問題的模組
+    console.log(`[${requestId}] 📦 開始動態導入模組...`)
+    const { getServerSession } = await import('next-auth/next')
+    const { authOptions } = await import('@/lib/auth')
+    const { db } = await import('@/lib/db-resilience')
+    const { BookingStatus } = await import('@prisma/client')
+    console.log(`[${requestId}] ✅ 模組導入成功`)
+    
     // 🔥 強制 log 所有關鍵步驟
     console.log(`[${requestId}] 📥 收到即時預約請求:`, { 
       partnerId: requestData?.partnerId, 
