@@ -103,7 +103,10 @@ export async function checkPartnerCurrentlyBusy(
   client?: PrismaClientLike
 ) {
   const dbClient = resolveClient(client)
-  const now = getNowTaipei(); // 使用台灣時間
+  
+  // ⚠️ 使用 UTC 時間，因為資料庫中存儲的是 UTC 時間
+  // 這樣可以避免時區轉換導致的問題
+  const now = new Date() // UTC 時間
   
   // 查詢當前時間在進行中的預約
   const activeBooking = await dbClient.booking.findFirst({
