@@ -17,7 +17,13 @@ const nextConfig = {
   },
   // 編譯優化
   compiler: {
-    removeConsole: process.env.NODE_ENV === 'production',
+    // ⚠️ 暫時關閉 removeConsole，確保可以在 Vercel 看到所有日誌（包括 console.log）
+    // 調試完成後可以改為只保留 console.error 和 console.warn
+    removeConsole: false,
+    // 如果需要優化，可以改為：
+    // removeConsole: process.env.NODE_ENV === 'production' 
+    //   ? { exclude: ['error', 'warn'] }
+    //   : false,
   },
   // 圖片優化
   images: {
