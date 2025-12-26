@@ -561,7 +561,12 @@ export default function BookingsPage() {
                         {booking.schedule?.startTime
                           ? new Date(
                               booking.schedule.startTime,
-                            ).toLocaleDateString("zh-TW")
+                            ).toLocaleDateString("zh-TW", {
+                              timeZone: 'Asia/Taipei',
+                              year: "numeric",
+                              month: "2-digit",
+                              day: "2-digit",
+                            })
                           : "-"}
                       </td>
                       <td className="py-4 px-6 text-white font-medium">
@@ -653,6 +658,7 @@ export default function BookingsPage() {
                           ? new Date(booking.createdAt).toLocaleString(
                               "zh-TW",
                               {
+                                timeZone: 'Asia/Taipei',
                                 year: "numeric",
                                 month: "2-digit",
                                 day: "2-digit",
