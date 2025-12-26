@@ -148,8 +148,33 @@ export async function GET(request: Request) {
         })
       }
 
+      // 🔥 先查詢所有有活躍預約的時段 ID（排除 CANCELLED、REJECTED、COMPLETED）
+      const bookedScheduleIds = await client.booking.findMany({
+        where: {
+          status: {
+            notIn: ['CANCELLED', 'REJECTED', 'COMPLETED']
+          },
+          schedule: {
+            startTime: {
+              lte: expandedEnd,
+            },
+            endTime: {
+              gte: expandedStart,
+            },
+          }
+        },
+        select: {
+          scheduleId: true,
+        },
+        distinct: ['scheduleId'],
+      })
+      
+      const bookedScheduleIdSet = new Set(bookedScheduleIds.map(b => b.scheduleId).filter(Boolean))
+      console.log(`🚫 [多人陪玩搜索] 找到 ${bookedScheduleIdSet.size} 個已被預約的時段`)
+      
       // 查詢已批准且開啟群組預約的夥伴
       // 直接在 Prisma 查詢中過濾時間：startTime <= searchEnd 且 endTime >= searchStart
+      // 🔥 排除已被預約的時段
       const partners = await client.partner.findMany({
         where: {
           status: 'APPROVED',
@@ -162,7 +187,11 @@ export async function GET(request: Request) {
               endTime: {
                 gte: expandedStart, // 時段結束時間不早於擴展開始時間
               },
-              isAvailable: true
+              isAvailable: true,
+              // 🔥 排除已被預約的時段
+              id: {
+                notIn: Array.from(bookedScheduleIdSet)
+              }
             }
           },
         },
@@ -194,7 +223,11 @@ export async function GET(request: Request) {
               endTime: {
                 gte: expandedStart, // 時段結束時間不早於擴展開始時間
               },
-              isAvailable: true
+              isAvailable: true,
+              // 🔥 排除已被預約的時段
+              id: {
+                notIn: Array.from(bookedScheduleIdSet)
+              }
             },
             select: {
               id: true,
@@ -202,17 +235,7 @@ export async function GET(request: Request) {
               startTime: true,
               endTime: true,
               isAvailable: true,
-              bookings: {
-                where: {
-                  status: {
-                    notIn: ['CANCELLED', 'REJECTED', 'COMPLETED']
-                  }
-                },
-                select: {
-                  id: true,
-                  status: true,
-                }
-              }
+              // 🔥 不再查詢 bookings，因為已經在 where 條件中排除了
             },
             orderBy: [
               // 按開始時間排序
@@ -259,8 +282,8 @@ export async function GET(request: Request) {
               startTime: s.startTime,
               endTime: s.endTime,
               isAvailable: s.isAvailable,
-              hasBooking: !!s.bookings,
-              bookingStatus: s.bookings?.status || null,
+              hasBooking: bookedScheduleIdSet.has(s.id),
+              bookingStatus: bookedScheduleIdSet.has(s.id) ? 'BOOKED' : null,
             })),
           })),
         })
@@ -393,7 +416,7 @@ export async function GET(request: Request) {
               startTime: s.startTime,
               endTime: s.endTime,
               isAvailable: s.isAvailable,
-              bookingStatus: s.bookings?.status || null,
+              bookingStatus: bookedScheduleIdSet.has(s.id) ? 'BOOKED' : null,
             })))
           }
           
@@ -409,18 +432,13 @@ export async function GET(request: Request) {
                                 scheduleEnd.getTime() > startDateTimeUTC.getTime()
               
               // 🔥 檢查是否可用（無活躍預約）
-              // 注意：schedule.bookings 是 Booking?（單一關聯），但查詢時已經過濾了 CANCELLED/REJECTED/COMPLETED
-              // 如果 bookings 存在，表示時段已被預約
-              const hasActiveBooking = schedule.bookings !== null && schedule.bookings !== undefined
+              // 注意：已在查詢時排除了已被預約的時段，所以這裡只需要檢查 isAvailable
+              // 但為了安全起見，再次檢查是否在 bookedScheduleIdSet 中
+              const isBooked = bookedScheduleIdSet.has(schedule.id)
+              const isAvailable = schedule.isAvailable && !isBooked
               
-              const isAvailable = schedule.isAvailable && !hasActiveBooking
-              
-              if (hasActiveBooking) {
-                console.log(`⛔ [多人陪玩搜索] 時段 ${schedule.id} 已被預約:`, {
-                  scheduleId: schedule.id,
-                  bookingId: schedule.bookings?.id,
-                  bookingStatus: schedule.bookings?.status,
-                })
+              if (isBooked) {
+                console.log(`⛔ [多人陪玩搜索] 時段 ${schedule.id} 已被預約（二次檢查）`)
               }
               
               return hasOverlap && isAvailable
@@ -498,11 +516,8 @@ export async function GET(request: Request) {
                 searchEndUTC: endDateTimeUTC.toISOString(),
                 isInMatchingSet,
                 scheduleIsAvailable: schedule.isAvailable,
-                hasActiveBooking: !!(schedule.bookings && 
-                  schedule.bookings.status !== 'CANCELLED' && 
-                  schedule.bookings.status !== 'REJECTED' &&
-                  schedule.bookings.status !== 'COMPLETED'),
-                bookingStatus: schedule.bookings?.status || null,
+                hasActiveBooking: bookedScheduleIdSet.has(schedule.id),
+                bookingStatus: bookedScheduleIdSet.has(schedule.id) ? 'BOOKED' : null,
                 finalMatch: isInMatchingSet && isFullyCovered,
               })
             })
