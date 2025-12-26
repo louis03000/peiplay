@@ -136,22 +136,40 @@ function MultiPlayerBookingContent() {
         const data = await response.json()
         const now = new Date()
         
-        // 過濾並處理預約：如果時間已過但狀態還是 ACTIVE，標記為已完成
-        const processedBookings = (data.multiPlayerBookings || []).map((booking: MultiPlayerBooking) => {
-          const endTime = new Date(booking.endTime)
-          const isExpired = endTime.getTime() < now.getTime()
-          
-          // 如果時間已過但狀態還是 ACTIVE 或 PENDING，標記為已完成
-          if (isExpired && (booking.status === 'ACTIVE' || booking.status === 'PENDING')) {
-            return {
-              ...booking,
-              status: 'COMPLETED' as const,
-              _isAutoCompleted: true // 標記為自動完成
+        // 過濾並處理預約：只顯示進行中或等待確認的群組，過濾掉已完成的
+        const processedBookings = (data.multiPlayerBookings || [])
+          .filter((booking: MultiPlayerBooking) => {
+            const endTime = new Date(booking.endTime)
+            const isExpired = endTime.getTime() < now.getTime()
+            
+            // 過濾掉已完成的群組（狀態為 COMPLETED 或時間已過）
+            if (booking.status === 'COMPLETED' || booking.status === 'CANCELLED') {
+              return false // 不顯示已取消的
             }
-          }
-          
-          return booking
-        })
+            
+            // 如果時間已過，也不顯示（視為已完成）
+            if (isExpired) {
+              return false
+            }
+            
+            return true // 只顯示進行中或等待確認的群組
+          })
+          .map((booking: MultiPlayerBooking) => {
+            // 處理狀態顯示（雖然已經過濾，但保留邏輯以防萬一）
+            const endTime = new Date(booking.endTime)
+            const isExpired = endTime.getTime() < now.getTime()
+            
+            // 如果時間已過但狀態還是 ACTIVE 或 PENDING，標記為已完成
+            if (isExpired && (booking.status === 'ACTIVE' || booking.status === 'PENDING')) {
+              return {
+                ...booking,
+                status: 'COMPLETED' as const,
+                _isAutoCompleted: true // 標記為自動完成
+              }
+            }
+            
+            return booking
+          })
         
         setMyBookings(processedBookings)
       }

@@ -46,16 +46,58 @@ export async function GET(request: NextRequest) {
 
       // 如果有遊戲篩選，在應用層面進行大小寫不敏感的匹配
       if (gameFilter) {
-        const gameFilterLower = gameFilter.toLowerCase().replace(/[:：]/g, '') // 移除冒號，統一格式
+        // 🔥 遊戲名稱映射表：將中文遊戲名稱映射到可能的英文縮寫和變體
+        const gameNameMap: { [key: string]: string[] } = {
+          '英雄聯盟': ['lol', 'leagueoflegends', 'league of legends', 'leagueoflegends', '英雄聯盟', 'lol '],
+          '特戰英豪': ['valorant', 'val', '特戰英豪'],
+          'apex英雄': ['apex', 'apex legends', 'apex英雄', 'apex 英雄'],
+          'apex 英雄': ['apex', 'apex legends', 'apex英雄', 'apex 英雄'],
+          'csgo': ['csgo', 'cs:go', 'counter-strike', 'cs go', 'csgo '],
+          'cs:go': ['csgo', 'cs:go', 'counter-strike', 'cs go'],
+          'pubg': ['pubg', 'playerunknown', 'playerunknown\'s battlegrounds'],
+        }
+        
+        // 獲取遊戲的所有可能名稱變體
+        const gameFilterLower = gameFilter.toLowerCase().replace(/[:：]/g, '').trim()
+        // 先嘗試直接匹配，如果沒有則使用原始值
+        let possibleNames = gameNameMap[gameFilter] || gameNameMap[gameFilterLower] || [gameFilterLower]
+        
+        // 如果原始值（包含空格）也有映射，合併兩個映射
+        if (gameNameMap[gameFilter] && gameNameMap[gameFilterLower] && gameFilter !== gameFilterLower) {
+          possibleNames = [...new Set([...gameNameMap[gameFilter], ...gameNameMap[gameFilterLower]])]
+        }
+        
+        console.log(`🎮 遊戲篩選 "${gameFilter}" (標準化: "${gameFilterLower}") 的可能名稱變體:`, possibleNames)
+        
         partnersList = partnersList.filter(partner => {
           if (!partner.games || partner.games.length === 0) return false
-          return partner.games.some(game => {
-            // 將遊戲名稱標準化：轉小寫並移除冒號和空格
-            const normalizedGame = game.toLowerCase().replace(/[:：\s]/g, '')
-            const normalizedFilter = gameFilterLower
-            // 使用 includes 進行部分匹配，支援 "csgo" 匹配 "CS:GO" 等情況
-            return normalizedGame.includes(normalizedFilter) || normalizedFilter.includes(normalizedGame)
+          
+          const matches = partner.games.some(game => {
+            // 將遊戲名稱標準化：轉小寫並移除冒號、空格和特殊字符
+            const normalizedGame = game.toLowerCase().replace(/[:：\s\-_]/g, '').trim()
+            
+            // 檢查是否匹配任何可能的名稱變體
+            return possibleNames.some(possibleName => {
+              const normalizedPossible = possibleName.toLowerCase().replace(/[:：\s\-_]/g, '').trim()
+              // 使用 includes 進行部分匹配，支援 "csgo" 匹配 "CS:GO" 等情況
+              // 或者完全匹配
+              const match = normalizedGame.includes(normalizedPossible) || 
+                           normalizedPossible.includes(normalizedGame) ||
+                           normalizedGame === normalizedPossible
+              
+              if (match) {
+                console.log(`✅ 匹配成功: 夥伴遊戲 "${game}" (標準化: "${normalizedGame}") 匹配篩選 "${gameFilter}" (變體: "${possibleName}")`)
+              }
+              
+              return match
+            })
           })
+          
+          if (!matches) {
+            console.log(`❌ 不匹配: 夥伴 ${partner.name} 的遊戲 [${partner.games.join(', ')}] 不匹配篩選 "${gameFilter}"`)
+          }
+          
+          return matches
         })
         console.log(`🎮 遊戲篩選 "${gameFilter}" 後，剩餘 ${partnersList.length} 個夥伴`)
       }
