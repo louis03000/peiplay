@@ -64,28 +64,22 @@ export const CacheInvalidation = {
   /**
    * 當 Partner 更新時，清除相關 cache
    * 【修復】確保清除所有相關快取，包括 lightweight 後綴的 key
+   * 【優化】使用多個 pattern 確保清除所有可能的組合
    */
   async onPartnerUpdate(partnerId: string): Promise<void> {
     try {
       const patterns = [
         `partners:*`,  // 匹配所有 partners 相關快取，包括 partners:list:* 和 partners:list:*:lightweight
+        `partners:list:*`,  // 明確匹配列表快取
+        `partners:list:*:lightweight`,  // 明確匹配 lightweight 快取
         `partner:${partnerId}:*`,
         `stats:*`,
       ];
       
-      for (const pattern of patterns) {
-        await Cache.deletePattern(pattern);
-      }
+      // 並行清除所有 pattern，加快速度
+      await Promise.all(patterns.map(pattern => Cache.deletePattern(pattern)));
       
-      // 【修復】額外清除可能存在的 lightweight 快取
-      // 因為 Upstash Redis 的 keys() 可能不支援複雜的 pattern，我們手動清除常見的組合
-      const lightweightPatterns = [
-        `partners:list:*:lightweight`,
-      ];
-      
-      for (const pattern of lightweightPatterns) {
-        await Cache.deletePattern(pattern);
-      }
+      console.log(`✅ 已清除夥伴 ${partnerId} 的相關快取`);
     } catch (error: any) {
       console.error('Cache invalidation error:', error);
     }

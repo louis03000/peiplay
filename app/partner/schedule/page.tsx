@@ -947,7 +947,7 @@ export default function PartnerSchedulePage() {
         setPendingAdd(prev => ({ ...prev, [key]: true }));
       }
     }
-  }, [getLocalDateString, getScheduleAtTime, pendingDelete, pendingAdd]);
+  }, [getLocalDateString, getScheduleAtTime, pendingDelete, pendingAdd, isSaving]);
 
   // 儲存所有變更
   const handleSave = async () => {

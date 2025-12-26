@@ -31,9 +31,17 @@ export async function POST(request: NextRequest) {
 
     const { partnerId, duration } = requestData
 
-    if (!partnerId || !duration || duration <= 0) {
-      console.log('❌ 參數驗證失敗:', { partnerId, duration })
-      return NextResponse.json({ error: '缺少必要參數' }, { status: 400 })
+    // 驗證參數
+    if (!partnerId || typeof partnerId !== 'string') {
+      console.log('❌ 參數驗證失敗: partnerId 無效', { partnerId, type: typeof partnerId })
+      return NextResponse.json({ error: '缺少或無效的夥伴ID' }, { status: 400 })
+    }
+
+    // 確保 duration 是數字類型
+    const durationNum = typeof duration === 'string' ? parseFloat(duration) : Number(duration)
+    if (!durationNum || isNaN(durationNum) || durationNum <= 0) {
+      console.log('❌ 參數驗證失敗: duration 無效', { duration, durationNum, type: typeof duration })
+      return NextResponse.json({ error: '缺少或無效的預約時長' }, { status: 400 })
     }
 
     const result = await db.query(async (client) => {
@@ -77,7 +85,13 @@ export async function POST(request: NextRequest) {
         }
 
         console.log('🔍 檢查夥伴是否忙碌...')
-        const busyCheck = await checkPartnerCurrentlyBusy(partner.id, client)
+        let busyCheck
+        try {
+          busyCheck = await checkPartnerCurrentlyBusy(partner.id, client)
+        } catch (error) {
+          console.error('❌ 檢查夥伴忙碌狀態失敗:', error)
+          throw new Error(`檢查夥伴忙碌狀態失敗: ${error instanceof Error ? error.message : 'Unknown error'}`)
+        }
         if (busyCheck.isBusy) {
           console.log('❌ 夥伴目前忙碌')
           return { type: 'BUSY', busyCheck } as const
@@ -87,56 +101,75 @@ export async function POST(request: NextRequest) {
         // 當前時間 + 15 分鐘後開始（UTC）
         const now = new Date() // UTC
         const startTime = new Date(now.getTime() + 15 * 60 * 1000) // UTC + 15分鐘
-        const endTime = new Date(startTime.getTime() + duration * 60 * 60 * 1000) // UTC + duration小時
+        const endTime = new Date(startTime.getTime() + durationNum * 60 * 60 * 1000) // UTC + durationNum小時
 
-        console.log('🔍 檢查時間衝突...')
-        const conflict = await checkTimeConflict(partner.id, startTime, endTime, undefined, client)
+        console.log('🔍 檢查時間衝突...', { partnerId: partner.id, startTime: startTime.toISOString(), endTime: endTime.toISOString() })
+        let conflict
+        try {
+          conflict = await checkTimeConflict(partner.id, startTime, endTime, undefined, client)
+        } catch (error) {
+          console.error('❌ 檢查時間衝突失敗:', error)
+          throw new Error(`檢查時間衝突失敗: ${error instanceof Error ? error.message : 'Unknown error'}`)
+        }
         if (conflict.hasConflict) {
           console.log('❌ 時間衝突')
           return { type: 'CONFLICT', conflict } as const
         }
 
         const pricing = {
-          duration,
-          originalAmount: duration * partner.halfHourlyRate * 2,
+          duration: durationNum,
+          originalAmount: durationNum * partner.halfHourlyRate * 2,
         }
 
         console.log('🔍 開始創建預約（事務）...')
-        const { schedule, booking } = await client.$transaction(
-          async (tx) => {
-            console.log('📝 創建時段...')
-            const createdSchedule = await tx.schedule.create({
-              data: {
-                partnerId: partner.id,
-                date: startTime,
-                startTime,
-                endTime,
-                isAvailable: false,
-              },
-            })
-
-            console.log('📝 創建預約...')
-            const createdBooking = await tx.booking.create({
-              data: {
-                customerId: customer.id,
-                partnerId: partner.id,
-                scheduleId: createdSchedule.id,
-                status: BookingStatus.PAID_WAITING_PARTNER_CONFIRMATION,
-                originalAmount: pricing.originalAmount,
-                finalAmount: pricing.originalAmount,
-                paymentInfo: {
-                  isInstantBooking: true,
+        let schedule, booking
+        try {
+          const transactionResult = await client.$transaction(
+            async (tx) => {
+              console.log('📝 創建時段...')
+              const createdSchedule = await tx.schedule.create({
+                data: {
+                  partnerId: partner.id,
+                  date: startTime,
+                  startTime,
+                  endTime,
+                  isAvailable: false,
                 },
-              },
-            })
+              })
 
-            return { schedule: createdSchedule, booking: createdBooking }
-          },
-          {
-            maxWait: 10000, // 等待事務開始的最大時間（10秒）
-            timeout: 20000, // 事務執行的最大時間（20秒）
-          }
-        )
+              console.log('📝 創建預約...')
+              const createdBooking = await tx.booking.create({
+                data: {
+                  customerId: customer.id,
+                  partnerId: partner.id,
+                  scheduleId: createdSchedule.id,
+                  status: BookingStatus.PAID_WAITING_PARTNER_CONFIRMATION,
+                  originalAmount: pricing.originalAmount,
+                  finalAmount: pricing.originalAmount,
+                  paymentInfo: {
+                    isInstantBooking: true,
+                  },
+                },
+              })
+
+              return { schedule: createdSchedule, booking: createdBooking }
+            },
+            {
+              maxWait: 10000, // 等待事務開始的最大時間（10秒）
+              timeout: 20000, // 事務執行的最大時間（20秒）
+            }
+          )
+          schedule = transactionResult.schedule
+          booking = transactionResult.booking
+        } catch (transactionError) {
+          console.error('❌ 事務執行失敗:', transactionError)
+          console.error('事務錯誤詳情:', {
+            message: transactionError instanceof Error ? transactionError.message : 'Unknown error',
+            stack: transactionError instanceof Error ? transactionError.stack : undefined,
+            name: transactionError instanceof Error ? transactionError.name : undefined,
+          })
+          throw new Error(`創建預約事務失敗: ${transactionError instanceof Error ? transactionError.message : 'Unknown error'}`)
+        }
 
         console.log('✅ 預約創建成功')
         return { type: 'SUCCESS', customer, partner, schedule, booking, pricing, startTime, endTime } as const

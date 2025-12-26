@@ -273,6 +273,12 @@ function BookingWizardContent() {
   }, [searchParams, partners, onlyAvailable, partnerSchedules]);
 
   // 優化：使用輕量級 API + 並行請求
+  // 使用 useRef 保存最新的篩選條件，供定期刷新使用
+  const filtersRef = useRef({ onlyAvailable, onlyRankBooster });
+  useEffect(() => {
+    filtersRef.current = { onlyAvailable, onlyRankBooster };
+  }, [onlyAvailable, onlyRankBooster]);
+
   useEffect(() => {
     const fetchData = async (isRetry: boolean = false) => {
       if (!isRetry) {
@@ -282,14 +288,16 @@ function BookingWizardContent() {
 
       try {
         // 構建 partners API URL（使用輕量級 API，不查時段）
+        // 使用 filtersRef.current 確保定期刷新時使用最新的篩選條件
+        const currentFilters = filtersRef.current;
         let partnersUrl = "/api/partners/list";
         const params = [];
-        if (onlyAvailable) params.push("availableNow=true");
-        if (onlyRankBooster) params.push("rankBooster=true");
+        if (currentFilters.onlyAvailable) params.push("availableNow=true");
+        if (currentFilters.onlyRankBooster) params.push("rankBooster=true");
         if (params.length > 0) partnersUrl += "?" + params.join("&");
 
         console.log('[預約頁面] 請求 URL:', partnersUrl);
-        console.log('[預約頁面] 篩選條件:', { onlyAvailable, onlyRankBooster });
+        console.log('[預約頁面] 篩選條件:', currentFilters);
 
         // 並行請求：partners + favorites（如果已登入）
         // 為了顯示「現在有空」和「上分高手」標籤，總是獲取最新數據（不使用強制緩存）
@@ -395,6 +403,17 @@ function BookingWizardContent() {
     };
 
     fetchData();
+    
+    // 定期刷新數據，確保「現在有空」和「上分高手」標籤能即時顯示
+    // 每 10 秒刷新一次，這樣用戶開啟「現在有空」後，最多等待 10 秒就能看到更新
+    const refreshInterval = setInterval(() => {
+      console.log('[預約頁面] 定期刷新數據...');
+      fetchData(true); // 使用 isRetry=true 避免顯示 loading 狀態
+    }, 10000); // 10 秒刷新一次
+    
+    return () => {
+      clearInterval(refreshInterval);
+    };
   }, [onlyAvailable, onlyRankBooster, retryCount, sessionStatus, session]);
 
   // 手動重試函數
@@ -735,9 +754,10 @@ function BookingWizardContent() {
         await loadPartnerSchedules(partner.id);
       }
       
-      if (onlyAvailable) {
-        setStep(1); // 直接跳到選擇時長步驟
-      }
+      // 移除自動跳轉邏輯，讓用戶必須點選「下一步」才能進入下一步驟
+      // if (onlyAvailable) {
+      //   setStep(1); // 直接跳到選擇時長步驟
+      // }
     },
     [onlyAvailable, loadPartnerSchedules],
   );
