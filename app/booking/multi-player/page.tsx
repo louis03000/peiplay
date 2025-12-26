@@ -134,7 +134,26 @@ function MultiPlayerBookingContent() {
       const response = await fetch('/api/multi-player-booking')
       if (response.ok) {
         const data = await response.json()
-        setMyBookings(data.multiPlayerBookings || [])
+        const now = new Date()
+        
+        // 過濾並處理預約：如果時間已過但狀態還是 ACTIVE，標記為已完成
+        const processedBookings = (data.multiPlayerBookings || []).map((booking: MultiPlayerBooking) => {
+          const endTime = new Date(booking.endTime)
+          const isExpired = endTime.getTime() < now.getTime()
+          
+          // 如果時間已過但狀態還是 ACTIVE 或 PENDING，標記為已完成
+          if (isExpired && (booking.status === 'ACTIVE' || booking.status === 'PENDING')) {
+            return {
+              ...booking,
+              status: 'COMPLETED' as const,
+              _isAutoCompleted: true // 標記為自動完成
+            }
+          }
+          
+          return booking
+        })
+        
+        setMyBookings(processedBookings)
       }
     } catch (error) {
       console.error('載入多人陪玩群組失敗:', error)
@@ -735,9 +754,20 @@ ${formatScheduleChecks(p)}
                         })}
                       </h3>
                       <p className="text-sm text-gray-600 mt-1">
-                        狀態：{booking.status === 'PENDING' ? '等待確認' : 
-                               booking.status === 'ACTIVE' ? '進行中' :
-                               booking.status === 'COMPLETED' ? '已完成' : '已取消'}
+                        狀態：{(() => {
+                          const endTime = new Date(booking.endTime)
+                          const now = new Date()
+                          const isExpired = endTime.getTime() < now.getTime()
+                          
+                          // 如果時間已過，顯示為已完成
+                          if (isExpired && (booking.status === 'ACTIVE' || booking.status === 'PENDING')) {
+                            return '已完成'
+                          }
+                          
+                          return booking.status === 'PENDING' ? '等待確認' : 
+                                 booking.status === 'ACTIVE' ? '進行中' :
+                                 booking.status === 'COMPLETED' ? '已完成' : '已取消'
+                        })()}
                       </p>
                       <p className="text-sm text-gray-600">
                         總費用：${booking.totalAmount.toFixed(0)}

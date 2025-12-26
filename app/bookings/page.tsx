@@ -832,8 +832,11 @@ export default function BookingsPage() {
                       {tab === "partner" && (
                         <td className="py-4 px-6">
                           {booking.status !== "CANCELLED" &&
-                            booking.status ===
-                            "PAID_WAITING_PARTNER_CONFIRMATION" && (
+                            booking.status !== "REJECTED" &&
+                            booking.status !== "COMPLETED" &&
+                            (booking.status === "PAID_WAITING_PARTNER_CONFIRMATION" ||
+                             booking.status === "PARTNER_ACCEPTED" ||
+                             booking.status === "PENDING") && (
                             <div className="flex gap-2">
                               <button
                                 disabled={

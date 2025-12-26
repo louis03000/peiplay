@@ -83,14 +83,27 @@ export async function GET() {
         
         // 判斷服務類型（與 admin/order-records 邏輯一致）
         const paymentInfo = booking.paymentInfo as any
-        if (paymentInfo?.isInstantBooking === true || paymentInfo?.isInstantBooking === 'true') {
+        
+        // 🔥 優先檢查多人陪玩（因為它可能同時有 paymentInfo）
+        if (booking.multiPlayerBookingId) {
+          serviceType = '多人陪玩'
+        } else if (paymentInfo?.isInstantBooking === true || paymentInfo?.isInstantBooking === 'true') {
           serviceType = '即時預約'
         } else if (booking.groupBookingId) {
           serviceType = '群組預約'
-        } else if (booking.multiPlayerBookingId) {
-          serviceType = '多人陪玩'
         } else if (booking.serviceType === 'CHAT_ONLY') {
           serviceType = '純聊天'
+        }
+        
+        // 🔥 調試信息（僅在開發環境）
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`[bookings/partner] 預約 ${booking.id} 服務類型判斷:`, {
+            multiPlayerBookingId: booking.multiPlayerBookingId,
+            groupBookingId: booking.groupBookingId,
+            isInstantBooking: paymentInfo?.isInstantBooking,
+            serviceType: booking.serviceType,
+            result: serviceType
+          })
         }
         
         return {
