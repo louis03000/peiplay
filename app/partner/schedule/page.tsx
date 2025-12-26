@@ -1279,7 +1279,7 @@ export default function PartnerSchedulePage() {
       // 等待一個 tick 確保 React 狀態更新完成
       await new Promise(resolve => setTimeout(resolve, 200));
       
-      // 顯示成功提示
+      // 顯示成功提示（無論是新增還是刪除，只要有任何操作成功就顯示）
       console.log('✅ 儲存完成，顯示成功提示');
       setShowSuccess(true);
       setTimeout(() => setShowSuccess(false), 3000);
@@ -1289,7 +1289,7 @@ export default function PartnerSchedulePage() {
       setSaving(false);
       setIsSaving(false); // 🔓 解鎖所有操作
       
-      // 可選：自動滾到頂部
+      // 自動滾到頂部（無論是新增還是刪除，都滾動到頂部顯示成功提示）
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (e) {
       console.error('❌ 儲存時段失敗:', e);
