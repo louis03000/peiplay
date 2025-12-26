@@ -203,6 +203,11 @@ export async function GET(request: Request) {
               endTime: true,
               isAvailable: true,
               bookings: {
+                where: {
+                  status: {
+                    notIn: ['CANCELLED', 'REJECTED', 'COMPLETED']
+                  }
+                },
                 select: {
                   id: true,
                   status: true,
@@ -403,13 +408,20 @@ export async function GET(request: Request) {
               const hasOverlap = scheduleStart.getTime() < endDateTimeUTC.getTime() && 
                                 scheduleEnd.getTime() > startDateTimeUTC.getTime()
               
-              // 檢查是否可用（無活躍預約）
-              const hasActiveBooking = schedule.bookings && 
-                schedule.bookings.status !== 'CANCELLED' && 
-                schedule.bookings.status !== 'REJECTED' &&
-                schedule.bookings.status !== 'COMPLETED'
+              // 🔥 檢查是否可用（無活躍預約）
+              // 注意：schedule.bookings 是 Booking?（單一關聯），但查詢時已經過濾了 CANCELLED/REJECTED/COMPLETED
+              // 如果 bookings 存在，表示時段已被預約
+              const hasActiveBooking = schedule.bookings !== null && schedule.bookings !== undefined
               
               const isAvailable = schedule.isAvailable && !hasActiveBooking
+              
+              if (hasActiveBooking) {
+                console.log(`⛔ [多人陪玩搜索] 時段 ${schedule.id} 已被預約:`, {
+                  scheduleId: schedule.id,
+                  bookingId: schedule.bookings?.id,
+                  bookingStatus: schedule.bookings?.status,
+                })
+              }
               
               return hasOverlap && isAvailable
             })
