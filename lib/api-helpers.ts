@@ -80,6 +80,24 @@ export function createErrorResponse(error: unknown, context?: string): NextRespo
   // 一般錯誤
   const isDevelopment = process.env.NODE_ENV === 'development'
   const errorMessage = error instanceof Error ? error.message : '發生未知錯誤'
+  
+  // 🔥 檢查錯誤訊息，如果是時段已被預約的錯誤，返回 409 狀態碼和更具體的錯誤訊息
+  const isConflictError = errorMessage.includes('時段已被預約') || 
+                         errorMessage.includes('已被預約') ||
+                         errorMessage.includes('時間有衝突') ||
+                         errorMessage.includes('時間衝突')
+  
+  // 如果是衝突錯誤，返回更具體的錯誤訊息
+  if (isConflictError) {
+    return NextResponse.json(
+      {
+        error: errorMessage, // 使用原始錯誤訊息
+        code: 'CONFLICT_ERROR',
+        details: isDevelopment ? errorMessage : undefined,
+      },
+      { status: 409 }
+    )
+  }
 
   return NextResponse.json(
     {

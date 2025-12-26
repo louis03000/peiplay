@@ -182,6 +182,17 @@ export async function POST(request: Request) {
 
       console.log('[multi-player-booking] 🔍 開始驗證', partnerScheduleIds.length, '個時段...')
       
+      // 🔥 檢查是否有重複的 scheduleId
+      const scheduleIdSet = new Set(partnerScheduleIds)
+      if (scheduleIdSet.size !== partnerScheduleIds.length) {
+        const duplicates = partnerScheduleIds.filter((id, index) => partnerScheduleIds.indexOf(id) !== index)
+        console.error('[multi-player-booking] ❌ 檢測到重複的時段 ID:', duplicates)
+        return { 
+          type: 'DUPLICATE_SCHEDULE', 
+          message: '不能選擇相同的時段，請選擇不同的時段' 
+        } as const
+      }
+      
       for (let i = 0; i < partnerScheduleIds.length; i++) {
         const scheduleId = partnerScheduleIds[i]
         console.log(`[multi-player-booking] 🔍 [${i + 1}/${partnerScheduleIds.length}] 驗證時段:`, scheduleId)
@@ -371,6 +382,38 @@ export async function POST(request: Request) {
         for (const partner of partnerData) {
           try {
             console.log(`[multi-player-booking] 📝 為夥伴 ${partner.partnerName} 創建預約...`)
+            
+            // 🔥 在事務中再次檢查時段是否已被預約（防止並發問題）
+            const scheduleInTx = await tx.schedule.findUnique({
+              where: { id: partner.scheduleId },
+              include: {
+                bookings: {
+                  where: {
+                    status: {
+                      notIn: ['CANCELLED', 'REJECTED']
+                    }
+                  },
+                  select: {
+                    id: true,
+                    status: true,
+                  },
+                },
+              },
+            })
+            
+            if (!scheduleInTx) {
+              throw new Error(`時段 ${partner.scheduleId} 不存在`)
+            }
+            
+            // 檢查時段是否已被預約（包括當前事務中已創建的 Booking）
+            const hasActiveBooking = Array.isArray(scheduleInTx.bookings)
+              ? scheduleInTx.bookings.length > 0
+              : scheduleInTx.bookings !== null
+            
+            if (hasActiveBooking) {
+              throw new Error(`夥伴 ${partner.partnerName} 的時段已被預約，請選擇其他時段`)
+            }
+            
             const booking = await tx.booking.create({
               data: {
                 customerId: customer.id,
@@ -493,6 +536,11 @@ export async function POST(request: Request) {
     if (result.type === 'TIME_CONFLICT_CHECK_FAILED') {
       console.log('[multi-player-booking] ❌', result.message)
       return NextResponse.json({ error: result.message }, { status: 500 })
+    }
+    
+    if (result.type === 'DUPLICATE_SCHEDULE') {
+      console.log('[multi-player-booking] ❌', result.message)
+      return NextResponse.json({ error: result.message }, { status: 400 })
     }
     
     if (result.type !== 'SUCCESS') {
