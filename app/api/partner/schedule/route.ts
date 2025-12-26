@@ -282,14 +282,22 @@ export async function GET() {
         return { type: 'NOT_PARTNER' } as const
       }
 
-      const schedules = partner.schedules.map((s) => ({
-        id: s.id,
-        date: s.date,
-        startTime: s.startTime,
-        endTime: s.endTime,
-        isAvailable: s.isAvailable,
-        booked: Boolean(s.bookings?.status && !['CANCELLED', 'REJECTED'].includes(s.bookings.status as string)),
-      }))
+      const schedules = partner.schedules.map((s) => {
+        // 🔥 修正 booked 判斷邏輯：Schedule 和 Booking 是一對一關係
+        // 檢查是否有預約，且預約狀態不是已取消、已拒絕或已完成
+        const booking = s.bookings
+        const hasActiveBooking = booking && booking.status && 
+          !['CANCELLED', 'REJECTED', 'COMPLETED'].includes(booking.status as string)
+        
+        return {
+          id: s.id,
+          date: s.date,
+          startTime: s.startTime,
+          endTime: s.endTime,
+          isAvailable: s.isAvailable,
+          booked: Boolean(hasActiveBooking),
+        }
+      })
 
       return { type: 'SUCCESS', schedules } as const
     }, 'partner:schedule:get')
