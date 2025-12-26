@@ -612,7 +612,7 @@ export default function BookingsPage() {
                                     : booking.status === "CANCELLED"
                                       ? "bg-red-600 text-white"
                                       : booking.status === "COMPLETED"
-                                        ? "bg-blue-600 text-white"
+                                        ? "bg-green-600 text-white"
                                         : booking.status === "PENDING_PAYMENT"
                                           ? "bg-purple-600 text-white"
                                           : "bg-gray-600 text-white"

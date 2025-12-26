@@ -2,9 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth/next'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db-resilience'
-import { sendBookingNotificationEmail } from '@/lib/email'
 import { BookingStatus } from '@prisma/client'
-import { checkPartnerCurrentlyBusy, checkTimeConflict } from '@/lib/time-conflict'
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs'; // ⚠️ 必須是 nodejs，Prisma/PostgreSQL/transaction 都需要
@@ -105,6 +103,9 @@ export async function POST(request: NextRequest) {
     console.log(`[${requestId}] 🔍 開始執行資料庫查詢...`)
     let result
     try {
+      // 🔥 延遲加載可能有問題的模組
+      const { checkPartnerCurrentlyBusy, checkTimeConflict } = await import('@/lib/time-conflict')
+      
       result = await db.query(async (client) => {
         try {
           console.log(`[${requestId}] 🔍 開始查詢客戶資料...`, { userId: session.user.id })
@@ -332,7 +333,8 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // 非阻塞寄信
+    // 非阻塞寄信（延遲加載）
+    const { sendBookingNotificationEmail } = await import('@/lib/email')
     sendBookingNotificationEmail(
       result.partner.user.email,
       result.partner.user.name || result.partner.name || '夥伴',
