@@ -9,24 +9,19 @@ import { checkPartnerCurrentlyBusy, checkTimeConflict } from '@/lib/time-conflic
 // ⚠️ API 層不使用時區轉換，直接使用 Date 對象（UTC）
 
 export const dynamic = 'force-dynamic';
-export const runtime = 'nodejs';
+export const runtime = 'nodejs'; // ⚠️ 必須是 nodejs，Prisma/PostgreSQL/transaction 都需要
 
 export async function POST(request: NextRequest) {
+  // 🔥 保證會執行的日誌（在 try-catch 之前，確保即使早期錯誤也能看到）
+  console.log('🔥 instant booking API ENTERED')
+  console.log('🔥 Request received at:', new Date().toISOString())
+  console.log('🔥 Request URL:', request.url)
+  console.log('🔥 Request Method:', request.method)
+  
   // 🔥 立即生成 requestId，確保即使早期錯誤也能追蹤
   const requestStartTime = Date.now()
   const requestId = request.headers.get('x-request-id') || `req-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`
-  
-  // 🔥 強制 log 所有請求（立即記錄，不等待任何操作）
-  try {
-    console.log(`[${requestId}] 📥 ========== 收到即時預約請求 ==========`)
-    console.log(`[${requestId}] 📥 請求開始時間:`, new Date().toISOString())
-    console.log(`[${requestId}] 📥 Request ID:`, requestId)
-    console.log(`[${requestId}] 📥 Request URL:`, request.url)
-    console.log(`[${requestId}] 📥 Request Method:`, request.method)
-  } catch (logError) {
-    // 即使日誌記錄失敗，也要繼續執行
-    console.error('無法記錄初始日誌:', logError)
-  }
+  console.log('🔥 Request ID:', requestId)
   
   let requestData: any
   try {
@@ -34,7 +29,7 @@ export async function POST(request: NextRequest) {
     requestData = await request.json()
     console.log(`[${requestId}] 📦 請求 body 解析成功:`, JSON.stringify(requestData))
   } catch (error) {
-    console.error(`[${requestId}] ❌ 解析請求 body 失敗:`, error)
+    console.error(`[${requestId}] ❌ req.json failed:`, error)
     console.error(`[${requestId}] 錯誤詳情:`, {
       message: error instanceof Error ? error.message : 'Unknown error',
       stack: error instanceof Error ? error.stack : undefined,
@@ -42,7 +37,7 @@ export async function POST(request: NextRequest) {
     })
     return NextResponse.json({ 
       error: '無效的請求數據',
-      code: 'INVALID_REQUEST_BODY',
+      code: 'INVALID_JSON',
       requestId 
     }, { status: 400 })
   }
