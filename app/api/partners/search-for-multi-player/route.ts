@@ -96,13 +96,8 @@ export async function GET(request: Request) {
     
     // ⚠️ 時間比較：使用 UTC，不再轉換
     const now = new Date() // UTC
-    const twoHoursLater = new Date(now.getTime() + 2 * 60 * 60 * 1000) // UTC + 2小時
     
-    if (startDateTimeUTC.getTime() < twoHoursLater.getTime()) {
-      return NextResponse.json({ 
-        error: '預約時段必須在現在時間的2小時之後'
-      }, { status: 400 })
-    }
+    // 🔥 移除「必須預約兩小時後」的限制，允許立即搜索
     
     // 調試：驗證時間轉換（只顯示 UTC）
     console.log('⏰ [多人陪玩搜索] 時間轉換驗證 (UTC):', {

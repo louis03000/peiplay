@@ -105,15 +105,9 @@ export async function POST(request: Request) {
 
     // ⚠️ 時間比較：使用 UTC，不再轉換
     const now = new Date() // UTC
-    const twoHoursLater = new Date(now.getTime() + 2 * 60 * 60 * 1000) // UTC + 2小時
     
-    if (startDateTimeUTC.getTime() < twoHoursLater.getTime()) {
-      console.log('[multi-player-booking] ❌ 預約時段必須在現在時間的2小時之後')
-      return NextResponse.json({ 
-        error: '預約時段必須在現在時間的2小時之後'
-      }, { status: 400 })
-    }
-
+    // 🔥 移除「必須預約兩小時後」的限制，允許立即預約
+    
     if (endDateTimeUTC <= startDateTimeUTC) {
       console.log('[multi-player-booking] ❌ 結束時間必須晚於開始時間')
       return NextResponse.json({ error: '結束時間必須晚於開始時間' }, { status: 400 })
