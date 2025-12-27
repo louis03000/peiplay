@@ -4,7 +4,7 @@ import { authOptions } from '@/lib/auth';
 import { db } from '@/lib/db-resilience';
 import { createErrorResponse } from '@/lib/api-helpers';
 import { BookingStatus } from '@prisma/client';
-import { sendWarningEmail } from '@/lib/email';
+import { sendWarningEmail, sendMultiPlayerBookingCancelledEmail } from '@/lib/email';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -43,7 +43,41 @@ export async function POST(
 
       const booking = await client.booking.findUnique({
         where: { id: bookingId },
-        include: { schedule: true },
+        include: { 
+          schedule: true,
+          multiPlayerBooking: {
+            include: {
+              bookings: {
+                include: {
+                  schedule: {
+                    include: {
+                      partner: {
+                        include: {
+                          user: {
+                            select: {
+                              name: true,
+                              email: true,
+                            },
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+              customer: {
+                include: {
+                  user: {
+                    select: {
+                      name: true,
+                      email: true,
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
       });
 
       if (!booking) {
@@ -58,10 +92,87 @@ export async function POST(
         return { type: 'ALREADY_CANCELLED', booking } as const;
       }
 
-      // 更新預約狀態為已取消
-      const updatedBooking = await client.booking.update({
+      const isMultiPlayerBooking = booking.multiPlayerBookingId !== null;
+      let multiPlayerBookingData = null;
+      let rejectedPartnerName = null;
+
+      // 🔥 如果是多人陪玩，需要取消整個群組並通知已同意的夥伴
+      if (isMultiPlayerBooking && booking.multiPlayerBooking) {
+        const multiPlayerBooking = booking.multiPlayerBooking;
+        
+        // 找出拒絕的夥伴名稱（用於 email 通知）
+        const rejectedBooking = multiPlayerBooking.bookings.find(
+          b => b.status === 'REJECTED' || b.status === 'PARTNER_REJECTED'
+        );
+        if (rejectedBooking) {
+          rejectedPartnerName = rejectedBooking.schedule.partner.user.name || '夥伴';
+        }
+
+        // 取消所有相關的 Booking
+        await client.booking.updateMany({
+          where: {
+            multiPlayerBookingId: multiPlayerBooking.id,
+            status: {
+              notIn: [BookingStatus.CANCELLED, BookingStatus.REJECTED, BookingStatus.PARTNER_REJECTED],
+            },
+          },
+          data: {
+            status: BookingStatus.CANCELLED,
+          },
+        });
+
+        // 更新 MultiPlayerBooking 狀態為 CANCELLED
+        await client.multiPlayerBooking.update({
+          where: { id: multiPlayerBooking.id },
+          data: { status: 'CANCELLED' },
+        });
+
+        // 記錄所有取消的 Booking
+        for (const b of multiPlayerBooking.bookings) {
+          if (b.status !== BookingStatus.CANCELLED && 
+              b.status !== BookingStatus.REJECTED && 
+              b.status !== BookingStatus.PARTNER_REJECTED) {
+            await client.bookingCancellation.create({
+              data: {
+                bookingId: b.id,
+                customerId: customer.id,
+                reason: reason.trim(),
+              },
+            });
+          }
+        }
+
+        // 找出已同意的夥伴（需要發送 email）
+        const confirmedPartners = multiPlayerBooking.bookings.filter(
+          b => (b.status === BookingStatus.CONFIRMED || b.status === BookingStatus.PARTNER_ACCEPTED) &&
+               b.id !== bookingId
+        );
+
+        multiPlayerBookingData = {
+          multiPlayerBooking,
+          confirmedPartners,
+          rejectedPartnerName: rejectedPartnerName || '某位夥伴',
+        };
+      } else {
+        // 一般預約：只取消當前預約
+        await client.booking.update({
+          where: { id: bookingId },
+          data: { status: BookingStatus.CANCELLED },
+        });
+
+        // 記錄取消記錄
+        await client.bookingCancellation.create({
+          data: {
+            bookingId: bookingId,
+            customerId: customer.id,
+            reason: reason.trim(),
+          },
+        });
+      }
+
+      // 獲取更新後的預約信息
+      const updatedBooking = await client.booking.findUnique({
         where: { id: bookingId },
-        data: { status: BookingStatus.CANCELLED },
         include: {
           schedule: {
             include: {
@@ -70,15 +181,6 @@ export async function POST(
               },
             },
           },
-        },
-      });
-
-      // 記錄取消記錄
-      await client.bookingCancellation.create({
-        data: {
-          bookingId: bookingId,
-          customerId: customer.id,
-          reason: reason.trim(),
         },
       });
 
@@ -101,6 +203,8 @@ export async function POST(
         booking: updatedBooking,
         customerId: customer.id,
         customerWithUser,
+        isMultiPlayerBooking,
+        multiPlayerBookingData,
       } as const;
     }, 'bookings:cancel');
 
@@ -118,6 +222,34 @@ export async function POST(
         success: true,
         message: '預約已經被取消',
         booking: result.booking,
+      });
+    }
+
+    // 🔥 如果是多人陪玩取消，發送 email 給已同意的夥伴
+    if (result.type === 'SUCCESS' && result.isMultiPlayerBooking && result.multiPlayerBookingData) {
+      const { multiPlayerBooking, confirmedPartners, rejectedPartnerName } = result.multiPlayerBookingData;
+      
+      // 異步發送 email 給所有已同意的夥伴
+      Promise.all(
+        confirmedPartners.map(async (partnerBooking) => {
+          try {
+            await sendMultiPlayerBookingCancelledEmail(
+              partnerBooking.schedule.partner.user.email || '',
+              partnerBooking.schedule.partner.user.name || '夥伴',
+              result.customerWithUser?.user.name || '顧客',
+              rejectedPartnerName,
+              {
+                startTime: multiPlayerBooking.startTime.toISOString(),
+                endTime: multiPlayerBooking.endTime.toISOString(),
+                bookingId: multiPlayerBooking.id,
+              }
+            );
+          } catch (error) {
+            console.error(`❌ 發送取消通知給夥伴失敗:`, error);
+          }
+        })
+      ).catch((error) => {
+        console.error('❌ 發送多人陪玩取消通知失敗:', error);
       });
     }
 

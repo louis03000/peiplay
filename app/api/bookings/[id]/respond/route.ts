@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { db } from '@/lib/db-resilience';
 import { createErrorResponse } from '@/lib/api-helpers';
-import { sendBookingConfirmationEmail, sendBookingRejectionEmail, sendWarningEmail } from '@/lib/email';
+import { sendBookingConfirmationEmail, sendBookingRejectionEmail, sendWarningEmail, sendMultiPlayerPartnerRejectionEmail, sendMultiPlayerBookingCancelledEmail } from '@/lib/email';
 import { createChatRoomForBooking } from '@/lib/chat-helpers';
 import { BookingStatus, MultiPlayerBookingStatus } from '@prisma/client';
 
@@ -95,30 +95,74 @@ export async function POST(
 
       const newStatus = action === 'accept' ? BookingStatus.CONFIRMED : BookingStatus.REJECTED;
 
-      // 如果是多人陪玩，需要更新群組狀態
-      let multiPlayerBookingUpdate = null;
+      // 🔥 如果是多人陪玩，需要特殊處理
+      let multiPlayerBookingData = null;
       if (isMultiPlayerBooking && booking.multiPlayerBookingId) {
         const multiPlayerBooking = await client.multiPlayerBooking.findUnique({
           where: { id: booking.multiPlayerBookingId },
           include: {
             bookings: {
-              select: {
-                id: true,
-                status: true,
+              include: {
+                schedule: {
+                  include: {
+                    partner: {
+                      include: {
+                        user: {
+                          select: {
+                            name: true,
+                            email: true,
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            customer: {
+              include: {
+                user: {
+                  select: {
+                    name: true,
+                    email: true,
+                  },
+                },
               },
             },
           },
         });
 
         if (multiPlayerBooking) {
-          // 檢查是否有至少一個夥伴已確認
-          const hasConfirmedPartner = multiPlayerBooking.bookings.some(
-            b => b.id !== booking.id && (b.status === 'CONFIRMED' || b.status === 'PARTNER_ACCEPTED')
+          const totalBookings = multiPlayerBooking.bookings.length;
+          const confirmedBookings = multiPlayerBooking.bookings.filter(
+            b => b.status === 'CONFIRMED' || b.status === 'PARTNER_ACCEPTED'
           );
-
-          // 如果接受且群組狀態是 PENDING，更新為 ACTIVE
-          if (action === 'accept' && multiPlayerBooking.status === 'PENDING') {
-            multiPlayerBookingUpdate = { status: MultiPlayerBookingStatus.ACTIVE };
+          const rejectedBookings = multiPlayerBooking.bookings.filter(
+            b => b.status === 'REJECTED' || b.status === 'PARTNER_REJECTED'
+          );
+          
+          // 如果接受，檢查是否所有夥伴都同意了
+          if (action === 'accept') {
+            // 計算接受後的確認數量
+            const willBeConfirmed = confirmedBookings.length + (booking.status === 'PAID_WAITING_PARTNER_CONFIRMATION' ? 1 : 0);
+            
+            // 如果所有夥伴都確認了，更新狀態為 ACTIVE
+            if (willBeConfirmed === totalBookings && multiPlayerBooking.status === 'PENDING') {
+              await client.multiPlayerBooking.update({
+                where: { id: booking.multiPlayerBookingId },
+                data: { status: MultiPlayerBookingStatus.ACTIVE },
+              });
+            }
+          }
+          
+          // 如果拒絕，記錄多人陪玩數據以便後續處理
+          if (action === 'reject') {
+            multiPlayerBookingData = {
+              multiPlayerBooking,
+              totalBookings,
+              confirmedCount: confirmedBookings.length,
+              rejectedCount: rejectedBookings.length + 1, // 加上當前拒絕的
+            };
           }
         }
       }
@@ -162,17 +206,14 @@ export async function POST(
         },
       });
 
-      // 更新多人陪玩群組狀態（如果需要）
-      if (multiPlayerBookingUpdate && booking.multiPlayerBookingId) {
-        await client.multiPlayerBooking.update({
-          where: { id: booking.multiPlayerBookingId },
-          data: multiPlayerBookingUpdate,
-        }).catch((error) => {
-          console.error('❌ 更新多人陪玩群組狀態失敗:', error);
-        });
-      }
-
-      return { type: 'SUCCESS', booking: updated, action, originalBooking: booking, isMultiPlayerBooking } as const;
+      return { 
+        type: 'SUCCESS', 
+        booking: updated, 
+        action, 
+        originalBooking: booking, 
+        isMultiPlayerBooking,
+        multiPlayerBookingData // 🔥 傳遞多人陪玩數據
+      } as const;
     }, 'bookings:respond');
 
     if (result.type === 'NO_PARTNER') {
@@ -242,18 +283,40 @@ export async function POST(
             console.error('❌ Email 發送失敗:', error);
           });
         } else {
-          await sendBookingRejectionEmail(
-            originalBooking.customer.user.email,
-            originalBooking.customer.user.name || '客戶',
-            originalBooking.schedule.partner.user.name || '夥伴',
-            {
-              startTime: originalBooking.schedule.startTime.toISOString(),
-              endTime: originalBooking.schedule.endTime.toISOString(),
-              bookingId: result.booking.id,
-            }
-          ).catch((error) => {
-            console.error('❌ Email 發送失敗:', error);
-          });
+          // 🔥 多人陪玩拒絕的特殊處理
+          if (result.isMultiPlayerBooking && result.multiPlayerBookingData) {
+            const { multiPlayerBooking, totalBookings, confirmedCount, rejectedCount } = result.multiPlayerBookingData;
+            
+            // 發送 email 通知顧客
+            await sendMultiPlayerPartnerRejectionEmail(
+              originalBooking.customer.user.email,
+              originalBooking.customer.user.name || '客戶',
+              originalBooking.schedule.partner.user.name || '夥伴',
+              multiPlayerBooking.id,
+              {
+                startTime: originalBooking.schedule.startTime.toISOString(),
+                endTime: originalBooking.schedule.endTime.toISOString(),
+                totalPartners: totalBookings,
+                confirmedPartners: confirmedCount,
+              }
+            ).catch((error) => {
+              console.error('❌ 多人陪玩拒絕 Email 發送失敗:', error);
+            });
+          } else {
+            // 一般預約拒絕
+            await sendBookingRejectionEmail(
+              originalBooking.customer.user.email,
+              originalBooking.customer.user.name || '客戶',
+              originalBooking.schedule.partner.user.name || '夥伴',
+              {
+                startTime: originalBooking.schedule.startTime.toISOString(),
+                endTime: originalBooking.schedule.endTime.toISOString(),
+                bookingId: result.booking.id,
+              }
+            ).catch((error) => {
+              console.error('❌ Email 發送失敗:', error);
+            });
+          }
         }
       })(),
 
