@@ -85,7 +85,21 @@ export async function POST(request: Request) {
     // ⚠️ API 層：前端發送的是台灣時間字符串，需要轉換為 UTC 存儲
     // 但之後所有比較都用 UTC，不再轉換
     const dateTimeString = `${normalizedDate} ${startTimeStr}`
-    const endDateTimeString = `${normalizedDate} ${endTimeStr}`
+    
+    // 🔥 處理跨日情況：如果結束時間小於開始時間，視為隔天
+    let endDate = normalizedDate
+    const [startHour, startMinute] = startTimeStr.split(':').map(Number)
+    const [endHour, endMinute] = endTimeStr.split(':').map(Number)
+    
+    // 如果結束時間小於開始時間，則視為隔天
+    if (endHour < startHour || (endHour === startHour && endMinute < startMinute)) {
+      // 將結束日期加一天
+      const endDateObj = dayjs.tz(`${normalizedDate} 00:00`, 'Asia/Taipei')
+      endDate = endDateObj.add(1, 'day').format('YYYY-MM-DD')
+      console.log('[multi-player-booking] 🔄 檢測到跨日時間段，結束日期調整為:', endDate)
+    }
+    
+    const endDateTimeString = `${endDate} ${endTimeStr}`
     
     // 將台灣時間轉換為 UTC（僅此一次）
     const startDateTimeUTC = dayjs
@@ -108,6 +122,7 @@ export async function POST(request: Request) {
     
     // 🔥 移除「必須預約兩小時後」的限制，允許立即預約
     
+    // 🔥 修正跨日驗證：現在已經處理了跨日情況，所以這裡只需要確保結束時間大於開始時間
     if (endDateTimeUTC <= startDateTimeUTC) {
       console.log('[multi-player-booking] ❌ 結束時間必須晚於開始時間')
       return NextResponse.json({ error: '結束時間必須晚於開始時間' }, { status: 400 })

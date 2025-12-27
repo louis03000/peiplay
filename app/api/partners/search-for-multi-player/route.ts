@@ -74,7 +74,17 @@ export async function GET(request: Request) {
     // 重要：前端傳來的是台灣本地時間（UTC+8）
     // 使用 dayjs 正確將台灣時間轉換為 UTC 時間戳
     const dateTimeString = `${normalizedDate} ${startTime}`
-    const endDateTimeString = `${normalizedDate} ${endTime}`
+    
+    // 🔥 處理跨日情況：如果結束時間小於開始時間，視為隔天
+    let endDate = normalizedDate
+    if (endHour < startHour || (endHour === startHour && endMinute < startMinute)) {
+      // 將結束日期加一天
+      const endDateObj = dayjs.tz(`${normalizedDate} 00:00`, 'Asia/Taipei')
+      endDate = endDateObj.add(1, 'day').format('YYYY-MM-DD')
+      console.log('🔄 [多人陪玩搜索] 檢測到跨日時間段，結束日期調整為:', endDate)
+    }
+    
+    const endDateTimeString = `${endDate} ${endTime}`
     
     const startDateTimeUTC = dayjs
       .tz(dateTimeString, 'Asia/Taipei')
@@ -90,6 +100,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: '時間對象創建失敗' }, { status: 400 })
     }
     
+    // 🔥 修正跨日驗證：現在已經處理了跨日情況，所以這裡只需要確保結束時間大於開始時間
     if (endDateTimeUTC <= startDateTimeUTC) {
       return NextResponse.json({ error: '結束時間必須晚於開始時間' }, { status: 400 })
     }
