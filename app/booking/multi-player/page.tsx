@@ -196,15 +196,7 @@ function MultiPlayerBookingContent() {
       return
     }
 
-    // 檢查時段是否在「現在+2小時」之後
-    const now = new Date()
-    const twoHoursLater = new Date(now.getTime() + 2 * 60 * 60 * 1000)
-    const selectedStartDateTime = new Date(`${selectedDate}T${selectedStartTime}:00`)
-    
-    if (selectedStartDateTime <= twoHoursLater) {
-      alert('預約時段必須在現在時間的2小時之後')
-      return
-    }
+    // 🔥 移除「必須預約兩小時後」的限制，允許立即搜索
 
     try {
       setLoading(true)
