@@ -21,7 +21,10 @@ const ANNOUNCEMENT_TYPES = [
 ]
 
 export default function AnnouncementPanel() {
-  console.log('🚀 AnnouncementPanel 組件已載入')
+  // 只在開發環境輸出調試日誌
+  if (process.env.NODE_ENV === 'development') {
+    console.log('🚀 AnnouncementPanel 組件已載入')
+  }
   
   const [announcements, setAnnouncements] = useState<Announcement[]>([])
   const [loading, setLoading] = useState(true)
@@ -30,25 +33,35 @@ export default function AnnouncementPanel() {
   const [hasNewAnnouncements, setHasNewAnnouncements] = useState(false)
 
   useEffect(() => {
-    console.log('🔄 useEffect 觸發，開始載入公告')
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🔄 useEffect 觸發，開始載入公告')
+    }
     fetchAnnouncements()
   }, [])
 
   const fetchAnnouncements = async () => {
     try {
-      console.log('📡 開始 API 請求...')
+      if (process.env.NODE_ENV === 'development') {
+        console.log('📡 開始 API 請求...')
+      }
       setLoading(true)
       
       const response = await fetch('/api/announcements')
-      console.log('📡 API 回應狀態:', response.status)
+      if (process.env.NODE_ENV === 'development') {
+        console.log('📡 API 回應狀態:', response.status)
+      }
       
       if (!response.ok) {
-        console.log('❌ API 回應失敗:', response.status)
+        if (process.env.NODE_ENV === 'development') {
+          console.log('❌ API 回應失敗:', response.status)
+        }
         throw new Error('無法載入公告')
       }
       
       const data = await response.json()
-      console.log('📊 收到的公告數據:', data)
+      if (process.env.NODE_ENV === 'development') {
+        console.log('📊 收到的公告數據:', data)
+      }
       
       setAnnouncements(data.announcements || [])
       
@@ -60,7 +73,9 @@ export default function AnnouncementPanel() {
       )
       setHasNewAnnouncements(hasNew)
       
-      console.log('✅ 公告載入完成，數量:', data.announcements?.length || 0)
+      if (process.env.NODE_ENV === 'development') {
+        console.log('✅ 公告載入完成，數量:', data.announcements?.length || 0)
+      }
       
     } catch (err) {
       console.error('❌ 載入公告失敗:', err)
@@ -76,11 +91,16 @@ export default function AnnouncementPanel() {
   }
 
   const handleButtonClick = () => {
-    console.log('🖱️ 公告按鈕被點擊，當前狀態:', isOpen)
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🖱️ 公告按鈕被點擊，當前狀態:', isOpen)
+    }
     setIsOpen(!isOpen)
   }
 
-  console.log('🔄 組件重新渲染，狀態:', { loading, error, announcements: announcements.length, isOpen })
+  // 只在開發環境輸出重新渲染日誌
+  if (process.env.NODE_ENV === 'development') {
+    console.log('🔄 組件重新渲染，狀態:', { loading, error, announcements: announcements.length, isOpen })
+  }
 
   return (
     <div className="relative">
