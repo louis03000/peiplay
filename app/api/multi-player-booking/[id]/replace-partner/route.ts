@@ -113,11 +113,6 @@ export async function POST(
             },
           },
           bookings: {
-            where: {
-              status: {
-                notIn: ['CANCELLED', 'REJECTED', 'COMPLETED'],
-              },
-            },
             select: {
               id: true,
               status: true,
@@ -130,8 +125,10 @@ export async function POST(
         return { type: 'SCHEDULE_NOT_FOUND' } as const
       }
 
-      // 檢查時段是否已被預約
-      if (newSchedule.bookings && newSchedule.bookings.length > 0) {
+      // 檢查時段是否已被預約（Schedule 和 Booking 是一對一關係）
+      if (newSchedule.bookings && 
+          newSchedule.bookings.status && 
+          !['CANCELLED', 'REJECTED', 'COMPLETED'].includes(newSchedule.bookings.status)) {
         return { type: 'SCHEDULE_ALREADY_BOOKED' } as const
       }
 
