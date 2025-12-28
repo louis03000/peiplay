@@ -133,14 +133,15 @@ export async function POST(
       }
 
       // 檢查時間衝突
-      const hasConflict = await checkTimeConflict(
+      const conflictResult = await checkTimeConflict(
         newSchedule.partner.id,
         newSchedule.startTime,
         newSchedule.endTime,
+        undefined, // excludeBookingId（不需要排除任何預約）
         client
       )
 
-      if (hasConflict) {
+      if (conflictResult.hasConflict) {
         return { type: 'TIME_CONFLICT' } as const
       }
 
