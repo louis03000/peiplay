@@ -257,14 +257,29 @@ export async function POST(
         }, 'multi-player-booking:replace-partner:get-schedule')
 
         if (newSchedule?.partner?.user?.email) {
+          // 計算時長（小時）
+          const duration = (result.multiPlayerBooking.endTime.getTime() - result.multiPlayerBooking.startTime.getTime()) / (1000 * 60 * 60)
+          
+          // 獲取新預約的金額
+          const newBooking = await db.query(async (client) => {
+            return client.booking.findUnique({
+              where: { id: result.newBooking.id },
+              select: { finalAmount: true },
+            })
+          }, 'multi-player-booking:replace-partner:get-booking-amount')
+          
           await sendBookingNotificationEmail(
             newSchedule.partner.user.email,
             newSchedule.partner.user.name || '夥伴',
             result.multiPlayerBooking.customer.user.name || '顧客',
             {
+              bookingId: result.newBooking.id,
               startTime: result.multiPlayerBooking.startTime.toISOString(),
               endTime: result.multiPlayerBooking.endTime.toISOString(),
-              bookingId: result.newBooking.id,
+              duration: duration,
+              totalCost: newBooking?.finalAmount || 0,
+              customerName: result.multiPlayerBooking.customer.user.name || '顧客',
+              customerEmail: result.multiPlayerBooking.customer.user.email || '',
             }
           ).catch((error) => {
             console.error('❌ 發送通知給新夥伴失敗:', error)
