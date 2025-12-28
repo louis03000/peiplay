@@ -101,17 +101,9 @@ export async function POST(
         where: { id: newScheduleId },
         include: {
           partner: {
-            include: {
-              user: {
-                select: {
-                  name: true,
-                  email: true,
-                },
-              },
-            },
             select: {
               id: true,
-              hourlyRate: true,
+              halfHourlyRate: true,
               user: {
                 select: {
                   name: true,
@@ -155,10 +147,11 @@ export async function POST(
         return { type: 'TIME_CONFLICT' } as const
       }
 
-      // 計算新夥伴的金額（使用相同的時長和時薪）
+      // 計算新夥伴的金額（使用相同的時長和半小時費率）
       const duration = (multiPlayerBooking.endTime.getTime() - multiPlayerBooking.startTime.getTime()) / (1000 * 60 * 60)
-      const partnerHourlyRate = newSchedule.partner.hourlyRate || 0
-      const newAmount = duration * partnerHourlyRate
+      const halfHourlyRate = newSchedule.partner.halfHourlyRate || 0
+      // 計算：時長（小時）* 2 * 半小時費率
+      const newAmount = duration * 2 * halfHourlyRate
 
       // 在事務中執行替換
       return await client.$transaction(async (tx) => {
