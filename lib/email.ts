@@ -754,17 +754,26 @@ export async function sendBookingNotificationEmail(
       </div>
     `;
     
-    await transporter.sendMail({
+    console.log(`[email] 📧 準備發送預約通知郵件給: ${partnerEmail}`)
+    console.log(`[email] 📧 郵件主題: ${subject}`)
+    console.log(`[email] 📧 發送者: ${process.env.EMAIL_USER}`)
+    
+    const mailResult = await transporter.sendMail({
       from: process.env.EMAIL_USER,
       to: partnerEmail,
       subject: subject,
       html: html
     });
     
-    console.log(`✅ 預約通知 Email 已發送給夥伴: ${partnerEmail}`);
+    console.log(`[email] ✅ 預約通知 Email 已發送給夥伴: ${partnerEmail}`)
+    console.log(`[email] 📧 郵件 ID: ${mailResult.messageId}`)
     
   } catch (error) {
-    console.error('預約通知 Email 發送失敗:', error);
+    console.error(`[email] ❌ 預約通知 Email 發送失敗給 ${partnerEmail}:`, error)
+    if (error instanceof Error) {
+      console.error(`[email] ❌ 錯誤訊息: ${error.message}`)
+      console.error(`[email] ❌ 錯誤堆疊: ${error.stack}`)
+    }
     throw error;
   }
 }

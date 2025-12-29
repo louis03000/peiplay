@@ -560,7 +560,9 @@ export async function POST(request: Request) {
     console.log('✅ 多人陪玩群組創建成功，ID:', result.multiPlayerBooking.id)
 
     // 發送通知（非阻塞）
+    console.log(`[multi-player-booking] 📧 準備發送 ${result.bookings.length} 封預約通知郵件`)
     for (const booking of result.bookings) {
+      console.log(`[multi-player-booking] 📧 發送預約通知給夥伴: ${booking.partnerName} (${booking.partnerEmail})`)
       sendBookingNotificationEmail(
         booking.partnerEmail,
         booking.partnerName,
@@ -574,9 +576,13 @@ export async function POST(request: Request) {
           customerName: result.customer.user.name || '客戶',
           customerEmail: result.customer.user.email,
         }
-      ).catch((error) => {
-        console.error('Email 發送失敗:', error)
-      })
+      )
+        .then(() => {
+          console.log(`[multi-player-booking] ✅ 預約通知郵件已發送給夥伴: ${booking.partnerName} (${booking.partnerEmail})`)
+        })
+        .catch((error) => {
+          console.error(`[multi-player-booking] ❌ Email 發送失敗給夥伴 ${booking.partnerName} (${booking.partnerEmail}):`, error)
+        })
     }
 
     return NextResponse.json({
