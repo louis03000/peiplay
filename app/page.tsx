@@ -6,16 +6,9 @@ import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import InfoCard from '@/components/partner/InfoCard';
 import { 
-  FaGamepad, 
-  FaUsers, 
-  FaCalendarAlt, 
-  FaGift, 
-  FaBolt, 
-  FaShieldAlt, 
-  FaHeart,
-  FaStar,
   FaCrown,
-  FaRocket
+  FaRocket,
+  FaGift
 } from 'react-icons/fa';
 
 interface Stats {
@@ -108,57 +101,6 @@ export default function HomePage() {
     }
   };
 
-  // 功能導向的入口卡片，不是數據導向
-  const quickActions = [
-    {
-      title: '立即預約',
-      description: '尋找專業夥伴，開始精彩的遊戲體驗',
-      icon: <FaGamepad className="text-3xl" />,
-      color: 'from-blue-500 to-purple-600',
-      href: '/booking',
-      show: true
-    },
-    {
-      title: '瀏覽夥伴',
-      description: '探索優質陪玩夥伴，找到最適合你的',
-      icon: <FaStar className="text-3xl" />,
-      color: 'from-yellow-500 to-orange-600',
-      href: '/partners',
-      show: true
-    },
-    {
-      title: '成為夥伴',
-      description: '加入我們，分享技能，開創收入',
-      icon: <FaUsers className="text-3xl" />,
-      color: 'from-green-500 to-teal-600',
-      href: '/join',
-      show: status !== 'authenticated' || !isPartner
-    },
-    {
-      title: '我的服務',
-      description: '管理時段、查看訂單、申請提領',
-      icon: <FaCalendarAlt className="text-3xl" />,
-      color: 'from-orange-500 to-red-600',
-      href: '/partner/schedule',
-      show: isPartner
-    },
-    {
-      title: '我的預約',
-      description: '查看預約記錄，管理您的訂單',
-      icon: <FaCalendarAlt className="text-3xl" />,
-      color: 'from-indigo-500 to-blue-600',
-      href: '/bookings',
-      show: status === 'authenticated' && !isPartner
-    },
-    {
-      title: '推薦好友',
-      description: '邀請朋友加入，一起享受獎勵',
-      icon: <FaGift className="text-3xl" />,
-      color: 'from-pink-500 to-rose-600',
-      href: isPartner ? '/partner/referral' : '/join',
-      show: true
-    }
-  ].filter(action => action.show);
 
   const heroBackgroundStyle = {
     backgroundImage:
@@ -234,88 +176,6 @@ export default function HomePage() {
                   </button>
                 </>
               )}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* 探索入口 - 第 2 屏 */}
-      <div className="min-h-screen flex items-center snap-start snap-always bg-[#F8F9FB]">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-16 w-full">
-        <div className="text-center mb-16">
-          <h2 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-gray-900 mb-4 tracking-tight">
-            {status === 'authenticated' 
-              ? isPartner 
-                ? '夥伴專區' 
-                : '探索更多'
-              : '開始探索'}
-          </h2>
-          <p className="text-lg sm:text-xl text-gray-600 max-w-2xl mx-auto font-light leading-relaxed">
-            {status === 'authenticated'
-              ? isPartner
-                ? '管理您的服務，提供最優質的陪玩體驗'
-                : '發現更多遊戲可能，找到最適合的夥伴'
-              : '無論是尋找陪玩，還是成為陪玩者，這裡都是您的最佳選擇'}
-          </p>
-        </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8 max-w-6xl mx-auto">
-            {quickActions.map((action, index) => (
-              <button
-                key={index}
-                onClick={() => router.push(action.href)}
-                className="group text-left transform hover:scale-105 transition-all duration-300"
-              >
-                <InfoCard className="h-full hover:shadow-2xl transition-shadow duration-300" padding="lg">
-                  <div className={`w-20 h-20 rounded-2xl bg-gradient-to-br ${action.color} flex items-center justify-center mb-6 text-white group-hover:scale-110 group-hover:rotate-3 transition-all duration-300 shadow-lg`}>
-                    {action.icon}
-                  </div>
-                  <h3 className="text-2xl font-bold text-gray-900 mb-3 group-hover:text-[#6C63FF] transition-colors duration-300">{action.title}</h3>
-                  <p className="text-gray-600 leading-relaxed">{action.description}</p>
-                </InfoCard>
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* 服務亮點 - 第 3 屏 */}
-      <div className="bg-white min-h-screen flex items-center snap-start snap-always">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 w-full">
-          <div className="text-center mb-20">
-            <h2 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-gray-900 mb-6 tracking-tight">
-              為什麼選擇 PeiPlay
-            </h2>
-            <p className="text-lg sm:text-xl text-gray-600 max-w-3xl mx-auto font-light leading-relaxed">
-              我們致力於提供最優質的遊戲陪玩服務，讓每次體驗都值得期待
-            </p>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-12 lg:gap-16">
-            <div className="text-center group">
-              <div className="w-24 h-24 mx-auto mb-8 rounded-2xl bg-gradient-to-br from-blue-500 to-[#6C63FF] flex items-center justify-center text-white shadow-xl group-hover:shadow-2xl group-hover:scale-110 transition-all duration-300">
-                <FaBolt className="text-5xl" />
-              </div>
-              <h3 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-5 group-hover:text-[#6C63FF] transition-colors duration-300">即時預約</h3>
-              <p className="text-gray-600 leading-relaxed text-lg">
-                找到現在有空的夥伴，立即開始遊戲，無需等待
-              </p>
-            </div>
-            <div className="text-center group">
-              <div className="w-24 h-24 mx-auto mb-8 rounded-2xl bg-gradient-to-br from-green-500 to-teal-600 flex items-center justify-center text-white shadow-xl group-hover:shadow-2xl group-hover:scale-110 transition-all duration-300">
-                <FaShieldAlt className="text-5xl" />
-              </div>
-              <h3 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-5 group-hover:text-[#6C63FF] transition-colors duration-300">安全保障</h3>
-              <p className="text-gray-600 leading-relaxed text-lg">
-                實名認證、評價系統，確保每次服務都有品質保證
-              </p>
-            </div>
-            <div className="text-center group">
-              <div className="w-24 h-24 mx-auto mb-8 rounded-2xl bg-gradient-to-br from-pink-500 to-rose-600 flex items-center justify-center text-white shadow-xl group-hover:shadow-2xl group-hover:scale-110 transition-all duration-300">
-                <FaHeart className="text-5xl" />
-              </div>
-              <h3 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-5 group-hover:text-[#6C63FF] transition-colors duration-300">貼心服務</h3>
-              <p className="text-gray-600 leading-relaxed text-lg">
-                24/7 客服支援，專業團隊隨時為您解決問題
-              </p>
             </div>
           </div>
         </div>
@@ -436,10 +296,7 @@ export default function HomePage() {
               <h4 className="text-lg font-semibold mb-6">聯絡我們</h4>
               <ul className="space-y-3 text-gray-400">
                 <li className="flex items-center">
-                  <span>客服信箱：support@peiplay.com</span>
-                </li>
-                <li className="flex items-center">
-                  <span>服務時間：24/7</span>
+                  <span>客服信箱：peiplay987@gmail.com</span>
                 </li>
               </ul>
             </div>
