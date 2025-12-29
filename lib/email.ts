@@ -1149,6 +1149,202 @@ export async function sendMultiPlayerBookingCancelledEmail(
   }
 }
 
+// 🔥 多人陪玩：頻道已自動創建通知（開始前5分鐘）
+export async function sendMultiPlayerChannelsCreatedEmail(
+  email: string,
+  name: string,
+  isCustomer: boolean,
+  bookingDetails: {
+    startTime: string;
+    endTime: string;
+    partnerNames?: string[];
+    customerName?: string;
+    multiPlayerBookingId: string;
+  }
+) {
+  try {
+    const transporter = createTransporter();
+    
+    const subject = isCustomer 
+      ? `🎮 多人陪玩頻道已創建 - 預約即將開始`
+      : `🎮 多人陪玩頻道已創建 - 預約即將開始`;
+    
+    const roleText = isCustomer ? '顧客' : '夥伴';
+    const partnerList = bookingDetails.partnerNames?.join('、') || '夥伴們';
+    const customerName = bookingDetails.customerName || '顧客';
+    
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; text-align: center; border-radius: 10px 10px 0 0;">
+          <h1 style="margin: 0; font-size: 24px;">🎮 頻道已創建</h1>
+        </div>
+        
+        <div style="background: #f8f9fa; padding: 30px; border-radius: 0 0 10px 10px;">
+          <h2 style="color: #333; margin-top: 0;">親愛的 ${name}，</h2>
+          
+          <p style="color: #666; font-size: 16px; line-height: 1.6;">
+            您的多人陪玩預約即將開始！系統已自動為您創建 Discord 文字頻道和語音頻道。
+          </p>
+          
+          <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+            <h3 style="color: #333; margin-top: 0;">📋 預約詳情</h3>
+            <table style="width: 100%; border-collapse: collapse;">
+              <tr>
+                <td style="padding: 8px 0; color: #666; width: 120px;"><strong>開始時間：</strong></td>
+                <td style="padding: 8px 0; color: #333;">${formatTaiwanTime(bookingDetails.startTime)}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; color: #666;"><strong>結束時間：</strong></td>
+                <td style="padding: 8px 0; color: #333;">${formatTaiwanTime(bookingDetails.endTime)}</td>
+              </tr>
+              ${isCustomer ? `
+              <tr>
+                <td style="padding: 8px 0; color: #666;"><strong>參與夥伴：</strong></td>
+                <td style="padding: 8px 0; color: #333;">${partnerList}</td>
+              </tr>
+              ` : `
+              <tr>
+                <td style="padding: 8px 0; color: #666;"><strong>顧客：</strong></td>
+                <td style="padding: 8px 0; color: #333;">${customerName}</td>
+              </tr>
+              `}
+            </table>
+          </div>
+          
+          <div style="background: #d1ecf1; border: 1px solid #bee5eb; padding: 15px; border-radius: 8px; margin: 20px 0;">
+            <p style="margin: 0; color: #0c5460; font-size: 14px;">
+              <strong>💡 提醒：</strong>請前往 Discord 查看已創建的頻道。文字頻道用於溝通，語音頻道用於遊戲語音。
+            </p>
+          </div>
+          
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="${process.env.NEXTAUTH_URL}/booking/multi-player" 
+               style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px 30px; text-decoration: none; border-radius: 25px; font-weight: bold; font-size: 16px;">
+              📋 查看預約詳情
+            </a>
+          </div>
+          
+          <p style="color: #666; font-size: 14px; margin-top: 30px;">
+            如有任何問題，請聯繫我們的客服團隊。
+          </p>
+          
+          <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
+          
+          <p style="color: #999; font-size: 12px; text-align: center; margin: 0;">
+            此郵件由 PeiPlay 系統自動發送，請勿直接回覆。
+          </p>
+        </div>
+      </div>
+    `;
+    
+    await transporter.sendMail({
+      from: process.env.EMAIL_USER,
+      to: email,
+      subject: subject,
+      html: html
+    });
+    
+    console.log(`✅ 多人陪玩頻道創建通知 Email 已發送給${roleText}: ${email}`);
+    
+  } catch (error) {
+    console.error('多人陪玩頻道創建通知 Email 發送失敗:', error);
+    throw error;
+  }
+}
+
+// 🔥 多人陪玩：自動取消通知（所有夥伴都拒絕或沒有回應）
+export async function sendMultiPlayerAutoCancelledEmail(
+  customerEmail: string,
+  customerName: string,
+  bookingDetails: {
+    startTime: string;
+    endTime: string;
+    multiPlayerBookingId: string;
+    reason: string;
+  }
+) {
+  try {
+    const transporter = createTransporter();
+    
+    const subject = `😔 多人陪玩預約已自動取消`;
+    
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <div style="background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%); color: white; padding: 20px; text-align: center; border-radius: 10px 10px 0 0;">
+          <h1 style="margin: 0; font-size: 24px;">😔 預約已自動取消</h1>
+        </div>
+        
+        <div style="background: #f8f9fa; padding: 30px; border-radius: 0 0 10px 10px;">
+          <h2 style="color: #333; margin-top: 0;">親愛的 ${customerName}，</h2>
+          
+          <p style="color: #666; font-size: 16px; line-height: 1.6;">
+            很抱歉通知您，您的多人陪玩預約因以下原因已自動取消：
+          </p>
+          
+          <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+            <h3 style="color: #333; margin-top: 0;">📋 取消原因</h3>
+            <p style="color: #666; line-height: 1.6;">
+              ${bookingDetails.reason}
+            </p>
+            
+            <h3 style="color: #333; margin-top: 20px;">📋 預約詳情</h3>
+            <table style="width: 100%; border-collapse: collapse;">
+              <tr>
+                <td style="padding: 8px 0; color: #666; width: 120px;"><strong>開始時間：</strong></td>
+                <td style="padding: 8px 0; color: #333;">${formatTaiwanTime(bookingDetails.startTime)}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; color: #666;"><strong>結束時間：</strong></td>
+                <td style="padding: 8px 0; color: #333;">${formatTaiwanTime(bookingDetails.endTime)}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; color: #666;"><strong>預約 ID：</strong></td>
+                <td style="padding: 8px 0; color: #333; font-family: monospace;">${bookingDetails.multiPlayerBookingId}</td>
+              </tr>
+            </table>
+          </div>
+          
+          <div style="background: #d1ecf1; border: 1px solid #bee5eb; padding: 15px; border-radius: 8px; margin: 20px 0;">
+            <p style="margin: 0; color: #0c5460; font-size: 14px;">
+              <strong>💡 說明：</strong>此筆訂單已標記為取消，不會產生任何費用。您可以重新選擇夥伴創建新的預約。
+            </p>
+          </div>
+          
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="${process.env.NEXTAUTH_URL}/booking/multi-player" 
+               style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px 30px; text-decoration: none; border-radius: 25px; font-weight: bold; font-size: 16px;">
+              📋 重新預約
+            </a>
+          </div>
+          
+          <p style="color: #666; font-size: 14px; margin-top: 30px;">
+            如有任何問題，請聯繫我們的客服團隊。
+          </p>
+          
+          <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
+          
+          <p style="color: #999; font-size: 12px; text-align: center; margin: 0;">
+            此郵件由 PeiPlay 系統自動發送，請勿直接回覆。
+          </p>
+        </div>
+      </div>
+    `;
+    
+    await transporter.sendMail({
+      from: process.env.EMAIL_USER,
+      to: customerEmail,
+      subject: subject,
+      html: html
+    });
+    
+    console.log(`✅ 多人陪玩自動取消通知 Email 已發送給顧客: ${customerEmail}`);
+    
+  } catch (error) {
+    console.error('多人陪玩自動取消通知 Email 發送失敗:', error);
+    throw error;
+  }
+}
+
 export async function sendEmail({
   to,
   subject,

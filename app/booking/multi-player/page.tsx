@@ -1047,22 +1047,22 @@ ${formatScheduleChecks(p)}
                             </div>
                           </div>
                           <div className="flex items-center gap-3">
-                            <div className="text-right">
-                              <p className="text-sm font-medium text-gray-900">
-                                ${b.originalAmount.toFixed(0)}
-                              </p>
-                            </div>
                             {isRejected && (
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation()
                                   openReplacePartnerModal(b.id, booking.id)
                                 }}
-                                className="absolute top-2 right-2 px-3 py-1 text-xs bg-purple-500 text-white rounded hover:bg-purple-600 transition-colors z-10"
+                                className="px-3 py-1 text-xs bg-purple-500 text-white rounded hover:bg-purple-600 transition-colors"
                               >
                                 重新選擇
                               </button>
                             )}
+                            <div className="text-right">
+                              <p className="text-sm font-medium text-gray-900">
+                                ${b.originalAmount.toFixed(0)}
+                              </p>
+                            </div>
                           </div>
                         </div>
                       )
