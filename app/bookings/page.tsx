@@ -319,6 +319,7 @@ export default function BookingsPage() {
   };
 
   // 合併連續時段的預約
+  // 🔥 修改：不要合併需要夥伴確認的預約，讓每個預約獨立顯示，夥伴可以分別同意或拒絕
   function mergeBookings(bookings: any[]) {
     if (!bookings.length) return [];
     const sorted = [...bookings].sort((a, b) => {
@@ -338,13 +339,25 @@ export default function BookingsPage() {
       const partnerA = (curr.schedule?.partner?.name || "")
         .trim()
         .toLowerCase();
+      
+      // 🔥 檢查當前預約是否需要夥伴確認
+      const needsConfirmation = curr.status === 'PAID_WAITING_PARTNER_CONFIRMATION' || 
+                                curr.status === 'PENDING';
+      
+      // 只有在不需要確認且狀態相同時才合併
       while (
         j < sorted.length &&
-        (sorted[j].schedule?.partner?.name || "").trim().toLowerCase() ===
-          partnerA &&
-        new Date(mergedEndTime).getTime() ===
-          new Date(sorted[j].schedule.startTime).getTime()
+        (sorted[j].schedule?.partner?.name || "").trim().toLowerCase() === partnerA &&
+        new Date(mergedEndTime).getTime() === new Date(sorted[j].schedule.startTime).getTime()
       ) {
+        const nextNeedsConfirmation = sorted[j].status === 'PAID_WAITING_PARTNER_CONFIRMATION' || 
+                                      sorted[j].status === 'PENDING';
+        
+        // 🔥 如果下一個預約需要確認，或者狀態不同，不合併
+        if (nextNeedsConfirmation || needsConfirmation || curr.status !== sorted[j].status) {
+          break;
+        }
+        
         mergedEndTime = sorted[j].schedule.endTime;
         j++;
       }

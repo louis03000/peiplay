@@ -732,7 +732,7 @@ ${formatScheduleChecks(p)}
                       disabled={isPast}
                       style={isPast ? { color: '#9CA3AF', backgroundColor: '#F3F4F6' } : {}}
                     >
-                      {timeStr} {isPast ? '(已過期)' : ''}
+                      {timeStr}
                     </option>
                   )
                 })}
@@ -782,7 +782,7 @@ ${formatScheduleChecks(p)}
                       disabled={isPast}
                       style={isPast ? { color: '#9CA3AF', backgroundColor: '#F3F4F6' } : {}}
                     >
-                      {timeStr} {isPast ? '(已過期)' : ''}
+                      {timeStr}
                     </option>
                   )
                 })}
