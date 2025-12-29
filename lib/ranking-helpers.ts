@@ -101,12 +101,67 @@ export async function calculatePartnerTotalMinutes(
     // 如果指定了遊戲篩選，需要過濾
     let filteredBookings = bookings
     if (gameFilter) {
+      // 🔥 使用與 API 相同的遊戲名稱映射表
+      const gameNameMap: { [key: string]: string[] } = {
+        '英雄聯盟': ['lol', 'leagueoflegends', 'league of legends', 'leagueoflegends', '英雄聯盟', 'lol '],
+        '特戰英豪': ['valorant', 'val', '特戰英豪'],
+        'apex英雄': ['apex', 'apex legends', 'apex英雄', 'apex 英雄'],
+        'apex 英雄': ['apex', 'apex legends', 'apex英雄', 'apex 英雄'],
+        'csgo': ['csgo', 'cs:go', 'counter-strike', 'cs go', 'csgo '],
+        'cs:go': ['csgo', 'cs:go', 'counter-strike', 'cs go'],
+        'pubg': ['pubg', 'playerunknown', 'playerunknown\'s battlegrounds'],
+      }
+      
+      // 獲取遊戲的所有可能名稱變體
+      const gameFilterLower = gameFilter.toLowerCase().replace(/[:：]/g, '').trim()
+      let possibleNames = gameNameMap[gameFilter] || gameNameMap[gameFilterLower] || [gameFilterLower]
+      
+      // 如果原始值（包含空格）也有映射，合併兩個映射
+      if (gameNameMap[gameFilter] && gameNameMap[gameFilterLower] && gameFilter !== gameFilterLower) {
+        possibleNames = [...new Set([...gameNameMap[gameFilter], ...gameNameMap[gameFilterLower]])]
+      }
+      
+      console.log(`🎮 遊戲篩選 "${gameFilter}" 的可能名稱變體:`, possibleNames)
+      
       filteredBookings = bookings.filter((booking) => {
         const partnerGames = booking.schedule.partner.games || []
-        return partnerGames.some((g) => 
-          g.toLowerCase().includes(gameFilter.toLowerCase())
-        )
+        
+        // 調試日誌
+        if (bookings.length > 0 && bookings.indexOf(booking) === 0) {
+          console.log(`🔍 夥伴 ${partnerId} 的遊戲列表:`, partnerGames)
+        }
+        
+        const matches = partnerGames.some((game) => {
+          // 將遊戲名稱標準化：轉小寫並移除冒號、空格和特殊字符
+          const normalizedGame = game.toLowerCase().replace(/[:：\s\-_]/g, '').trim()
+          
+          // 檢查是否匹配任何可能的名稱變體
+          const match = possibleNames.some(possibleName => {
+            const normalizedPossible = possibleName.toLowerCase().replace(/[:：\s\-_]/g, '').trim()
+            // 使用 includes 進行部分匹配，支援 "csgo" 匹配 "CS:GO" 等情況
+            // 或者完全匹配
+            const isMatch = normalizedGame.includes(normalizedPossible) || 
+                           normalizedPossible.includes(normalizedGame) ||
+                           normalizedGame === normalizedPossible
+            
+            if (isMatch && bookings.length > 0 && bookings.indexOf(booking) === 0) {
+              console.log(`✅ 匹配成功: 夥伴遊戲 "${game}" (標準化: "${normalizedGame}") 匹配篩選 "${gameFilter}" (變體: "${possibleName}")`)
+            }
+            
+            return isMatch
+          })
+          
+          return match
+        })
+        
+        if (!matches && bookings.length > 0 && bookings.indexOf(booking) === 0) {
+          console.log(`❌ 不匹配: 夥伴 ${partnerId} 的遊戲 [${partnerGames.join(', ')}] 不匹配篩選 "${gameFilter}"`)
+        }
+        
+        return matches
       })
+      
+      console.log(`🎮 遊戲篩選 "${gameFilter}" 後，剩餘 ${filteredBookings.length} 個預約（原本 ${bookings.length} 個）`)
     }
 
     // 計算總時長（分鐘）
@@ -138,14 +193,59 @@ export async function getPartnerRankings(
 ): Promise<Array<{ partnerId: string; totalMinutes: number; rank: number }>> {
   const result = await db.query(async (client) => {
     // 獲取所有已批准的夥伴
-    const partners = await client.partner.findMany({
+    let partners = await client.partner.findMany({
       where: {
         status: 'APPROVED',
       },
       select: {
         id: true,
+        games: true, // 🔥 需要獲取 games 來進行篩選
       },
     })
+
+    // 🔥 如果有遊戲篩選，先篩選有該遊戲的夥伴
+    if (gameFilter) {
+      // 使用與 API 相同的遊戲名稱映射表
+      const gameNameMap: { [key: string]: string[] } = {
+        '英雄聯盟': ['lol', 'leagueoflegends', 'league of legends', 'leagueoflegends', '英雄聯盟', 'lol '],
+        '特戰英豪': ['valorant', 'val', '特戰英豪'],
+        'apex英雄': ['apex', 'apex legends', 'apex英雄', 'apex 英雄'],
+        'apex 英雄': ['apex', 'apex legends', 'apex英雄', 'apex 英雄'],
+        'csgo': ['csgo', 'cs:go', 'counter-strike', 'cs go', 'csgo '],
+        'cs:go': ['csgo', 'cs:go', 'counter-strike', 'cs go'],
+        'pubg': ['pubg', 'playerunknown', 'playerunknown\'s battlegrounds'],
+      }
+      
+      // 獲取遊戲的所有可能名稱變體
+      const gameFilterLower = gameFilter.toLowerCase().replace(/[:：]/g, '').trim()
+      let possibleNames = gameNameMap[gameFilter] || gameNameMap[gameFilterLower] || [gameFilterLower]
+      
+      // 如果原始值（包含空格）也有映射，合併兩個映射
+      if (gameNameMap[gameFilter] && gameNameMap[gameFilterLower] && gameFilter !== gameFilterLower) {
+        possibleNames = [...new Set([...gameNameMap[gameFilter], ...gameNameMap[gameFilterLower]])]
+      }
+      
+      partners = partners.filter(partner => {
+        if (!partner.games || partner.games.length === 0) return false
+        
+        return partner.games.some(game => {
+          // 將遊戲名稱標準化：轉小寫並移除冒號、空格和特殊字符
+          const normalizedGame = game.toLowerCase().replace(/[:：\s\-_]/g, '').trim()
+          
+          // 檢查是否匹配任何可能的名稱變體
+          return possibleNames.some(possibleName => {
+            const normalizedPossible = possibleName.toLowerCase().replace(/[:：\s\-_]/g, '').trim()
+            // 使用 includes 進行部分匹配，支援 "csgo" 匹配 "CS:GO" 等情況
+            // 或者完全匹配
+            return normalizedGame.includes(normalizedPossible) || 
+                   normalizedPossible.includes(normalizedGame) ||
+                   normalizedGame === normalizedPossible
+          })
+        })
+      })
+      
+      console.log(`🎮 getPartnerRankings: 遊戲篩選 "${gameFilter}" 後，剩餘 ${partners.length} 個夥伴`)
+    }
 
     // 計算每個夥伴的總時長
     const rankings = await Promise.all(

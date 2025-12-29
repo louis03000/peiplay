@@ -236,6 +236,7 @@ export default function RankingPage() {
                           </span>
                         </div>
                         {/* 只有夥伴身分才能看到排名前10的獎勵信息 */}
+                        {/* 🔥 只有「全部遊戲」的第一名才顯示2%減免，篩選器後的第一名不顯示 */}
                         {partner.rank <= 10 && session?.user?.partnerId && (
                           <div className={`px-3 py-1 rounded-full text-xs font-semibold ${
                             partner.rank === 1 
@@ -244,7 +245,8 @@ export default function RankingPage() {
                               ? 'bg-gray-100 text-gray-800'
                               : 'bg-blue-100 text-blue-800'
                           }`}>
-                            {partner.rank === 1 && '🏆 平台維護費減免 2%'}
+                            {partner.rank === 1 && selectedGame === 'all' && '🏆 平台維護費減免 2%'}
+                            {partner.rank === 1 && selectedGame !== 'all' && '🥇 第一名'}
                             {partner.rank === 2 && '🥈 平台維護費減免 1%'}
                             {partner.rank === 3 && '🥉 平台維護費減免 1%'}
                             {partner.rank >= 4 && partner.rank <= 10 && '🎁 可申請優惠碼'}

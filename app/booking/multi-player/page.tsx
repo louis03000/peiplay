@@ -1089,8 +1089,8 @@ ${formatScheduleChecks(p)}
 
         {/* 重新選擇夥伴模態框 */}
         {showReplacePartnerModal && (
-          <div className="fixed inset-0 flex items-center justify-center z-50 bg-white bg-opacity-80">
-            <div className="bg-white rounded-2xl p-6 max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto border-2 border-purple-200 shadow-2xl">
+          <div className="fixed inset-0 flex items-center justify-center z-50 bg-white bg-opacity-80" style={{ minHeight: '100vh', minWidth: '100vw' }}>
+            <div className="bg-white rounded-2xl p-6 max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto border-2 border-purple-200 shadow-2xl relative">
               <div className="flex justify-between items-center mb-4 pb-4 border-b border-gray-200">
                 <h2 className="text-2xl font-bold text-black">重新選擇夥伴</h2>
                 <button
