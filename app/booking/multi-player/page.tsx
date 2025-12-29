@@ -80,6 +80,13 @@ function MultiPlayerBookingContent() {
   const [otherGame, setOtherGame] = useState('')
   const [showOtherInput, setShowOtherInput] = useState(false)
 
+  // 重新選擇夥伴相關狀態
+  const [showReplacePartnerModal, setShowReplacePartnerModal] = useState(false)
+  const [replacingBookingId, setReplacingBookingId] = useState<string | null>(null)
+  const [replacingMultiPlayerBookingId, setReplacingMultiPlayerBookingId] = useState<string | null>(null)
+  const [replacementPartners, setReplacementPartners] = useState<Partner[]>([])
+  const [selectedReplacementPartner, setSelectedReplacementPartner] = useState<string | null>(null)
+
   // 根據開始時間和時長自動計算結束時間
   const handleDurationSelect = (hours: number) => {
     setSelectedDuration(hours)
@@ -108,6 +115,41 @@ function MultiPlayerBookingContent() {
       setSelectedEndTime(`${endHours}:${roundedMinutes}`)
     }
   }, [selectedStartTime, selectedDuration])
+
+  // 檢查並清除已過期的時間選擇
+  useEffect(() => {
+    if (!selectedDate) return
+    
+    const now = new Date()
+    const today = now.toISOString().split('T')[0]
+    
+    // 如果選中的日期是今天，檢查時間是否已過期
+    if (selectedDate === today) {
+      if (selectedStartTime) {
+        const [startHour, startMinute] = selectedStartTime.split(':').map(Number)
+        const startDateTime = new Date(now)
+        startDateTime.setHours(startHour, startMinute, 0, 0)
+        
+        if (startDateTime.getTime() < now.getTime()) {
+          // 開始時間已過期，清除選擇
+          setSelectedStartTime('')
+          setSelectedEndTime('')
+          setSelectedDuration(null)
+        } else if (selectedEndTime) {
+          // 檢查結束時間是否已過期
+          const [endHour, endMinute] = selectedEndTime.split(':').map(Number)
+          const endDateTime = new Date(now)
+          endDateTime.setHours(endHour, endMinute, 0, 0)
+          
+          if (endDateTime.getTime() < now.getTime()) {
+            // 結束時間已過期，清除結束時間
+            setSelectedEndTime('')
+            setSelectedDuration(null)
+          }
+        }
+      }
+    }
+  }, [selectedDate, selectedStartTime, selectedEndTime])
 
   useEffect(() => {
     if (isAuthenticated && user?.id) {
@@ -437,6 +479,141 @@ ${formatScheduleChecks(p)}
     return total
   }
 
+  // 打開重新選擇夥伴的模態框
+  const openReplacePartnerModal = async (bookingId: string, multiPlayerBookingId: string) => {
+    setReplacingBookingId(bookingId)
+    setReplacingMultiPlayerBookingId(multiPlayerBookingId)
+    
+    // 找到對應的多人陪玩群組，獲取時間信息
+    const booking = myBookings.find(b => b.id === multiPlayerBookingId)
+    if (!booking) {
+      alert('找不到對應的預約信息')
+      return
+    }
+
+    // 設置搜索條件並搜索可用夥伴
+    const bookingDate = new Date(booking.startTime)
+    const dateStr = bookingDate.toISOString().split('T')[0]
+    const startTimeStr = bookingDate.toTimeString().slice(0, 5)
+    const endTimeStr = new Date(booking.endTime).toTimeString().slice(0, 5)
+
+    setSelectedDate(dateStr)
+    setSelectedStartTime(startTimeStr)
+    setSelectedEndTime(endTimeStr)
+
+    // 搜索可用夥伴
+    try {
+      setLoading(true)
+      const params = new URLSearchParams({
+        date: dateStr,
+        startTime: startTimeStr,
+        endTime: endTimeStr,
+      })
+
+      const response = await fetch(`/api/partners/search-for-multi-player?${params}`)
+      
+      if (!response.ok) {
+        const error = await response.json()
+        alert(error.error || '搜尋失敗')
+        return
+      }
+
+      const data = await response.json()
+      const partnersList = Array.isArray(data.partners) ? data.partners : (data.partners || [])
+      
+      setReplacementPartners(partnersList)
+      setSelectedReplacementPartner(null)
+      setShowReplacePartnerModal(true)
+    } catch (error) {
+      console.error('搜尋夥伴失敗:', error)
+      alert('搜尋失敗，請重試')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // 確認替換夥伴
+  const confirmReplacePartner = async () => {
+    if (!selectedReplacementPartner || !replacingBookingId || !replacingMultiPlayerBookingId) {
+      alert('請選擇要替換的夥伴')
+      return
+    }
+
+    try {
+      setLoading(true)
+      const response = await fetch(`/api/multi-player-booking/${replacingMultiPlayerBookingId}/replace-partner`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          rejectedBookingId: replacingBookingId,
+          newScheduleId: selectedReplacementPartner,
+        }),
+      })
+
+      if (response.ok) {
+        alert('夥伴已成功替換！')
+        setShowReplacePartnerModal(false)
+        setReplacingBookingId(null)
+        setReplacingMultiPlayerBookingId(null)
+        setSelectedReplacementPartner(null)
+        setReplacementPartners([])
+        loadMyBookings()
+      } else {
+        const error = await response.json()
+        alert(error.error || '替換失敗')
+      }
+    } catch (error) {
+      console.error('替換夥伴失敗:', error)
+      alert('替換失敗，請重試')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // 取消整筆訂單
+  const cancelEntireBooking = async (bookingId: string) => {
+    if (!confirm('確定要取消整筆訂單嗎？已確認的夥伴將會收到通知。')) {
+      return
+    }
+
+    try {
+      setLoading(true)
+      // 找到第一個 booking 來取消（取消 API 會處理整個多人陪玩群組）
+      const booking = myBookings.find(b => b.id === bookingId)
+      if (!booking || !booking.bookings || booking.bookings.length === 0) {
+        alert('找不到對應的預約')
+        return
+      }
+
+      // 使用第一個 booking 的 ID 來取消（API 會自動處理整個群組）
+      const firstBookingId = booking.bookings[0].id
+      const response = await fetch(`/api/bookings/${firstBookingId}/cancel`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          reason: '顧客取消整筆訂單',
+        }),
+      })
+
+      if (response.ok) {
+        alert('訂單已成功取消！')
+        loadMyBookings()
+      } else {
+        const error = await response.json()
+        alert(error.error || '取消失敗')
+      }
+    } catch (error) {
+      console.error('取消訂單失敗:', error)
+      alert('取消失敗，請重試')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   if (authLoading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -528,9 +705,34 @@ ${formatScheduleChecks(p)}
                   const hour = Math.floor(i / 2)
                   const minute = (i % 2) * 30
                   const timeStr = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`
+                  
+                  // 檢查時段是否已經過去
+                  const now = new Date()
+                  const today = now.toISOString().split('T')[0]
+                  let isPast = false
+                  
+                  if (selectedDate) {
+                    // 如果選擇的日期是過去，所有時段都禁用
+                    if (selectedDate < today) {
+                      isPast = true
+                    } 
+                    // 如果選擇的日期是今天，檢查該時段是否已過
+                    else if (selectedDate === today) {
+                      const [timeHour, timeMinute] = timeStr.split(':').map(Number)
+                      const timeDate = new Date(now)
+                      timeDate.setHours(timeHour, timeMinute, 0, 0)
+                      isPast = timeDate.getTime() < now.getTime()
+                    }
+                  }
+                  
                   return (
-                    <option key={timeStr} value={timeStr}>
-                      {timeStr}
+                    <option 
+                      key={timeStr} 
+                      value={timeStr}
+                      disabled={isPast}
+                      style={isPast ? { color: '#9CA3AF', backgroundColor: '#F3F4F6' } : {}}
+                    >
+                      {timeStr} {isPast ? '(已過期)' : ''}
                     </option>
                   )
                 })}
@@ -551,9 +753,36 @@ ${formatScheduleChecks(p)}
                   const hour = Math.floor(i / 2)
                   const minute = (i % 2) * 30
                   const timeStr = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`
+                  
+                  // 檢查時段是否已經過去
+                  const now = new Date()
+                  const today = now.toISOString().split('T')[0]
+                  let isPast = false
+                  
+                  if (selectedDate) {
+                    // 如果選擇的日期是過去，所有時段都禁用
+                    if (selectedDate < today) {
+                      isPast = true
+                    } 
+                    // 如果選擇的日期是今天，檢查該時段是否已過
+                    else if (selectedDate === today) {
+                      const [timeHour, timeMinute] = timeStr.split(':').map(Number)
+                      const timeDate = new Date(now)
+                      timeDate.setHours(timeHour, timeMinute, 0, 0)
+                      isPast = timeDate.getTime() < now.getTime()
+                    }
+                    // 如果已選擇開始時間，結束時間必須晚於開始時間（跨日情況在後端處理，這裡只檢查是否已過期）
+                    // 注意：跨日情況（如 23:30 到 00:00）在後端會正確處理，這裡不額外限制
+                  }
+                  
                   return (
-                    <option key={timeStr} value={timeStr}>
-                      {timeStr}
+                    <option 
+                      key={timeStr} 
+                      value={timeStr}
+                      disabled={isPast}
+                      style={isPast ? { color: '#9CA3AF', backgroundColor: '#F3F4F6' } : {}}
+                    >
+                      {timeStr} {isPast ? '(已過期)' : ''}
                     </option>
                   )
                 })}
@@ -786,45 +1015,189 @@ ${formatScheduleChecks(p)}
                   </div>
                   
                   <div className="space-y-2">
-                    {booking.bookings.map((b) => (
-                      <div
-                        key={b.id}
-                        className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full overflow-hidden relative">
-                            <SecureImage
-                              src={b.schedule.partner.coverImage}
-                              alt={b.schedule.partner.name}
-                              fill
-                              className="object-cover"
-                            />
+                    {booking.bookings.map((b) => {
+                      const isRejected = b.status === 'REJECTED' || b.status === 'PARTNER_REJECTED'
+                      return (
+                        <div
+                          key={b.id}
+                          className="relative flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                        >
+                          <div className="flex items-center gap-3 flex-1">
+                            <div className="w-10 h-10 rounded-full overflow-hidden relative">
+                              <SecureImage
+                                src={b.schedule.partner.coverImage}
+                                alt={b.schedule.partner.name}
+                                fill
+                                className="object-cover"
+                              />
+                            </div>
+                            <div className="flex-1">
+                              <p className="font-medium text-gray-900">
+                                {b.schedule.partner.name}
+                              </p>
+                              <p className="text-sm text-gray-600">
+                                狀態：{b.status === 'CONFIRMED' || b.status === 'PARTNER_ACCEPTED' 
+                                  ? '✓ 已確認' 
+                                  : isRejected
+                                  ? '✗ 已拒絕' 
+                                  : b.status === 'CANCELLED'
+                                  ? '已移除'
+                                  : '等待確認'}
+                              </p>
+                            </div>
                           </div>
-                          <div>
-                            <p className="font-medium text-gray-900">
-                              {b.schedule.partner.name}
-                            </p>
-                            <p className="text-sm text-gray-600">
-                              狀態：{b.status === 'CONFIRMED' || b.status === 'PARTNER_ACCEPTED' 
-                                ? '✓ 已確認' 
-                                : b.status === 'REJECTED' 
-                                ? '✗ 已拒絕' 
-                                : b.status === 'CANCELLED'
-                                ? '已移除'
-                                : '等待確認'}
-                            </p>
+                          <div className="flex items-center gap-3">
+                            <div className="text-right">
+                              <p className="text-sm font-medium text-gray-900">
+                                ${b.originalAmount.toFixed(0)}
+                              </p>
+                            </div>
+                            {isRejected && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  openReplacePartnerModal(b.id, booking.id)
+                                }}
+                                className="absolute top-2 right-2 px-3 py-1 text-xs bg-purple-500 text-white rounded hover:bg-purple-600 transition-colors z-10"
+                              >
+                                重新選擇
+                              </button>
+                            )}
                           </div>
                         </div>
-                        <div className="text-right">
-                          <p className="text-sm font-medium text-gray-900">
-                            ${b.originalAmount.toFixed(0)}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
+                      )
+                    })}
                   </div>
+                  
+                  {/* 如果有拒絕的夥伴，顯示取消整筆按鈕 */}
+                  {booking.bookings.some(b => b.status === 'REJECTED' || b.status === 'PARTNER_REJECTED') && (
+                    <div className="mt-4 pt-4 border-t border-gray-200">
+                      <button
+                        onClick={() => cancelEntireBooking(booking.id)}
+                        disabled={loading}
+                        className="w-full px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50"
+                      >
+                        {loading ? '處理中...' : '取消整筆訂單'}
+                      </button>
+                    </div>
+                  )}
                 </div>
               ))}
+            </div>
+          </div>
+        )}
+
+        {/* 重新選擇夥伴模態框 */}
+        {showReplacePartnerModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-2xl font-bold text-gray-900">重新選擇夥伴</h2>
+                <button
+                  onClick={() => {
+                    setShowReplacePartnerModal(false)
+                    setReplacingBookingId(null)
+                    setReplacingMultiPlayerBookingId(null)
+                    setSelectedReplacementPartner(null)
+                    setReplacementPartners([])
+                  }}
+                  className="text-gray-500 hover:text-gray-700 text-2xl"
+                >
+                  ×
+                </button>
+              </div>
+
+              {replacementPartners.length === 0 ? (
+                <div className="text-center py-8">
+                  <p className="text-gray-600">沒有找到可用的夥伴</p>
+                </div>
+              ) : (
+                <>
+                  <div className="mb-4">
+                    <p className="text-sm text-gray-600">
+                      請選擇一位夥伴來替換被拒絕的夥伴
+                    </p>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
+                    {replacementPartners.map((partner) => {
+                      if (!partner.matchingSchedule || !partner.matchingSchedule.id) {
+                        return null
+                      }
+                      const isSelected = selectedReplacementPartner === partner.matchingSchedule.id
+                      
+                      // 轉換為 PartnerCard 需要的格式
+                      let images = partner.images || []
+                      if (images.length === 0 && partner.coverImage) {
+                        images = [partner.coverImage]
+                      }
+                      if (partner.isRankBooster && partner.rankBoosterImages?.length) {
+                        images = [...images, ...partner.rankBoosterImages]
+                      }
+                      images = images.slice(0, 8)
+                      
+                      const partnerCardData = {
+                        id: partner.id,
+                        name: partner.name,
+                        games: partner.games,
+                        halfHourlyRate: partner.halfHourlyRate,
+                        coverImage: partner.coverImage,
+                        images: images,
+                        schedules: [],
+                        isAvailableNow: !!partner.isAvailableNow,
+                        isRankBooster: !!partner.isRankBooster,
+                        supportsChatOnly: partner.supportsChatOnly,
+                        chatOnlyRate: partner.chatOnlyRate,
+                        customerMessage: partner.customerMessage,
+                        averageRating: partner.averageRating,
+                        totalReviews: partner.totalReviews,
+                      }
+                      
+                      return (
+                        <div
+                          key={partner.id}
+                          className={`relative transition-all cursor-pointer ${
+                            isSelected ? 'ring-2 ring-purple-500 ring-offset-2' : ''
+                          }`}
+                          onClick={() => setSelectedReplacementPartner(partner.matchingSchedule.id)}
+                        >
+                          <PartnerCard
+                            partner={partnerCardData}
+                            showNextStep={false}
+                          />
+                          {isSelected && (
+                            <div className="absolute top-2 right-2 bg-purple-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold z-40">
+                              ✓
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+
+                  <div className="flex justify-end gap-3">
+                    <button
+                      onClick={() => {
+                        setShowReplacePartnerModal(false)
+                        setReplacingBookingId(null)
+                        setReplacingMultiPlayerBookingId(null)
+                        setSelectedReplacementPartner(null)
+                        setReplacementPartners([])
+                      }}
+                      className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+                    >
+                      取消
+                    </button>
+                    <button
+                      onClick={confirmReplacePartner}
+                      disabled={!selectedReplacementPartner || loading}
+                      className="px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors disabled:opacity-50"
+                    >
+                      {loading ? '處理中...' : '確認替換'}
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         )}

@@ -1084,7 +1084,7 @@ export async function sendMultiPlayerBookingCancelledEmail(
           <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
             <h3 style="color: #333; margin-top: 0;">📋 取消原因</h3>
             <p style="color: #666; line-height: 1.6;">
-              因 <strong>${rejectedPartnerName}</strong> 夥伴拒絕此訂單，顧客決定作廢此訂單，造成您的不便敬請見諒。
+              因 <strong>${rejectedPartnerName}</strong> 夥伴拒絕此訂單，顧客 <strong>${customerName}</strong> 決定取消整筆訂單。對於此次變更造成的不便，我們深表歉意，感謝您的理解與配合。
             </p>
             
             <h3 style="color: #333; margin-top: 20px;">📋 預約詳情</h3>
