@@ -3,6 +3,8 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db-resilience'
 import { createErrorResponse } from '@/lib/api-helpers'
+import { sendNotificationToEmail } from '@/lib/email'
+import { NotificationType } from '@/lib/messaging'
 
 export const dynamic = 'force-dynamic'
 
@@ -49,7 +51,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: '未登入' }, { status: 401 })
     }
 
-    const { title, message, content, userId, type = 'INFO', priority = 'MEDIUM', isImportant = false, expiresAt } = await request.json()
+    const { title, message, content, userId, type = 'INFO', priority = 'MEDIUM', isImportant = false, expiresAt, sendEmail = false } = await request.json()
 
     const notificationContent = content ?? message
 
@@ -87,6 +89,15 @@ export async function POST(request: Request) {
         return { type: 'NOT_ADMIN' } as const
       }
 
+      // 獲取接收通知的用戶信息（用於發送 Email）
+      const targetUser = await client.user.findUnique({
+        where: { id: userId },
+        select: {
+          email: true,
+          name: true,
+        },
+      })
+
       const notification = await client.personalNotification.create({
         data: {
           title,
@@ -100,11 +111,37 @@ export async function POST(request: Request) {
         },
       })
 
-      return { type: 'SUCCESS', notification } as const
+      return { type: 'SUCCESS', notification, targetUser } as const
     }, 'admin:personal-notifications:create')
 
     if (result.type === 'NOT_ADMIN') {
       return NextResponse.json({ error: '權限不足' }, { status: 403 })
+    }
+
+    // 🔥 如果選擇了發送 Email，發送郵件通知
+    if (sendEmail && result.targetUser?.email) {
+      try {
+        // 將 PersonalNotification 的類型映射到 NotificationType
+        // 所有個人通知都使用 SYSTEM_ANNOUNCEMENT 類型
+        const emailNotificationType: NotificationType = 'SYSTEM_ANNOUNCEMENT'
+        
+        await sendNotificationToEmail(
+          result.targetUser.email,
+          result.targetUser.name || '用戶',
+          {
+            type: emailNotificationType,
+            title,
+            content: notificationContent,
+            createdAt: new Date().toISOString(),
+          }
+        )
+        console.log(`✅ 個人通知 Email 已發送: ${result.targetUser.email} - ${title}`)
+      } catch (emailError) {
+        console.error('❌ 發送個人通知 Email 失敗:', emailError)
+        // 不阻止通知創建，只記錄錯誤
+      }
+    } else if (sendEmail && !result.targetUser?.email) {
+      console.warn(`⚠️ 用戶 ${userId} 沒有 Email 地址，無法發送郵件通知`)
     }
 
     return NextResponse.json(result.notification)
