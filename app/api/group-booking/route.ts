@@ -215,25 +215,38 @@ export async function GET(request: Request) {
         // 計算30分鐘後的時間（剩餘時間少於30分鐘的群組也要過濾掉）
         const thirtyMinutesLater = addTaipeiTime(now, 30, 'minute');
         
+        console.log(`🔍 [群組預約查詢] 當前時間: ${now.toISOString()}, 30分鐘後: ${thirtyMinutesLater.toISOString()}`);
+        
         // 構建查詢條件
         const where: any = {};
         if (partnerId) {
           where.initiatorId = partnerId;
           where.initiatorType = 'PARTNER';
         }
+        // 如果沒有指定狀態，默認只查詢 ACTIVE 狀態的群組預約
         if (status) {
           where.status = status;
+        } else {
+          where.status = 'ACTIVE';
         }
         // 過濾條件：
         // 1. 結束時間必須在未來（還沒結束）
         // 2. 開始時間必須在30分鐘後（剩餘時間至少30分鐘才能加入）
         where.endTime = { gt: now };
         where.startTime = { gt: thirtyMinutesLater };
+        
+        console.log(`🔍 [群組預約查詢] 當前時間: ${now.toISOString()}, 30分鐘後: ${thirtyMinutesLater.toISOString()}`);
+        console.log(`🔍 [群組預約查詢] 查詢條件:`, JSON.stringify({
+          ...where,
+          endTime: where.endTime.gt?.toISOString(),
+          startTime: where.startTime.gt?.toISOString()
+        }, null, 2));
 
         // 查詢群組預約
         // 注意：暫時不查詢 games 字段，因為數據庫中可能還沒有這個字段
         const groupBookings = await client.groupBooking.findMany({
           where,
+          orderBy: { createdAt: 'desc' },
           select: {
             id: true,
             type: true,
@@ -312,7 +325,16 @@ export async function GET(request: Request) {
           orderBy: { createdAt: 'desc' }
         });
 
-        console.log("📊 找到群組預約:", groupBookings.length);
+        console.log(`📊 找到群組預約: ${groupBookings.length} 個`);
+        if (groupBookings.length > 0) {
+          console.log(`📋 群組預約列表:`, groupBookings.map(gb => ({
+            id: gb.id,
+            title: gb.title,
+            startTime: gb.startTime instanceof Date ? gb.startTime.toISOString() : gb.startTime,
+            endTime: gb.endTime instanceof Date ? gb.endTime.toISOString() : gb.endTime,
+            status: gb.status
+          })));
+        }
 
         // 格式化返回數據
         const formattedGroupBookings = groupBookings.map(group => {
