@@ -35,6 +35,7 @@ export default function AdminMessagingPage() {
   const [messages, setMessages] = useState<AdminMessage[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
     if (session?.user?.role === 'ADMIN') {
@@ -53,7 +54,12 @@ export default function AdminMessagingPage() {
       const res = await fetch('/api/admin/users');
       const data = await res.json();
       if (res.ok) {
-        setUsers(data.users || []);
+        // API 返回的是數組，不是 { users: [] }
+        const usersList = Array.isArray(data) ? data : (data.users || []);
+        setUsers(usersList);
+        console.log(`✅ 載入了 ${usersList.length} 個用戶`);
+      } else {
+        console.error('獲取用戶失敗:', data);
       }
     } catch (error) {
       console.error('獲取用戶失敗:', error);
@@ -135,7 +141,12 @@ export default function AdminMessagingPage() {
           <h1 className="text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-blue-400 mb-2">
             管理員私訊系統
           </h1>
-          <p className="text-gray-300 text-lg">與用戶進行一對一溝通</p>
+          <p className="text-gray-300 text-lg mb-4">與用戶進行一對一溝通</p>
+          <div className="bg-blue-900/30 border border-blue-500 rounded-lg p-4 max-w-2xl mx-auto">
+            <p className="text-blue-200 text-sm">
+              💡 <strong>使用說明：</strong>在左側搜尋並選擇用戶，然後在右側開始對話。您可以發送訊息給用戶，用戶也可以回覆您的訊息。
+            </p>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -146,22 +157,79 @@ export default function AdminMessagingPage() {
               用戶列表
             </h2>
             
+            {/* 搜尋框 */}
+            <div className="mb-4">
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="搜尋用戶名稱或Email..."
+                className="w-full px-4 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            
+            {/* 用戶列表 */}
             <div className="space-y-2 max-h-96 overflow-y-auto">
-              {users.map((user) => (
-                <button
-                  key={user.id}
-                  onClick={() => setSelectedUser(user)}
-                  className={`w-full text-left p-3 rounded-lg transition-all ${
-                    selectedUser?.id === user.id
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-700/50 text-gray-300 hover:bg-gray-600/50'
-                  }`}
-                >
-                  <div className="font-medium">{user.name}</div>
-                  <div className="text-sm opacity-75">{user.email}</div>
-                  <div className="text-xs opacity-50">{user.role}</div>
-                </button>
-              ))}
+              {users.length === 0 ? (
+                <div className="text-center py-8 text-gray-400">
+                  <FaUser className="text-4xl mx-auto mb-2 opacity-50" />
+                  <p>沒有用戶</p>
+                </div>
+              ) : (
+                users
+                  .filter(user => {
+                    if (!searchTerm.trim()) return true;
+                    const searchLower = searchTerm.toLowerCase();
+                    return (
+                      user.name?.toLowerCase().includes(searchLower) ||
+                      user.email?.toLowerCase().includes(searchLower)
+                    );
+                  })
+                  .map((user) => (
+                    <button
+                      key={user.id}
+                      onClick={() => setSelectedUser(user)}
+                      className={`w-full text-left p-3 rounded-lg transition-all ${
+                        selectedUser?.id === user.id
+                          ? 'bg-blue-600 text-white shadow-lg'
+                          : 'bg-gray-700/50 text-gray-300 hover:bg-gray-600/50'
+                      }`}
+                    >
+                      <div className="font-medium">{user.name || '未命名用戶'}</div>
+                      <div className="text-sm opacity-75">{user.email}</div>
+                      <div className="text-xs opacity-50 mt-1">
+                        {user.role === 'CUSTOMER' ? '顧客' : user.role === 'PARTNER' ? '夥伴' : user.role === 'ADMIN' ? '管理員' : user.role}
+                      </div>
+                    </button>
+                  ))
+              )}
+              
+              {/* 搜尋無結果 */}
+              {searchTerm.trim() && users.filter(user => {
+                const searchLower = searchTerm.toLowerCase();
+                return (
+                  user.name?.toLowerCase().includes(searchLower) ||
+                  user.email?.toLowerCase().includes(searchLower)
+                );
+              }).length === 0 && (
+                <div className="text-center py-8 text-gray-400">
+                  <p>找不到匹配的用戶</p>
+                </div>
+              )}
+            </div>
+            
+            {/* 用戶統計 */}
+            <div className="mt-4 pt-4 border-t border-gray-700 text-sm text-gray-400">
+              <p>總共 {users.length} 個用戶</p>
+              {searchTerm.trim() && (
+                <p>找到 {users.filter(user => {
+                  const searchLower = searchTerm.toLowerCase();
+                  return (
+                    user.name?.toLowerCase().includes(searchLower) ||
+                    user.email?.toLowerCase().includes(searchLower)
+                  );
+                }).length} 個匹配結果</p>
+              )}
             </div>
           </div>
 

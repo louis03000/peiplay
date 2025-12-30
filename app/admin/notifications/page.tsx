@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useSession } from 'next-auth/react';
 import { FaBell, FaEnvelope, FaUser, FaExclamationTriangle, FaInfoCircle, FaClock, FaCheckCircle } from 'react-icons/fa';
 
@@ -38,6 +38,10 @@ export default function AdminNotificationManagement() {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'notifications' | 'send'>('notifications');
+  const [userSearchTerm, setUserSearchTerm] = useState('');
+  const [showUserDropdown, setShowUserDropdown] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const userSearchRef = useRef<HTMLDivElement>(null);
   
   // 發送通知表單
   const [formData, setFormData] = useState({
@@ -58,6 +62,20 @@ export default function AdminNotificationManagement() {
     }
   }, [session]);
 
+  // 點擊外部關閉下拉列表
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (userSearchRef.current && !userSearchRef.current.contains(event.target as Node)) {
+        setShowUserDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
   const fetchNotifications = async () => {
     try {
       const res = await fetch('/api/admin/personal-notifications');
@@ -75,7 +93,9 @@ export default function AdminNotificationManagement() {
       const res = await fetch('/api/admin/users');
       const data = await res.json();
       if (res.ok) {
-        setUsers(data.users || []);
+        // API 返回的是數組，不是 { users: [] }
+        const usersList = Array.isArray(data) ? data : (data.users || []);
+        setUsers(usersList);
       }
     } catch (error) {
       console.error('獲取用戶失敗:', error);
@@ -84,11 +104,34 @@ export default function AdminNotificationManagement() {
     }
   };
 
+  // 過濾用戶列表（根據搜尋關鍵字）
+  const filteredUsers = users.filter(user => {
+    if (!userSearchTerm.trim()) return false;
+    const searchLower = userSearchTerm.toLowerCase();
+    return (
+      user.name?.toLowerCase().includes(searchLower) ||
+      user.email?.toLowerCase().includes(searchLower)
+    );
+  });
+
+  // 處理用戶選擇
+  const handleUserSelect = (user: User) => {
+    setSelectedUser(user);
+    setFormData({ ...formData, userId: user.id });
+    setUserSearchTerm(`${user.name} (${user.email})`);
+    setShowUserDropdown(false);
+  };
+
   const handleSendNotification = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!formData.userId || !formData.title || !formData.content) {
-      alert('請填寫所有必要欄位');
+      alert('請填寫所有必要欄位（包括選擇用戶）');
+      return;
+    }
+    
+    if (!selectedUser) {
+      alert('請先搜尋並選擇一個用戶');
       return;
     }
 
@@ -113,6 +156,9 @@ export default function AdminNotificationManagement() {
           expiresAt: '',
           sendEmail: false
         });
+        setSelectedUser(null);
+        setUserSearchTerm('');
+        setShowUserDropdown(false);
         fetchNotifications();
       } else {
         alert(`發送失敗: ${data.error}`);
@@ -281,23 +327,76 @@ export default function AdminNotificationManagement() {
             </h2>
             
             <form onSubmit={handleSendNotification} className="space-y-6">
-              <div>
+              <div className="relative" ref={userSearchRef}>
                 <label className="block text-sm font-medium text-gray-300 mb-2">
-                  選擇用戶 *
+                  選擇用戶 *（輸入名稱或Email搜尋）
                 </label>
-                <select
-                  value={formData.userId}
-                  onChange={(e) => setFormData({ ...formData, userId: e.target.value })}
+                <input
+                  type="text"
+                  value={userSearchTerm}
+                  onChange={(e) => {
+                    setUserSearchTerm(e.target.value);
+                    setShowUserDropdown(true);
+                    if (!e.target.value) {
+                      setSelectedUser(null);
+                      setFormData({ ...formData, userId: '' });
+                    }
+                  }}
+                  onFocus={() => {
+                    if (userSearchTerm && filteredUsers.length > 0) {
+                      setShowUserDropdown(true);
+                    }
+                  }}
                   className="w-full px-4 py-3 bg-gray-700/50 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  required
-                >
-                  <option value="">請選擇用戶</option>
-                  {users.map((user) => (
-                    <option key={user.id} value={user.id}>
-                      {user.name} ({user.email})
-                    </option>
-                  ))}
-                </select>
+                  placeholder="輸入用戶名稱或Email搜尋..."
+                  required={!selectedUser}
+                />
+                
+                {/* 搜尋結果下拉列表 */}
+                {showUserDropdown && userSearchTerm.trim() && filteredUsers.length > 0 && (
+                  <div className="absolute z-50 w-full mt-1 bg-gray-800 border border-gray-600 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                    {filteredUsers.map((user) => (
+                      <div
+                        key={user.id}
+                        onClick={() => handleUserSelect(user)}
+                        className="px-4 py-3 hover:bg-gray-700 cursor-pointer border-b border-gray-700 last:border-b-0"
+                      >
+                        <div className="text-white font-medium">{user.name}</div>
+                        <div className="text-gray-400 text-sm">{user.email}</div>
+                        {user.role && (
+                          <div className="text-gray-500 text-xs mt-1">角色: {user.role}</div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                
+                {/* 沒有搜尋結果 */}
+                {showUserDropdown && userSearchTerm.trim() && filteredUsers.length === 0 && (
+                  <div className="absolute z-50 w-full mt-1 bg-gray-800 border border-gray-600 rounded-lg shadow-lg p-4">
+                    <div className="text-gray-400 text-center">找不到匹配的用戶</div>
+                  </div>
+                )}
+                
+                {/* 已選擇的用戶顯示 */}
+                {selectedUser && (
+                  <div className="mt-2 p-3 bg-blue-900/30 border border-blue-500 rounded-lg">
+                    <div className="text-white font-medium">已選擇: {selectedUser.name}</div>
+                    <div className="text-gray-300 text-sm">{selectedUser.email}</div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedUser(null);
+                        setUserSearchTerm('');
+                        setFormData({ ...formData, userId: '' });
+                        setShowUserDropdown(false);
+                      }}
+                      className="mt-2 text-sm text-red-400 hover:text-red-300"
+                    >
+                      清除選擇
+                    </button>
+                  </div>
+                )}
               </div>
 
               <div>

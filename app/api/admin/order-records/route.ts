@@ -17,9 +17,41 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url)
     const filterMonth = searchParams.get('month') // 格式：YYYY-MM
 
-    // 獲取所有配對記錄
-    const records = await db.query(async (client) => {
-      return await client.pairingRecord.findMany({
+    // 🔥 直接從 Booking 表查詢，而不是只依賴 PairingRecord
+    // 這樣可以確保所有預約都被包含，即使沒有 PairingRecord
+    const bookings = await db.query(async (client) => {
+      return await client.booking.findMany({
+        where: {
+          status: {
+            in: ['CONFIRMED', 'COMPLETED', 'PARTNER_ACCEPTED']
+          }
+        },
+        include: {
+          customer: {
+            include: {
+              user: {
+                select: {
+                  discord: true,
+                  name: true
+                }
+              }
+            }
+          },
+          schedule: {
+            include: {
+              partner: {
+                include: {
+                  user: {
+                    select: {
+                      discord: true,
+                      name: true
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
         orderBy: {
           createdAt: 'asc'
         }
@@ -29,85 +61,34 @@ export async function GET(request: Request) {
     // 處理記錄，獲取正確的夥伴和顧客信息
     const processedRecords = []
     
-    for (const record of records) {
-      const bookingId = record.bookingId
-      let partnerDiscord = ''
-      let customerDiscord = ''
-      let partnerName = ''
-      let customerName = ''
-      let finalAmount: number | null = null
-      let halfHourlyRate: number | null = null
-
-      // 如果有 bookingId 且不是 manual_ 前綴，從 Booking 獲取正確的用戶信息
-      let serviceType = '一般預約'
-      if (bookingId && !bookingId.startsWith('manual_')) {
-        const booking = await db.query(async (client) => {
-          return await client.booking.findUnique({
-            where: { id: bookingId },
-            select: {
-              finalAmount: true,
-              paymentInfo: true,
-              groupBookingId: true,
-              multiPlayerBookingId: true,
-              serviceType: true,
-              customer: {
-                select: {
-                  user: {
-                    select: {
-                      discord: true,
-                      name: true
-                    }
-                  }
-                }
-              },
-              schedule: {
-                select: {
-                  partner: {
-                    select: {
-                      halfHourlyRate: true,
-                      user: {
-                        select: {
-                          discord: true,
-                          name: true
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          })
-        })
-
-        if (booking) {
-          partnerDiscord = booking.schedule?.partner?.user?.discord || ''
-          partnerName = booking.schedule?.partner?.user?.name || ''
-          customerDiscord = booking.customer?.user?.discord || ''
-          customerName = booking.customer?.user?.name || ''
-          finalAmount = booking.finalAmount
-          halfHourlyRate = booking.schedule?.partner?.halfHourlyRate || null
-          
-          // 判斷服務類型
-          const paymentInfo = booking.paymentInfo as any
-          if (paymentInfo?.isInstantBooking === true || paymentInfo?.isInstantBooking === 'true') {
-            serviceType = '即時預約'
-          } else if (booking.groupBookingId) {
-            serviceType = '群組預約'
-          } else if (booking.multiPlayerBookingId) {
-            serviceType = '多人陪玩'
-          } else if (booking.serviceType === 'CHAT_ONLY') {
-            serviceType = '純聊天'
-          }
-        }
-      }
+    for (const booking of bookings) {
+      let partnerDiscord = booking.schedule?.partner?.user?.discord || ''
+      let customerDiscord = booking.customer?.user?.discord || ''
+      let partnerName = booking.schedule?.partner?.user?.name || ''
+      let customerName = booking.customer?.user?.name || ''
+      let finalAmount: number | null = booking.finalAmount
+      let halfHourlyRate: number | null = booking.schedule?.partner?.halfHourlyRate || null
 
       // 如果沒有獲取到，跳過此記錄
       if (!partnerDiscord || !customerDiscord) {
         continue
       }
 
+      // 判斷服務類型
+      let serviceType = '一般預約'
+      const paymentInfo = booking.paymentInfo as any
+      if (paymentInfo?.isInstantBooking === true || paymentInfo?.isInstantBooking === 'true') {
+        serviceType = '即時預約'
+      } else if (booking.groupBookingId) {
+        serviceType = '群組預約'
+      } else if (booking.multiPlayerBookingId) {
+        serviceType = '多人陪玩'
+      } else if (booking.serviceType === 'CHAT_ONLY') {
+        serviceType = '純聊天'
+      }
+
       // 轉換時間為台灣時間
-      const createdAt = new Date(record.createdAt)
+      const createdAt = new Date(booking.createdAt)
       // 使用正確的時區轉換
       const twDate = new Date(createdAt.toLocaleString('en-US', { timeZone: 'Asia/Taipei' }))
       // 獲取台灣時間的日期和時間字符串
@@ -126,14 +107,22 @@ export async function GET(request: Request) {
       }
 
       // 計算時長（分鐘）
-      const durationMinutes = Math.floor(record.duration / 60)
+      const startTime = new Date(booking.schedule.startTime)
+      const endTime = new Date(booking.schedule.endTime)
+      const durationMinutes = Math.floor((endTime.getTime() - startTime.getTime()) / (1000 * 60))
 
       // 計算訂單金額
       let orderAmount = 0
-      if (finalAmount) {
+      if (finalAmount !== null && finalAmount !== undefined) {
         orderAmount = parseFloat(finalAmount.toString())
-      } else if (halfHourlyRate && durationMinutes) {
+      } else if (halfHourlyRate !== null && halfHourlyRate !== undefined && durationMinutes > 0) {
+        // 如果沒有 finalAmount，根據時長和費率計算
         orderAmount = (durationMinutes / 30) * parseFloat(halfHourlyRate.toString())
+      }
+      
+      // 🔥 如果金額還是0，記錄警告但不跳過（可能是免費預約或測試）
+      if (orderAmount === 0 && finalAmount === null && halfHourlyRate === null) {
+        console.warn(`⚠️ 預約 ${booking.id} 沒有金額信息：finalAmount=${finalAmount}, halfHourlyRate=${halfHourlyRate}`)
       }
 
       processedRecords.push({
@@ -148,6 +137,8 @@ export async function GET(request: Request) {
         timestamp: createdAt
       })
     }
+    
+    console.log(`✅ 處理了 ${processedRecords.length} 條訂單記錄（從 ${bookings.length} 個預約中）`)
 
     // 按月份分組
     const recordsByMonth: Record<string, typeof processedRecords> = {}
