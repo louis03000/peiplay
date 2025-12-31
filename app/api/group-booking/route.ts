@@ -321,8 +321,7 @@ export async function GET(request: Request) {
                 }
               }
             }
-          },
-          orderBy: { createdAt: 'desc' }
+          }
         });
 
         console.log(`📊 找到群組預約: ${groupBookings.length} 個`);
