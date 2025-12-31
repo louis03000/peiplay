@@ -35,8 +35,7 @@ export default function RankingPage() {
 
   const timeOptions = [
     { value: 'week', label: '本週' },
-    { value: 'month', label: '本月' },
-    { value: 'all', label: '全部時間' }
+    { value: 'month', label: '本月' }
   ]
 
   // 獲取當前用戶的夥伴ID

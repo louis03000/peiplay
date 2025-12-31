@@ -45,6 +45,16 @@ export default function ProfileClientComplete() {
   const [error, setError] = useState("");
   const [customGame, setCustomGame] = useState("");
 
+  // 其他遊戲選項相關狀態
+  const [showOtherGames, setShowOtherGames] = useState(false);
+  const [registeredGames, setRegisteredGames] = useState<Array<{
+    original: string;
+    english: string;
+    chinese: string;
+    display: string;
+  }>>([]);
+  const [loadingRegisteredGames, setLoadingRegisteredGames] = useState(false);
+
   // 註銷帳號相關狀態
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showFinalConfirm, setShowFinalConfirm] = useState(false);
@@ -54,6 +64,28 @@ export default function ProfileClientComplete() {
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  // 載入已登記的遊戲列表
+  useEffect(() => {
+    const loadRegisteredGames = async () => {
+      setLoadingRegisteredGames(true);
+      try {
+        const res = await fetch("/api/games/registered");
+        if (res.ok) {
+          const data = await res.json();
+          setRegisteredGames(data.games || []);
+        }
+      } catch (error) {
+        console.error("載入已登記遊戲列表失敗:", error);
+      } finally {
+        setLoadingRegisteredGames(false);
+      }
+    };
+
+    if (mounted) {
+      loadRegisteredGames();
+    }
+  }, [mounted]);
 
   // 載入用戶資料
   useEffect(() => {
@@ -106,6 +138,13 @@ export default function ProfileClientComplete() {
   };
 
   const handleGameChange = (game: string) => {
+    // 如果點擊的是"其他"，切換展開/收起狀態
+    if (game === "其他") {
+      setShowOtherGames(!showOtherGames);
+      return;
+    }
+
+    // 處理其他遊戲的選擇/取消
     if (formData.games.includes(game)) {
       setFormData((prev) => ({
         ...prev,
@@ -113,6 +152,20 @@ export default function ProfileClientComplete() {
       }));
     } else if (formData.games.length < MAX_GAMES) {
       setFormData((prev) => ({ ...prev, games: [...prev.games, game] }));
+    }
+  };
+
+  // 處理從"其他"列表中選擇遊戲
+  const handleSelectOtherGame = (game: { original: string; display: string }) => {
+    if (formData.games.includes(game.original)) {
+      // 如果已選擇，則取消選擇
+      setFormData((prev) => ({
+        ...prev,
+        games: prev.games.filter((g) => g !== game.original),
+      }));
+    } else if (formData.games.length < MAX_GAMES) {
+      // 如果未選擇且未達上限，則添加
+      setFormData((prev) => ({ ...prev, games: [...prev.games, game.original] }));
     }
   };
 
@@ -594,9 +647,16 @@ export default function ProfileClientComplete() {
                     <button
                       type="button"
                       key={game}
-                      className={`px-3 py-1 rounded-full border text-xs font-semibold mr-2 mb-2 ${formData.games.includes(game) ? "bg-indigo-600 text-white border-indigo-600" : "bg-gray-900 text-gray-300 border-gray-700"}`}
+                      className={`px-3 py-1 rounded-full border text-xs font-semibold mr-2 mb-2 ${
+                        game === "其他" && showOtherGames
+                          ? "bg-indigo-600 text-white border-indigo-600"
+                          : formData.games.includes(game)
+                          ? "bg-indigo-600 text-white border-indigo-600"
+                          : "bg-gray-900 text-gray-300 border-gray-700"
+                      }`}
                       onClick={() => handleGameChange(game)}
                       disabled={
+                        game !== "其他" &&
                         formData.games.length >= MAX_GAMES &&
                         !formData.games.includes(game)
                       }
@@ -605,6 +665,50 @@ export default function ProfileClientComplete() {
                     </button>
                   ))}
                 </div>
+                
+                {/* 其他遊戲列表 */}
+                {showOtherGames && (
+                  <div className="mb-4 p-4 bg-gray-800 rounded-lg border border-gray-700 max-h-96 overflow-y-auto">
+                    {loadingRegisteredGames ? (
+                      <div className="text-center text-gray-400 text-sm py-4">
+                        載入中...
+                      </div>
+                    ) : registeredGames.length === 0 ? (
+                      <div className="text-center text-gray-400 text-sm py-4">
+                        目前沒有已登記的遊戲
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        <div className="text-gray-300 text-xs mb-2 font-semibold">
+                          已登記的遊戲（點擊選擇）：
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          {registeredGames.map((game) => {
+                            const isSelected = formData.games.includes(game.original);
+                            return (
+                              <button
+                                type="button"
+                                key={`${game.english}-${game.chinese}`}
+                                className={`px-3 py-1 rounded-full border text-xs font-semibold transition-colors ${
+                                  isSelected
+                                    ? "bg-indigo-600 text-white border-indigo-600"
+                                    : "bg-gray-700 text-gray-300 border-gray-600 hover:bg-gray-600"
+                                }`}
+                                onClick={() => handleSelectOtherGame(game)}
+                                disabled={
+                                  !isSelected &&
+                                  formData.games.length >= MAX_GAMES
+                                }
+                              >
+                                {game.display}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
                 <div className="flex gap-2 mb-2">
                   <input
                     type="text"
