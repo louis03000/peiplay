@@ -198,7 +198,8 @@ export default function AdminReviewsPage() {
         <div className="grid gap-6">
           {/* 一般預約評論 */}
           {activeTab === 'general' && (
-          {reviews.map((review) => (
+            <>
+              {reviews.map((review) => (
             <div key={review.id} className="bg-white rounded-xl shadow-lg p-6 border border-gray-200">
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center gap-4">
@@ -274,15 +275,16 @@ export default function AdminReviewsPage() {
                 </div>
               </div>
             </div>
-          ))}
+              ))}
 
-            {reviews.length === 0 && (
-              <div className="bg-white rounded-xl shadow-lg p-8 text-center">
-                <div className="text-6xl mb-4">📝</div>
-                <h3 className="text-xl font-semibold text-gray-900 mb-2">暫無評價</h3>
-                <p className="text-gray-600">目前沒有任何一般預約評價需要審核</p>
-              </div>
-            )}
+              {reviews.length === 0 && (
+                <div className="bg-white rounded-xl shadow-lg p-8 text-center">
+                  <div className="text-6xl mb-4">📝</div>
+                  <h3 className="text-xl font-semibold text-gray-900 mb-2">暫無評價</h3>
+                  <p className="text-gray-600">目前沒有任何一般預約評價需要審核</p>
+                </div>
+              )}
+            </>
           )}
 
           {/* 多人陪玩/群組預約評論 */}

@@ -154,10 +154,10 @@ export default function HomePage() {
                     {isPartner ? '管理時段' : '立即預約'}
                   </button>
                   <button
-                    onClick={() => router.push('/partners')}
+                    onClick={() => router.push('/bookings')}
                     className="w-full sm:w-auto border-2 border-white text-white px-10 py-4 rounded-2xl text-lg font-semibold hover:bg-white hover:text-[#6C63FF] transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
                   >
-                    瀏覽夥伴
+                    預約管理
                   </button>
                 </>
               ) : (
