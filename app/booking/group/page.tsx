@@ -100,8 +100,10 @@ function GroupBookingContent() {
       const response = await fetch('/api/group-booking?status=ACTIVE')
       if (response.ok) {
         const data = await response.json()
+        console.log('🔍 [前端] 收到群組預約數據:', data.length, '個')
         const now = new Date()
         const thirtyMinutesLater = new Date(now.getTime() + 30 * 60 * 1000) // 30分鐘後
+        console.log('🔍 [前端] 當前時間:', now.toISOString(), '30分鐘後:', thirtyMinutesLater.toISOString())
         // 過濾掉時間已過的群組，並檢查用戶是否已加入
         const updatedBookings = data
           .filter((booking: GroupBooking) => {
@@ -110,7 +112,18 @@ function GroupBookingContent() {
             // 過濾條件：
             // 1. 結束時間必須在未來（還沒結束）
             // 2. 開始時間必須在30分鐘後（剩餘時間至少30分鐘才能加入）
-            return endTime.getTime() > now.getTime() && startTime.getTime() > thirtyMinutesLater.getTime()
+            // 使用 >= 來包含正好30分鐘後的預約，與 API 保持一致
+            const isValid = endTime.getTime() > now.getTime() && startTime.getTime() >= thirtyMinutesLater.getTime()
+            if (!isValid) {
+              console.log('🔍 [前端] 過濾掉群組預約:', booking.id, {
+                title: booking.title,
+                startTime: startTime.toISOString(),
+                endTime: endTime.toISOString(),
+                startTimeDiff: (startTime.getTime() - thirtyMinutesLater.getTime()) / 1000 / 60,
+                endTimeDiff: (endTime.getTime() - now.getTime()) / 1000 / 60
+              })
+            }
+            return isValid
           })
           .map((booking: GroupBooking) => {
             // 檢查參與者列表中是否有當前用戶
@@ -122,7 +135,10 @@ function GroupBookingContent() {
             ) || joinedGroupIds.has(booking.id)
             return { ...booking, isJoined }
           })
+        console.log('🔍 [前端] 過濾後的群組預約:', updatedBookings.length, '個')
         setGroupBookings(updatedBookings)
+      } else {
+        console.error('🔍 [前端] 載入群組預約失敗:', response.status, response.statusText)
       }
     } catch (error) {
       console.error('載入群組預約失敗:', error)

@@ -232,14 +232,15 @@ export async function GET(request: Request) {
         // 過濾條件：
         // 1. 結束時間必須在未來（還沒結束）
         // 2. 開始時間必須在30分鐘後（剩餘時間至少30分鐘才能加入）
+        // 使用 gte 來包含正好30分鐘後的預約
         where.endTime = { gt: now };
-        where.startTime = { gt: thirtyMinutesLater };
+        where.startTime = { gte: thirtyMinutesLater };
         
         console.log(`🔍 [群組預約查詢] 當前時間: ${now.toISOString()}, 30分鐘後: ${thirtyMinutesLater.toISOString()}`);
         console.log(`🔍 [群組預約查詢] 查詢條件:`, JSON.stringify({
           ...where,
           endTime: where.endTime.gt?.toISOString(),
-          startTime: where.startTime.gt?.toISOString()
+          startTime: where.startTime.gte?.toISOString()
         }, null, 2));
 
         // 查詢群組預約
@@ -337,72 +338,107 @@ export async function GET(request: Request) {
 
         // 格式化返回數據
         const formattedGroupBookings = groupBookings.map(group => {
-          // 找到發起者夥伴
-          const initiatorParticipant = group.GroupBookingParticipant.find(p => p.partnerId === group.initiatorId);
-          const initiatorPartner = initiatorParticipant?.Partner;
-          
-          // 計算平均評分（從 user.reviewsReceived 獲取）
-          let averageRating = 0;
-          let reviewCount = 0;
-          if (initiatorPartner?.user?.reviewsReceived && initiatorPartner.user.reviewsReceived.length > 0) {
-            const ratings = initiatorPartner.user.reviewsReceived.map(r => r.rating);
-            averageRating = ratings.reduce((sum, rating) => sum + rating, 0) / ratings.length;
-            reviewCount = ratings.length;
-          }
-          
-          return {
-            id: group.id,
-            partnerId: group.initiatorId,
-            title: group.title,
-            description: group.description,
-            maxParticipants: group.maxParticipants,
-            currentParticipants: group.GroupBookingParticipant.length,
-            pricePerPerson: group.pricePerPerson,
-            games: (group as any).games || [], // 使用類型斷言，因為數據庫中可能還沒有這個字段
-            startTime: group.startTime instanceof Date ? group.startTime.toISOString() : group.startTime,
-            endTime: group.endTime instanceof Date ? group.endTime.toISOString() : group.endTime,
-            status: group.status,
-            createdAt: group.createdAt instanceof Date ? group.createdAt.toISOString() : group.createdAt,
-            partner: initiatorPartner ? {
-              id: initiatorPartner.id,
-              name: initiatorPartner.name,
-              coverImage: initiatorPartner.coverImage || '',
-              halfHourlyRate: initiatorPartner.halfHourlyRate || 0,
-              games: initiatorPartner.games || [],
-              averageRating,
-              reviewCount,
-              allowGroupBooking: true,
-              user: {
-                email: initiatorPartner.user.email,
-                isSuspended: initiatorPartner.user.isSuspended || false,
-                suspensionEndsAt: initiatorPartner.user.suspensionEndsAt
-              }
-            } : {
-              id: group.initiatorId,
-              name: '未知夥伴',
-              coverImage: '',
-              halfHourlyRate: 0,
-              games: [],
-              averageRating: 0,
-              reviewCount: 0,
-              allowGroupBooking: false,
-              user: {
-                email: '',
-                isSuspended: false,
-                suspensionEndsAt: null
-              }
-            },
-            bookings: group.bookings.map(booking => ({
-              id: booking.id,
-              customer: {
-                id: booking.customer.id,
+          try {
+            // 找到發起者夥伴
+            const initiatorParticipant = group.GroupBookingParticipant.find(p => p.partnerId === group.initiatorId);
+            const initiatorPartner = initiatorParticipant?.Partner;
+            
+            // 計算平均評分（從 user.reviewsReceived 獲取）
+            let averageRating = 0;
+            let reviewCount = 0;
+            if (initiatorPartner?.user?.reviewsReceived && initiatorPartner.user.reviewsReceived.length > 0) {
+              const ratings = initiatorPartner.user.reviewsReceived.map(r => r.rating);
+              averageRating = ratings.reduce((sum, rating) => sum + rating, 0) / ratings.length;
+              reviewCount = ratings.length;
+            }
+            
+            return {
+              id: group.id,
+              partnerId: group.initiatorId,
+              title: group.title,
+              description: group.description,
+              maxParticipants: group.maxParticipants,
+              currentParticipants: group.GroupBookingParticipant.length,
+              pricePerPerson: group.pricePerPerson,
+              games: (group as any).games || [], // 使用類型斷言，因為數據庫中可能還沒有這個字段
+              startTime: group.startTime instanceof Date ? group.startTime.toISOString() : group.startTime,
+              endTime: group.endTime instanceof Date ? group.endTime.toISOString() : group.endTime,
+              status: group.status,
+              createdAt: group.createdAt instanceof Date ? group.createdAt.toISOString() : group.createdAt,
+              partner: initiatorPartner && initiatorPartner.user ? {
+                id: initiatorPartner.id,
+                name: initiatorPartner.name,
+                coverImage: initiatorPartner.coverImage || '',
+                halfHourlyRate: initiatorPartner.halfHourlyRate || 0,
+                games: initiatorPartner.games || [],
+                averageRating,
+                reviewCount,
+                allowGroupBooking: true,
                 user: {
-                  name: booking.customer.user.name,
-                  email: booking.customer.user.email
+                  email: initiatorPartner.user.email || '',
+                  isSuspended: initiatorPartner.user.isSuspended || false,
+                  suspensionEndsAt: initiatorPartner.user.suspensionEndsAt
                 }
-              }
-            }))
-          };
+              } : {
+                id: group.initiatorId,
+                name: '未知夥伴',
+                coverImage: '',
+                halfHourlyRate: 0,
+                games: [],
+                averageRating: 0,
+                reviewCount: 0,
+                allowGroupBooking: false,
+                user: {
+                  email: '',
+                  isSuspended: false,
+                  suspensionEndsAt: null
+                }
+              },
+              bookings: group.bookings.map(booking => ({
+                id: booking.id,
+                customer: {
+                  id: booking.customer.id,
+                  user: {
+                    name: booking.customer.user?.name || '',
+                    email: booking.customer.user?.email || ''
+                  }
+                }
+              }))
+            };
+          } catch (formatError: any) {
+            console.error(`❌ 格式化群組預約 ${group.id} 時發生錯誤:`, formatError);
+            // 返回一個基本的格式，避免整個請求失敗
+            return {
+              id: group.id,
+              partnerId: group.initiatorId,
+              title: group.title || '未知標題',
+              description: group.description,
+              maxParticipants: group.maxParticipants,
+              currentParticipants: group.GroupBookingParticipant?.length || 0,
+              pricePerPerson: group.pricePerPerson,
+              games: [],
+              startTime: group.startTime instanceof Date ? group.startTime.toISOString() : group.startTime,
+              endTime: group.endTime instanceof Date ? group.endTime.toISOString() : group.endTime,
+              status: group.status,
+              createdAt: group.createdAt instanceof Date ? group.createdAt.toISOString() : group.createdAt,
+              partner: {
+                id: group.initiatorId,
+                name: '未知夥伴',
+                coverImage: '',
+                halfHourlyRate: 0,
+                games: [],
+                averageRating: 0,
+                reviewCount: 0,
+                allowGroupBooking: false,
+                user: {
+                  email: '',
+                  isSuspended: false,
+                  suspensionEndsAt: null
+                }
+              },
+              bookings: []
+            };
+          }
         });
 
         return formattedGroupBookings;
