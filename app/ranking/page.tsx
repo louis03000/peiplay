@@ -149,80 +149,77 @@ export default function RankingPage() {
         <div className="max-w-7xl mx-auto">
           <div className="flex flex-col lg:flex-row gap-6 items-center justify-between mb-8">
             {/* 遊戲篩選 */}
-            <div className="flex flex-wrap gap-3 relative">
+            <div className="flex flex-wrap gap-3">
               {gameOptions.map((option) => (
-                <div key={option.value} className="relative">
-                  <button
-                    onClick={() => {
-                      if (option.value === '其他') {
-                        setShowOtherGames(!showOtherGames)
-                      } else {
-                        setSelectedGame(option.value)
-                        setShowOtherGames(false)
-                      }
-                    }}
-                    className={`px-6 py-3 rounded-xl font-medium transition-all duration-300 hover:scale-105 flex items-center gap-2 ${
-                      (option.value === '其他' && showOtherGames) || selectedGame === option.value
-                        ? 'shadow-lg transform scale-105' 
-                        : 'hover:shadow-lg'
-                    }`}
-                    style={{
-                      backgroundColor: (option.value === '其他' && showOtherGames) || selectedGame === option.value ? '#1A73E8' : 'white',
-                      color: (option.value === '其他' && showOtherGames) || selectedGame === option.value ? 'white' : '#333140',
-                      boxShadow: (option.value === '其他' && showOtherGames) || selectedGame === option.value ? '0 8px 32px rgba(26, 115, 232, 0.3)' : '0 4px 20px rgba(0, 0, 0, 0.1)'
-                    }}
-                  >
-                    {option.isGame ? (
-                      <GameIcon gameName={option.value} size={20} />
-                    ) : (
-                      <span>{option.icon}</span>
-                    )}
-                    <span>{option.label}</span>
-                  </button>
-                  
-                  {/* 其他遊戲列表下拉框 */}
-                  {option.value === '其他' && showOtherGames && (
-                    <div className="absolute top-full left-0 mt-2 z-50 bg-white rounded-xl shadow-2xl border border-gray-200 max-h-96 overflow-y-auto min-w-[300px] max-w-[500px]">
-                      {loadingRegisteredGames ? (
-                        <div className="p-6 text-center text-gray-500">
-                          載入中...
-                        </div>
-                      ) : registeredGames.length === 0 ? (
-                        <div className="p-6 text-center text-gray-500">
-                          目前沒有已登記的遊戲
-                        </div>
-                      ) : (
-                        <div className="p-4">
-                          <div className="text-gray-700 text-sm font-semibold mb-3">
-                            已登記的遊戲（點擊選擇）：
-                          </div>
-                          <div className="flex flex-wrap gap-2">
-                            {registeredGames.map((game) => {
-                              const isSelected = selectedGame === game.original
-                              return (
-                                <button
-                                  key={`${game.english}-${game.chinese}`}
-                                  onClick={() => {
-                                    setSelectedGame(game.original)
-                                    setShowOtherGames(false)
-                                  }}
-                                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                                    isSelected
-                                      ? 'bg-blue-600 text-white'
-                                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                                  }`}
-                                >
-                                  {game.display}
-                                </button>
-                              )
-                            })}
-                          </div>
-                        </div>
-                      )}
-                    </div>
+                <button
+                  key={option.value}
+                  onClick={() => {
+                    if (option.value === '其他') {
+                      setShowOtherGames(!showOtherGames)
+                    } else {
+                      setSelectedGame(option.value)
+                      setShowOtherGames(false)
+                    }
+                  }}
+                  className={`px-6 py-3 rounded-xl font-medium transition-all duration-300 hover:scale-105 flex items-center gap-2 ${
+                    (option.value === '其他' && showOtherGames) || selectedGame === option.value
+                      ? 'shadow-lg transform scale-105' 
+                      : 'hover:shadow-lg'
+                  }`}
+                  style={{
+                    backgroundColor: (option.value === '其他' && showOtherGames) || selectedGame === option.value ? '#1A73E8' : 'white',
+                    color: (option.value === '其他' && showOtherGames) || selectedGame === option.value ? 'white' : '#333140',
+                    boxShadow: (option.value === '其他' && showOtherGames) || selectedGame === option.value ? '0 8px 32px rgba(26, 115, 232, 0.3)' : '0 4px 20px rgba(0, 0, 0, 0.1)'
+                  }}
+                >
+                  {option.isGame ? (
+                    <GameIcon gameName={option.value} size={20} />
+                  ) : (
+                    <span>{option.icon}</span>
                   )}
-                </div>
+                  <span>{option.label}</span>
+                </button>
               ))}
+              
+              {/* 其他遊戲列表 - 水平展開 */}
+              {showOtherGames && (
+                <>
+                  {loadingRegisteredGames ? (
+                    <div className="px-6 py-3 rounded-xl bg-white text-gray-500">
+                      載入中...
+                    </div>
+                  ) : registeredGames.length === 0 ? (
+                    <div className="px-6 py-3 rounded-xl bg-white text-gray-500">
+                      目前沒有已登記的遊戲
+                    </div>
+                  ) : (
+                    registeredGames.map((game) => {
+                      const isSelected = selectedGame === game.original
+                      return (
+                        <button
+                          key={`${game.english}-${game.chinese}`}
+                          onClick={() => {
+                            setSelectedGame(game.original)
+                            setShowOtherGames(false)
+                          }}
+                          className={`px-6 py-3 rounded-xl font-medium transition-all duration-300 hover:scale-105 flex items-center gap-2 ${
+                            isSelected
+                              ? 'shadow-lg transform scale-105' 
+                              : 'hover:shadow-lg'
+                          }`}
+                          style={{
+                            backgroundColor: isSelected ? '#1A73E8' : 'white',
+                            color: isSelected ? 'white' : '#333140',
+                            boxShadow: isSelected ? '0 8px 32px rgba(26, 115, 232, 0.3)' : '0 4px 20px rgba(0, 0, 0, 0.1)'
+                          }}
+                        >
+                          <span className="text-sm">{game.display}</span>
+                        </button>
+                      )
+                    })
+                  )}
+                </>
+              )}
             </div>
 
             {/* 時間篩選 */}
@@ -249,7 +246,10 @@ export default function RankingPage() {
           </div>
 
           {/* 排行榜列表 */}
-          {loading ? (
+          {showOtherGames ? (
+            // 當"其他"選單展開時，隱藏排行榜列表
+            null
+          ) : loading ? (
             <div className="text-center py-24">
               <div className="relative">
                 <div className="w-20 h-20 mx-auto mb-8 rounded-full border-4 border-gray-200 border-t-#1A73E8 animate-spin"></div>
