@@ -30,7 +30,8 @@ export default function RankingPage() {
     { value: '特戰英豪', label: '特戰英豪', icon: null, isGame: true },
     { value: 'Apex 英雄', label: 'Apex 英雄', icon: null, isGame: true },
     { value: 'CS:GO', label: 'CS:GO', icon: null, isGame: true },
-    { value: 'PUBG', label: 'PUBG', icon: null, isGame: true }
+    { value: 'PUBG', label: 'PUBG', icon: null, isGame: true },
+    { value: '其他', label: '其他', icon: null, isGame: false }
   ]
 
   const timeOptions = [
