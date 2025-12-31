@@ -61,6 +61,12 @@ export async function GET() {
               endTime: true,
               date: true,
               partnerId: true,
+              partner: {
+                select: {
+                  supportsChatOnly: true,
+                  chatOnlyRate: true,
+                },
+              },
             },
           },
         },
@@ -91,7 +97,12 @@ export async function GET() {
           serviceType = '即時預約'
         } else if (booking.groupBookingId) {
           serviceType = '群組預約'
-        } else if (booking.serviceType === 'CHAT_ONLY') {
+        } else if (
+          booking.serviceType === 'CHAT_ONLY' || 
+          paymentInfo?.isChatOnly === true || 
+          paymentInfo?.isChatOnly === 'true' ||
+          (booking.schedule?.partner?.supportsChatOnly && booking.schedule?.partner?.chatOnlyRate)
+        ) {
           serviceType = '純聊天'
         }
         
@@ -101,7 +112,10 @@ export async function GET() {
             multiPlayerBookingId: booking.multiPlayerBookingId,
             groupBookingId: booking.groupBookingId,
             isInstantBooking: paymentInfo?.isInstantBooking,
+            isChatOnly: paymentInfo?.isChatOnly,
             serviceType: booking.serviceType,
+            supportsChatOnly: booking.schedule?.partner?.supportsChatOnly,
+            chatOnlyRate: booking.schedule?.partner?.chatOnlyRate,
             result: serviceType
           })
         }

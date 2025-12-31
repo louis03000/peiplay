@@ -19,6 +19,7 @@ interface OrderHistoryItem {
   updatedAt: string
   paymentInfo: any
   isInstantBooking: boolean
+  serviceType?: string
 }
 
 interface PaginationInfo {
@@ -309,11 +310,17 @@ export default function OrderHistoryPage() {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                            booking.isInstantBooking 
-                              ? 'bg-orange-100 text-orange-800' 
+                            booking.serviceType === '即時預約'
+                              ? 'bg-orange-100 text-orange-800'
+                              : booking.serviceType === '多人陪玩'
+                              ? 'bg-purple-100 text-purple-800'
+                              : booking.serviceType === '群組預約'
+                              ? 'bg-green-100 text-green-800'
+                              : booking.serviceType === '純聊天'
+                              ? 'bg-pink-100 text-pink-800'
                               : 'bg-blue-100 text-blue-800'
                           }`}>
-                            {booking.isInstantBooking ? '即時預約' : '一般預約'}
+                            {booking.serviceType || '一般預約'}
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">

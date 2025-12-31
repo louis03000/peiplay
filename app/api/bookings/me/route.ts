@@ -87,7 +87,7 @@ export async function GET() {
           serviceType = '群組預約'
         } else if (booking.multiPlayerBookingId) {
           serviceType = '多人陪玩'
-        } else if (booking.serviceType === 'CHAT_ONLY') {
+        } else if (booking.serviceType === 'CHAT_ONLY' || paymentInfo?.isChatOnly === true || paymentInfo?.isChatOnly === 'true') {
           serviceType = '純聊天'
         }
         

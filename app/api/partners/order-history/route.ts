@@ -75,6 +75,9 @@ export async function GET(request: NextRequest) {
           originalAmount: true,
           finalAmount: true,
           paymentInfo: true,
+          multiPlayerBookingId: true,
+          groupBookingId: true,
+          serviceType: true,
           customer: {
             select: {
               id: true,
@@ -118,7 +121,21 @@ export async function GET(request: NextRequest) {
           : 0;
 
         const paymentInfo = booking.paymentInfo as any;
-        const isInstantBooking = paymentInfo?.isInstantBooking === true;
+        const isInstantBooking = paymentInfo?.isInstantBooking === true || paymentInfo?.isInstantBooking === 'true';
+
+        // 🔥 判斷服務類型（與 admin/order-records 邏輯一致）
+        let serviceType = '一般預約'; // 預設值
+        
+        // 優先檢查多人陪玩（因為它可能同時有 paymentInfo）
+        if (booking.multiPlayerBookingId) {
+          serviceType = '多人陪玩'
+        } else if (isInstantBooking) {
+          serviceType = '即時預約'
+        } else if (booking.groupBookingId) {
+          serviceType = '群組預約'
+        } else if (booking.serviceType === 'CHAT_ONLY') {
+          serviceType = '純聊天'
+        }
 
         return {
           id: booking.id,
@@ -135,6 +152,7 @@ export async function GET(request: NextRequest) {
           updatedAt: booking.updatedAt.toISOString(),
           paymentInfo: booking.paymentInfo,
           isInstantBooking,
+          serviceType, // 添加服務類型
         };
       });
 
