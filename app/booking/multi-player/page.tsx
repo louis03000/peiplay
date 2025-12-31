@@ -87,6 +87,16 @@ function MultiPlayerBookingContent() {
   const [replacementPartners, setReplacementPartners] = useState<Partner[]>([])
   const [selectedReplacementPartner, setSelectedReplacementPartner] = useState<string | null>(null)
 
+  // 評論回饋相關狀態
+  const [reviews, setReviews] = useState<Array<{
+    id: string
+    rating: number
+    comment: string | null
+    createdAt: string
+    reviewerName: string
+  }>>([])
+  const [loadingReviews, setLoadingReviews] = useState(false)
+
   // 根據開始時間和時長自動計算結束時間
   const handleDurationSelect = (hours: number) => {
     setSelectedDuration(hours)
@@ -231,6 +241,29 @@ function MultiPlayerBookingContent() {
       console.log('無法載入違規次數')
     }
   }
+
+  // 載入所有多人陪玩的評論（不限制於自己的預約）
+  const loadReviews = async () => {
+    try {
+      setLoadingReviews(true)
+      // 🔥 獲取所有多人陪玩的評論（通過查詢所有 GroupBooking，然後獲取評論）
+      // 由於多人陪玩的 GroupBooking.id 等於 MultiPlayerBooking.id，我們可以通過查詢所有 GroupBookingReview 來獲取
+      const response = await fetch('/api/multi-player-booking/reviews')
+      if (response.ok) {
+        const data = await response.json()
+        setReviews(data.reviews || [])
+      }
+    } catch (error) {
+      console.error('載入評論失敗:', error)
+    } finally {
+      setLoadingReviews(false)
+    }
+  }
+
+  // 當組件載入時，載入評論
+  useEffect(() => {
+    loadReviews()
+  }, [])
 
   const searchPartners = async () => {
     if (!selectedDate || !selectedStartTime || !selectedEndTime) {
@@ -969,6 +1002,46 @@ ${formatScheduleChecks(p)}
                 </div>
               </div>
             )}
+          </div>
+        )}
+
+        {/* 評論回饋區域 */}
+        {reviews.length > 0 && (
+          <div className="bg-white rounded-lg shadow-md p-6 mb-8">
+            <h2 className="text-xl font-semibold mb-4 text-gray-900">💬 其他顧客的評論回饋</h2>
+            <div className="space-y-4">
+              {reviews.map((review) => (
+                <div key={review.id} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                  <div className="flex items-start justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-full bg-gradient-to-r from-purple-400 to-pink-400 flex items-center justify-center text-white font-semibold text-sm">
+                        {review.reviewerName.charAt(0)}
+                      </div>
+                      <span className="font-medium text-gray-900">{review.reviewerName}</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      {[...Array(5)].map((_, i) => (
+                        <span key={i} className={i < review.rating ? 'text-yellow-400' : 'text-gray-300'}>
+                          ⭐
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                  {review.comment && (
+                    <p className="text-gray-700 mt-2 mb-2">{review.comment}</p>
+                  )}
+                  <p className="text-xs text-gray-500">
+                    {new Date(review.createdAt).toLocaleString('zh-TW', {
+                      year: 'numeric',
+                      month: '2-digit',
+                      day: '2-digit',
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    })}
+                  </p>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 

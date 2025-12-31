@@ -26,11 +26,34 @@ interface Review {
   }
 }
 
+interface GroupBookingReview {
+  id: string
+  rating: number
+  comment: string | null
+  createdAt: string
+  Customer: {
+    user: {
+      name: string
+      email: string
+    }
+  }
+  GroupBooking: {
+    id: string
+    title: string | null
+    date: Date
+    startTime: Date
+    endTime: Date
+    type: string
+  }
+}
+
 export default function AdminReviewsPage() {
   const { data: session } = useSession()
   const [reviews, setReviews] = useState<Review[]>([])
+  const [groupBookingReviews, setGroupBookingReviews] = useState<GroupBookingReview[]>([])
   const [loading, setLoading] = useState(true)
   const [updating, setUpdating] = useState<string | null>(null)
+  const [activeTab, setActiveTab] = useState<'general' | 'multiplayer'>('general')
 
   useEffect(() => {
     if (session?.user?.role === 'ADMIN') {
@@ -40,10 +63,18 @@ export default function AdminReviewsPage() {
 
   const fetchReviews = async () => {
     try {
-      const response = await fetch('/api/admin/reviews')
-      if (response.ok) {
-        const data = await response.json()
-        setReviews(data.reviews)
+      // 獲取一般預約的評論
+      const reviewsResponse = await fetch('/api/admin/reviews')
+      if (reviewsResponse.ok) {
+        const reviewsData = await reviewsResponse.json()
+        setReviews(reviewsData.reviews || [])
+      }
+
+      // 獲取多人陪玩和群組預約的評論
+      const groupReviewsResponse = await fetch('/api/admin/group-booking-reviews')
+      if (groupReviewsResponse.ok) {
+        const groupReviewsData = await groupReviewsResponse.json()
+        setGroupBookingReviews(groupReviewsData.reviews || [])
       }
     } catch (error) {
       console.error('Failed to fetch reviews:', error)
@@ -71,6 +102,38 @@ export default function AdminReviewsPage() {
       }
     } catch (error) {
       console.error('Failed to update review:', error)
+    } finally {
+      setUpdating(null)
+    }
+  }
+
+  const handleDeleteGroupBookingReview = async (reviewId: string) => {
+    if (!confirm('確定要刪除這條評論嗎？此操作無法復原。')) {
+      return
+    }
+
+    setUpdating(reviewId)
+    try {
+      const response = await fetch('/api/admin/group-booking-reviews', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          reviewId
+        })
+      })
+
+      if (response.ok) {
+        await fetchReviews() // 重新獲取數據
+        alert('評論已刪除')
+      } else {
+        const error = await response.json()
+        alert(error.error || '刪除失敗')
+      }
+    } catch (error) {
+      console.error('Failed to delete review:', error)
+      alert('刪除失敗，請重試')
     } finally {
       setUpdating(null)
     }
@@ -106,7 +169,35 @@ export default function AdminReviewsPage() {
           <p className="text-gray-600">管理用戶評價的上架狀態</p>
         </div>
 
+        {/* 標籤切換 */}
+        <div className="bg-white rounded-xl shadow-lg p-4 mb-6">
+          <div className="flex gap-4">
+            <button
+              onClick={() => setActiveTab('general')}
+              className={`px-6 py-2 rounded-lg font-medium transition-colors ${
+                activeTab === 'general'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              一般預約評論 ({reviews.length})
+            </button>
+            <button
+              onClick={() => setActiveTab('multiplayer')}
+              className={`px-6 py-2 rounded-lg font-medium transition-colors ${
+                activeTab === 'multiplayer'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              多人陪玩/群組預約評論 ({groupBookingReviews.length})
+            </button>
+          </div>
+        </div>
+
         <div className="grid gap-6">
+          {/* 一般預約評論 */}
+          {activeTab === 'general' && (
           {reviews.map((review) => (
             <div key={review.id} className="bg-white rounded-xl shadow-lg p-6 border border-gray-200">
               <div className="flex items-start justify-between mb-4">
@@ -185,12 +276,77 @@ export default function AdminReviewsPage() {
             </div>
           ))}
 
-          {reviews.length === 0 && (
-            <div className="bg-white rounded-xl shadow-lg p-8 text-center">
-              <div className="text-6xl mb-4">📝</div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">暫無評價</h3>
-              <p className="text-gray-600">目前沒有任何用戶評價需要審核</p>
-            </div>
+            {reviews.length === 0 && (
+              <div className="bg-white rounded-xl shadow-lg p-8 text-center">
+                <div className="text-6xl mb-4">📝</div>
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">暫無評價</h3>
+                <p className="text-gray-600">目前沒有任何一般預約評價需要審核</p>
+              </div>
+            )}
+          )}
+
+          {/* 多人陪玩/群組預約評論 */}
+          {activeTab === 'multiplayer' && (
+            <>
+              {groupBookingReviews.map((review) => (
+                <div key={review.id} className="bg-white rounded-xl shadow-lg p-6 border border-gray-200">
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-full bg-gradient-to-r from-purple-600 to-pink-600 flex items-center justify-center text-white font-bold">
+                        {review.Customer.user.name.charAt(0)}
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-gray-900">{review.Customer.user.name}</h3>
+                        <p className="text-sm text-gray-500">
+                          {review.GroupBooking.title || '多人陪玩/群組預約'}
+                        </p>
+                        <p className="text-xs text-gray-400 mt-1">
+                          {new Date(review.GroupBooking.startTime).toLocaleString('zh-TW')} - {new Date(review.GroupBooking.endTime).toLocaleString('zh-TW', { hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center gap-2">
+                      {[...Array(5)].map((_, i) => (
+                        <span key={i} className={i < review.rating ? 'text-yellow-400' : 'text-gray-300'}>
+                          ⭐
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+
+                  {review.comment && (
+                    <div className="mb-4">
+                      <p className="text-gray-700 bg-gray-50 rounded-lg p-4 border-l-4 border-purple-500">
+                        "{review.comment}"
+                      </p>
+                    </div>
+                  )}
+
+                  <div className="flex items-center justify-between">
+                    <div className="text-sm text-gray-500">
+                      提交時間：{new Date(review.createdAt).toLocaleString('zh-TW')}
+                    </div>
+
+                    <button
+                      onClick={() => handleDeleteGroupBookingReview(review.id)}
+                      disabled={updating === review.id}
+                      className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50"
+                    >
+                      {updating === review.id ? '處理中...' : '刪除評論'}
+                    </button>
+                  </div>
+                </div>
+              ))}
+
+              {groupBookingReviews.length === 0 && (
+                <div className="bg-white rounded-xl shadow-lg p-8 text-center">
+                  <div className="text-6xl mb-4">📝</div>
+                  <h3 className="text-xl font-semibold text-gray-900 mb-2">暫無評價</h3>
+                  <p className="text-gray-600">目前沒有任何多人陪玩或群組預約評價</p>
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>
