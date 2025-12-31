@@ -44,6 +44,11 @@ export default function RankingPage() {
     { value: '其他', label: '其他', icon: null, isGame: false }
   ]
 
+  // 🔥 獲取已顯示的遊戲列表（用於過濾重複）
+  const displayedGames = gameOptions
+    .filter(opt => opt.isGame)
+    .map(opt => opt.value.toLowerCase().replace(/[:：\s\-_]/g, '').trim())
+
   const timeOptions = [
     { value: 'week', label: '本週' },
     { value: 'month', label: '本月' }
@@ -161,7 +166,7 @@ export default function RankingPage() {
                       setShowOtherGames(false)
                     }
                   }}
-                  className={`px-6 py-3 rounded-xl font-medium transition-all duration-300 hover:scale-105 flex items-center gap-2 ${
+                  className={`px-6 py-3 rounded-xl font-medium transition-all duration-300 hover:scale-105 flex items-center justify-center gap-2 ${
                     (option.value === '其他' && showOtherGames) || selectedGame === option.value
                       ? 'shadow-lg transform scale-105' 
                       : 'hover:shadow-lg'
@@ -169,7 +174,10 @@ export default function RankingPage() {
                   style={{
                     backgroundColor: (option.value === '其他' && showOtherGames) || selectedGame === option.value ? '#1A73E8' : 'white',
                     color: (option.value === '其他' && showOtherGames) || selectedGame === option.value ? 'white' : '#333140',
-                    boxShadow: (option.value === '其他' && showOtherGames) || selectedGame === option.value ? '0 8px 32px rgba(26, 115, 232, 0.3)' : '0 4px 20px rgba(0, 0, 0, 0.1)'
+                    boxShadow: (option.value === '其他' && showOtherGames) || selectedGame === option.value ? '0 8px 32px rgba(26, 115, 232, 0.3)' : '0 4px 20px rgba(0, 0, 0, 0.1)',
+                    minWidth: '120px',
+                    minHeight: '48px',
+                    whiteSpace: 'nowrap'
                   }}
                 >
                   {option.isGame ? (
@@ -182,44 +190,66 @@ export default function RankingPage() {
               ))}
               
               {/* 其他遊戲列表 - 水平展開 */}
-              {showOtherGames && (
-                <>
-                  {loadingRegisteredGames ? (
-                    <div className="px-6 py-3 rounded-xl bg-white text-gray-500">
-                      載入中...
-                    </div>
-                  ) : registeredGames.length === 0 ? (
-                    <div className="px-6 py-3 rounded-xl bg-white text-gray-500">
-                      目前沒有已登記的遊戲
-                    </div>
-                  ) : (
-                    registeredGames.map((game) => {
-                      const isSelected = selectedGame === game.original
-                      return (
-                        <button
-                          key={`${game.english}-${game.chinese}`}
-                          onClick={() => {
-                            setSelectedGame(game.original)
-                            setShowOtherGames(false)
-                          }}
-                          className={`px-6 py-3 rounded-xl font-medium transition-all duration-300 hover:scale-105 flex items-center gap-2 ${
-                            isSelected
-                              ? 'shadow-lg transform scale-105' 
-                              : 'hover:shadow-lg'
-                          }`}
-                          style={{
-                            backgroundColor: isSelected ? '#1A73E8' : 'white',
-                            color: isSelected ? 'white' : '#333140',
-                            boxShadow: isSelected ? '0 8px 32px rgba(26, 115, 232, 0.3)' : '0 4px 20px rgba(0, 0, 0, 0.1)'
-                          }}
-                        >
-                          <span className="text-sm">{game.display}</span>
-                        </button>
-                      )
-                    })
-                  )}
-                </>
-              )}
+              {showOtherGames && (() => {
+                // 🔥 過濾掉已經在上方顯示的遊戲
+                const filteredGames = registeredGames.filter(game => {
+                  const normalizedOriginal = game.original.toLowerCase().replace(/[:：\s\-_]/g, '').trim()
+                  const normalizedEnglish = game.english.toLowerCase().replace(/[:：\s\-_]/g, '').trim()
+                  const normalizedChinese = game.chinese.toLowerCase().replace(/[:：\s\-_]/g, '').trim()
+                  
+                  // 檢查是否與已顯示的遊戲匹配
+                  return !displayedGames.some(displayed => {
+                    return normalizedOriginal.includes(displayed) || 
+                           displayed.includes(normalizedOriginal) ||
+                           normalizedEnglish.includes(displayed) ||
+                           displayed.includes(normalizedEnglish) ||
+                           normalizedChinese.includes(displayed) ||
+                           displayed.includes(normalizedChinese)
+                  })
+                })
+
+                return (
+                  <>
+                    {loadingRegisteredGames ? (
+                      <div className="px-6 py-3 rounded-xl bg-white text-gray-500" style={{ minWidth: '120px', minHeight: '48px' }}>
+                        載入中...
+                      </div>
+                    ) : filteredGames.length === 0 ? (
+                      <div className="px-6 py-3 rounded-xl bg-white text-gray-500" style={{ minWidth: '120px', minHeight: '48px' }}>
+                        目前沒有其他已登記的遊戲
+                      </div>
+                    ) : (
+                      filteredGames.map((game) => {
+                        const isSelected = selectedGame === game.original
+                        return (
+                          <button
+                            key={`${game.english}-${game.chinese}`}
+                            onClick={() => {
+                              setSelectedGame(game.original)
+                              setShowOtherGames(false)
+                            }}
+                            className={`px-6 py-3 rounded-xl font-medium transition-all duration-300 hover:scale-105 flex items-center justify-center gap-2 ${
+                              isSelected
+                                ? 'shadow-lg transform scale-105' 
+                                : 'hover:shadow-lg'
+                            }`}
+                            style={{
+                              backgroundColor: isSelected ? '#1A73E8' : 'white',
+                              color: isSelected ? 'white' : '#333140',
+                              boxShadow: isSelected ? '0 8px 32px rgba(26, 115, 232, 0.3)' : '0 4px 20px rgba(0, 0, 0, 0.1)',
+                              minWidth: '120px',
+                              minHeight: '48px',
+                              whiteSpace: 'nowrap'
+                            }}
+                          >
+                            <span className="text-sm">{game.display}</span>
+                          </button>
+                        )
+                      })
+                    )}
+                  </>
+                )
+              })()}
             </div>
 
             {/* 時間篩選 */}
