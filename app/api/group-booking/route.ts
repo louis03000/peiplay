@@ -215,6 +215,11 @@ export async function GET(request: Request) {
         // 計算30分鐘後的時間（剩餘時間少於30分鐘的群組也要過濾掉）
         const thirtyMinutesLater = addTaipeiTime(now, 30, 'minute');
         
+        // 驗證時間對象
+        if (!(now instanceof Date) || !(thirtyMinutesLater instanceof Date)) {
+          throw new Error(`時間對象無效: now=${now}, thirtyMinutesLater=${thirtyMinutesLater}`);
+        }
+        
         console.log(`🔍 [群組預約查詢] 當前時間: ${now.toISOString()}, 30分鐘後: ${thirtyMinutesLater.toISOString()}`);
         
         // 構建查詢條件
@@ -236,18 +241,22 @@ export async function GET(request: Request) {
         where.endTime = { gt: now };
         where.startTime = { gte: thirtyMinutesLater };
         
-        console.log(`🔍 [群組預約查詢] 當前時間: ${now.toISOString()}, 30分鐘後: ${thirtyMinutesLater.toISOString()}`);
         console.log(`🔍 [群組預約查詢] 查詢條件:`, JSON.stringify({
-          ...where,
+          status: where.status,
+          initiatorId: where.initiatorId,
+          initiatorType: where.initiatorType,
           endTime: where.endTime.gt?.toISOString(),
           startTime: where.startTime.gte?.toISOString()
         }, null, 2));
 
         // 查詢群組預約
         // 注意：暫時不查詢 games 字段，因為數據庫中可能還沒有這個字段
-        const groupBookings = await client.groupBooking.findMany({
-          where,
-          orderBy: { createdAt: 'desc' },
+        console.log('🔍 [群組預約查詢] 開始執行 Prisma 查詢...');
+        let groupBookings;
+        try {
+          groupBookings = await client.groupBooking.findMany({
+            where,
+            orderBy: { createdAt: 'desc' },
           select: {
             id: true,
             type: true,
@@ -323,7 +332,18 @@ export async function GET(request: Request) {
               }
             }
           }
-        });
+          });
+          console.log(`✅ [群組預約查詢] Prisma 查詢成功，找到 ${groupBookings.length} 個群組預約`);
+        } catch (prismaError: any) {
+          console.error('❌ [群組預約查詢] Prisma 查詢失敗:', {
+            message: prismaError?.message,
+            code: prismaError?.code,
+            meta: prismaError?.meta,
+            stack: prismaError?.stack,
+          });
+          // 返回空數組，避免整個請求失敗
+          groupBookings = [];
+        }
 
         console.log(`📊 找到群組預約: ${groupBookings.length} 個`);
         if (groupBookings.length > 0) {
@@ -447,7 +467,10 @@ export async function GET(request: Request) {
           message: queryError?.message,
           code: queryError?.code,
           meta: queryError?.meta,
+          stack: queryError?.stack,
+          name: queryError?.name,
         });
+        // 重新拋出錯誤，讓外層處理
         throw queryError;
       }
     }, 'group-booking:GET');
