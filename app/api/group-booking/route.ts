@@ -414,7 +414,7 @@ export async function GET(request: Request) {
                   suspensionEndsAt: null
                 }
               },
-              bookings: group.bookings.map(booking => ({
+              bookings: group.bookings.map((booking: any) => ({
                 id: booking.id,
                 customer: {
                   id: booking.customer.id,
