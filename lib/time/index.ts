@@ -28,7 +28,12 @@ const TAIWAN_TIMEZONE = 'Asia/Taipei'
  * ⚠️ 禁止直接使用 new Date()，必須使用此函數
  */
 export function getNowTaipei(): dayjs.Dayjs {
-  return dayjs.tz(TAIWAN_TIMEZONE)
+  const result = dayjs.tz(TAIWAN_TIMEZONE)
+  // 驗證結果是否有效
+  if (!result.isValid()) {
+    throw new Error(`getNowTaipei returned invalid dayjs object: ${result.format()}`);
+  }
+  return result
 }
 
 /**
@@ -121,13 +126,33 @@ export function addTaipeiTime(
   amount: number,
   unit: dayjs.ManipulateType
 ): dayjs.Dayjs {
-  const d = typeof date === 'string'
-    ? dayjs.tz(date, TAIWAN_TIMEZONE)
-    : dayjs.isDayjs(date)
-    ? date
-    : dayjs.tz(date, TAIWAN_TIMEZONE)
+  let d: dayjs.Dayjs;
   
-  return d.add(amount, unit)
+  if (typeof date === 'string') {
+    d = dayjs.tz(date, TAIWAN_TIMEZONE);
+  } else if (dayjs.isDayjs(date)) {
+    d = date;
+  } else {
+    // 驗證 Date 對象是否有效
+    if (!(date instanceof Date) || isNaN(date.getTime())) {
+      throw new Error(`Invalid Date object provided to addTaipeiTime: ${date}`);
+    }
+    d = dayjs.tz(date, TAIWAN_TIMEZONE);
+  }
+  
+  // 驗證 dayjs 對象是否有效
+  if (!d.isValid()) {
+    throw new Error(`Invalid dayjs object created from date: ${date}, result: ${d.format()}`);
+  }
+  
+  const result = d.add(amount, unit);
+  
+  // 驗證結果是否有效
+  if (!result.isValid()) {
+    throw new Error(`addTaipeiTime result is invalid: input=${date}, amount=${amount}, unit=${unit}, result=${result.format()}`);
+  }
+  
+  return result;
 }
 
 /**
