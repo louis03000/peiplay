@@ -22,7 +22,12 @@ const TAIWAN_TIMEZONE = 'Asia/Taipei'
  * 獲取當前台灣時間的 Date 對象（UTC）
  */
 export function getNowTaipei(): Date {
-  return _getNowTaipei().utc().toDate()
+  const result = _getNowTaipei().utc().toDate()
+  // 驗證結果是否有效
+  if (!(result instanceof Date) || isNaN(result.getTime())) {
+    throw new Error(`getNowTaipei returned invalid date: ${result}`);
+  }
+  return result
 }
 
 /**
@@ -130,8 +135,20 @@ export function addTaipeiTime(
   amount: number,
   unit: 'millisecond' | 'second' | 'minute' | 'hour' | 'day' | 'week' | 'month' | 'year'
 ): Date {
+  // 驗證輸入的 Date 對象是否有效
+  if (!(date instanceof Date) || isNaN(date.getTime())) {
+    throw new Error(`Invalid date provided to addTaipeiTime: ${date}`);
+  }
+  
   const result = _addTaipeiTime(date, amount, unit)
-  return dayjs.isDayjs(result) ? result.utc().toDate() : result
+  const finalDate = dayjs.isDayjs(result) ? result.utc().toDate() : result
+  
+  // 驗證結果是否有效
+  if (!(finalDate instanceof Date) || isNaN(finalDate.getTime())) {
+    throw new Error(`addTaipeiTime returned invalid date: input=${date}, amount=${amount}, unit=${unit}, result=${finalDate}`);
+  }
+  
+  return finalDate
 }
 
 /**

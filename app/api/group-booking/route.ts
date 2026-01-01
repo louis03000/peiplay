@@ -212,12 +212,17 @@ export async function GET(request: Request) {
       try {
         // 使用台灣時間
         const now = getNowTaipei();
+        // 驗證 now 是否為有效的 Date 對象
+        if (!(now instanceof Date) || isNaN(now.getTime())) {
+          throw new Error(`當前時間無效: now=${now}`);
+        }
+        
         // 計算30分鐘後的時間（剩餘時間少於30分鐘的群組也要過濾掉）
         const thirtyMinutesLater = addTaipeiTime(now, 30, 'minute');
         
-        // 驗證時間對象
-        if (!(now instanceof Date) || !(thirtyMinutesLater instanceof Date)) {
-          throw new Error(`時間對象無效: now=${now}, thirtyMinutesLater=${thirtyMinutesLater}`);
+        // 驗證 thirtyMinutesLater 是否為有效的 Date 對象
+        if (!(thirtyMinutesLater instanceof Date) || isNaN(thirtyMinutesLater.getTime())) {
+          throw new Error(`30分鐘後時間無效: thirtyMinutesLater=${thirtyMinutesLater}, now=${now}`);
         }
         
         console.log(`🔍 [群組預約查詢] 當前時間: ${now.toISOString()}, 30分鐘後: ${thirtyMinutesLater.toISOString()}`);
