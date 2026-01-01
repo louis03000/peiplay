@@ -360,7 +360,7 @@ export async function GET(request: Request) {
         const formattedGroupBookings = groupBookings.map(group => {
           try {
             // 找到發起者夥伴
-            const initiatorParticipant = group.GroupBookingParticipant.find(p => p.partnerId === group.initiatorId);
+            const initiatorParticipant = group.GroupBookingParticipant.find((p: any) => p.partnerId === group.initiatorId);
             const initiatorPartner = initiatorParticipant?.Partner;
             
             // 計算平均評分（從 user.reviewsReceived 獲取）
