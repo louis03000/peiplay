@@ -252,7 +252,7 @@ export async function GET(request: Request) {
         // 查詢群組預約
         // 注意：暫時不查詢 games 字段，因為數據庫中可能還沒有這個字段
         console.log('🔍 [群組預約查詢] 開始執行 Prisma 查詢...');
-        let groupBookings: Awaited<ReturnType<typeof client.groupBooking.findMany>>;
+        let groupBookings: any[];
         try {
           groupBookings = await client.groupBooking.findMany({
             where,
