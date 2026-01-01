@@ -367,8 +367,8 @@ export async function GET(request: Request) {
             let averageRating = 0;
             let reviewCount = 0;
             if (initiatorPartner?.user?.reviewsReceived && initiatorPartner.user.reviewsReceived.length > 0) {
-              const ratings = initiatorPartner.user.reviewsReceived.map(r => r.rating);
-              averageRating = ratings.reduce((sum, rating) => sum + rating, 0) / ratings.length;
+              const ratings = initiatorPartner.user.reviewsReceived.map((r: any) => r.rating);
+              averageRating = ratings.reduce((sum: number, rating: number) => sum + rating, 0) / ratings.length;
               reviewCount = ratings.length;
             }
             
