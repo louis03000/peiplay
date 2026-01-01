@@ -28,12 +28,38 @@ const TAIWAN_TIMEZONE = 'Asia/Taipei'
  * ⚠️ 禁止直接使用 new Date()，必須使用此函數
  */
 export function getNowTaipei(): dayjs.Dayjs {
-  const result = dayjs.tz(TAIWAN_TIMEZONE)
-  // 驗證結果是否有效
-  if (!result.isValid()) {
-    throw new Error(`getNowTaipei returned invalid dayjs object: ${result.format()}`);
+  try {
+    // 使用更可靠的方式：先創建當前時間的 dayjs 對象，然後轉換到台灣時區
+    const now = new Date()
+    
+    // 驗證系統時間是否有效
+    if (isNaN(now.getTime())) {
+      throw new Error('Current system time is invalid')
+    }
+    
+    // 將當前時間轉換為台灣時區
+    const result = dayjs(now).tz(TAIWAN_TIMEZONE)
+    
+    // 驗證結果是否有效
+    if (!result.isValid()) {
+      // 如果轉換失敗，嘗試使用 dayjs.tz() 直接獲取
+      const fallback = dayjs.tz(TAIWAN_TIMEZONE)
+      if (fallback.isValid()) {
+        return fallback
+      }
+      throw new Error(`getNowTaipei returned invalid dayjs object: ${result.format()}, input: ${now.toISOString()}`);
+    }
+    
+    return result
+  } catch (error: any) {
+    // 如果所有方法都失敗，記錄錯誤並重新拋出
+    console.error('❌ getNowTaipei error:', {
+      message: error?.message,
+      stack: error?.stack,
+      name: error?.name
+    })
+    throw new Error(`獲取台灣時區當前時間失敗: ${error?.message || 'Unknown error'}`)
   }
-  return result
 }
 
 /**
