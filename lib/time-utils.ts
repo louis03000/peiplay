@@ -22,10 +22,16 @@ const TAIWAN_TIMEZONE = 'Asia/Taipei'
  * 獲取當前台灣時間的 Date 對象（UTC）
  */
 export function getNowTaipei(): Date {
-  const result = _getNowTaipei().utc().toDate()
+  const dayjsResult = _getNowTaipei()
+  // 驗證 dayjs 對象是否有效
+  if (!dayjsResult.isValid()) {
+    throw new Error(`getNowTaipei: _getNowTaipei returned invalid dayjs object: ${dayjsResult.format()}`);
+  }
+  
+  const result = dayjsResult.utc().toDate()
   // 驗證結果是否有效
   if (!(result instanceof Date) || isNaN(result.getTime())) {
-    throw new Error(`getNowTaipei returned invalid date: ${result}`);
+    throw new Error(`getNowTaipei returned invalid date: ${result}, dayjs: ${dayjsResult.format()}`);
   }
   return result
 }

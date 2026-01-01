@@ -211,14 +211,30 @@ export async function GET(request: Request) {
     const result = await db.query(async (client) => {
       try {
         // 使用台灣時間
-        const now = getNowTaipei();
-        // 驗證 now 是否為有效的 Date 對象
-        if (!(now instanceof Date) || isNaN(now.getTime())) {
-          throw new Error(`當前時間無效: now=${now}`);
+        let now: Date;
+        let thirtyMinutesLater: Date;
+        
+        try {
+          now = getNowTaipei();
+          console.log(`🔍 [群組預約查詢] getNowTaipei() 返回: ${now}, isValid: ${!(isNaN(now.getTime()))}`);
+        } catch (error: any) {
+          console.error('❌ [群組預約查詢] getNowTaipei() 失敗:', error);
+          throw new Error(`獲取當前時間失敗: ${error.message}`);
         }
         
-        // 計算30分鐘後的時間（剩餘時間少於30分鐘的群組也要過濾掉）
-        const thirtyMinutesLater = addTaipeiTime(now, 30, 'minute');
+        // 驗證 now 是否為有效的 Date 對象
+        if (!(now instanceof Date) || isNaN(now.getTime())) {
+          throw new Error(`當前時間無效: now=${now}, type=${typeof now}`);
+        }
+        
+        try {
+          // 計算30分鐘後的時間（剩餘時間少於30分鐘的群組也要過濾掉）
+          thirtyMinutesLater = addTaipeiTime(now, 30, 'minute');
+          console.log(`🔍 [群組預約查詢] addTaipeiTime() 返回: ${thirtyMinutesLater}, isValid: ${!(isNaN(thirtyMinutesLater.getTime()))}`);
+        } catch (error: any) {
+          console.error('❌ [群組預約查詢] addTaipeiTime() 失敗:', error);
+          throw new Error(`計算30分鐘後時間失敗: ${error.message}, now=${now}`);
+        }
         
         // 驗證 thirtyMinutesLater 是否為有效的 Date 對象
         if (!(thirtyMinutesLater instanceof Date) || isNaN(thirtyMinutesLater.getTime())) {
