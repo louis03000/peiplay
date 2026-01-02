@@ -1765,9 +1765,14 @@ export default function PartnerSchedulePage() {
                       {myGroups.map((group) => {
                         // 計算距離開始時間還有多久（使用 currentTime 確保即時更新）
                         const startTime = new Date(group.startTime);
+                        const endTime = new Date(group.endTime);
                         const timeUntilStart = startTime.getTime() - currentTime.getTime();
                         const minutesUntilStart = Math.floor(timeUntilStart / (1000 * 60));
-                        const isWithin30Minutes = minutesUntilStart > 0 && minutesUntilStart <= 30;
+                        // 只在距離開始時間剩下10分鐘以內時顯示提醒
+                        const isWithin10Minutes = minutesUntilStart > 0 && minutesUntilStart <= 10;
+                        
+                        // 判斷群組是否正在進行中（已開始但未結束）
+                        const isInProgress = startTime.getTime() <= currentTime.getTime() && endTime.getTime() > currentTime.getTime();
                         
                         return (
                           <div key={group.id} className="bg-white rounded-lg p-3 border border-gray-200">
@@ -1793,22 +1798,24 @@ export default function PartnerSchedulePage() {
                                   <span>💰 ${group.pricePerPerson}/人</span>
                                   <span>👥 {group.currentParticipants}/{group.maxParticipants} 人</span>
                                 </div>
-                                {/* 提醒訊息：時間剩下半小時 */}
-                                {isWithin30Minutes && group.status === 'ACTIVE' && (
+                                {/* 提醒訊息：距離開始時間剩下10分鐘 */}
+                                {isWithin10Minutes && group.status === 'ACTIVE' && !isInProgress && (
                                   <div className="mt-2 px-3 py-2 bg-yellow-50 border border-yellow-200 rounded-md">
                                     <p className="text-xs text-yellow-800">
-                                      ⚠️ <span className="font-medium">提醒：</span>時間剩下 {minutesUntilStart} 分鐘，群組預約將自動關閉，系統將開始總結總人數，並開啟 Discord 頻道。
+                                      ⚠️ <span className="font-medium">提醒：</span>距離開始時間剩下10分鐘，群組預約將自動關閉，系統將開始總結總人數，並開啟 Discord 頻道。
                                     </p>
                                   </div>
                                 )}
                               </div>
                               <div className="flex space-x-2 ml-4">
                                 <span className={`px-2 py-1 rounded-full text-xs whitespace-nowrap ${
+                                  isInProgress ? 'bg-blue-100 text-blue-800' :
                                   group.status === 'ACTIVE' ? 'bg-green-100 text-green-800' :
                                   group.status === 'FULL' ? 'bg-yellow-100 text-yellow-800' :
                                   'bg-gray-100 text-gray-800'
                                 }`}>
-                                  {group.status === 'ACTIVE' ? '開放中' :
+                                  {isInProgress ? '進行中' :
+                                   group.status === 'ACTIVE' ? '開放中' :
                                    group.status === 'FULL' ? '已滿' : '已關閉'}
                                 </span>
                               </div>

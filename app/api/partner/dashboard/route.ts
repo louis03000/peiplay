@@ -116,11 +116,12 @@ export async function GET() {
 
       // 查詢群組預約
       // 注意：暫時不查詢 games 字段，因為數據庫中可能還沒有這個字段
+      // 包含 ACTIVE 和 FULL 狀態的群組（FULL 狀態表示已關閉但可能正在進行中）
       const groupBookings = await client.groupBooking.findMany({
         where: {
           initiatorId: partner.id,
           initiatorType: 'PARTNER',
-          status: 'ACTIVE',
+          status: { in: ['ACTIVE', 'FULL'] },
           endTime: { gt: now },
         },
         select: {

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { db } from '@/lib/db-resilience';
-import { sendBookingNotificationEmail } from "@/lib/email";
+import { sendBookingNotificationEmail, sendGroupBookingJoinNotification } from "@/lib/email";
 import { getNowTaipei, addTaipeiTime } from "@/lib/time-utils";
 
 export const dynamic = 'force-dynamic';
@@ -410,6 +410,9 @@ export async function POST(request: Request) {
           endTime: endTimeResponse,
           pricePerPerson: updatedGroupBooking?.pricePerPerson || groupBooking.pricePerPerson || 0,
           initiatorId: groupBooking.initiatorId,
+          groupBookingTitle: updatedGroupBooking?.title || groupBooking.title || '未命名群組',
+          currentParticipants: updatedGroupBooking?.GroupBookingParticipant.length || (groupBooking.GroupBookingParticipant.length + 1),
+          maxParticipants: updatedGroupBooking?.maxParticipants || groupBooking.maxParticipants,
         };
         
         // 返回成功響應（事務會在這裡提交）
@@ -461,6 +464,9 @@ export async function POST(request: Request) {
         endTime: Date;
         pricePerPerson: number;
         initiatorId: string | null;
+        groupBookingTitle: string;
+        currentParticipants: number;
+        maxParticipants: number;
       };
       
       console.log('✅ 事務成功，準備發送 email 通知');
@@ -493,21 +499,22 @@ export async function POST(request: Request) {
           });
           
           if (initiatorPartner?.user?.email) {
-            sendBookingNotificationEmail(
+            // 發送群組預約加入通知給夥伴
+            sendGroupBookingJoinNotification(
               initiatorPartner.user.email,
               initiatorPartner.name || initiatorPartner.user.name || '夥伴',
               emailData.userName,
               {
-                bookingId: emailData.groupBookingId,
+                groupBookingId: emailData.groupBookingId,
+                title: emailData.groupBookingTitle,
                 startTime: emailData.startTime.toISOString(),
                 endTime: emailData.endTime.toISOString(),
-                duration: (emailData.endTime.getTime() - emailData.startTime.getTime()) / (1000 * 60 * 60),
-                totalCost: emailData.pricePerPerson,
-                customerName: emailData.userName,
-                customerEmail: emailData.userEmail,
+                pricePerPerson: emailData.pricePerPerson,
+                currentParticipants: emailData.currentParticipants,
+                maxParticipants: emailData.maxParticipants,
               }
             ).catch((error) => {
-              console.error('❌ Email 發送失敗（發起者）:', error);
+              console.error('❌ 群組預約加入通知 Email 發送失敗（發起者）:', error);
             });
           }
         }, 'group-booking/join:get-initiator').catch((error) => {

@@ -77,6 +77,7 @@ function GroupBookingContent() {
   const [selectedStartTime, setSelectedStartTime] = useState('')
   const [selectedEndTime, setSelectedEndTime] = useState('')
   const [selectedGame, setSelectedGame] = useState('')
+  const [customGame, setCustomGame] = useState('')
   const [showJoinModal, setShowJoinModal] = useState(false)
   const [selectedGroupBooking, setSelectedGroupBooking] = useState<GroupBooking | null>(null)
   const [joinedGroupIds, setJoinedGroupIds] = useState<Set<string>>(new Set())
@@ -163,8 +164,10 @@ function GroupBookingContent() {
         endTime: endDateTime
       })
       
-      if (selectedGame) {
-        params.append('game', selectedGame)
+      // 如果選擇了「其他」，使用自訂遊戲名稱；否則使用選擇的遊戲
+      const gameToSearch = selectedGame === '其他' ? customGame : selectedGame
+      if (gameToSearch) {
+        params.append('game', gameToSearch)
       }
 
       const response = await fetch(`/api/group-booking/available-partners?${params}`)
@@ -404,7 +407,13 @@ function GroupBookingContent() {
               <label className="block text-sm font-medium text-gray-700 mb-2">遊戲 (可選)</label>
               <select
                 value={selectedGame}
-                onChange={(e) => setSelectedGame(e.target.value)}
+                onChange={(e) => {
+                  setSelectedGame(e.target.value)
+                  // 如果選擇的不是「其他」，清空自訂遊戲名稱
+                  if (e.target.value !== '其他') {
+                    setCustomGame('')
+                  }
+                }}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
               >
                 <option value="">不限遊戲</option>
@@ -414,6 +423,15 @@ function GroupBookingContent() {
                 <option value="原神">原神</option>
                 <option value="其他">其他</option>
               </select>
+              {selectedGame === '其他' && (
+                <input
+                  type="text"
+                  value={customGame}
+                  onChange={(e) => setCustomGame(e.target.value)}
+                  placeholder="請輸入遊戲名稱"
+                  className="w-full mt-2 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
+                />
+              )}
             </div>
           </div>
           <div className="flex justify-center">
@@ -631,8 +649,9 @@ function GroupBookingContent() {
         {/* 確認加入 Modal */}
         {showJoinModal && selectedGroupBooking && (
           <div 
-            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+            className="fixed top-0 left-0 right-0 bottom-0 w-full h-full min-h-screen bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto"
             onClick={handleCancelJoin}
+            style={{ margin: 0, padding: 0 }}
           >
             <div 
               className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4"

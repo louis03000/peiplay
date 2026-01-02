@@ -1383,3 +1383,125 @@ export async function sendEmail({
     throw error;
   }
 }
+
+// 發送群組預約加入通知給夥伴
+export async function sendGroupBookingJoinNotification(
+  partnerEmail: string,
+  partnerName: string,
+  customerName: string,
+  groupBookingDetails: {
+    groupBookingId: string;
+    title: string;
+    startTime: string;
+    endTime: string;
+    pricePerPerson: number;
+    currentParticipants: number;
+    maxParticipants: number;
+  }
+) {
+  try {
+    const transporter = createTransporter();
+    
+    const startTimeFormatted = formatTaiwanTime(groupBookingDetails.startTime);
+    const endTimeFormatted = formatTaiwanTime(groupBookingDetails.endTime);
+    const duration = (new Date(groupBookingDetails.endTime).getTime() - new Date(groupBookingDetails.startTime).getTime()) / (1000 * 60 * 60);
+    const durationFormatted = formatDuration(duration);
+    
+    const subject = `👥 有人加入了您的群組預約 - ${groupBookingDetails.title}`;
+    
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; text-align: center; border-radius: 10px 10px 0 0;">
+          <h1 style="margin: 0; font-size: 24px;">👥 群組預約加入通知</h1>
+        </div>
+        
+        <div style="background: #f8f9fa; padding: 30px; border-radius: 0 0 10px 10px;">
+          <h2 style="color: #333; margin-top: 0;">親愛的 ${partnerName}，</h2>
+          
+          <p style="color: #666; font-size: 16px; line-height: 1.6;">
+            有新的成員加入了您的群組預約！以下是詳細資訊：
+          </p>
+          
+          <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+            <h3 style="color: #333; margin-top: 0;">📋 群組預約詳情</h3>
+            <table style="width: 100%; border-collapse: collapse;">
+              <tr>
+                <td style="padding: 8px 0; color: #666; width: 140px;"><strong>群組名稱：</strong></td>
+                <td style="padding: 8px 0; color: #333;">${groupBookingDetails.title || '未命名群組'}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; color: #666;"><strong>新加入成員：</strong></td>
+                <td style="padding: 8px 0; color: #333; font-weight: bold;">${customerName}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; color: #666;"><strong>開始時間：</strong></td>
+                <td style="padding: 8px 0; color: #333;">${startTimeFormatted}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; color: #666;"><strong>結束時間：</strong></td>
+                <td style="padding: 8px 0; color: #333;">${endTimeFormatted}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; color: #666;"><strong>時長：</strong></td>
+                <td style="padding: 8px 0; color: #333;">${durationFormatted}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; color: #666;"><strong>每人價格：</strong></td>
+                <td style="padding: 8px 0; color: #e74c3c; font-weight: bold;">NT$ ${groupBookingDetails.pricePerPerson}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; color: #666;"><strong>參與人數：</strong></td>
+                <td style="padding: 8px 0; color: #333; font-weight: bold;">${groupBookingDetails.currentParticipants} / ${groupBookingDetails.maxParticipants} 人</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; color: #666;"><strong>群組 ID：</strong></td>
+                <td style="padding: 8px 0; color: #999; font-size: 12px;">${groupBookingDetails.groupBookingId}</td>
+              </tr>
+            </table>
+          </div>
+          
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="${process.env.NEXTAUTH_URL}/partner/schedule" 
+               style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px 30px; text-decoration: none; border-radius: 25px; font-weight: bold; font-size: 16px;">
+              🔗 前往 PeiPlay 查看群組預約
+            </a>
+          </div>
+          
+          <div style="background: #e8f5e8; border: 1px solid #c3e6cb; padding: 15px; border-radius: 8px; margin: 20px 0;">
+            <p style="margin: 0; color: #2d5a2d; font-size: 14px;">
+              <strong>💡 提醒：</strong>當群組預約達到開始前10分鐘時，系統將自動關閉群組並創建 Discord 頻道。
+            </p>
+          </div>
+          
+          <p style="color: #666; font-size: 14px; margin-top: 30px;">
+            如有任何問題，請聯繫我們的客服團隊。
+          </p>
+          
+          <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
+          
+          <p style="color: #999; font-size: 12px; text-align: center; margin: 0;">
+            此郵件由 PeiPlay 系統自動發送，請勿直接回覆。
+          </p>
+        </div>
+      </div>
+    `;
+    
+    console.log(`[email] 📧 準備發送群組預約加入通知郵件給: ${partnerEmail}`)
+    console.log(`[email] 📧 郵件主題: ${subject}`)
+    
+    const mailResult = await transporter.sendMail({
+      from: process.env.EMAIL_USER,
+      to: partnerEmail,
+      subject: subject,
+      html: html
+    });
+    
+    console.log(`[email] ✅ 群組預約加入通知 Email 已發送給夥伴: ${partnerEmail}`)
+    console.log(`[email] 📧 郵件 ID: ${mailResult.messageId}`)
+    
+    return true;
+  } catch (error) {
+    console.error('❌ 發送群組預約加入通知失敗:', error);
+    return false;
+  }
+}
