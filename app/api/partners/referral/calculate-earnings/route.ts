@@ -98,6 +98,25 @@ export async function POST(request: NextRequest) {
       const actualPlatformFee = platformFee - referralEarning;
       const partnerEarning = totalAmount - platformFee;
 
+      // 🔥 檢查是否已經計算過推薦收入（防止重複計算）
+      const existingEarning = await client.referralEarning.findFirst({
+        where: {
+          bookingId: booking.id,
+        },
+      });
+
+      if (existingEarning) {
+        console.log(`⚠️ 預約 ${booking.id} 的推薦收入已計算過，跳過重複計算`);
+        return {
+          type: 'ALREADY_CALCULATED',
+          payload: {
+            message: '推薦收入已計算過',
+            referralEarning: existingEarning.amount,
+            existingRecord: existingEarning,
+          },
+        } as const;
+      }
+
       const referralEarningRecord = await client.referralEarning.create({
         data: {
           referralRecordId: referralRecord.id,
@@ -151,6 +170,8 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(result.payload);
       case 'INVITER_NOT_FOUND':
         return NextResponse.json({ error: '找不到邀請人' }, { status: 404 });
+      case 'ALREADY_CALCULATED':
+        return NextResponse.json(result.payload);
       case 'SUCCESS':
         return NextResponse.json(result.payload);
       default:
