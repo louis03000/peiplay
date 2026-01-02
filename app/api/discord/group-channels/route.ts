@@ -42,14 +42,23 @@ export async function POST(request: Request) {
     // 收集所有參與者的 Discord ID
     const participants = [
       ...groupBooking.GroupBookingParticipant
-        .filter(p => p.Partner)
-        .map(p => p.Partner!.user.discord),
-      ...groupBooking.bookings.map(booking => booking.customer.user.discord)
+        .filter(p => p.Partner?.user?.discord)
+        .map(p => p.Partner!.user.discord!),
+      ...groupBooking.bookings
+        .filter(booking => booking.customer?.user?.discord)
+        .map(booking => booking.customer.user.discord!)
     ].filter((discord): discord is string => discord !== null && discord !== undefined); // 過濾掉空的 Discord ID
 
     if (participants.length === 0) {
+      console.error('❌ 群組預約沒有參與者或參與者沒有 Discord ID:', {
+        groupBookingId,
+        participants: groupBooking.GroupBookingParticipant.length,
+        bookings: groupBooking.bookings.length
+      });
       return NextResponse.json({ error: 'No participants with Discord IDs' }, { status: 400 });
     }
+    
+    console.log(`✅ 群組預約 ${groupBookingId} 找到 ${participants.length} 個參與者`)
 
     let channelId = null;
 
@@ -106,8 +115,12 @@ async function createDiscordTextChannel(groupBooking: any, participants: string[
         groupId: groupBooking.id,
         groupTitle: groupBooking.title,
         participants: participants,
-        startTime: groupBooking.startTime,
-        endTime: groupBooking.endTime
+        startTime: groupBooking.startTime instanceof Date 
+          ? groupBooking.startTime.toISOString() 
+          : groupBooking.startTime,
+        endTime: groupBooking.endTime instanceof Date 
+          ? groupBooking.endTime.toISOString() 
+          : groupBooking.endTime
       })
     });
 
@@ -134,7 +147,9 @@ async function createDiscordVoiceChannel(groupBooking: any, participants: string
         groupId: groupBooking.id,
         groupTitle: groupBooking.title,
         participants: participants,
-        startTime: groupBooking.startTime
+        startTime: groupBooking.startTime instanceof Date 
+          ? groupBooking.startTime.toISOString() 
+          : groupBooking.startTime
       })
     });
 

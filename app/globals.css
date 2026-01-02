@@ -12,11 +12,9 @@
     @apply scroll-smooth;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, 'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
     letter-spacing: -0.015em;
-    /* 整體縮小 5% */
-    transform: scale(0.95);
-    transform-origin: top left;
-    width: 105.26%; /* 補償縮放後的寬度 */
-    height: 100vh; /* 改為 100vh 避免底部白色背景 */
+    width: 100%;
+    max-width: 100vw;
+    height: 100vh;
     overflow-x: hidden; /* 防止水平滾動 */
     background: linear-gradient(135deg, #581c87 0%, #1e3a8a 50%, #312e81 100%); /* 統一背景色 */
   }
@@ -24,6 +22,11 @@
   body {
     @apply text-gray-800;
     font-weight: 500;
+    width: 100%;
+    max-width: 100vw;
+    overflow-x: hidden; /* 防止水平滾動 */
+    margin: 0;
+    padding: 0;
   }
 }
 

@@ -52,13 +52,13 @@ export async function GET() {
       }
     }
 
-      // 2. 處理開始前3分鐘的群組（創建語音頻道）
-      const threeMinutesFromNow = new Date(now.getTime() + 3 * 60 * 1000);
+      // 2. 處理開始前5分鐘的群組（創建語音頻道）
+      const fiveMinutesFromNow = new Date(now.getTime() + 5 * 60 * 1000);
       const groupsForVoice = await client.groupBooking.findMany({
       where: {
         status: 'FULL',
         startTime: {
-          lte: threeMinutesFromNow,
+          lte: fiveMinutesFromNow,
           gt: now
         },
         discordTextChannelId: { not: null },
