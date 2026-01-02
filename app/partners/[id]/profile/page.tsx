@@ -420,7 +420,7 @@ export default function PartnerProfilePage() {
                       純聊天服務
                     </h3>
                     <div className="text-green-300">
-                      <p className="text-lg font-medium">NT$ {partner.chatOnlyRate}/小時</p>
+                      <p className="text-lg font-medium">NT$ {partner.chatOnlyRate}/30分</p>
                       <p className="text-sm text-gray-400 mt-1">提供純聊天陪聊服務</p>
                     </div>
                   </div>

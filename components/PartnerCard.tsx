@@ -327,7 +327,7 @@ const PartnerCard = memo(function PartnerCard({ partner, onQuickBook, showNextSt
                 {/* 如果開啟純聊天篩選器，且夥伴有純聊天服務，顯示純聊天價格；否則顯示一般陪玩價格 */}
                 {isChatOnlyFilter && partner.supportsChatOnly && partner.chatOnlyRate ? (
                   <span className="text-lg font-bold text-purple-600">
-                    純聊天 ${partner.chatOnlyRate}/時
+                    純聊天 ${partner.chatOnlyRate}/30分
                   </span>
                 ) : (
                   <>
@@ -336,7 +336,7 @@ const PartnerCard = memo(function PartnerCard({ partner, onQuickBook, showNextSt
                     </span>
                     {partner.supportsChatOnly && partner.chatOnlyRate && (
                       <span className="text-xs text-purple-500 font-medium">
-                        純聊天 ${partner.chatOnlyRate}/時
+                        純聊天 ${partner.chatOnlyRate}/30分
                       </span>
                     )}
                   </>

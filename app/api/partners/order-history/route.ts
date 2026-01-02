@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const page = parseInt(searchParams.get('page') || '1')
     const limit = parseInt(searchParams.get('limit') || '10')
-    const statusFilter = searchParams.get('status') || 'ALL'
+    const typeFilter = searchParams.get('type') || 'ALL'
     const startDate = searchParams.get('startDate')
     const endDate = searchParams.get('endDate')
 
@@ -40,31 +40,29 @@ export async function GET(request: NextRequest) {
         schedule: { partnerId: partner.id },
       };
 
-      // 狀態篩選
-      if (statusFilter !== 'ALL') {
-        where.status = statusFilter;
-      }
+      // 類型篩選（將在格式化數據後進行過濾）
+      // 注意：由於 serviceType 是在格式化時計算的，我們需要在查詢後進行過濾
 
-      // 日期篩選
+      // 日期篩選（使用 startTime 來篩選，因為預約日期應該基於開始時間）
       if (startDate || endDate) {
         where.schedule = {
           ...where.schedule,
-          date: {},
+          startTime: {},
         };
         if (startDate) {
-          where.schedule.date.gte = new Date(startDate);
+          const startDateObj = new Date(startDate);
+          startDateObj.setHours(0, 0, 0, 0); // 設置為當天開始時間
+          where.schedule.startTime.gte = startDateObj;
         }
         if (endDate) {
           const endDateObj = new Date(endDate);
           endDateObj.setHours(23, 59, 59, 999); // 設置為當天結束時間
-          where.schedule.date.lte = endDateObj;
+          where.schedule.startTime.lte = endDateObj;
         }
       }
 
-      // 查詢總數（用於分頁和統計）
-      const totalCount = await client.booking.count({ where });
-
       // 查詢訂單列表
+      // 如果有類型篩選，需要先查詢所有數據（因為類型是在格式化時計算的）
       const bookings = await client.booking.findMany({
         where,
         select: {
@@ -94,8 +92,8 @@ export async function GET(request: NextRequest) {
           },
         },
         orderBy: [{ createdAt: 'desc' }],
-        skip: (page - 1) * limit,
-        take: limit,
+        // 如果有類型篩選，需要查詢所有數據；否則使用分頁
+        ...(typeFilter === 'ALL' ? { skip: (page - 1) * limit, take: limit } : {}),
       });
 
       // 計算統計數據（所有訂單，不受分頁限制）
@@ -115,7 +113,7 @@ export async function GET(request: NextRequest) {
       const totalOrders = statsBookings.length;
 
       // 格式化數據
-      const formattedBookings = bookings.map((booking) => {
+      let formattedBookings = bookings.map((booking) => {
         const duration = booking.schedule
           ? Math.round((new Date(booking.schedule.endTime).getTime() - new Date(booking.schedule.startTime).getTime()) / (1000 * 60 * 30)) // 以30分鐘為單位
           : 0;
@@ -156,15 +154,26 @@ export async function GET(request: NextRequest) {
         };
       });
 
-      const totalPages = Math.ceil(totalCount / limit);
+      // 類型篩選
+      if (typeFilter !== 'ALL') {
+        formattedBookings = formattedBookings.filter(booking => booking.serviceType === typeFilter);
+      }
+
+      // 計算總數和分頁
+      const filteredCount = formattedBookings.length;
+      const totalPages = Math.ceil(filteredCount / limit);
+      // 如果有類型篩選，需要手動分頁；否則已經在查詢時分頁了
+      const paginatedBookings = typeFilter !== 'ALL' 
+        ? formattedBookings.slice((page - 1) * limit, page * limit)
+        : formattedBookings;
 
       return {
         type: 'SUCCESS' as const,
-        bookings: formattedBookings,
+        bookings: paginatedBookings,
         pagination: {
           currentPage: page,
           totalPages,
-          totalCount,
+          totalCount: filteredCount,
           limit,
           hasNextPage: page < totalPages,
           hasPrevPage: page > 1,

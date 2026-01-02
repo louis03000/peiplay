@@ -44,7 +44,7 @@ export default function OrderHistoryPage() {
   const [stats, setStats] = useState<StatsInfo | null>(null)
   const [loading, setLoading] = useState(true)
   const [currentPage, setCurrentPage] = useState(1)
-  const [statusFilter, setStatusFilter] = useState('ALL')
+  const [typeFilter, setTypeFilter] = useState('ALL')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
 
@@ -55,7 +55,7 @@ export default function OrderHistoryPage() {
       return
     }
     fetchOrderHistory()
-  }, [session, status, currentPage, statusFilter, startDate, endDate])
+  }, [session, status, currentPage, typeFilter, startDate, endDate])
 
   const fetchOrderHistory = async () => {
     try {
@@ -65,8 +65,8 @@ export default function OrderHistoryPage() {
         limit: '10'
       })
       
-      if (statusFilter !== 'ALL') {
-        params.append('status', statusFilter)
+      if (typeFilter !== 'ALL') {
+        params.append('type', typeFilter)
       }
       if (startDate) {
         params.append('startDate', startDate)
@@ -95,8 +95,8 @@ export default function OrderHistoryPage() {
     setCurrentPage(page)
   }
 
-  const handleStatusFilterChange = (status: string) => {
-    setStatusFilter(status)
+  const handleTypeFilterChange = (type: string) => {
+    setTypeFilter(type)
     setCurrentPage(1) // 重置到第一頁
   }
 
@@ -105,7 +105,7 @@ export default function OrderHistoryPage() {
   }
 
   const clearFilters = () => {
-    setStatusFilter('ALL')
+    setTypeFilter('ALL')
     setStartDate('')
     setEndDate('')
     setCurrentPage(1)
@@ -209,19 +209,18 @@ export default function OrderHistoryPage() {
         <div className="bg-white rounded-lg shadow mb-6 p-6">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">狀態篩選</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">類型篩選</label>
               <select
-                value={statusFilter}
-                onChange={(e) => handleStatusFilterChange(e.target.value)}
+                value={typeFilter}
+                onChange={(e) => handleTypeFilterChange(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
-                <option value="ALL">全部狀態</option>
-                <option value="PENDING">待確認</option>
-                <option value="CONFIRMED">已確認</option>
-                <option value="PARTNER_ACCEPTED">夥伴已接受</option>
-                <option value="COMPLETED">已完成</option>
-                <option value="CANCELLED">已取消</option>
-                <option value="REJECTED">已拒絕</option>
+                <option value="ALL">全部類型</option>
+                <option value="一般預約">一般預約</option>
+                <option value="即時預約">即時預約</option>
+                <option value="多人陪玩">多人陪玩</option>
+                <option value="群組預約">群組預約</option>
+                <option value="純聊天">純聊天</option>
               </select>
             </div>
             <div>

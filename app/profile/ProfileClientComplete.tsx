@@ -435,7 +435,7 @@ export default function ProfileClientComplete() {
                   純聊天服務
                 </p>
                 <p className="text-2xl font-bold text-gray-900">
-                  ${userData.partner.chatOnlyRate || 0}/小時
+                  ${userData.partner.chatOnlyRate || 0}/30分
                 </p>
               </InfoCard>
             )}
@@ -620,7 +620,7 @@ export default function ProfileClientComplete() {
                   {formData.supportsChatOnly && (
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        純聊天每小時收費
+                        純聊天每半小時收費
                       </label>
                       <input
                         name="chatOnlyRate"
@@ -628,7 +628,7 @@ export default function ProfileClientComplete() {
                         value={formData.chatOnlyRate ?? ""}
                         onChange={handleInputChange}
                         className="w-full px-3 py-2 rounded bg-white text-gray-900 border border-gray-300 focus:border-indigo-500 focus:outline-none"
-                        placeholder="請設定純聊天每小時收費"
+                        placeholder="請設定純聊天每半小時收費"
                         min={1}
                       />
                     </div>
