@@ -463,7 +463,6 @@ function GroupBookingContent() {
                     </div>
                     <div>
                       <h3 className="font-semibold">{group.partner.name}</h3>
-                      <p className="text-sm text-gray-600">每半小時 ${group.partner.halfHourlyRate}</p>
                       {group.partner.averageRating > 0 && (
                         <div className="flex items-center space-x-1">
                           <span className="text-yellow-500">⭐</span>
@@ -771,7 +770,6 @@ function GroupBookingContent() {
                         />
                       </div>
                       <span className="text-sm font-medium">{booking.partner.name}</span>
-                      <span className="text-sm text-gray-500">每半小時 ${booking.partner.halfHourlyRate}</span>
                     </div>
                     
                     <div className="flex items-center gap-2">

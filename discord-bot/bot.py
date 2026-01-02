@@ -2529,19 +2529,32 @@ def create_group_text_channel():
                         else:
                             start_time_str = "未知時間"
                         
+                        # 格式化結束時間
+                        end_time_str = "未知時間"
+                        if end_time:
+                            try:
+                                end_dt = datetime.fromisoformat(end_time.replace('Z', '+00:00'))
+                                TW_TZ = timezone(timedelta(hours=8))
+                                tw_end_dt = end_dt.astimezone(TW_TZ)
+                                end_time_str = tw_end_dt.strftime('%H:%M')
+                                if start_time_str != "未知時間":
+                                    start_time_str = f"{start_time_str} - {end_time_str}"
+                            except:
+                                pass
+                        
                         embed = discord.Embed(
-                            title="新預約通知",
-                            description="新的預約已創建!",
+                            title="👥 群組文字頻道已創建",
+                            description=f"群組預約 **{group_title or group_id}** 的文字頻道已成功創建。",
                             color=0x00ff00
                         )
+                        embed.add_field(name="頻道名稱", value=f"#{text_channel.name}", inline=False)
+                        embed.add_field(name="群組ID", value=group_id, inline=False)
                         embed.add_field(name="預約時間", value=start_time_str, inline=False)
                         embed.add_field(name="參與者", value=f"{len(non_admin_participants)} 人", inline=False)
-                        embed.add_field(name="溝通頻道", value=f"#{text_channel.name}", inline=False)
-                        embed.add_field(name="語音頻道", value=f"將在預約開始前 5 分鐘自動創建", inline=False)
-                        embed.add_field(name="預約ID", value=group_id, inline=False)
+                        embed.add_field(name="語音頻道", value="將在預約開始前 5 分鐘自動創建", inline=False)
                         
                         await notification_channel.send(embed=embed)
-                        print(f"✅ 已發送多人陪玩通知到創建通知頻道: {group_id}")
+                        print(f"✅ 已發送群組文字頻道創建通知到管理員頻道: {group_id}")
                 except Exception as e:
                     print(f"⚠️ 發送創建通知失敗: {e}")
                 
@@ -2636,12 +2649,23 @@ def create_group_voice_channel():
                         hash_hex = hash_obj.hexdigest()
                         cute_item = CUTE_ITEMS[int(hash_hex[:2], 16) % len(CUTE_ITEMS)]
                         
-                        # 計算結束時間（如果有的話）
-                        # 這裡假設時長是45分鐘（從日誌來看）
-                        end_dt = tw_start_dt + timedelta(minutes=45)
-                        end_time_str = end_dt.strftime('%H:%M')
-                        
-                        channel_name = f"👥多人{date_str} {time_str}-{end_time_str[:5]} {cute_item}"
+                        # 使用傳入的 end_time 參數（如果有的話）
+                        if end_time:
+                            try:
+                                end_dt = datetime.fromisoformat(end_time.replace('Z', '+00:00'))
+                                tw_end_dt = end_dt.astimezone(TW_TZ)
+                                end_time_str = tw_end_dt.strftime('%H:%M')
+                                channel_name = f"👥多人{date_str} {time_str}-{end_time_str[:5]} {cute_item}"
+                            except Exception as e:
+                                print(f"❌ 解析結束時間失敗: {e}，使用預設45分鐘")
+                                end_dt = tw_start_dt + timedelta(minutes=45)
+                                end_time_str = end_dt.strftime('%H:%M')
+                                channel_name = f"👥多人{date_str} {time_str}-{end_time_str[:5]} {cute_item}"
+                        else:
+                            # 如果沒有提供結束時間，假設時長是45分鐘
+                            end_dt = tw_start_dt + timedelta(minutes=45)
+                            end_time_str = end_dt.strftime('%H:%M')
+                            channel_name = f"👥多人{date_str} {time_str}-{end_time_str[:5]} {cute_item}"
                     except Exception as e:
                         print(f"❌ 格式化頻道名稱失敗: {e}")
                         channel_name = group_title if group_title else f"群組語音頻道-{group_id[:8]}"
@@ -2711,19 +2735,33 @@ def create_group_voice_channel():
                         else:
                             start_time_str = "未知時間"
                         
+                        # 格式化結束時間
+                        end_time_str = "未知時間"
+                        if end_time:
+                            try:
+                                end_dt = datetime.fromisoformat(end_time.replace('Z', '+00:00'))
+                                TW_TZ = timezone(timedelta(hours=8))
+                                tw_end_dt = end_dt.astimezone(TW_TZ)
+                                end_time_str = tw_end_dt.strftime('%H:%M')
+                                if start_time_str != "未知時間":
+                                    start_time_str = f"{start_time_str} - {end_time_str}"
+                            except:
+                                pass
+                        
                         embed = discord.Embed(
-                            title="新預約通知",
-                            description="新的預約已創建!",
+                            title="👥 群組語音頻道已創建",
+                            description=f"群組預約 **{group_title or group_id}** 的語音頻道已成功創建。",
                             color=0x00ff00
                         )
+                        embed.add_field(name="頻道名稱", value=f"#{voice_channel.name}", inline=False)
+                        embed.add_field(name="群組ID", value=group_id, inline=False)
                         embed.add_field(name="預約時間", value=start_time_str, inline=False)
                         embed.add_field(name="參與者", value=f"{len(non_admin_participants)} 人", inline=False)
-                        embed.add_field(name="溝通頻道", value=f"#{text_channel.name if text_channel else '未創建'}", inline=False)
-                        embed.add_field(name="語音頻道", value=f"將在預約開始前 5 分鐘自動創建", inline=False)
-                        embed.add_field(name="預約ID", value=group_id, inline=False)
+                        if text_channel:
+                            embed.add_field(name="文字頻道", value=f"#{text_channel.name}", inline=False)
                         
                         await notification_channel.send(embed=embed)
-                        print(f"✅ 已發送多人陪玩通知到創建通知頻道: {group_id}")
+                        print(f"✅ 已發送群組語音頻道創建通知到管理員頻道: {group_id}")
                 except Exception as e:
                     print(f"⚠️ 發送創建通知失敗: {e}")
                 

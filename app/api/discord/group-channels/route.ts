@@ -105,6 +105,7 @@ export async function POST(request: Request) {
 // 創建 Discord 文字頻道
 async function createDiscordTextChannel(groupBooking: any, participants: string[]) {
   try {
+    console.log(`🔍 開始創建群組文字頻道: ${groupBooking.id}`);
     const response = await fetch('http://localhost:5001/create-group-text-channel', {
       method: 'POST',
       headers: {
@@ -126,10 +127,14 @@ async function createDiscordTextChannel(groupBooking: any, participants: string[
 
     if (response.ok) {
       const data = await response.json();
+      console.log(`✅ 群組文字頻道創建成功: ${groupBooking.id}, channelId: ${data.channelId}`);
       return data.channelId;
+    } else {
+      const errorText = await response.text();
+      console.error(`❌ 群組文字頻道創建失敗: ${groupBooking.id}`, response.status, errorText);
     }
   } catch (error) {
-    console.error('Error creating Discord text channel:', error);
+    console.error(`❌ 創建群組文字頻道時發生錯誤: ${groupBooking.id}`, error);
   }
   return null;
 }
@@ -149,16 +154,22 @@ async function createDiscordVoiceChannel(groupBooking: any, participants: string
         participants: participants,
         startTime: groupBooking.startTime instanceof Date 
           ? groupBooking.startTime.toISOString() 
-          : groupBooking.startTime
+          : groupBooking.startTime,
+        endTime: groupBooking.endTime instanceof Date 
+          ? groupBooking.endTime.toISOString() 
+          : groupBooking.endTime
       })
     });
 
     if (response.ok) {
       const data = await response.json();
       return data.channelId;
+    } else {
+      const errorText = await response.text();
+      console.error('❌ Discord 語音頻道創建失敗:', response.status, errorText);
     }
   } catch (error) {
-    console.error('Error creating Discord voice channel:', error);
+    console.error('❌ 創建 Discord 語音頻道時發生錯誤:', error);
   }
   return null;
 }
