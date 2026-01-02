@@ -107,13 +107,13 @@ export async function GET(request: Request) {
     });
 
       // 同時獲取該時段的群組預約
-      const thirtyMinutesFromNow = new Date(now.getTime() + 30 * 60 * 1000);
+      const tenMinutesFromNow = new Date(now.getTime() + 10 * 60 * 1000);
       const groupBookings = await client.groupBooking.findMany({
         where: {
           status: 'ACTIVE',
           startTime: { 
             lte: end,
-            gt: thirtyMinutesFromNow // 開始前30分鐘的群組不顯示
+            gt: tenMinutesFromNow // 開始前10分鐘的群組不顯示
           },
           endTime: { gt: start }
         },

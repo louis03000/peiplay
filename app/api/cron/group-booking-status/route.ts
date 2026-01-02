@@ -9,13 +9,13 @@ export async function GET() {
     const now = new Date();
     
     const result = await db.query(async (client) => {
-      // 1. 處理開始前30分鐘的群組（關閉群組，創建文字頻道）
-      const thirtyMinutesFromNow = new Date(now.getTime() + 30 * 60 * 1000);
+      // 1. 處理開始前10分鐘的群組（關閉群組，創建文字頻道）
+      const tenMinutesFromNow = new Date(now.getTime() + 10 * 60 * 1000);
       const groupsToClose = await client.groupBooking.findMany({
       where: {
         status: 'ACTIVE',
         startTime: {
-          lte: thirtyMinutesFromNow,
+          lte: tenMinutesFromNow,
           gt: now
         }
       },

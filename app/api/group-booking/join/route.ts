@@ -74,10 +74,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: '群組預約時間已過，無法加入' }, { status: 400 });
     }
     
-    // 檢查剩餘時間是否少於30分鐘（開始時間必須在30分鐘後）
-    const thirtyMinutesLater = addTaipeiTime(now, 30, 'minute');
-    if (startTime.getTime() <= thirtyMinutesLater.getTime()) {
-      return NextResponse.json({ error: '群組預約即將開始，剩餘時間不足30分鐘，無法加入' }, { status: 400 });
+    // 檢查剩餘時間是否少於10分鐘（開始時間必須在10分鐘後）
+    const tenMinutesLater = addTaipeiTime(now, 10, 'minute');
+    if (startTime.getTime() <= tenMinutesLater.getTime()) {
+      return NextResponse.json({ error: '群組預約即將開始，剩餘時間不足10分鐘，無法加入' }, { status: 400 });
     }
 
     if (groupBooking.GroupBookingParticipant.length >= groupBooking.maxParticipants) {

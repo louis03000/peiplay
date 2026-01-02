@@ -212,7 +212,7 @@ export async function GET(request: Request) {
       try {
         // 使用台灣時間
         let now: Date;
-        let thirtyMinutesLater: Date;
+        let tenMinutesLater: Date;
         
         try {
           now = getNowTaipei();
@@ -228,20 +228,20 @@ export async function GET(request: Request) {
         }
         
         try {
-          // 計算30分鐘後的時間（剩餘時間少於30分鐘的群組也要過濾掉）
-          thirtyMinutesLater = addTaipeiTime(now, 30, 'minute');
-          console.log(`🔍 [群組預約查詢] addTaipeiTime() 返回: ${thirtyMinutesLater}, isValid: ${!(isNaN(thirtyMinutesLater.getTime()))}`);
+          // 計算10分鐘後的時間（剩餘時間少於10分鐘的群組也要過濾掉）
+          tenMinutesLater = addTaipeiTime(now, 10, 'minute');
+          console.log(`🔍 [群組預約查詢] addTaipeiTime() 返回: ${tenMinutesLater}, isValid: ${!(isNaN(tenMinutesLater.getTime()))}`);
         } catch (error: any) {
           console.error('❌ [群組預約查詢] addTaipeiTime() 失敗:', error);
-          throw new Error(`計算30分鐘後時間失敗: ${error.message}, now=${now}`);
+          throw new Error(`計算10分鐘後時間失敗: ${error.message}, now=${now}`);
         }
         
-        // 驗證 thirtyMinutesLater 是否為有效的 Date 對象
-        if (!(thirtyMinutesLater instanceof Date) || isNaN(thirtyMinutesLater.getTime())) {
-          throw new Error(`30分鐘後時間無效: thirtyMinutesLater=${thirtyMinutesLater}, now=${now}`);
+        // 驗證 tenMinutesLater 是否為有效的 Date 對象
+        if (!(tenMinutesLater instanceof Date) || isNaN(tenMinutesLater.getTime())) {
+          throw new Error(`10分鐘後時間無效: tenMinutesLater=${tenMinutesLater}, now=${now}`);
         }
         
-        console.log(`🔍 [群組預約查詢] 當前時間: ${now.toISOString()}, 30分鐘後: ${thirtyMinutesLater.toISOString()}`);
+        console.log(`🔍 [群組預約查詢] 當前時間: ${now.toISOString()}, 10分鐘後: ${tenMinutesLater.toISOString()}`);
         
         // 構建查詢條件
         const where: any = {};
@@ -257,10 +257,10 @@ export async function GET(request: Request) {
         }
         // 過濾條件：
         // 1. 結束時間必須在未來（還沒結束）
-        // 2. 開始時間必須在30分鐘後（剩餘時間至少30分鐘才能加入）
-        // 使用 gte 來包含正好30分鐘後的預約
+        // 2. 開始時間必須在10分鐘後（剩餘時間至少10分鐘才能加入）
+        // 使用 gte 來包含正好10分鐘後的預約
         where.endTime = { gt: now };
-        where.startTime = { gte: thirtyMinutesLater };
+        where.startTime = { gte: tenMinutesLater };
         
         console.log(`🔍 [群組預約查詢] 查詢條件:`, JSON.stringify({
           status: where.status,

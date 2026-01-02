@@ -102,8 +102,8 @@ function GroupBookingContent() {
         const data = await response.json()
         console.log('🔍 [前端] 收到群組預約數據:', data.length, '個')
         const now = new Date()
-        const thirtyMinutesLater = new Date(now.getTime() + 30 * 60 * 1000) // 30分鐘後
-        console.log('🔍 [前端] 當前時間:', now.toISOString(), '30分鐘後:', thirtyMinutesLater.toISOString())
+        const tenMinutesLater = new Date(now.getTime() + 10 * 60 * 1000) // 10分鐘後
+        console.log('🔍 [前端] 當前時間:', now.toISOString(), '10分鐘後:', tenMinutesLater.toISOString())
         // 過濾掉時間已過的群組，並檢查用戶是否已加入
         const updatedBookings = data
           .filter((booking: GroupBooking) => {
@@ -111,15 +111,15 @@ function GroupBookingContent() {
             const startTime = new Date(booking.startTime)
             // 過濾條件：
             // 1. 結束時間必須在未來（還沒結束）
-            // 2. 開始時間必須在30分鐘後（剩餘時間至少30分鐘才能加入）
-            // 使用 >= 來包含正好30分鐘後的預約，與 API 保持一致
-            const isValid = endTime.getTime() > now.getTime() && startTime.getTime() >= thirtyMinutesLater.getTime()
+            // 2. 開始時間必須在10分鐘後（剩餘時間至少10分鐘才能加入）
+            // 使用 >= 來包含正好10分鐘後的預約，與 API 保持一致
+            const isValid = endTime.getTime() > now.getTime() && startTime.getTime() >= tenMinutesLater.getTime()
             if (!isValid) {
               console.log('🔍 [前端] 過濾掉群組預約:', booking.id, {
                 title: booking.title,
                 startTime: startTime.toISOString(),
                 endTime: endTime.toISOString(),
-                startTimeDiff: (startTime.getTime() - thirtyMinutesLater.getTime()) / 1000 / 60,
+                startTimeDiff: (startTime.getTime() - tenMinutesLater.getTime()) / 1000 / 60,
                 endTimeDiff: (endTime.getTime() - now.getTime()) / 1000 / 60
               })
             }
@@ -172,7 +172,7 @@ function GroupBookingContent() {
         const data = await response.json()
         setPartners(data.partners || [])
         const now = new Date()
-        const thirtyMinutesLater = new Date(now.getTime() + 30 * 60 * 1000) // 30分鐘後
+        const tenMinutesLater = new Date(now.getTime() + 10 * 60 * 1000) // 10分鐘後
         // 過濾掉時間已過的群組，並檢查用戶是否已加入
         const updatedGroupBookings = (data.groupBookings || [])
           .filter((booking: GroupBooking) => {
@@ -180,8 +180,8 @@ function GroupBookingContent() {
             const startTime = new Date(booking.startTime)
             // 過濾條件：
             // 1. 結束時間必須在未來（還沒結束）
-            // 2. 開始時間必須在30分鐘後（剩餘時間至少30分鐘才能加入）
-            return endTime.getTime() > now.getTime() && startTime.getTime() > thirtyMinutesLater.getTime()
+            // 2. 開始時間必須在10分鐘後（剩餘時間至少10分鐘才能加入）
+            return endTime.getTime() > now.getTime() && startTime.getTime() > tenMinutesLater.getTime()
           })
           .map((booking: GroupBooking) => {
             const isJoined = booking.GroupBookingParticipant?.some(
@@ -713,7 +713,7 @@ function GroupBookingContent() {
         <div className="bg-white rounded-lg shadow-md p-6">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
             <h2 className="text-xl font-semibold text-gray-900">🔥 熱門群組預約</h2>
-            <span className="text-xs sm:text-sm text-yellow-600 font-medium whitespace-nowrap">⚠️ 提醒：時間剩下30分鐘將會自動關閉群組，將無法加入群組</span>
+            <span className="text-xs sm:text-sm text-yellow-600 font-medium whitespace-nowrap">⚠️ 提醒：時間剩下10分鐘將會自動關閉群組，將無法加入群組</span>
           </div>
           {loading ? (
             <div className="text-center py-8">
