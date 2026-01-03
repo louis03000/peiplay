@@ -171,6 +171,7 @@ export async function GET(request: NextRequest) {
                 images: true,
                 rankBoosterImages: true,
                 isAvailableNow: true,
+                availableNowSince: true,
                 isRankBooster: true,
                 allowGroupBooking: true,
                 rankBoosterNote: true,
@@ -299,12 +300,35 @@ export async function GET(request: NextRequest) {
           }
         }
 
+        // 驗證「現在有空」狀態：即使 isAvailableNow 為 true，也要檢查時間限制和活躍預約
+        let isAvailableNow = !!partner.isAvailableNow;
+        if (isAvailableNow && partner.availableNowSince) {
+          const now = new Date();
+          const thirtyMinutesAgo = new Date(now.getTime() - 30 * 60 * 1000);
+          const availableSince = new Date(partner.availableNowSince);
+          if (availableSince < thirtyMinutesAgo) {
+            isAvailableNow = false;
+            console.log('[partners/route] 修正：超過30分鐘，將 isAvailableNow 設為 false', partner.id, partner.name);
+          }
+        }
+        
+        // 檢查是否有活躍預約（如果有活躍預約，不應顯示「現在有空」）
+        const hasActiveBooking = availableSchedules.some(schedule => {
+          if (!schedule.bookings) return false;
+          const status = schedule.bookings.status;
+          return ACTIVE_BOOKING_STATUSES.has(status);
+        });
+        if (isAvailableNow && hasActiveBooking) {
+          isAvailableNow = false;
+          console.log('[partners/route] 修正：有活躍預約，將 isAvailableNow 設為 false', partner.id, partner.name);
+        }
+
         return {
           id: partner.id,
           name: partner.name,
           games: partner.games,
           halfHourlyRate: partner.halfHourlyRate,
-          isAvailableNow: partner.isAvailableNow,
+          isAvailableNow: isAvailableNow, // 使用驗證後的狀態
           isRankBooster: partner.isRankBooster,
           allowGroupBooking: partner.allowGroupBooking,
           rankBoosterNote: partner.rankBoosterNote,
