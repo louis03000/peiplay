@@ -28,6 +28,7 @@ type PartnerRecord = {
   images: string[]
   rankBoosterImages: string[] | null
   isAvailableNow: boolean
+  availableNowSince: Date | null
   isRankBooster: boolean
   allowGroupBooking: boolean
   rankBoosterNote: string | null
