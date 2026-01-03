@@ -63,13 +63,22 @@ export async function POST(request: Request) {
     let channelId = null;
 
     if (action === 'create_text_channel') {
-      // 創建文字頻道（開始前30分鐘）
+      // 創建文字頻道（開始前10分鐘）
       channelId = await createDiscordTextChannel(groupBooking, participants);
     } else if (action === 'create_voice_channel') {
-      // 創建語音頻道（開始前3分鐘）
+      // 創建語音頻道（開始前5分鐘）
       channelId = await createDiscordVoiceChannel(groupBooking, participants);
+    } else if (action === 'send_review_system') {
+      // 發送評價系統（結束後）
+      await sendReviewSystem(groupBooking, participants);
+    } else if (action === 'delete_voice_channel') {
+      // 只刪除語音頻道
+      await deleteVoiceChannel(groupBooking);
+    } else if (action === 'delete_text_channel') {
+      // 只刪除文字頻道
+      await deleteTextChannel(groupBooking);
     } else if (action === 'delete_channels') {
-      // 刪除頻道（結束後）
+      // 刪除所有頻道（結束後）
       await deleteDiscordChannels(groupBooking);
     }
 
@@ -172,6 +181,98 @@ async function createDiscordVoiceChannel(groupBooking: any, participants: string
     console.error('❌ 創建 Discord 語音頻道時發生錯誤:', error);
   }
   return null;
+}
+
+// 發送評價系統
+async function sendReviewSystem(groupBooking: any, participants: string[]) {
+  try {
+    console.log(`🔍 開始為群組 ${groupBooking.id} 發送評價系統...`);
+    const response = await fetch('http://localhost:5001/send-group-review-system', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer 你的密鑰'
+      },
+      body: JSON.stringify({
+        groupId: groupBooking.id,
+        groupTitle: groupBooking.title,
+        participants: participants,
+        endTime: groupBooking.endTime instanceof Date 
+          ? groupBooking.endTime.toISOString() 
+          : groupBooking.endTime
+      })
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      console.log(`✅ 群組評價系統發送成功: ${groupBooking.id}`, data);
+    } else {
+      const errorText = await response.text();
+      console.error(`❌ 群組評價系統發送失敗: ${groupBooking.id}`, response.status, errorText);
+    }
+  } catch (error) {
+    console.error(`❌ 發送群組評價系統時發生錯誤: ${groupBooking.id}`, error);
+  }
+}
+
+// 只刪除語音頻道
+async function deleteVoiceChannel(groupBooking: any) {
+  try {
+    if (groupBooking.discordVoiceChannelId) {
+      await fetch('http://localhost:5001/delete-channel', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer 你的密鑰'
+        },
+        body: JSON.stringify({
+          channelId: groupBooking.discordVoiceChannelId
+        })
+      });
+
+      // 清除語音頻道 ID
+      await db.query(async (client) => {
+        return await client.groupBooking.update({
+          where: { id: groupBooking.id },
+          data: {
+            discordVoiceChannelId: null
+          }
+        });
+      });
+    }
+  } catch (error) {
+    console.error('Error deleting voice channel:', error);
+  }
+}
+
+// 只刪除文字頻道
+async function deleteTextChannel(groupBooking: any) {
+  try {
+    if (groupBooking.discordTextChannelId) {
+      await fetch('http://localhost:5001/delete-channel', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer 你的密鑰'
+        },
+        body: JSON.stringify({
+          channelId: groupBooking.discordTextChannelId
+        })
+      });
+
+      // 清除文字頻道 ID
+      await db.query(async (client) => {
+        return await client.groupBooking.update({
+          where: { id: groupBooking.id },
+          data: {
+            discordTextChannelId: null
+          }
+        });
+      });
+    }
+  } catch (error) {
+    console.error('Error deleting text channel:', error);
+  }
 }
 
 // 刪除 Discord 頻道

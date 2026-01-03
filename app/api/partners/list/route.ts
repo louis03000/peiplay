@@ -215,8 +215,36 @@ export async function GET(request: NextRequest) {
               
               return true;
             });
-            console.log('[partners/list] 過濾後的夥伴數量:', filtered.length);
-            return { partners: filtered, avgRatingsMap };
+            // 在返回前修正「現在有空」狀態（確保標籤正確顯示）
+            const partnersWithCorrectedStatus = filtered.map((partner) => {
+              // 驗證「現在有空」狀態：即使 isAvailableNow 為 true，也要檢查是否有活躍預約和時間限制
+              let isAvailableNow = !!partner.isAvailableNow;
+              if (isAvailableNow) {
+                // 檢查是否有活躍預約
+                if (busyPartnerIds.includes(partner.id)) {
+                  isAvailableNow = false;
+                  console.log('[partners/list] 修正：有活躍預約，將 isAvailableNow 設為 false', partner.id, partner.name);
+                }
+                
+                // 檢查 availableNowSince 是否在30分鐘內
+                if (partner.availableNowSince) {
+                  const thirtyMinutesAgo = new Date(now.getTime() - 30 * 60 * 1000);
+                  const availableSince = new Date(partner.availableNowSince);
+                  if (availableSince < thirtyMinutesAgo) {
+                    isAvailableNow = false;
+                    console.log('[partners/list] 修正：超過30分鐘，將 isAvailableNow 設為 false', partner.id, partner.name);
+                  }
+                }
+              }
+              
+              return {
+                ...partner,
+                isAvailableNow, // 使用修正後的狀態
+              };
+            });
+            
+            console.log('[partners/list] 過濾後的夥伴數量:', partnersWithCorrectedStatus.length);
+            return { partners: partnersWithCorrectedStatus, avgRatingsMap };
           },
           'partners:list:lightweight'
         );
@@ -247,32 +275,13 @@ export async function GET(request: NextRequest) {
       // 獲取平均星等
       const ratingData = avgRatingsMap.get(partner.userId) || { averageRating: 0, totalReviews: 0 };
 
-      // 驗證「現在有空」狀態：即使 isAvailableNow 為 true，也要檢查是否有活躍預約和時間限制
-      let isAvailableNow = !!partner.isAvailableNow;
-      if (isAvailableNow) {
-        // 檢查是否有活躍預約
-        if (busyPartnerIds.includes(partner.id)) {
-          isAvailableNow = false;
-          console.log('[partners/list] 修正：有活躍預約，將 isAvailableNow 設為 false', partner.id, partner.name);
-        }
-        
-        // 檢查 availableNowSince 是否在30分鐘內
-        if (partner.availableNowSince) {
-          const thirtyMinutesAgo = new Date(now.getTime() - 30 * 60 * 1000);
-          const availableSince = new Date(partner.availableNowSince);
-          if (availableSince < thirtyMinutesAgo) {
-            isAvailableNow = false;
-            console.log('[partners/list] 修正：超過30分鐘，將 isAvailableNow 設為 false', partner.id, partner.name);
-          }
-        }
-      }
-
+      // 注意：isAvailableNow 狀態已經在 db.query 內部驗證並修正，這裡直接使用
       const result = {
         id: partner.id,
         name: partner.name,
         games: partner.games,
         halfHourlyRate: partner.halfHourlyRate,
-        isAvailableNow: isAvailableNow, // 使用驗證後的狀態
+        isAvailableNow: !!partner.isAvailableNow, // 使用已經驗證後的狀態
         isRankBooster: !!partner.isRankBooster, // 確保是 boolean
         allowGroupBooking: partner.allowGroupBooking,
         rankBoosterNote: partner.rankBoosterNote,
@@ -288,11 +297,9 @@ export async function GET(request: NextRequest) {
       };
       
       // 調試：記錄所有夥伴的狀態（用於診斷）
-      if (result.isAvailableNow || partner.isAvailableNow) {
+      if (result.isAvailableNow) {
         console.log('[partners/list] 夥伴狀態:', result.name, {
           isAvailableNow: result.isAvailableNow,
-          rawIsAvailableNow: partner.isAvailableNow,
-          hasBusyBooking: busyPartnerIds.includes(partner.id),
           availableNowSince: partner.availableNowSince
         });
       }

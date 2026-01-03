@@ -1680,6 +1680,170 @@ class RatingSubmitButton(View):
             except:
                 pass
 
+# --- 群組預約評價系統 ---
+# 追蹤群組預約評價提交狀態
+group_rating_submitted_users = {}  # {group_id: set(user_ids)}
+
+class GroupRatingView(View):
+    """群組預約評價視圖"""
+    def __init__(self, group_id):
+        super().__init__(timeout=None)  # 設置為 None，讓按鈕永久有效
+        self.group_id = group_id
+
+    @discord.ui.button(label="⭐ 匿名評分", style=discord.ButtonStyle.success, emoji="⭐")
+    async def submit(self, interaction: discord.Interaction, button: discord.ui.Button):
+        try:
+            print(f"🔍 用戶 {interaction.user.id} 點擊了群組評價按鈕，group_id={self.group_id}")
+            
+            # 檢查用戶是否已經提交過評價
+            if self.group_id in group_rating_submitted_users:
+                if str(interaction.user.id) in group_rating_submitted_users[self.group_id]:
+                    await interaction.response.send_message("❗ 您已經提交過評價了。", ephemeral=True)
+                    return
+            
+            # 打開評價選擇界面
+            rating_view = GroupRatingSelectionView(self.group_id)
+            await interaction.response.send_message(
+                "📝 請選擇您的評分（1-5星），然後點擊「提交評價」按鈕：",
+                view=rating_view,
+                ephemeral=True
+            )
+            
+        except Exception as e:
+            print(f"❌ 處理群組評價按鈕點擊時發生錯誤: {e}")
+            import traceback
+            traceback.print_exc()
+            try:
+                if not interaction.response.is_done():
+                    await interaction.response.send_message("❌ 處理請求時發生錯誤，請稍後再試。", ephemeral=True)
+            except:
+                pass
+
+class GroupRatingSelectionView(View):
+    """群組預約評價選擇界面"""
+    def __init__(self, group_id):
+        super().__init__(timeout=300)  # 5分鐘超時
+        self.group_id = group_id
+        self.selected_rating = {}  # {user_id: rating}
+    
+    @discord.ui.button(label="⭐ 1星", style=discord.ButtonStyle.success, emoji="⭐", row=0)
+    async def rate_1_star(self, interaction: discord.Interaction, button: discord.ui.Button):
+        self.selected_rating[interaction.user.id] = 1
+        await interaction.response.send_message("✅ 已選擇1星評分", ephemeral=True)
+    
+    @discord.ui.button(label="⭐ 2星", style=discord.ButtonStyle.success, emoji="⭐", row=0)
+    async def rate_2_star(self, interaction: discord.Interaction, button: discord.ui.Button):
+        self.selected_rating[interaction.user.id] = 2
+        await interaction.response.send_message("✅ 已選擇2星評分", ephemeral=True)
+    
+    @discord.ui.button(label="⭐ 3星", style=discord.ButtonStyle.success, emoji="⭐", row=0)
+    async def rate_3_star(self, interaction: discord.Interaction, button: discord.ui.Button):
+        self.selected_rating[interaction.user.id] = 3
+        await interaction.response.send_message("✅ 已選擇3星評分", ephemeral=True)
+    
+    @discord.ui.button(label="⭐ 4星", style=discord.ButtonStyle.success, emoji="⭐", row=0)
+    async def rate_4_star(self, interaction: discord.Interaction, button: discord.ui.Button):
+        self.selected_rating[interaction.user.id] = 4
+        await interaction.response.send_message("✅ 已選擇4星評分", ephemeral=True)
+    
+    @discord.ui.button(label="⭐ 5星", style=discord.ButtonStyle.success, emoji="⭐", row=0)
+    async def rate_5_star(self, interaction: discord.Interaction, button: discord.ui.Button):
+        self.selected_rating[interaction.user.id] = 5
+        await interaction.response.send_message("✅ 已選擇5星評分", ephemeral=True)
+    
+    @discord.ui.button(label="提交評價", style=discord.ButtonStyle.primary, row=1)
+    async def submit_rating(self, interaction: discord.Interaction, button: discord.ui.Button):
+        try:
+            user_id = interaction.user.id
+            
+            # 檢查是否已選擇評分
+            if user_id not in self.selected_rating:
+                await interaction.response.send_message("❌ 請先選擇評分（1-5星）", ephemeral=True)
+                return
+            
+            rating = self.selected_rating[user_id]
+            
+            # 檢查用戶是否已經提交過評價
+            if self.group_id in group_rating_submitted_users:
+                if str(user_id) in group_rating_submitted_users[self.group_id]:
+                    await interaction.response.send_message("❗ 您已經提交過評價了。", ephemeral=True)
+                    return
+            
+            # 獲取用戶的 Customer ID
+            session = Session()
+            try:
+                user_info = session.execute(text("""
+                    SELECT id FROM "User" WHERE discord = :discord_id
+                """), {'discord_id': str(user_id)}).fetchone()
+                
+                if not user_info:
+                    await interaction.response.send_message("❌ 找不到用戶信息。", ephemeral=True)
+                    return
+                
+                customer_info = session.execute(text("""
+                    SELECT id FROM "Customer" WHERE "userId" = :user_id
+                """), {'user_id': user_info.id}).fetchone()
+                
+                if not customer_info:
+                    await interaction.response.send_message("❌ 找不到顧客信息。", ephemeral=True)
+                    return
+                
+                # 檢查是否已經評價過
+                existing_review = session.execute(text("""
+                    SELECT id FROM "GroupBookingReview" 
+                    WHERE "groupBookingId" = :group_id AND "reviewerId" = :reviewer_id
+                """), {
+                    'group_id': self.group_id,
+                    'reviewer_id': customer_info.id
+                }).fetchone()
+                
+                if existing_review:
+                    await interaction.response.send_message("❌ 此群組預約已經評價過了。", ephemeral=True)
+                    return
+                
+                # 創建評價記錄
+                review_id = f"gbr_{int(time.time())}_{customer_info.id}"
+                session.execute(text("""
+                    INSERT INTO "GroupBookingReview" (id, "groupBookingId", "reviewerId", rating, comment, "createdAt")
+                    VALUES (:id, :group_id, :reviewer_id, :rating, :comment, :created_at)
+                """), {
+                    'id': review_id,
+                    'group_id': self.group_id,
+                    'reviewer_id': customer_info.id,
+                    'rating': rating,
+                    'comment': f"Discord評價 - {rating}星",
+                    'created_at': datetime.now(timezone.utc)
+                })
+                session.commit()
+                
+                # 標記用戶已提交評價
+                if self.group_id not in group_rating_submitted_users:
+                    group_rating_submitted_users[self.group_id] = set()
+                group_rating_submitted_users[self.group_id].add(str(user_id))
+                
+                # 發送評價確認
+                embed = discord.Embed(
+                    title="✅ 評價已提交",
+                    description=f"感謝您的評價！您給予了 {rating} 星評價。",
+                    color=0x00ff88
+                )
+                
+                await interaction.response.send_message(embed=embed, ephemeral=True)
+                print(f"✅ 群組 {self.group_id} 收到評價: {rating} 星 (用戶: {user_id})")
+                
+            finally:
+                session.close()
+            
+        except Exception as e:
+            print(f"❌ 處理群組評價提交時發生錯誤: {e}")
+            import traceback
+            traceback.print_exc()
+            try:
+                if not interaction.response.is_done():
+                    await interaction.response.send_message("❌ 提交失敗，請稍後再試", ephemeral=True)
+            except:
+                pass
+
 async def handle_extend_booking(interaction, booking_id):
     """處理延長預約"""
     try:
@@ -2789,6 +2953,87 @@ def create_group_voice_channel():
     except Exception as e:
         print(f"❌ 創建群組語音頻道時發生錯誤: {e}")
         return jsonify({'error': '創建頻道時發生錯誤'}), 500
+
+@app.route('/send-group-review-system', methods=['POST'])
+def send_group_review_system():
+    """為群組預約發送評價系統"""
+    try:
+        data = request.get_json()
+        group_id = data.get('groupId')
+        group_title = data.get('groupTitle', '')
+        participants = data.get('participants', [])
+        end_time = data.get('endTime')
+        
+        if not group_id:
+            return jsonify({'error': '缺少 groupId 參數'}), 400
+        
+        # 獲取 Discord 伺服器
+        guild = bot.get_guild(GUILD_ID)
+        if not guild:
+            return jsonify({'error': '找不到 Discord 伺服器'}), 500
+        
+        # 發送評價系統
+        async def send_review_async():
+            try:
+                # 查找文字頻道
+                session = Session()
+                group_info = session.execute(text("""
+                    SELECT "discordTextChannelId" 
+                    FROM "GroupBooking" 
+                    WHERE id = :group_id
+                """), {'group_id': group_id}).fetchone()
+                session.close()
+                
+                if not group_info or not group_info.discordTextChannelId:
+                    print(f"❌ 找不到群組 {group_id} 的文字頻道")
+                    return False
+                
+                text_channel = guild.get_channel(int(group_info.discordTextChannelId))
+                if not text_channel:
+                    print(f"❌ 找不到文字頻道: {group_info.discordTextChannelId}")
+                    return False
+                
+                # 檢查是否已經發送過評價系統
+                async for message in text_channel.history(limit=10):
+                    if message.author == bot.user and "⭐ 群組預約結束" in message.content:
+                        print(f"⚠️ 群組 {group_id} 已經發送過評價系統")
+                        return True
+                
+                # 創建評價視圖
+                view = GroupRatingView(group_id)
+                
+                # 發送評價系統訊息
+                embed = discord.Embed(
+                    title="⭐ 群組預約結束 - 請給予評價",
+                    description="群組預約已結束，請為您的遊戲體驗給予評價。",
+                    color=0x00ff88
+                )
+                embed.add_field(name="群組ID", value=group_id, inline=False)
+                embed.add_field(name="評價說明", value="請點擊下方的「⭐ 匿名評分」按鈕來評價這次的遊戲體驗。", inline=False)
+                
+                await text_channel.send(embed=embed, view=view)
+                print(f"✅ 已為群組 {group_id} 發送評價系統")
+                return True
+            except Exception as e:
+                print(f"❌ 發送群組評價系統失敗: {e}")
+                import traceback
+                traceback.print_exc()
+                return False
+        
+        # 在事件循環中執行異步操作
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        success = loop.run_until_complete(send_review_async())
+        loop.close()
+        
+        if success:
+            return jsonify({'success': True})
+        else:
+            return jsonify({'error': '發送評價系統失敗'}), 500
+            
+    except Exception as e:
+        print(f"❌ 發送群組評價系統時發生錯誤: {e}")
+        return jsonify({'error': '發送評價系統時發生錯誤'}), 500
 
 @app.route('/health', methods=['GET'])
 def health_check():

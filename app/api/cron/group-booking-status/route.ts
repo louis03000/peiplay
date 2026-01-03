@@ -119,34 +119,81 @@ export async function GET() {
       }
     }
 
-      // 3. 處理已結束的群組（刪除頻道，標記為完成）
+      // 3. 處理已結束的群組（發送評價系統，不立即刪除頻道）
       const endedGroups = await client.groupBooking.findMany({
         where: {
           status: { in: ['FULL', 'ACTIVE'] },
           endTime: { lte: now }
+        },
+        include: {
+          GroupBookingReview: true
         }
       });
 
       for (const group of endedGroups) {
-        // 刪除 Discord 頻道
-        try {
-          await fetch(`${process.env.NEXTAUTH_URL}/api/discord/group-channels`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              groupBookingId: group.id,
-              action: 'delete_channels'
-            })
-          });
-        } catch (error) {
-          console.error('Error deleting channels for group:', group.id, error);
+        // 檢查是否已經發送過評價系統
+        const hasReviews = group.GroupBookingReview && group.GroupBookingReview.length > 0;
+        const hasTextChannel = group.discordTextChannelId !== null;
+        
+        // 如果還沒有發送評價系統且有文字頻道，發送評價系統
+        if (!hasReviews && hasTextChannel) {
+          try {
+            console.log(`🔍 開始為群組 ${group.id} 發送評價系統...`);
+            await fetch(`${process.env.NEXTAUTH_URL}/api/discord/group-channels`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                groupBookingId: group.id,
+                action: 'send_review_system'
+              })
+            });
+            console.log(`✅ 群組 ${group.id} 評價系統已發送`);
+          } catch (error) {
+            console.error(`❌ 群組 ${group.id} 發送評價系統時發生錯誤:`, error);
+          }
         }
-
-        // 標記為完成
-        await client.groupBooking.update({
-          where: { id: group.id },
-          data: { status: 'COMPLETED' }
-        });
+        
+        // 如果已經有評價或超過15分鐘，刪除語音頻道（保留文字頻道直到評價完成）
+        const endTime = new Date(group.endTime);
+        const fifteenMinutesAfterEnd = new Date(endTime.getTime() + 15 * 60 * 1000);
+        const shouldDeleteVoice = now >= fifteenMinutesAfterEnd || hasReviews;
+        
+        if (shouldDeleteVoice && group.discordVoiceChannelId) {
+          try {
+            await fetch(`${process.env.NEXTAUTH_URL}/api/discord/group-channels`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                groupBookingId: group.id,
+                action: 'delete_voice_channel'
+              })
+            });
+          } catch (error) {
+            console.error('Error deleting voice channel for group:', group.id, error);
+          }
+        }
+        
+        // 如果已經有評價或超過15分鐘，刪除文字頻道並標記為完成
+        if (shouldDeleteVoice) {
+          try {
+            await fetch(`${process.env.NEXTAUTH_URL}/api/discord/group-channels`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                groupBookingId: group.id,
+                action: 'delete_text_channel'
+              })
+            });
+          } catch (error) {
+            console.error('Error deleting text channel for group:', group.id, error);
+          }
+          
+          // 標記為完成
+          await client.groupBooking.update({
+            where: { id: group.id },
+            data: { status: 'COMPLETED' }
+          });
+        }
       }
 
       return {
