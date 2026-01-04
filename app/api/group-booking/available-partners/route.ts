@@ -131,6 +131,7 @@ export async function GET(request: Request) {
           initiatorId: true,
           initiatorType: true,
           createdAt: true,
+          games: true, // 添加 games 字段
           GroupBookingParticipant: {
             select: {
               id: true,
@@ -144,6 +145,7 @@ export async function GET(request: Request) {
                   name: true,
                   coverImage: true,
                   halfHourlyRate: true,
+                  games: true, // 添加 games 字段
                   user: {
                     select: {
                       id: true,
@@ -164,6 +166,7 @@ export async function GET(request: Request) {
               id: true,
               customerId: true,
               status: true,
+              serviceType: true, // 添加 serviceType 字段
               customer: {
                 select: {
                   id: true,
@@ -178,7 +181,7 @@ export async function GET(request: Request) {
               }
             }
           }
-      },
+        },
       orderBy: { createdAt: 'desc' }
     });
 
@@ -196,7 +199,7 @@ export async function GET(request: Request) {
       };
     });
 
-    // 計算群組預約的評分
+    // 計算群組預約的評分並添加遊戲列表和服務類型
     const groupBookingsWithRating = groupBookings.map(group => {
       const partner = group.GroupBookingParticipant.find(p => p.Partner)?.Partner;
       if (!partner) return null;
@@ -206,8 +209,22 @@ export async function GET(request: Request) {
         ? reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length 
         : 0;
 
+      // 判斷服務類型：檢查 bookings 中的 serviceType
+      let serviceType = '遊戲'; // 預設為遊戲
+      const hasChatOnlyBooking = group.bookings && group.bookings.some((b: any) => b.serviceType === 'CHAT_ONLY');
+      if (hasChatOnlyBooking) {
+        serviceType = '純聊天';
+      }
+
+      // 獲取遊戲列表（優先使用群組的 games，否則使用夥伴的 games）
+      const games = (group as any).games && (group as any).games.length > 0 
+        ? (group as any).games 
+        : (partner?.games || []);
+
       return {
         ...group,
+        games: games, // 添加遊戲列表
+        serviceType: serviceType, // 添加服務類型
         partner: {
           ...partner,
           averageRating: Math.round(averageRating * 10) / 10,

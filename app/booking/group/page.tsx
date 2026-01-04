@@ -251,7 +251,25 @@ function GroupBookingContent() {
   }
 
   const handleJoinClick = (booking: GroupBooking) => {
-    setSelectedGroupBooking(booking)
+    // 如果用戶選擇了遊戲，且群組預約的遊戲列表包含該遊戲，則只顯示該遊戲
+    // 否則顯示群組預約的所有遊戲
+    const gameToSearch = selectedGame === '其他' ? customGame : selectedGame
+    let displayGames = booking.games || []
+    
+    // 如果用戶選擇了遊戲，且群組預約的遊戲列表包含該遊戲，則只顯示該遊戲
+    if (gameToSearch && displayGames.length > 0) {
+      if (displayGames.includes(gameToSearch)) {
+        displayGames = [gameToSearch]
+      }
+    }
+    
+    // 創建一個新的 booking 對象，使用過濾後的遊戲列表
+    const filteredBooking = {
+      ...booking,
+      games: displayGames
+    }
+    
+    setSelectedGroupBooking(filteredBooking)
     setShowJoinModal(true)
   }
 
