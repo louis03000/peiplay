@@ -754,87 +754,91 @@ export default function ProfileClientComplete() {
             )}
 
             {/* 封面照上傳（最多3張） */}
-            <div className="mt-6">
-              <label className="block text-gray-300 mb-1 font-semibold">
-                封面照（最多3張）
-              </label>
-              <div className="space-y-3">
-                {/* 當前封面照預覽 */}
-                {formData.coverImages.length > 0 && (
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    {formData.coverImages.map((image, index) => (
-                      <div key={index} className="relative group">
-                        <img
-                          src={image}
-                          alt={`封面照 ${index + 1}`}
-                          className="w-full h-32 object-cover rounded-lg border border-gray-600"
+            {isPartner && (
+              <div className="mt-6">
+                <label className="block text-gray-300 mb-1 font-semibold">
+                  封面照（最多3張）
+                </label>
+                <div className="space-y-3">
+                  {/* 當前封面照預覽 */}
+                  {formData.coverImages.length > 0 && (
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      {formData.coverImages.map((image, index) => (
+                        <div key={index} className="relative group">
+                          <img
+                            src={image}
+                            alt={`封面照 ${index + 1}`}
+                            className="w-full h-32 object-cover rounded-lg border border-gray-600"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveCoverImage(index)}
+                            className="absolute top-2 right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-red-600 transition-colors opacity-0 group-hover:opacity-100"
+                          >
+                            ×
+                          </button>
+                          {index === 0 && (
+                            <div className="absolute bottom-2 left-2 bg-blue-500 text-white text-xs px-2 py-1 rounded">
+                              主圖
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* 上傳按鈕 */}
+                  {formData.coverImages.length < 3 && (
+                    <div className="flex items-center gap-3">
+                      <label className="flex-1">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          multiple
+                          onChange={handleCoverImageUpload}
+                          className="hidden"
+                          disabled={loading || formData.coverImages.length >= 3}
                         />
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveCoverImage(index)}
-                          className="absolute top-2 right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-red-600 transition-colors opacity-0 group-hover:opacity-100"
-                        >
-                          ×
-                        </button>
-                        {index === 0 && (
-                          <div className="absolute bottom-2 left-2 bg-blue-500 text-white text-xs px-2 py-1 rounded">
-                            主圖
+                        <div className="w-full px-4 py-3 border-2 border-dashed border-gray-600 rounded-lg text-center cursor-pointer hover:border-indigo-500 transition-colors">
+                          <div className="text-gray-300 text-sm">
+                            {formData.coverImages.length > 0
+                              ? `上傳更多封面照（${formData.coverImages.length}/3）`
+                              : "選擇封面照（可選多張）"}
                           </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* 上傳按鈕 */}
-                {formData.coverImages.length < 3 && (
-                  <div className="flex items-center gap-3">
-                    <label className="flex-1">
-                      <input
-                        type="file"
-                        accept="image/*"
-                        multiple
-                        onChange={handleCoverImageUpload}
-                        className="hidden"
-                        disabled={loading || formData.coverImages.length >= 3}
-                      />
-                      <div className="w-full px-4 py-3 border-2 border-dashed border-gray-600 rounded-lg text-center cursor-pointer hover:border-indigo-500 transition-colors">
-                        <div className="text-gray-300 text-sm">
-                          {formData.coverImages.length > 0
-                            ? `上傳更多封面照（${formData.coverImages.length}/3）`
-                            : "選擇封面照（可選多張）"}
+                          <div className="text-gray-500 text-xs mt-1">
+                            支援 JPG、PNG 格式，每張檔案大小不超過 5MB，最多3張
+                          </div>
                         </div>
-                        <div className="text-gray-500 text-xs mt-1">
-                          支援 JPG、PNG 格式，每張檔案大小不超過 5MB，最多3張
-                        </div>
-                      </div>
-                    </label>
-                  </div>
-                )}
-                {formData.coverImages.length >= 3 && (
-                  <div className="text-yellow-400 text-sm text-center">
-                    已達上限（3張），如需更換請先刪除現有圖片
-                  </div>
-                )}
+                      </label>
+                    </div>
+                  )}
+                  {formData.coverImages.length >= 3 && (
+                    <div className="text-yellow-400 text-sm text-center">
+                      已達上限（3張），如需更換請先刪除現有圖片
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
+            )}
 
-            <div className="mt-6">
-              <label className="block text-gray-300 mb-1 font-semibold">
-                留言板（顧客預約時會看到，限 500 字，含空格）
-              </label>
-              <textarea
-                name="customerMessage"
-                value={formData.customerMessage}
-                onChange={handleInputChange}
-                maxLength={500}
-                className="w-full rounded bg-gray-900 text-white border border-gray-700 focus:border-indigo-500 focus:outline-none p-3 min-h-[40px] text-sm"
-                placeholder="請輸入想對顧客說的話...（限 500 字，含空格）"
-              />
-              <div className="text-right text-xs text-gray-400 mt-1">
-                {formData.customerMessage.length}/500
+            {isPartner && (
+              <div className="mt-6">
+                <label className="block text-gray-300 mb-1 font-semibold">
+                  留言板（顧客預約時會看到，限 500 字，含空格）
+                </label>
+                <textarea
+                  name="customerMessage"
+                  value={formData.customerMessage}
+                  onChange={handleInputChange}
+                  maxLength={500}
+                  className="w-full rounded bg-gray-900 text-white border border-gray-700 focus:border-indigo-500 focus:outline-none p-3 min-h-[40px] text-sm"
+                  placeholder="請輸入想對顧客說的話...（限 500 字，含空格）"
+                />
+                <div className="text-right text-xs text-gray-400 mt-1">
+                  {formData.customerMessage.length}/500
+                </div>
               </div>
-            </div>
+            )}
 
             {success && (
               <div className="text-green-400 mb-4 text-center">{success}</div>
