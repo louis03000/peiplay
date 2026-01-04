@@ -440,18 +440,20 @@ export default function ProfileClientComplete() {
               </InfoCard>
             )}
 
-            <InfoCard bgColor="gray" className="mt-6">
-              <p className="text-sm font-medium text-gray-600 mb-2">
-                留言板（顧客預約時會看到）
-              </p>
-              <div className="text-gray-900 min-h-[60px]">
-                {userData.partner?.customerMessage ? (
-                  userData.partner.customerMessage
-                ) : (
-                  <span className="text-gray-500">（尚未填寫留言）</span>
-                )}
-              </div>
-            </InfoCard>
+            {isPartner && (
+              <InfoCard bgColor="gray" className="mt-6">
+                <p className="text-sm font-medium text-gray-600 mb-2">
+                  留言板（顧客預約時會看到）
+                </p>
+                <div className="text-gray-900 min-h-[60px]">
+                  {userData.partner?.customerMessage ? (
+                    userData.partner.customerMessage
+                  ) : (
+                    <span className="text-gray-500">（尚未填寫留言）</span>
+                  )}
+                </div>
+              </InfoCard>
+            )}
 
             <button
               className="w-full py-3 rounded-2xl bg-[#6C63FF] text-white font-bold text-lg mt-6 hover:bg-[#5a52e6] transition-all duration-300 shadow-lg shadow-[#6C63FF]/30"
