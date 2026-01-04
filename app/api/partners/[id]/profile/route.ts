@@ -85,13 +85,17 @@ export async function GET(
             },
             select: {
               groupBookingId: true
-            },
-            distinct: ['groupBookingId']
+            }
           }).catch(() => []);
 
-          const groupBookingIds = groupBookingsWithPartner
-            .map(b => b.groupBookingId)
-            .filter((id): id is string => id !== null);
+          // 手動去重：使用 Set 來過濾重複的 groupBookingId
+          const groupBookingIds = Array.from(
+            new Set(
+              groupBookingsWithPartner
+                .map(b => b.groupBookingId)
+                .filter((id): id is string => id !== null)
+            )
+          );
 
           // 如果沒有相關的群組預約，跳過查詢
           const groupBookingReviews = groupBookingIds.length > 0

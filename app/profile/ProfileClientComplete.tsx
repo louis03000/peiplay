@@ -363,18 +363,6 @@ export default function ProfileClientComplete() {
   }
 
   const isPartner = !!userData.partner;
-  
-  // 調試：確認 isPartner 的值
-  useEffect(() => {
-    if (userData) {
-      console.log('🔍 用戶資料調試:', {
-        hasPartner: !!userData.partner,
-        partnerId: userData.partner?.id,
-        isPartner: isPartner,
-        userId: userData.id
-      });
-    }
-  }, [userData, isPartner]);
 
   return (
     <PartnerPageLayout
