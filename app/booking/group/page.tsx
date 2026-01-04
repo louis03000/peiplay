@@ -252,16 +252,16 @@ function GroupBookingContent() {
 
   const handleJoinClick = (booking: GroupBooking) => {
     // 如果用戶選擇了遊戲，則只顯示用戶選擇的遊戲
-    // 否則顯示群組預約的所有遊戲
+    // 如果沒有選擇，則不顯示任何遊戲（空陣列）
     const gameToSearch = selectedGame === '其他' ? customGame : selectedGame
-    let displayGames = booking.games || []
+    let displayGames: string[] = []
     
-    // 如果用戶選擇了遊戲，則只顯示用戶選擇的遊戲
-    if (gameToSearch) {
-      // 只顯示用戶選擇的遊戲（即使該遊戲不在群組預約的遊戲列表中，也顯示用戶選擇的遊戲）
-      displayGames = [gameToSearch]
+    // 只有當用戶明確選擇了遊戲時，才顯示該遊戲
+    if (gameToSearch && gameToSearch.trim()) {
+      // 只顯示用戶選擇的遊戲
+      displayGames = [gameToSearch.trim()]
     }
-    // 如果用戶沒有選擇遊戲，則顯示群組預約的所有遊戲（保持原樣）
+    // 如果用戶沒有選擇遊戲，則 displayGames 保持為空陣列（不顯示任何遊戲）
     
     // 創建一個新的 booking 對象，使用過濾後的遊戲列表
     const filteredBooking = {
