@@ -29,6 +29,7 @@ interface GroupBooking {
   currentParticipants: number
   pricePerPerson: number
   games?: string[]
+  serviceType?: string // 服務類型：'遊戲' 或 '純聊天'
   startTime: string
   endTime: string
   status: string
