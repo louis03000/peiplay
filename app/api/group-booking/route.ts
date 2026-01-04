@@ -338,6 +338,7 @@ export async function GET(request: Request) {
             bookings: {
               select: {
                 id: true,
+                serviceType: true,
                 customer: {
                   select: {
                     id: true,
@@ -393,6 +394,18 @@ export async function GET(request: Request) {
               reviewCount = ratings.length;
             }
             
+            // 判斷服務類型：檢查 bookings 中的 serviceType
+            let serviceType = '遊戲'; // 預設為遊戲
+            const hasChatOnlyBooking = group.bookings && group.bookings.some((b: any) => b.serviceType === 'CHAT_ONLY');
+            if (hasChatOnlyBooking) {
+              serviceType = '純聊天';
+            }
+            
+            // 獲取遊戲列表（優先使用群組的 games，否則使用夥伴的 games）
+            const games = (group as any).games && (group as any).games.length > 0 
+              ? (group as any).games 
+              : (initiatorPartner?.games || []);
+            
             return {
               id: group.id,
               partnerId: group.initiatorId,
@@ -401,7 +414,8 @@ export async function GET(request: Request) {
               maxParticipants: group.maxParticipants,
               currentParticipants: group.GroupBookingParticipant.length,
               pricePerPerson: group.pricePerPerson,
-              games: (group as any).games || [], // 使用類型斷言，因為數據庫中可能還沒有這個字段
+              games: games,
+              serviceType: serviceType, // 添加服務類型
               startTime: group.startTime instanceof Date ? group.startTime.toISOString() : group.startTime,
               endTime: group.endTime instanceof Date ? group.endTime.toISOString() : group.endTime,
               status: group.status,

@@ -474,11 +474,22 @@ function GroupBookingContent() {
                   </div>
                   
                   <div className="mb-3">
-                    <h4 className="font-medium text-gray-900">{group.title}</h4>
+                    <div className="flex items-center gap-2 mb-1">
+                      <h4 className="font-medium text-gray-900">{group.title}</h4>
+                      {group.serviceType && (
+                        <span className={`px-2 py-1 rounded text-xs font-medium ${
+                          group.serviceType === '純聊天' 
+                            ? 'bg-purple-100 text-purple-700' 
+                            : 'bg-blue-100 text-blue-700'
+                        }`}>
+                          {group.serviceType}
+                        </span>
+                      )}
+                    </div>
                     {group.description && (
                       <p className="text-sm text-gray-600 mt-1 line-clamp-2">{group.description}</p>
                     )}
-                    {group.games && group.games.length > 0 && (
+                    {group.games && group.games.length > 0 && group.serviceType !== '純聊天' && (
                       <div className="flex flex-wrap gap-1 mt-2">
                         {group.games.map((game, idx) => (
                           <span key={idx} className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">
@@ -661,9 +672,29 @@ function GroupBookingContent() {
                 
                 <div className="space-y-4 mb-6">
                   <div>
-                    <h3 className="font-semibold text-lg text-gray-900 mb-2">{selectedGroupBooking.title}</h3>
+                    <div className="flex items-center gap-2 mb-2">
+                      <h3 className="font-semibold text-lg text-gray-900">{selectedGroupBooking.title}</h3>
+                      {selectedGroupBooking.serviceType && (
+                        <span className={`px-2 py-1 rounded text-xs font-medium ${
+                          selectedGroupBooking.serviceType === '純聊天' 
+                            ? 'bg-purple-100 text-purple-700' 
+                            : 'bg-blue-100 text-blue-700'
+                        }`}>
+                          {selectedGroupBooking.serviceType}
+                        </span>
+                      )}
+                    </div>
                     {selectedGroupBooking.description && (
                       <p className="text-gray-600 text-sm">{selectedGroupBooking.description}</p>
+                    )}
+                    {selectedGroupBooking.games && selectedGroupBooking.games.length > 0 && selectedGroupBooking.serviceType !== '純聊天' && (
+                      <div className="flex flex-wrap gap-1 mt-2">
+                        {selectedGroupBooking.games.map((game, idx) => (
+                          <span key={idx} className="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs">
+                            {game}
+                          </span>
+                        ))}
+                      </div>
                     )}
                   </div>
                   
@@ -744,9 +775,29 @@ function GroupBookingContent() {
                 <div key={booking.id} className="border border-gray-200 rounded-lg p-4">
                   <div className="flex justify-between items-start mb-3">
                     <div>
-                      <h3 className="font-semibold text-lg">{booking.title}</h3>
+                      <div className="flex items-center gap-2 mb-1">
+                        <h3 className="font-semibold text-lg">{booking.title}</h3>
+                        {booking.serviceType && (
+                          <span className={`px-2 py-1 rounded text-xs font-medium ${
+                            booking.serviceType === '純聊天' 
+                              ? 'bg-purple-100 text-purple-700' 
+                              : 'bg-blue-100 text-blue-700'
+                          }`}>
+                            {booking.serviceType}
+                          </span>
+                        )}
+                      </div>
                       {booking.description && (
                         <p className="text-gray-600 text-sm mt-1">{booking.description}</p>
+                      )}
+                      {booking.games && booking.games.length > 0 && booking.serviceType !== '純聊天' && (
+                        <div className="flex flex-wrap gap-1 mt-2">
+                          {booking.games.map((game, idx) => (
+                            <span key={idx} className="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs">
+                              {game}
+                            </span>
+                          ))}
+                        </div>
                       )}
                     </div>
                     <div className="text-right">
