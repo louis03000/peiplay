@@ -54,6 +54,7 @@ export async function GET(
             return null;
           }
 
+          // 查詢一般預約的評價（Review 表）
           const reviewsReceived = await tx.review.findMany({
             where: {
               revieweeId: partner.userId
@@ -75,7 +76,69 @@ export async function GET(
             return [];
           });
 
-          return { partner, reviewsReceived };
+          // 查詢群組預約的評價（GroupBookingReview 表）
+          // 先找到所有包含該夥伴的 GroupBooking ID（通過 Booking 表的 partnerId）
+          const groupBookingsWithPartner = await tx.booking.findMany({
+            where: {
+              partnerId: partner.id,
+              groupBookingId: { not: null }
+            },
+            select: {
+              groupBookingId: true
+            },
+            distinct: ['groupBookingId']
+          }).catch(() => []);
+
+          const groupBookingIds = groupBookingsWithPartner
+            .map(b => b.groupBookingId)
+            .filter((id): id is string => id !== null);
+
+          // 如果沒有相關的群組預約，跳過查詢
+          const groupBookingReviews = groupBookingIds.length > 0
+            ? await tx.groupBookingReview.findMany({
+                where: {
+                  groupBookingId: {
+                    in: groupBookingIds
+                  }
+                },
+                select: {
+                  id: true,
+                  rating: true,
+                  comment: true,
+                  createdAt: true,
+                  Customer: {
+                    select: {
+                      user: {
+                        select: { name: true }
+                      }
+                    }
+                  }
+                },
+                orderBy: { createdAt: 'desc' },
+                take: 50, // 限制評價數量
+              }).catch((groupReviewError) => {
+                console.warn('⚠️ 獲取群組預約評價失敗:', groupReviewError);
+                return [];
+              })
+            : [];
+
+          // 將 GroupBookingReview 轉換為與 Review 相同的格式
+          const formattedGroupReviews = groupBookingReviews.map(gbr => ({
+            id: gbr.id,
+            rating: gbr.rating,
+            comment: gbr.comment,
+            createdAt: gbr.createdAt,
+            reviewer: {
+              name: gbr.Customer?.user?.name || '匿名'
+            }
+          }));
+
+          // 合併兩種評價，按時間排序
+          const allReviews = [...reviewsReceived, ...formattedGroupReviews]
+            .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+            .slice(0, 50); // 限制總數為 50
+
+          return { partner, reviewsReceived: allReviews };
         }, `partner-profile:${id}`);
       },
       CacheTTL.MEDIUM // 5 分鐘快取
