@@ -7,8 +7,7 @@ import {
   ClockIcon, 
   ChatBubbleLeftRightIcon, 
   ExclamationCircleIcon, 
-  StarIcon,
-  CheckSquareIcon
+  StarIcon
 } from '@heroicons/react/24/outline'
 
 interface OnboardingModalProps {
@@ -196,8 +195,7 @@ export default function OnboardingModal({ isOpen, onClose, onComplete }: Onboard
                 onChange={(e) => setDontShowAgain(e.target.checked)}
                 className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
               />
-              <span className="text-sm text-gray-600 flex items-center gap-1 whitespace-nowrap">
-                <CheckSquareIcon className="w-4 h-4" />
+              <span className="text-sm text-gray-600 whitespace-nowrap">
                 下次不再顯示此教學
               </span>
             </label>
