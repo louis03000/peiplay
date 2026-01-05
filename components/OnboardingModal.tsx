@@ -7,7 +7,8 @@ import {
   ClockIcon, 
   ChatBubbleLeftRightIcon, 
   ExclamationCircleIcon, 
-  StarIcon
+  StarIcon,
+  Squares2X2Icon
 } from '@heroicons/react/24/outline'
 
 interface OnboardingModalProps {
@@ -19,6 +20,18 @@ interface OnboardingModalProps {
 const STEPS = [
   {
     id: 1,
+    title: '選擇服務模式',
+    icon: Squares2X2Icon,
+    content: [
+      '一般預約：提前預約時段，穩定可靠',
+      '即時預約：立即開始，快速配對',
+      '多人陪玩：邀請好友一起遊戲',
+      '群組預約：加入或創建群組預約'
+    ],
+    showServiceTypes: true
+  },
+  {
+    id: 2,
     title: '選擇陪玩師',
     icon: UserIcon,
     content: [
@@ -27,7 +40,7 @@ const STEPS = [
     ]
   },
   {
-    id: 2,
+    id: 3,
     title: '選擇時段',
     icon: ClockIcon,
     content: [
@@ -36,7 +49,7 @@ const STEPS = [
     ]
   },
   {
-    id: 3,
+    id: 4,
     title: 'Discord 頻道即代表服務開始',
     icon: ChatBubbleLeftRightIcon,
     content: [
@@ -46,7 +59,7 @@ const STEPS = [
     isImportant: true
   },
   {
-    id: 4,
+    id: 5,
     title: '取消與退款規則',
     icon: ExclamationCircleIcon,
     content: [
@@ -55,7 +68,7 @@ const STEPS = [
     ]
   },
   {
-    id: 5,
+    id: 6,
     title: '完成後可留下評價',
     icon: StarIcon,
     content: [
@@ -163,13 +176,34 @@ export default function OnboardingModal({ isOpen, onClose, onComplete }: Onboard
               {step.title}
             </h2>
             
-            <div className="space-y-2 text-gray-700">
-              {step.content.map((line, index) => (
-                <p key={index} className="text-base leading-relaxed">
-                  {line}
-                </p>
-              ))}
-            </div>
+            {step.showServiceTypes ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-left">
+                  <div className="font-semibold text-blue-900 mb-1">一般預約</div>
+                  <div className="text-sm text-blue-700">提前預約時段，穩定可靠</div>
+                </div>
+                <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-left">
+                  <div className="font-semibold text-green-900 mb-1">即時預約</div>
+                  <div className="text-sm text-green-700">立即開始，快速配對</div>
+                </div>
+                <div className="bg-purple-50 border border-purple-200 rounded-lg p-3 text-left">
+                  <div className="font-semibold text-purple-900 mb-1">多人陪玩</div>
+                  <div className="text-sm text-purple-700">邀請好友一起遊戲</div>
+                </div>
+                <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 text-left">
+                  <div className="font-semibold text-orange-900 mb-1">群組預約</div>
+                  <div className="text-sm text-orange-700">加入或創建群組預約</div>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-2 text-gray-700">
+                {step.content.map((line, index) => (
+                  <p key={index} className="text-base leading-relaxed">
+                    {line}
+                  </p>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* 底部操作區 */}
