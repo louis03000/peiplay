@@ -4,6 +4,7 @@ import './globals.css'
 import Providers from './providers'
 import ClientNavbar from './components/ClientNavbar'
 import SuspensionNotice from './components/SuspensionNotice'
+import OnboardingProvider from '@/components/OnboardingProvider'
 import { ToastContainer } from 'react-toastify'
 import 'react-toastify/dist/ReactToastify.css'
 
@@ -23,23 +24,25 @@ export default function RootLayout({
     <html lang="zh-TW">
       <body className={inter.className}>
         <Providers>
-          <div className="min-h-screen bg-[#0f172a]">
-            <SuspensionNotice />
-            <ClientNavbar />
-            {children}
-          </div>
-          <ToastContainer
-            position="top-right"
-            autoClose={3000}
-            hideProgressBar={false}
-            newestOnTop={false}
-            closeOnClick
-            rtl={false}
-            pauseOnFocusLoss
-            draggable
-            pauseOnHover
-            theme="dark"
-          />
+          <OnboardingProvider>
+            <div className="min-h-screen bg-[#0f172a]">
+              <SuspensionNotice />
+              <ClientNavbar />
+              {children}
+            </div>
+            <ToastContainer
+              position="top-right"
+              autoClose={3000}
+              hideProgressBar={false}
+              newestOnTop={false}
+              closeOnClick
+              rtl={false}
+              pauseOnFocusLoss
+              draggable
+              pauseOnHover
+              theme="dark"
+            />
+          </OnboardingProvider>
         </Providers>
       </body>
     </html>
