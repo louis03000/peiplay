@@ -19,7 +19,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: '請先登入' }, { status: 401 });
     }
 
-    const { partnerId, title, description, maxParticipants, pricePerPerson, startTime, endTime } = await request.json();
+    const { partnerId, title, description, maxParticipants, pricePerPerson, startTime, endTime, games } = await request.json();
 
     if (!partnerId || !title || !startTime || !endTime || !pricePerPerson) {
       return NextResponse.json({ error: '缺少必要參數' }, { status: 400 });
@@ -98,7 +98,8 @@ export async function POST(request: Request) {
             pricePerPerson,
             status: 'ACTIVE',
             initiatorId: partner.id,
-            initiatorType: 'PARTNER'
+            initiatorType: 'PARTNER',
+            games: Array.isArray(games) ? games : [] // 保存選擇的遊戲
           },
           include: {
             GroupBookingParticipant: {
@@ -401,10 +402,10 @@ export async function GET(request: Request) {
               serviceType = '純聊天';
             }
             
-            // 獲取遊戲列表（優先使用群組的 games，否則使用夥伴的 games）
-            const games = (group as any).games && (group as any).games.length > 0 
+            // 獲取遊戲列表（優先使用群組預約保存的 games，如果沒有則不顯示遊戲）
+            const games = (group as any).games && Array.isArray((group as any).games) && (group as any).games.length > 0 
               ? (group as any).games 
-              : (initiatorPartner?.games || []);
+              : [];
             
             return {
               id: group.id,

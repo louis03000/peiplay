@@ -217,6 +217,10 @@ function GroupBookingContent() {
       const startDateTime = `${selectedDate}T${selectedStartTime}`
       const endDateTime = `${selectedDate}T${selectedEndTime}`
 
+      // 獲取選擇的遊戲（如果用戶選擇了遊戲）
+      const gameToSave = selectedGame === '其他' ? customGame : selectedGame
+      const games = gameToSave && gameToSave.trim() ? [gameToSave.trim()] : []
+
       const response = await fetch('/api/group-booking', {
         method: 'POST',
         headers: {
@@ -229,7 +233,8 @@ function GroupBookingContent() {
           maxParticipants: createForm.maxParticipants,
           pricePerPerson: partner.halfHourlyRate,
           startTime: startDateTime,
-          endTime: endDateTime
+          endTime: endDateTime,
+          games: games // 傳遞選擇的遊戲
         })
       })
 
@@ -251,25 +256,9 @@ function GroupBookingContent() {
   }
 
   const handleJoinClick = (booking: GroupBooking) => {
-    // 如果用戶選擇了遊戲，則只顯示用戶選擇的遊戲
-    // 如果沒有選擇，則不顯示任何遊戲（空陣列）
-    const gameToSearch = selectedGame === '其他' ? customGame : selectedGame
-    let displayGames: string[] = []
-    
-    // 只有當用戶明確選擇了遊戲時，才顯示該遊戲
-    if (gameToSearch && gameToSearch.trim()) {
-      // 只顯示用戶選擇的遊戲
-      displayGames = [gameToSearch.trim()]
-    }
-    // 如果用戶沒有選擇遊戲，則 displayGames 保持為空陣列（不顯示任何遊戲）
-    
-    // 創建一個新的 booking 對象，使用過濾後的遊戲列表
-    const filteredBooking = {
-      ...booking,
-      games: displayGames
-    }
-    
-    setSelectedGroupBooking(filteredBooking)
+    // 直接使用群組預約保存的遊戲（不根據用戶選擇過濾）
+    // 因為群組預約已經保存了創建時選擇的遊戲
+    setSelectedGroupBooking(booking)
     setShowJoinModal(true)
   }
 
@@ -692,7 +681,14 @@ function GroupBookingContent() {
                 <div className="space-y-4 mb-6">
                   <div>
                     <div className="flex items-center gap-2 mb-2">
-                      <h3 className="font-semibold text-lg text-gray-900">{selectedGroupBooking.title}</h3>
+                      <h3 className="font-semibold text-lg text-gray-900">
+                        {selectedGroupBooking.title}
+                        {selectedGroupBooking.games && selectedGroupBooking.games.length > 0 && (
+                          <span className="ml-2 text-sm font-normal text-gray-600">
+                            - {selectedGroupBooking.games[0]}
+                          </span>
+                        )}
+                      </h3>
                       {selectedGroupBooking.serviceType && (
                         <span className={`px-2 py-1 rounded text-xs font-medium ${
                           selectedGroupBooking.serviceType === '純聊天' 

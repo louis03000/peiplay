@@ -362,7 +362,12 @@ export default function ProfileClientComplete() {
     );
   }
 
-  const isPartner = !!userData.partner;
+  // 判斷是否為夥伴：只有當 partner 存在且不是 null 時才是夥伴
+  // 如果 partner 是 null 或 undefined，則不是夥伴
+  // 使用更嚴格的判斷：檢查 partner 是否存在且有 id
+  const isPartner = userData?.partner !== null && 
+                    userData?.partner !== undefined && 
+                    userData?.partner?.id !== undefined;
 
   return (
     <PartnerPageLayout
