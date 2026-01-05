@@ -23,10 +23,10 @@ const STEPS = [
     title: '選擇服務模式',
     icon: Squares2X2Icon,
     content: [
-      '一般預約：提前預約時段，穩定可靠',
+      '一般預約：提前預約時段',
       '即時預約：立即開始，快速配對',
-      '多人陪玩：邀請好友一起遊戲',
-      '群組預約：加入或創建群組預約'
+      '多人陪玩：選擇多位陪玩師一起遊戲',
+      '群組預約：加入或創建群組，跟陌生人一起玩吧'
     ],
     showServiceTypes: true
   },
@@ -44,8 +44,7 @@ const STEPS = [
     title: '選擇時段',
     icon: ClockIcon,
     content: [
-      '單人 / 多人陪玩',
-      '注意時段是否重疊'
+      '單人 / 多人陪玩'
     ]
   },
   {
@@ -180,7 +179,7 @@ export default function OnboardingModal({ isOpen, onClose, onComplete }: Onboard
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-left">
                   <div className="font-semibold text-blue-900 mb-1">一般預約</div>
-                  <div className="text-sm text-blue-700">提前預約時段，穩定可靠</div>
+                  <div className="text-sm text-blue-700">提前預約時段</div>
                 </div>
                 <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-left">
                   <div className="font-semibold text-green-900 mb-1">即時預約</div>
@@ -188,11 +187,11 @@ export default function OnboardingModal({ isOpen, onClose, onComplete }: Onboard
                 </div>
                 <div className="bg-purple-50 border border-purple-200 rounded-lg p-3 text-left">
                   <div className="font-semibold text-purple-900 mb-1">多人陪玩</div>
-                  <div className="text-sm text-purple-700">邀請好友一起遊戲</div>
+                  <div className="text-sm text-purple-700">選擇多位陪玩師一起遊戲</div>
                 </div>
                 <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 text-left">
                   <div className="font-semibold text-orange-900 mb-1">群組預約</div>
-                  <div className="text-sm text-orange-700">加入或創建群組預約</div>
+                  <div className="text-sm text-orange-700">加入或創建群組，跟陌生人一起玩吧</div>
                 </div>
               </div>
             ) : (
