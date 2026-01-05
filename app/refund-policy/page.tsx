@@ -80,15 +80,15 @@ export default function RefundPolicyPage() {
                     </thead>
                     <tbody>
                       <tr>
-                        <td className="border border-gray-300 px-4 py-3 text-gray-700">開始前 24 小時（含）</td>
+                        <td className="border border-gray-300 px-4 py-3 text-gray-700">開始前 2小時（含）</td>
                         <td className="border border-gray-300 px-4 py-3 text-green-600 font-semibold">全額退款</td>
                       </tr>
                       <tr className="bg-gray-50">
-                        <td className="border border-gray-300 px-4 py-3 text-gray-700">開始前 12–24 小時</td>
+                        <td className="border border-gray-300 px-4 py-3 text-gray-700">開始前 10-30分鐘</td>
                         <td className="border border-gray-300 px-4 py-3 text-yellow-600 font-semibold">退還 50%</td>
                       </tr>
                       <tr>
-                        <td className="border border-gray-300 px-4 py-3 text-gray-700">開始前 12 小時內</td>
+                        <td className="border border-gray-300 px-4 py-3 text-gray-700">開始前 10分鐘內</td>
                         <td className="border border-gray-300 px-4 py-3 text-red-600 font-semibold">不予退款</td>
                       </tr>
                       <tr className="bg-red-50">
@@ -209,7 +209,7 @@ export default function RefundPolicyPage() {
 
               {/* 服務即將開始提醒 */}
               <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 mb-6">
-                <h3 className="text-xl font-semibold text-gray-900 mb-4">【服務即將開始提醒（12 小時內）】</h3>
+                <h3 className="text-xl font-semibold text-gray-900 mb-4">【服務即將開始提醒（10 分鐘內）】</h3>
                 <div className="bg-white border border-yellow-300 rounded-lg p-4">
                   <div className="flex items-center">
                     <span className="text-2xl mr-2">⏰</span>
