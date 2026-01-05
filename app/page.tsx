@@ -290,6 +290,7 @@ export default function HomePage() {
               <ul className="space-y-3">
                 <li><a href="/guidelines" className="text-gray-400 hover:text-white transition-colors duration-300 hover:translate-x-1 inline-block">使用指南</a></li>
                 <li><a href="/contract" className="text-gray-400 hover:text-white transition-colors duration-300 hover:translate-x-1 inline-block">服務條款</a></li>
+                <li><a href="/refund-policy" className="text-gray-400 hover:text-white transition-colors duration-300 hover:translate-x-1 inline-block">退款規則</a></li>
               </ul>
             </div>
             <div>
