@@ -127,23 +127,33 @@ export async function GET(request: NextRequest) {
         const paymentInfo = booking.paymentInfo as any;
         const isInstantBooking = paymentInfo?.isInstantBooking === true || paymentInfo?.isInstantBooking === 'true';
 
-        // 🔥 判斷服務類型（與 admin/order-records 邏輯一致）
+        // 🔥 判斷是否是純聊天（優先於其他類型檢查）
+        const isChatOnly = 
+          booking.serviceType === 'CHAT_ONLY' || 
+          paymentInfo?.isChatOnly === true || 
+          paymentInfo?.isChatOnly === 'true' ||
+          (booking.schedule?.partner?.supportsChatOnly && booking.schedule?.partner?.chatOnlyRate);
+
+        // 🔥 判斷服務類型（優先檢查純聊天，包括即時預約的純聊天）
         let serviceType = '一般預約'; // 預設值
         
         // 優先檢查多人陪玩（因為它可能同時有 paymentInfo）
         if (booking.multiPlayerBookingId) {
           serviceType = '多人陪玩'
-        } else if (isInstantBooking) {
-          serviceType = '即時預約'
         } else if (booking.groupBookingId) {
           serviceType = '群組預約'
-        } else if (
-          booking.serviceType === 'CHAT_ONLY' || 
-          paymentInfo?.isChatOnly === true || 
-          paymentInfo?.isChatOnly === 'true' ||
-          (booking.schedule?.partner?.supportsChatOnly && booking.schedule?.partner?.chatOnlyRate)
-        ) {
+        } else if (isChatOnly) {
+          // 🔥 純聊天優先於即時預約（包括即時預約的純聊天）
           serviceType = '純聊天'
+        } else if (isInstantBooking) {
+          serviceType = '即時預約'
+        }
+
+        // 🔥 計算正確的金額：如果是純聊天，使用 chatOnlyRate 計算
+        let displayAmount = booking.finalAmount || 0;
+        if (isChatOnly && booking.schedule?.partner?.chatOnlyRate) {
+          // 純聊天價格 = chatOnlyRate * 時長（以30分鐘為單位）
+          displayAmount = booking.schedule.partner.chatOnlyRate * duration;
         }
 
         return {
@@ -156,7 +166,7 @@ export async function GET(request: NextRequest) {
           duration,
           status: booking.status,
           originalAmount: booking.originalAmount || 0,
-          finalAmount: booking.finalAmount || 0,
+          finalAmount: displayAmount, // 使用計算後的正確金額
           createdAt: booking.createdAt.toISOString(),
           updatedAt: booking.updatedAt.toISOString(),
           paymentInfo: booking.paymentInfo,

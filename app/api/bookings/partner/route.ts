@@ -89,21 +89,25 @@ export async function GET() {
         
         // 判斷服務類型（與 admin/order-records 邏輯一致）
         const paymentInfo = booking.paymentInfo as any
+        const isInstantBooking = paymentInfo?.isInstantBooking === true || paymentInfo?.isInstantBooking === 'true';
+        
+        // 🔥 判斷是否是純聊天（優先於其他類型檢查）
+        const isChatOnly = 
+          booking.serviceType === 'CHAT_ONLY' || 
+          paymentInfo?.isChatOnly === true || 
+          paymentInfo?.isChatOnly === 'true' ||
+          (booking.schedule?.partner?.supportsChatOnly && booking.schedule?.partner?.chatOnlyRate);
         
         // 🔥 優先檢查多人陪玩（因為它可能同時有 paymentInfo）
         if (booking.multiPlayerBookingId) {
           serviceType = '多人陪玩'
-        } else if (paymentInfo?.isInstantBooking === true || paymentInfo?.isInstantBooking === 'true') {
-          serviceType = '即時預約'
         } else if (booking.groupBookingId) {
           serviceType = '群組預約'
-        } else if (
-          booking.serviceType === 'CHAT_ONLY' || 
-          paymentInfo?.isChatOnly === true || 
-          paymentInfo?.isChatOnly === 'true' ||
-          (booking.schedule?.partner?.supportsChatOnly && booking.schedule?.partner?.chatOnlyRate)
-        ) {
+        } else if (isChatOnly) {
+          // 🔥 純聊天優先於即時預約（包括即時預約的純聊天）
           serviceType = '純聊天'
+        } else if (isInstantBooking) {
+          serviceType = '即時預約'
         }
         
         // 🔥 調試信息（僅在開發環境）
