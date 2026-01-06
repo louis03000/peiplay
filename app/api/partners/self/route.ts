@@ -128,6 +128,32 @@ export async function PATCH(request: Request) {
         return { type: 'NOT_FOUND' } as const
       }
 
+      // 如果嘗試開啟「現在有空」，檢查是否有活躍訂單
+      if (isAvailableNow === true) {
+        const activeBooking = await client.booking.findFirst({
+          where: {
+            schedule: {
+              partnerId: partner.id,
+              startTime: { lte: now },
+              endTime: { gte: now }
+            },
+            status: {
+              in: ['CONFIRMED', 'PARTNER_ACCEPTED']
+            }
+          }
+        });
+
+        if (activeBooking) {
+          return { type: 'HAS_ACTIVE_BOOKING' } as const
+        }
+      }
+
+      // 處理 availableNowSince：如果明確傳入 null，則設置為 null；如果傳入值，則轉換為 Date；否則保持原值
+      let availableNowSinceValue: Date | null | undefined = undefined;
+      if (availableNowSince !== undefined) {
+        availableNowSinceValue = availableNowSince ? new Date(availableNowSince) : null;
+      }
+
       const updatedPartner = await client.partner.update({
         where: { userId: session.user.id },
         data: {
@@ -137,7 +163,7 @@ export async function PATCH(request: Request) {
           rankBoosterNote: rankBoosterNote ?? partner.rankBoosterNote,
           rankBoosterRank: rankBoosterRank ?? partner.rankBoosterRank,
           customerMessage: customerMessage ?? partner.customerMessage,
-          availableNowSince: availableNowSince ? new Date(availableNowSince) : partner.availableNowSince,
+          ...(availableNowSinceValue !== undefined ? { availableNowSince: availableNowSinceValue } : {}),
         },
       })
 
@@ -146,11 +172,17 @@ export async function PATCH(request: Request) {
 
     // 清除相關快取
     if (result.type === 'SUCCESS') {
+      console.log(`🔄 清除夥伴 ${result.partner.id} 的相關快取（更新「現在有空」狀態）`);
       await CacheInvalidation.onPartnerUpdate(result.partner.id);
+      console.log(`✅ 已清除夥伴 ${result.partner.id} 的相關快取`);
     }
 
     if (result.type === 'NOT_FOUND') {
       return NextResponse.json({ error: '找不到夥伴資料' }, { status: 404 })
+    }
+
+    if (result.type === 'HAS_ACTIVE_BOOKING') {
+      return NextResponse.json({ error: '您正在執行一筆訂單，請完成訂單後再進行操作' }, { status: 400 })
     }
 
     return NextResponse.json({ partner: result.partner })

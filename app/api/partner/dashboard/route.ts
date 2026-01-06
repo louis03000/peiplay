@@ -114,6 +114,37 @@ export async function GET() {
       // 如果需要在這裡執行，可以改為異步執行，不阻塞主查詢
       // await client.groupBooking.updateMany({...}).catch(...)
 
+      // 檢查是否有正在執行的訂單（當前時間在已確認訂單的時間段內）
+      const activeBooking = await client.booking.findFirst({
+        where: {
+          schedule: {
+            partnerId: partner.id,
+            startTime: { lte: now },
+            endTime: { gte: now }
+          },
+          status: {
+            in: ['CONFIRMED', 'PARTNER_ACCEPTED']
+          }
+        },
+        include: {
+          schedule: {
+            select: {
+              startTime: true,
+              endTime: true
+            }
+          },
+          customer: {
+            include: {
+              user: {
+                select: {
+                  name: true
+                }
+              }
+            }
+          }
+        }
+      });
+
       // 查詢群組預約
       // 注意：暫時不查詢 games 字段，因為數據庫中可能還沒有這個字段
       // 包含 ACTIVE 和 FULL 狀態的群組（FULL 狀態表示已關閉但可能正在進行中）
@@ -157,6 +188,20 @@ export async function GET() {
         status: group.status,
       }))
 
+      // 計算活躍訂單的剩餘時間
+      let activeBookingInfo = null;
+      if (activeBooking) {
+        const endTime = new Date(activeBooking.schedule.endTime);
+        const remainingMinutes = Math.ceil((endTime.getTime() - now.getTime()) / (1000 * 60));
+        activeBookingInfo = {
+          isBusy: true,
+          bookingId: activeBooking.id,
+          customerName: activeBooking.customer.user.name || '客戶',
+          endTime: endTime.toISOString(),
+          remainingMinutes: remainingMinutes
+        };
+      }
+
       return {
         type: 'SUCCESS',
         partner: {
@@ -170,6 +215,7 @@ export async function GET() {
         },
         schedules,
         groups,
+        activeBooking: activeBookingInfo,
       } as const
       } catch (queryError: any) {
         console.error('❌ Dashboard 查詢時發生錯誤:', {
@@ -186,7 +232,12 @@ export async function GET() {
       return NextResponse.json({ error: '夥伴資料不存在' }, { status: 404 })
     }
 
-    return NextResponse.json({ partner: result.partner, schedules: result.schedules, groups: result.groups })
+    return NextResponse.json({ 
+      partner: result.partner, 
+      schedules: result.schedules, 
+      groups: result.groups,
+      activeBooking: result.activeBooking 
+    })
   } catch (error) {
     console.error('❌ Dashboard API 外層錯誤:', error)
     console.error('錯誤詳情:', {

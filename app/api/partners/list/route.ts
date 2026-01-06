@@ -104,6 +104,12 @@ export async function GET(request: NextRequest) {
               take: 100, // 限制結果數量
             });
             console.log('[partners/list] 查詢到的夥伴數量:', allPartners.length);
+            // 調試：記錄所有「現在有空」的夥伴
+            const availablePartners = allPartners.filter(p => p.isAvailableNow);
+            console.log('[partners/list] 「現在有空」的夥伴數量:', availablePartners.length);
+            availablePartners.forEach(p => {
+              console.log(`[partners/list] 夥伴 ${p.name} (${p.id}): isAvailableNow=${p.isAvailableNow}, availableNowSince=${p.availableNowSince}`);
+            });
 
             // 批量查詢所有夥伴的平均星等（優化：避免 N+1 查詢）
             const userIds = allPartners.map(p => p.userId).filter(Boolean) as string[];

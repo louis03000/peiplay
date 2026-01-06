@@ -48,6 +48,13 @@ export default function PartnerSchedulePage() {
   const [partnerGames, setPartnerGames] = useState<string[]>([]);
   const [rankBoosterImages, setRankBoosterImages] = useState<string[]>([]);
   const [uploadingImages, setUploadingImages] = useState<boolean[]>(new Array(5).fill(false));
+  const [activeBooking, setActiveBooking] = useState<{
+    isBusy: boolean;
+    bookingId: string | null;
+    customerName: string | null;
+    endTime: string | null;
+    remainingMinutes: number;
+  } | null>(null);
   
   // 群組預約相關狀態
   const [showGroupForm, setShowGroupForm] = useState(false);
@@ -412,6 +419,13 @@ export default function PartnerSchedulePage() {
         setPartnerStatus(newStatus);
         setRankBoosterImages(dashboardData.partner.rankBoosterImages || []);
         setPartnerGames(dashboardData.partner.games || []);
+        
+        // 更新活躍訂單信息
+        if (dashboardData.activeBooking) {
+          setActiveBooking(dashboardData.activeBooking);
+        } else {
+          setActiveBooking(null);
+        }
       }
       
       // 更新時段資料（使用專門的 schedule API 獲取的完整數據）
@@ -1457,6 +1471,31 @@ export default function PartnerSchedulePage() {
   };
 
   const handleToggle = async (field: 'isAvailableNow' | 'isRankBooster' | 'allowGroupBooking', value: boolean) => {
+    // 如果是開啟「現在有空」，先檢查是否有活躍訂單
+    if (field === 'isAvailableNow' && value) {
+      // 檢查是否有活躍訂單
+      if (activeBooking?.isBusy) {
+        alert('您正在執行一筆訂單，請完成訂單後再進行操作。');
+        return;
+      }
+      
+      // 重新檢查一次（防止狀態不同步）
+      try {
+        const checkResponse = await fetch('/api/partner/dashboard', { cache: 'no-store' });
+        if (checkResponse.ok) {
+          const checkData = await checkResponse.json();
+          if (checkData.activeBooking?.isBusy) {
+            setActiveBooking(checkData.activeBooking);
+            alert('您正在執行一筆訂單，請完成訂單後再進行操作。');
+            return;
+          }
+        }
+      } catch (error) {
+        console.error('檢查活躍訂單失敗:', error);
+        // 繼續執行，讓後端驗證
+      }
+    }
+    
     // 保存舊狀態，以便在 API 失敗時回滾
     const oldStatus = partnerStatus;
     
@@ -1483,7 +1522,14 @@ export default function PartnerSchedulePage() {
       
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || '更新失敗');
+        const errorMessage = errorData.error || '更新失敗';
+        // 如果是活躍訂單錯誤，顯示特定提示
+        if (errorMessage.includes('正在執行一筆訂單')) {
+          alert(errorMessage);
+        } else {
+          throw new Error(errorMessage);
+        }
+        return; // 提前返回，不繼續執行
       }
       
       const result = await response.json();
@@ -1604,7 +1650,8 @@ export default function PartnerSchedulePage() {
                     <Switch
                       checked={!!partnerStatus?.isAvailableNow}
                       onChange={v => handleToggle('isAvailableNow', v)}
-                      className={`${partnerStatus?.isAvailableNow ? 'bg-green-500' : 'bg-gray-300'} relative inline-flex h-5 w-9 sm:h-6 sm:w-11 items-center rounded-full transition-colors`}
+                      disabled={activeBooking?.isBusy || false}
+                      className={`${activeBooking?.isBusy ? 'bg-gray-400 cursor-not-allowed opacity-50' : partnerStatus?.isAvailableNow ? 'bg-green-500' : 'bg-gray-300'} relative inline-flex h-5 w-9 sm:h-6 sm:w-11 items-center rounded-full transition-colors`}
                     >
                       <span className="sr-only">現在有空</span>
                       <span
@@ -1612,7 +1659,11 @@ export default function PartnerSchedulePage() {
                       />
                     </Switch>
                   </div>
-                  {partnerStatus?.isAvailableNow && (
+                  {activeBooking?.isBusy ? (
+                    <div className="text-xs text-red-600 font-medium">
+                      ⚠️ 您正在執行一筆訂單，請完成訂單後再進行操作
+                    </div>
+                  ) : partnerStatus?.isAvailableNow && (
                     <div className="text-xs text-orange-600 font-medium">
                       ⏰ 每30分鐘會自動關閉
                     </div>
