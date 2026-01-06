@@ -348,7 +348,8 @@ export async function POST(
     const redisToken = process.env.UPSTASH_REDIS_REST_TOKEN;
     const redisStatus = (redisUrl && redisToken) ? 'SET' : 'NOT_SET';
 
-    const result = await db.query(async (client) => {
+    // 先檢查免費聊天限制（在 db.query 外部）
+    const roomCheck = await db.query(async (client) => {
       const [membership, room] = await Promise.all([
         (client as any).chatRoomMember.findUnique({
           where: {
@@ -372,23 +373,27 @@ export async function POST(
         throw new Error('無權限訪問此聊天室');
       }
 
-      const isFreeChat =
-        !room?.bookingId && !room?.groupBookingId && !room?.multiPlayerBookingId;
+      return room;
+    }, 'chat:rooms:roomId:messages:post:check');
 
-      // 免費聊天限制檢查（每日重置）
-      if (isFreeChat) {
-        // 使用 dayjs 計算今天開始的 UTC 時間（台灣時區）
-        const dayjs = (await import('dayjs')).default;
-        const utc = (await import('dayjs/plugin/utc')).default;
-        const timezone = (await import('dayjs/plugin/timezone')).default;
-        dayjs.extend(utc);
-        dayjs.extend(timezone);
-        
-        // 獲取台灣時區今天的開始時間，然後轉換為 UTC
-        const todayStartTaipei = dayjs.tz('Asia/Taipei').startOf('day');
-        const todayStartUTCForDB = todayStartTaipei.utc().toDate();
+    const isFreeChat =
+      !roomCheck?.bookingId && !roomCheck?.groupBookingId && !roomCheck?.multiPlayerBookingId;
 
-        const todayMessages = await (client as any).chatMessage.findMany({
+    // 免費聊天限制檢查（每日重置）
+    if (isFreeChat) {
+      // 使用 dayjs 計算今天開始的 UTC 時間（台灣時區）
+      const dayjs = (await import('dayjs')).default;
+      const utc = (await import('dayjs/plugin/utc')).default;
+      const timezone = (await import('dayjs/plugin/timezone')).default;
+      dayjs.extend(utc);
+      dayjs.extend(timezone);
+      
+      // 獲取台灣時區今天的開始時間，然後轉換為 UTC
+      const todayStartTaipei = dayjs.tz('Asia/Taipei').startOf('day');
+      const todayStartUTCForDB = todayStartTaipei.utc().toDate();
+
+      const todayMessages = await db.query(async (client) => {
+        return await (client as any).chatMessage.findMany({
           where: {
             roomId,
             senderId: session.user.id,
@@ -398,21 +403,24 @@ export async function POST(
           },
           select: { id: true },
         });
+      }, 'chat:rooms:roomId:messages:post:check-limit');
 
-        const FREE_CHAT_LIMIT = 5;
-        if (todayMessages.length >= FREE_CHAT_LIMIT) {
-          // 返回 403 而不是 500，因為這是業務邏輯限制，不是伺服器錯誤
-          return NextResponse.json(
-            { 
-              error: `免費聊天句數上限為${FREE_CHAT_LIMIT}句，您已達到今日上限。每日凌晨 00:00 會重新計算。`,
-              limitReached: true,
-              used: todayMessages.length,
-              limit: FREE_CHAT_LIMIT
-            },
-            { status: 403 }
-          );
-        }
+      const FREE_CHAT_LIMIT = 5;
+      if (todayMessages.length >= FREE_CHAT_LIMIT) {
+        // 返回 403 而不是 500，因為這是業務邏輯限制，不是伺服器錯誤
+        return NextResponse.json(
+          { 
+            error: `免費聊天句數上限為${FREE_CHAT_LIMIT}句，您已達到今日上限。每日凌晨 00:00 會重新計算。`,
+            limitReached: true,
+            used: todayMessages.length,
+            limit: FREE_CHAT_LIMIT
+          },
+          { status: 403 }
+        );
       }
+    }
+
+    const result = await db.query(async (client) => {
 
       // 獲取使用者資訊
       const user = await client.user.findUnique({
