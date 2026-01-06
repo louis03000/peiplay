@@ -949,6 +949,162 @@ export default function PartnerSchedulePage() {
     }
   }, [getLocalDateString, getScheduleAtTime, pendingDelete, pendingAdd, isSaving]);
 
+  // 處理日期標題點擊：該日期所有時段全選
+  const handleDateHeaderClick = useCallback((date: Date) => {
+    if (isSaving) {
+      console.warn('⚠️ 儲存中，禁止點擊操作');
+      return;
+    }
+
+    const now = new Date();
+    const dateKey = getLocalDateString(date);
+    let allSelected = true; // 檢查是否所有時段都已選中
+
+    // 先檢查所有時段是否都已選中
+    for (const timeSlot of timeSlots) {
+      const [hour, minute] = timeSlot.split(':');
+      const timeDate = new Date(date);
+      timeDate.setHours(Number(hour), Number(minute), 0, 0);
+      
+      // 跳過過去的時間
+      if (timeDate.getTime() <= now.getTime()) continue;
+
+      const key = `${dateKey}_${timeSlot}`;
+      const schedule = getScheduleAtTime(date, timeSlot);
+      
+      // 檢查是否已選中（在 pendingAdd 或 pendingDelete 中，或已存在且未標記刪除）
+      const isSelected = pendingAdd[key] || (schedule && !schedule.booked && !pendingDelete[schedule.id]);
+      
+      if (!isSelected) {
+        allSelected = false;
+        break;
+      }
+    }
+
+    // 根據全選狀態決定是全部選中還是全部取消
+    setPendingAdd(prev => {
+      const newPendingAdd = { ...prev };
+      const newPendingDelete = { ...pendingDelete };
+
+      for (const timeSlot of timeSlots) {
+        const [hour, minute] = timeSlot.split(':');
+        const timeDate = new Date(date);
+        timeDate.setHours(Number(hour), Number(minute), 0, 0);
+        
+        // 跳過過去的時間
+        if (timeDate.getTime() <= now.getTime()) continue;
+
+        const key = `${dateKey}_${timeSlot}`;
+        const schedule = getScheduleAtTime(date, timeSlot);
+
+        if (schedule) {
+          // 時段已存在
+          if (schedule.booked) continue; // 已預約的時段不能操作
+          
+          if (allSelected) {
+            // 全部取消：移除刪除標記
+            delete newPendingDelete[schedule.id];
+            delete newPendingAdd[key];
+          } else {
+            // 全部選中：標記為刪除（灰色）
+            newPendingDelete[schedule.id] = true;
+            delete newPendingAdd[key];
+          }
+        } else {
+          // 時段不存在
+          if (allSelected) {
+            // 全部取消：移除新增標記
+            delete newPendingAdd[key];
+          } else {
+            // 全部選中：標記為新增（綠色）
+            newPendingAdd[key] = true;
+          }
+        }
+      }
+
+      setPendingDelete(newPendingDelete);
+      return newPendingAdd;
+    });
+  }, [getLocalDateString, getScheduleAtTime, timeSlots, pendingAdd, pendingDelete, isSaving]);
+
+  // 處理時間標題點擊：未來7天該時段全選
+  const handleTimeHeaderClick = useCallback((timeSlot: string) => {
+    if (isSaving) {
+      console.warn('⚠️ 儲存中，禁止點擊操作');
+      return;
+    }
+
+    const now = new Date();
+    const [hour, minute] = timeSlot.split(':');
+    let allSelected = true; // 檢查是否所有日期都已選中
+
+    // 先檢查所有日期是否都已選中
+    for (const date of dateSlots) {
+      const timeDate = new Date(date);
+      timeDate.setHours(Number(hour), Number(minute), 0, 0);
+      
+      // 跳過過去的時間
+      if (timeDate.getTime() <= now.getTime()) continue;
+
+      const dateKey = getLocalDateString(date);
+      const key = `${dateKey}_${timeSlot}`;
+      const schedule = getScheduleAtTime(date, timeSlot);
+      
+      // 檢查是否已選中
+      const isSelected = pendingAdd[key] || (schedule && !schedule.booked && !pendingDelete[schedule.id]);
+      
+      if (!isSelected) {
+        allSelected = false;
+        break;
+      }
+    }
+
+    // 根據全選狀態決定是全部選中還是全部取消
+    setPendingAdd(prev => {
+      const newPendingAdd = { ...prev };
+      const newPendingDelete = { ...pendingDelete };
+
+      for (const date of dateSlots) {
+        const timeDate = new Date(date);
+        timeDate.setHours(Number(hour), Number(minute), 0, 0);
+        
+        // 跳過過去的時間
+        if (timeDate.getTime() <= now.getTime()) continue;
+
+        const dateKey = getLocalDateString(date);
+        const key = `${dateKey}_${timeSlot}`;
+        const schedule = getScheduleAtTime(date, timeSlot);
+
+        if (schedule) {
+          // 時段已存在
+          if (schedule.booked) continue; // 已預約的時段不能操作
+          
+          if (allSelected) {
+            // 全部取消：移除刪除標記
+            delete newPendingDelete[schedule.id];
+            delete newPendingAdd[key];
+          } else {
+            // 全部選中：標記為刪除（灰色）
+            newPendingDelete[schedule.id] = true;
+            delete newPendingAdd[key];
+          }
+        } else {
+          // 時段不存在
+          if (allSelected) {
+            // 全部取消：移除新增標記
+            delete newPendingAdd[key];
+          } else {
+            // 全部選中：標記為新增（綠色）
+            newPendingAdd[key] = true;
+          }
+        }
+      }
+
+      setPendingDelete(newPendingDelete);
+      return newPendingAdd;
+    });
+  }, [getLocalDateString, getScheduleAtTime, dateSlots, pendingAdd, pendingDelete, isSaving]);
+
   // 儲存所有變更
   const handleSave = async () => {
     // 🛡 第一層：UI 操作鎖 - 防止操作太快
@@ -1848,7 +2004,12 @@ export default function PartnerSchedulePage() {
                 {dateSlots.map((date) => {
                   const dateKey = getLocalDateString(date);
                   return (
-                    <div key={dateKey} className="flex-1 min-w-[90px] bg-gray-50 border-r border-gray-200 p-1 text-center">
+                    <div 
+                      key={dateKey} 
+                      className="flex-1 min-w-[90px] bg-gray-50 border-r border-gray-200 p-1 text-center cursor-pointer hover:bg-gray-100 transition-colors"
+                      onClick={() => !isSaving && handleDateHeaderClick(date)}
+                      title="點擊選擇該日期所有時段"
+                    >
                       <div className="text-xs sm:text-sm font-medium text-gray-800">
                         <div className="leading-tight">
                           <div className="font-bold">{date.getDate()}</div>
@@ -1862,7 +2023,12 @@ export default function PartnerSchedulePage() {
               <div className="flex">
                 <div className="w-16 sm:w-20 border-r border-gray-200 sticky left-0 z-10 bg-white">
                   {timeSlots.map((time) => (
-                    <div key={time} className="h-8 border-b border-gray-100 flex items-center justify-center">
+                    <div 
+                      key={time} 
+                      className="h-8 border-b border-gray-100 flex items-center justify-center cursor-pointer hover:bg-gray-50 transition-colors"
+                      onClick={() => !isSaving && handleTimeHeaderClick(time)}
+                      title="點擊選擇未來7天該時段"
+                    >
                       <span className="text-xs text-gray-700">{time}</span>
                     </div>
                   ))}

@@ -16,7 +16,7 @@ export const dynamic = 'force-dynamic';
  */
 export async function GET(
   request: Request,
-  { params }: { params: { roomId: string } }
+  { params }: { params: Promise<{ roomId: string }> | { roomId: string } }
 ) {
   const t0 = performance.now();
 
@@ -37,7 +37,9 @@ export async function GET(
       return NextResponse.json({ error: '請先登入' }, { status: 401 });
     }
 
-    const { roomId } = params;
+    // 處理 params 可能是 Promise 的情況（Next.js 15）
+    const resolvedParams = params instanceof Promise ? await params : params;
+    const { roomId } = resolvedParams;
     const { searchParams } = new URL(request.url);
     const limit = Math.min(parseInt(searchParams.get('limit') || '10'), 50);
     const cursor = searchParams.get('cursor');
@@ -313,7 +315,7 @@ export async function GET(
  */
 export async function POST(
   request: Request,
-  { params }: { params: { roomId: string } }
+  { params }: { params: Promise<{ roomId: string }> | { roomId: string } }
 ) {
   try {
     // 【架構修復】添加 rate limiting，防止寫入 API 爆炸
@@ -331,7 +333,9 @@ export async function POST(
       return NextResponse.json({ error: '請先登入' }, { status: 401 });
     }
 
-    const { roomId } = params;
+    // 處理 params 可能是 Promise 的情況（Next.js 15）
+    const resolvedParams = params instanceof Promise ? await params : params;
+    const { roomId } = resolvedParams;
     const body = await request.json();
     const { content } = body;
 

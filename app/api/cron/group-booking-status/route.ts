@@ -188,11 +188,54 @@ export async function GET() {
             console.error('Error deleting text channel for group:', group.id, error);
           }
           
-          // 標記為完成
+          // 標記群組預約為完成
           await client.groupBooking.update({
             where: { id: group.id },
             data: { status: 'COMPLETED' }
           });
+
+          // 🔥 更新相關的 Booking 記錄為 COMPLETED 並計算推薦收入
+          const groupBookings = await client.booking.findMany({
+            where: {
+              groupBookingId: group.id,
+              status: { not: 'COMPLETED' }
+            }
+          });
+
+          for (const booking of groupBookings) {
+            try {
+              // 更新 Booking 狀態為 COMPLETED
+              await client.booking.update({
+                where: { id: booking.id },
+                data: { status: 'COMPLETED' }
+              });
+
+              // 計算推薦收入（非阻塞，使用 fetch）
+              fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/partners/referral/calculate-earnings`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ bookingId: booking.id }),
+              })
+                .then((referralResponse) => {
+                  if (referralResponse.ok) {
+                    console.log(`✅ 群組預約 Booking ${booking.id} 推薦收入計算成功`);
+                  } else {
+                    referralResponse.json().then((error) => {
+                      console.warn(`⚠️ 群組預約 Booking ${booking.id} 推薦收入計算失敗:`, error);
+                    });
+                  }
+                })
+                .catch((error) => {
+                  console.error(`❌ 群組預約 Booking ${booking.id} 推薦收入計算錯誤:`, error);
+                });
+
+              console.log(`✅ 群組預約 Booking ${booking.id} 已標記為完成`);
+            } catch (error) {
+              console.error(`❌ 處理群組預約 Booking ${booking.id} 時發生錯誤:`, error);
+            }
+          }
         }
       }
 
