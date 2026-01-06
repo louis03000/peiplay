@@ -585,11 +585,38 @@ function BookingWizardContent() {
       seenTimeSlots.add(timeSlotIdentifier);
       return true;
     });
-    // 🔥 改進排序：確保按照台灣時間正確排序（從上午開始，按時間順序排列）
+    // 🔥 改進排序：確保按照台灣時間正確排序（從上午12:00-上午12:30開始，按時間順序排列）
+    // 獲取選中日期的00:00（台灣時間）作為基準點
+    const selectedDateStr = new Date(selectedDate).toLocaleDateString('en-CA'); // YYYY-MM-DD格式
+    const baseDateTW = new Date(`${selectedDateStr}T00:00:00+08:00`); // 台灣時間00:00
+    const baseTimestamp = baseDateTW.getTime();
+    
     const sorted = uniqueSchedules.sort((a, b) => {
       const timeA = new Date(a.startTime).getTime();
       const timeB = new Date(b.startTime).getTime();
-      return timeA - timeB;
+      
+      // 計算相對於選中日期00:00的偏移量（毫秒）
+      let offsetA = timeA - baseTimestamp;
+      let offsetB = timeB - baseTimestamp;
+      
+      // 處理跨日情況：
+      // 如果偏移量為負數（表示是前一天的時段，比如23:30-00:00），加上24小時使其排在最後
+      // 如果偏移量超過24小時（表示是後一天的時段），減去24小時使其排在前面
+      if (offsetA < 0) {
+        offsetA += 24 * 60 * 60 * 1000; // 加上24小時
+      }
+      if (offsetA >= 24 * 60 * 60 * 1000) {
+        offsetA -= 24 * 60 * 60 * 1000; // 減去24小時
+      }
+      
+      if (offsetB < 0) {
+        offsetB += 24 * 60 * 60 * 1000; // 加上24小時
+      }
+      if (offsetB >= 24 * 60 * 60 * 1000) {
+        offsetB -= 24 * 60 * 60 * 1000; // 減去24小時
+      }
+      
+      return offsetA - offsetB;
     });
     console.log('[預約頁面] availableTimeSlots 最終結果:', sorted.length, '個可用時段');
     return sorted;
