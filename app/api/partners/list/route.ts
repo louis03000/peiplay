@@ -51,8 +51,11 @@ export async function GET(request: NextRequest) {
             console.log('[partners/list] 篩選條件:', { availableNow, rankBooster });
 
             // 查詢有活躍預約的夥伴（無論是否開啟篩選器，都需要這個信息）
-            // 查詢正在進行中或即將開始的預約（開始時間 <= 現在，結束時間 >= 現在）
-            const busyBookings = await client.booking.findMany({
+            // 🔥 包括兩種類型的預約：
+            // 1. 正在進行中的預約（開始時間 <= 現在，結束時間 >= 現在）
+            // 2. 已確認但還未開始的預約（狀態為 CONFIRMED 或 PARTNER_ACCEPTED，且開始時間 > 現在）
+            // 這樣可以避免已接受即時預約的夥伴出現在"現在有空"列表中
+            const ongoingBookings = await client.booking.findMany({
               where: {
                 status: {
                   in: ['PENDING', 'CONFIRMED', 'PAID_WAITING_PARTNER_CONFIRMATION', 'PARTNER_ACCEPTED'],
@@ -69,8 +72,31 @@ export async function GET(request: NextRequest) {
               take: 200,
             });
 
-            const busyPartnerIds = busyBookings.map((b) => b.partnerId).filter(Boolean) as string[];
-            console.log('[partners/list] 有活躍預約的夥伴數量:', busyPartnerIds.length, 'IDs:', busyPartnerIds);
+            // 🔥 查詢已確認但還未開始的預約（包括即時預約）
+            const confirmedFutureBookings = await client.booking.findMany({
+              where: {
+                status: {
+                  in: ['CONFIRMED', 'PARTNER_ACCEPTED'],
+                },
+                schedule: {
+                  startTime: { gt: now },
+                },
+              },
+              select: {
+                partnerId: true,
+              },
+              distinct: ['partnerId'],
+              take: 200,
+            });
+
+            // 合併兩類預約的夥伴ID
+            const busyPartnerIds = [
+              ...ongoingBookings.map((b) => b.partnerId).filter(Boolean),
+              ...confirmedFutureBookings.map((b) => b.partnerId).filter(Boolean),
+            ] as string[];
+            // 去重
+            const uniqueBusyPartnerIds = [...new Set(busyPartnerIds)];
+            console.log('[partners/list] 有活躍預約的夥伴數量:', uniqueBusyPartnerIds.length, 'IDs:', uniqueBusyPartnerIds);
 
             const allPartners = await client.partner.findMany({
               where: partnerWhere,
@@ -193,8 +219,8 @@ export async function GET(request: NextRequest) {
                   return false;
                 }
                 
-                // 檢查是否有活躍預約
-                if (busyPartnerIds.includes(partner.id)) {
+                // 檢查是否有活躍預約（包括正在進行的和已確認但還未開始的）
+                if (uniqueBusyPartnerIds.includes(partner.id)) {
                   console.log('[partners/list] 過濾：有活躍預約', partner.id, partner.name);
                   return false;
                 }
@@ -215,7 +241,7 @@ export async function GET(request: NextRequest) {
                 console.log('[partners/list] ✅ 通過過濾：現在有空', partner.id, partner.name, {
                   isAvailableNow: partner.isAvailableNow,
                   availableNowSince: partner.availableNowSince,
-                  hasBusyBooking: busyPartnerIds.includes(partner.id)
+                  hasBusyBooking: uniqueBusyPartnerIds.includes(partner.id)
                 });
               }
               
@@ -226,8 +252,8 @@ export async function GET(request: NextRequest) {
               // 驗證「現在有空」狀態：即使 isAvailableNow 為 true，也要檢查是否有活躍預約和時間限制
               let isAvailableNow = !!partner.isAvailableNow;
               if (isAvailableNow) {
-                // 檢查是否有活躍預約
-                if (busyPartnerIds.includes(partner.id)) {
+                // 檢查是否有活躍預約（包括正在進行的和已確認但還未開始的）
+                if (uniqueBusyPartnerIds.includes(partner.id)) {
                   isAvailableNow = false;
                   console.log('[partners/list] 修正：有活躍預約，將 isAvailableNow 設為 false', partner.id, partner.name);
                 }

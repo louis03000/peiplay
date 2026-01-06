@@ -284,20 +284,76 @@ export const authOptions: NextAuthOptions = {
       let isNewUser = false;
       
       if (!dbUser) {
-        // 如果 User 不存在，創建一個
-        dbUser = await prisma.user.create({
-          data: {
-            id: userId,
-            email: user.email || `line_${lineId}@example.com`,
-            password: '', // LINE 用戶不需要密碼
-            name: user.name || 'New User',
-            role: 'CUSTOMER',
-            phone: '',
-            birthday: new Date('2000-01-01'),
-          },
+        // 如果 User 不存在，嘗試創建一個
+        // 🔥 先檢查 email 是否已存在（避免唯一約束衝突）
+        const emailToUse = user.email || `line_${lineId}@example.com`;
+        const existingUserByEmail = await prisma.user.findUnique({
+          where: { email: emailToUse },
+          select: { id: true },
         });
-        isNewUser = true;
-        console.log('新用戶已創建:', dbUser.id);
+        
+        if (existingUserByEmail) {
+          // 如果 email 已存在，使用現有用戶
+          dbUser = await prisma.user.findUnique({
+            where: { id: existingUserByEmail.id },
+            select: {
+              id: true,
+              email: true,
+              name: true,
+              role: true,
+              emailVerified: true,
+            },
+          });
+          userId = existingUserByEmail.id;
+          console.log('找到現有用戶（通過 email）:', dbUser?.id);
+        } else {
+          // email 不存在，創建新用戶
+          try {
+            dbUser = await prisma.user.create({
+              data: {
+                id: userId,
+                email: emailToUse,
+                password: '', // LINE 用戶不需要密碼
+                name: user.name || 'New User',
+                role: 'CUSTOMER',
+                phone: '',
+                birthday: new Date('2000-01-01'),
+              },
+            });
+            isNewUser = true;
+            console.log('新用戶已創建:', dbUser.id);
+          } catch (error: any) {
+            // 如果創建失敗（可能是 id 衝突），嘗試查找現有用戶
+            console.error('創建用戶失敗，嘗試查找現有用戶:', error);
+            if (error.code === 'P2002') {
+              // 唯一約束衝突，嘗試通過 email 或 id 查找
+              const existingUser = await prisma.user.findFirst({
+                where: {
+                  OR: [
+                    { id: userId },
+                    { email: emailToUse },
+                  ],
+                },
+                select: {
+                  id: true,
+                  email: true,
+                  name: true,
+                  role: true,
+                  emailVerified: true,
+                },
+              });
+              if (existingUser) {
+                dbUser = existingUser;
+                userId = existingUser.id;
+                console.log('找到現有用戶（創建失敗後）:', dbUser.id);
+              } else {
+                throw error; // 如果找不到，重新拋出錯誤
+              }
+            } else {
+              throw error; // 其他錯誤直接拋出
+            }
+          }
+        }
       }
 
       // 如果是 line 登入，先查 lineId 對應的 customer

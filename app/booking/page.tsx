@@ -546,8 +546,21 @@ function BookingWizardContent() {
       if (!isSameDay(scheduleDate, selectedDate)) return false;
       if (new Date(schedule.startTime) <= now) return false;
 
-      // 檢查是否與任何已預約時段重疊
+      // 🔥 只顯示從中午12:00開始的時段（上午12:00-上午12:30為最早的時段）
       const scheduleStart = new Date(schedule.startTime);
+      // 轉換為台灣時間
+      const scheduleStartTW = new Date(scheduleStart.toLocaleString('en-US', { timeZone: 'Asia/Taipei' }));
+      const hour = scheduleStartTW.getHours();
+      const minute = scheduleStartTW.getMinutes();
+      
+      // 過濾掉早於中午12:00的時段
+      if (hour < 12) {
+        return false;
+      }
+      // 如果是12:00整點，保留（這是第一個時段）
+      // 如果是12:00之後，保留
+
+      // 檢查是否與任何已預約時段重疊
       const scheduleEnd = new Date(schedule.endTime);
 
       for (const bookedSlot of bookedTimeSlots) {
