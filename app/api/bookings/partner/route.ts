@@ -127,6 +127,7 @@ export async function GET() {
         return {
           ...booking,
           serviceType,
+          isInstantBooking, // 添加 isInstantBooking 字段，供前端判断是否同时显示"即時預約"
         }
       });
 

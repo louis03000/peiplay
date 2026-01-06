@@ -11,6 +11,7 @@ type Booking = {
   status: string;
   createdAt: string;
   serviceType?: string; // 服務項目：一般預約、即時預約、群組預約、多人陪玩、純聊天
+  isInstantBooking?: boolean; // 是否為即時預約
   partnerResponseDeadline?: string | null; // 期限：夥伴需要在幾點幾分前決定是否接受
   schedule: {
     date: string;
@@ -583,9 +584,35 @@ export default function BookingsPage() {
                           : "-"}
                       </td>
                       <td className="py-4 px-6 text-white font-medium">
-                        <span className="inline-block px-2 py-1 rounded text-xs font-semibold bg-purple-500/20 text-purple-300 border border-purple-500/30">
-                          {booking.serviceType || '一般預約'}
-                        </span>
+                        <div className="flex flex-wrap gap-2">
+                          {/* 🔥 如果是純聊天即時預約，同時顯示"純聊天"和"即時預約" */}
+                          {booking.serviceType === '純聊天' && booking.isInstantBooking && (
+                            <>
+                              <span className="inline-block px-2 py-1 rounded text-xs font-semibold bg-pink-500/20 text-pink-300 border border-pink-500/30">
+                                純聊天
+                              </span>
+                              <span className="inline-block px-2 py-1 rounded text-xs font-semibold bg-orange-500/20 text-orange-300 border border-orange-500/30">
+                                即時預約
+                              </span>
+                            </>
+                          )}
+                          {/* 其他情況只顯示 serviceType */}
+                          {!(booking.serviceType === '純聊天' && booking.isInstantBooking) && (
+                            <span className={`inline-block px-2 py-1 rounded text-xs font-semibold border ${
+                              booking.serviceType === '即時預約'
+                                ? 'bg-orange-500/20 text-orange-300 border-orange-500/30'
+                                : booking.serviceType === '多人陪玩'
+                                ? 'bg-purple-500/20 text-purple-300 border-purple-500/30'
+                                : booking.serviceType === '群組預約'
+                                ? 'bg-green-500/20 text-green-300 border-green-500/30'
+                                : booking.serviceType === '純聊天'
+                                ? 'bg-pink-500/20 text-pink-300 border-pink-500/30'
+                                : 'bg-purple-500/20 text-purple-300 border-purple-500/30'
+                            }`}>
+                              {booking.serviceType || '一般預約'}
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="py-4 px-6 text-white font-medium">
                         {booking.schedule?.startTime &&
