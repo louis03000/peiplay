@@ -87,6 +87,9 @@ function MultiPlayerBookingContent() {
   const [replacementPartners, setReplacementPartners] = useState<Partner[]>([])
   const [selectedReplacementPartner, setSelectedReplacementPartner] = useState<string | null>(null)
 
+  // 確認創建多人陪玩 Modal
+  const [showConfirmModal, setShowConfirmModal] = useState(false)
+
   // 評論回饋相關狀態
   const [reviews, setReviews] = useState<Array<{
     id: string
@@ -993,7 +996,7 @@ ${formatScheduleChecks(p)}
                     </p>
                   </div>
                   <button
-                    onClick={createMultiPlayerBooking}
+                    onClick={() => setShowConfirmModal(true)}
                     disabled={loading || violationCount >= 3}
                     className="px-6 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg hover:from-purple-600 hover:to-pink-600 transition-all disabled:opacity-50"
                   >
@@ -1273,6 +1276,147 @@ ${formatScheduleChecks(p)}
                   </div>
                 </>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* 確認創建多人陪玩 Modal */}
+        {showConfirmModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+              <div className="p-6">
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-2xl font-bold text-gray-900">確認創建多人陪玩</h2>
+                  <button
+                    onClick={() => setShowConfirmModal(false)}
+                    className="text-gray-400 hover:text-gray-600 transition-colors"
+                  >
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+
+                <div className="space-y-4">
+                  {/* 預約時間 */}
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <h3 className="font-semibold text-gray-900 mb-2">📅 預約時間</h3>
+                    <p className="text-gray-700">
+                      {selectedDate && (
+                        <>
+                          {new Date(selectedDate).toLocaleDateString('zh-TW', { 
+                            year: 'numeric', 
+                            month: 'long', 
+                            day: 'numeric',
+                            weekday: 'long'
+                          })}
+                        </>
+                      )}
+                      {selectedStartTime && selectedEndTime && (
+                        <span className="ml-2">
+                          {selectedStartTime} - {selectedEndTime}
+                        </span>
+                      )}
+                    </p>
+                  </div>
+
+                  {/* 選擇的遊戲 */}
+                  {selectedGames.length > 0 && (
+                    <div className="bg-gray-50 rounded-lg p-4">
+                      <h3 className="font-semibold text-gray-900 mb-2">🎮 選擇的遊戲</h3>
+                      <div className="flex flex-wrap gap-2">
+                        {selectedGames.map((game, index) => (
+                          <span key={index} className="px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-sm">
+                            {game}
+                          </span>
+                        ))}
+                        {otherGame && otherGame.trim() && (
+                          <span className="px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-sm">
+                            {otherGame.trim()}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 選擇的夥伴 */}
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <h3 className="font-semibold text-gray-900 mb-3">👥 選擇的夥伴 ({selectedPartners.size} 位)</h3>
+                    <div className="space-y-2 max-h-60 overflow-y-auto">
+                      {Array.from(selectedPartners).map((scheduleId) => {
+                        const partner = partners.find(p => p.matchingSchedule.id === scheduleId)
+                        if (!partner) return null
+                        const durationHours = (new Date(partner.matchingSchedule.endTime).getTime() - 
+                                             new Date(partner.matchingSchedule.startTime).getTime()) / (1000 * 60 * 60)
+                        const amount = durationHours * partner.halfHourlyRate * 2
+                        return (
+                          <div key={scheduleId} className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200">
+                            <div className="flex items-center gap-3">
+                              {partner.coverImage && (
+                                <SecureImage
+                                  src={partner.coverImage}
+                                  alt={partner.name}
+                                  className="w-12 h-12 rounded-full object-cover"
+                                />
+                              )}
+                              <div>
+                                <p className="font-medium text-gray-900">{partner.name}</p>
+                                <p className="text-sm text-gray-600">
+                                  {new Date(partner.matchingSchedule.startTime).toLocaleTimeString('zh-TW', { 
+                                    hour: '2-digit', 
+                                    minute: '2-digit' 
+                                  })} - {new Date(partner.matchingSchedule.endTime).toLocaleTimeString('zh-TW', { 
+                                    hour: '2-digit', 
+                                    minute: '2-digit' 
+                                  })}
+                                </p>
+                              </div>
+                            </div>
+                            <p className="font-semibold text-gray-900">${amount.toFixed(0)}</p>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+
+                  {/* 總費用 */}
+                  <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg p-4 border-2 border-purple-200">
+                    <div className="flex justify-between items-center">
+                      <span className="text-lg font-semibold text-gray-900">總費用：</span>
+                      <span className="text-2xl font-bold text-purple-600">
+                        ${calculateTotalAmount().toFixed(0)}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* 提示訊息 */}
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                    <p className="text-sm text-yellow-800">
+                      ⚠️ 請確認以上資訊無誤，創建後將無法修改。夥伴確認後，Discord 頻道建立即視為服務已開始。
+                    </p>
+                  </div>
+                </div>
+
+                {/* 按鈕 */}
+                <div className="flex gap-4 mt-6">
+                  <button
+                    onClick={() => setShowConfirmModal(false)}
+                    className="flex-1 px-6 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-medium"
+                  >
+                    取消
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowConfirmModal(false)
+                      createMultiPlayerBooking()
+                    }}
+                    disabled={loading}
+                    className="flex-1 px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg hover:from-purple-600 hover:to-pink-600 transition-all disabled:opacity-50 font-medium"
+                  >
+                    {loading ? '創建中...' : '確認創建'}
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         )}

@@ -89,12 +89,37 @@ export async function GET(
       const isFreeChat =
         !room.bookingId && !room.groupBookingId && !room.multiPlayerBookingId;
 
+      // ✅ 如果是免費聊天室，計算用戶今天的消息數量
+      let todayMessageCount = 0;
+      if (isFreeChat) {
+        // 計算今天的開始時間（台灣時區）
+        const dayjs = (await import('dayjs')).default;
+        const utc = (await import('dayjs/plugin/utc')).default;
+        const timezone = (await import('dayjs/plugin/timezone')).default;
+        dayjs.extend(utc);
+        dayjs.extend(timezone);
+        
+        const todayStartTaipei = dayjs.tz('Asia/Taipei').startOf('day');
+        const todayStartUTCForDB = todayStartTaipei.utc().toDate();
+
+        todayMessageCount = await (client as any).chatMessage.count({
+          where: {
+            roomId,
+            senderId: session.user.id,
+            createdAt: {
+              gte: todayStartUTCForDB, // 只計算今天的消息
+            },
+          },
+        });
+      }
+
       // ✅ 返回極簡 meta
       return {
         lastMessageAt: room.lastMessageAt?.toISOString() || null,
         unreadCount,
         isFreeChat,
         type: room.type,
+        todayMessageCount: isFreeChat ? todayMessageCount : null, // 只在免費聊天室返回
       };
     }, 'chat:rooms:roomId:meta:get');
 

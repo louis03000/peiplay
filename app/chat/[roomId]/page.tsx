@@ -260,9 +260,19 @@ export default function ChatRoomPage() {
               !currentRoom.multiPlayerBookingId;
 
             if (isFreeChatRoom) {
-              const userSentCount = formattedMessages.filter(
-                (msg: ChatMessage) => msg.senderId === session.user.id
-              ).length;
+              // 只計算今天的消息（台灣時區）
+              const now = new Date();
+              const taipeiNow = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Taipei' }));
+              const todayStart = new Date(taipeiNow);
+              todayStart.setHours(0, 0, 0, 0);
+              
+              const userSentCount = formattedMessages.filter((msg: ChatMessage) => {
+                if (msg.senderId !== session.user.id) return false;
+                // 檢查消息是否在今天
+                const msgDate = new Date(msg.createdAt);
+                const msgTaipeiDate = new Date(msgDate.toLocaleString('en-US', { timeZone: 'Asia/Taipei' }));
+                return msgTaipeiDate >= todayStart;
+              }).length;
               setUserMessageCount(userSentCount);
             }
           }
@@ -408,13 +418,23 @@ export default function ChatRoomPage() {
         markAsRead(unreadMessageIds);
       }
 
-      // 更新用戶發送的消息數量（僅免費聊天室）
+      // 更新用戶發送的消息數量（僅免費聊天室，只計算今天的消息）
       if (isFreeChat) {
-        // 合併歷史消息和 socket 消息來計算
+        // 計算今天的開始時間（台灣時區）
+        const now = new Date();
+        const taipeiNow = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Taipei' }));
+        const todayStart = new Date(taipeiNow);
+        todayStart.setHours(0, 0, 0, 0);
+        
+        // 合併歷史消息和 socket 消息來計算今天的消息
         const allMessages = [...loadedHistoryMessages, ...socketMessages];
-        const userSentCount = allMessages.filter(
-          (msg) => msg.senderId === session.user.id && !msg.id.startsWith('temp-')
-        ).length;
+        const userSentCount = allMessages.filter((msg) => {
+          if (msg.senderId !== session.user.id || msg.id.startsWith('temp-')) return false;
+          // 檢查消息是否在今天
+          const msgDate = new Date(msg.createdAt);
+          const msgTaipeiDate = new Date(msgDate.toLocaleString('en-US', { timeZone: 'Asia/Taipei' }));
+          return msgTaipeiDate >= todayStart;
+        }).length;
         setUserMessageCount(userSentCount);
       }
     }
@@ -557,12 +577,31 @@ export default function ChatRoomPage() {
       <div className="bg-white border-b border-gray-200 px-4 py-3">
         {/* 免費聊天提示 */}
         {isFreeChat && (
-          <div className="mb-2 bg-purple-50 border border-purple-200 rounded-lg px-3 py-2">
-            <p className="text-sm text-purple-800 font-medium">
-              免費聊天句數上限為5句
-              <span className="ml-2 text-purple-600">
-                （已使用 {userMessageCount}/{FREE_CHAT_LIMIT} 句）
-              </span>
+          <div className={`mb-2 rounded-lg px-3 py-2 ${
+            userMessageCount >= FREE_CHAT_LIMIT 
+              ? 'bg-red-50 border border-red-300' 
+              : 'bg-purple-50 border border-purple-200'
+          }`}>
+            <p className={`text-sm font-medium ${
+              userMessageCount >= FREE_CHAT_LIMIT 
+                ? 'text-red-800' 
+                : 'text-purple-800'
+            }`}>
+              {userMessageCount >= FREE_CHAT_LIMIT ? (
+                <>
+                  ⚠️ 已達到免費聊天上限（{userMessageCount}/{FREE_CHAT_LIMIT} 句）
+                  <span className="ml-2 text-xs text-red-600">
+                    （每日凌晨 00:00 會重新計算）
+                  </span>
+                </>
+              ) : (
+                <>
+                  免費聊天句數上限為5句
+                  <span className="ml-2 text-purple-600">
+                    （今日已使用 {userMessageCount}/{FREE_CHAT_LIMIT} 句）
+                  </span>
+                </>
+              )}
             </p>
           </div>
         )}

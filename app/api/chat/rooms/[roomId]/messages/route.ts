@@ -375,23 +375,40 @@ export async function POST(
       const isFreeChat =
         !room?.bookingId && !room?.groupBookingId && !room?.multiPlayerBookingId;
 
-      // 免費聊天限制檢查
+      // 免費聊天限制檢查（每日重置）
       if (isFreeChat) {
-        const recentMessages = await (client as any).chatMessage.findMany({
+        // 使用 dayjs 計算今天開始的 UTC 時間（台灣時區）
+        const dayjs = (await import('dayjs')).default;
+        const utc = (await import('dayjs/plugin/utc')).default;
+        const timezone = (await import('dayjs/plugin/timezone')).default;
+        dayjs.extend(utc);
+        dayjs.extend(timezone);
+        
+        // 獲取台灣時區今天的開始時間，然後轉換為 UTC
+        const todayStartTaipei = dayjs.tz('Asia/Taipei').startOf('day');
+        const todayStartUTCForDB = todayStartTaipei.utc().toDate();
+
+        const todayMessages = await (client as any).chatMessage.findMany({
           where: {
             roomId,
             senderId: session.user.id,
+            createdAt: {
+              gte: todayStartUTCForDB, // 只計算今天的消息
+            },
           },
           select: { id: true },
-          orderBy: { createdAt: 'desc' },
-          take: 5,
         });
 
         const FREE_CHAT_LIMIT = 5;
-        if (recentMessages.length >= FREE_CHAT_LIMIT) {
+        if (todayMessages.length >= FREE_CHAT_LIMIT) {
           // 返回 403 而不是 500，因為這是業務邏輯限制，不是伺服器錯誤
           return NextResponse.json(
-            { error: `免費聊天句數上限為${FREE_CHAT_LIMIT}句，您已達到上限` },
+            { 
+              error: `免費聊天句數上限為${FREE_CHAT_LIMIT}句，您已達到今日上限。每日凌晨 00:00 會重新計算。`,
+              limitReached: true,
+              used: todayMessages.length,
+              limit: FREE_CHAT_LIMIT
+            },
             { status: 403 }
           );
         }
