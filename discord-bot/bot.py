@@ -105,7 +105,7 @@ rating_notification_cache = {}  # 緩存評價通知 {record_id: {'ratings': [ra
 pairing_record_sent = set()  # 追蹤已發送配對紀錄的 record_id，避免重複發送
 
 # 創建 Discord 頻道的函數
-def create_booking_text_channel(guild, booking_id, customer_name, partner_name, is_instant_booking=False):
+async def create_booking_text_channel(guild, booking_id, customer_name, partner_name, is_instant_booking=False):
     """創建預約文字頻道"""
     try:
         # 使用 MD5 雜湊確保一致性
@@ -115,7 +115,7 @@ def create_booking_text_channel(guild, booking_id, customer_name, partner_name, 
         
         if is_instant_booking:
             channel_name = f"🔥{cute_item}-{customer_name}-{partner_name}"
-            else:
+        else:
             channel_name = f"📝{cute_item}-{customer_name}-{partner_name}"
         
         # 檢查頻道是否已存在
@@ -124,8 +124,8 @@ def create_booking_text_channel(guild, booking_id, customer_name, partner_name, 
             print(f"⚠️ 文字頻道已存在: {channel_name}")
             return existing_channel
         
-        # 創建頻道
-        channel = guild.create_text_channel(
+        # 創建頻道（異步）
+        channel = await guild.create_text_channel(
             channel_name,
             category=None,  # 不指定分類
             topic=f"預約頻道 - 客戶: {customer_name}, 夥伴: {partner_name}"
@@ -274,7 +274,7 @@ async def check_early_communication_channels(guild, now):
                     is_instant_booking = booking.paymentInfo.get('isInstantBooking') == 'true'
                 
                 # 創建提前溝通文字頻道
-                channel = create_booking_text_channel(
+                channel = await create_booking_text_channel(
                     guild, 
                     booking.id, 
                     booking.customer_name, 
@@ -764,7 +764,7 @@ async def check_new_bookings():
                     is_instant_booking = booking.paymentInfo.get('isInstantBooking') == 'true'
                 
                 # 創建提前溝通文字頻道
-                channel = create_booking_text_channel(
+                channel = await create_booking_text_channel(
                     guild, 
                     booking.id, 
                     booking.customer_name, 
@@ -845,7 +845,7 @@ async def check_instant_bookings_for_voice_channel():
                 # 純聊天只需要文字頻道，不需要語音頻道
                 if is_chat_only:
                     # 創建正式文字頻道
-                    text_channel_coro = create_booking_text_channel(
+                    text_channel = await create_booking_text_channel(
                         guild, 
                         booking.id, 
                         booking.customer_name, 
@@ -853,8 +853,7 @@ async def check_instant_bookings_for_voice_channel():
                         True  # is_instant_booking
                     )
                     
-                    if text_channel_coro:
-                        text_channel = await text_channel_coro  # await the coroutine
+                    if text_channel:
                         
                         # 更新資料庫（只更新文字頻道，語音頻道為 NULL）
                         session = Session()
@@ -900,7 +899,7 @@ async def check_instant_bookings_for_voice_channel():
                         voice_channel = await voice_channel_coro  # await the coroutine
                         
                         # 創建正式文字頻道
-                        text_channel_coro = create_booking_text_channel(
+                        text_channel = await create_booking_text_channel(
                             guild, 
                             booking.id, 
                             booking.customer_name, 
@@ -908,8 +907,7 @@ async def check_instant_bookings_for_voice_channel():
                             True  # is_instant_booking
                         )
                         
-                        if text_channel_coro:
-                            text_channel = await text_channel_coro  # await the coroutine
+                        if text_channel:
                             
                             # 更新資料庫
                             session = Session()
@@ -2481,7 +2479,7 @@ app = Flask(__name__)
 def create_instant_text_channel():
     """為即時預約創建文字頻道"""
     try:
-    data = request.get_json()
+        data = request.get_json()
         booking_id = data.get('booking_id')
         customer_name = data.get('customer_name')
         partner_name = data.get('partner_name')
@@ -2490,31 +2488,39 @@ def create_instant_text_channel():
             return jsonify({'error': '缺少必要參數'}), 400
         
         # 獲取 Discord 伺服器
-            guild = bot.get_guild(GUILD_ID)
-            if not guild:
+        guild = bot.get_guild(GUILD_ID)
+        if not guild:
             return jsonify({'error': '找不到 Discord 伺服器'}), 500
         
-        # 創建文字頻道
-        channel = create_booking_text_channel(guild, booking_id, customer_name, partner_name, True)
-        
-        if channel:
-            # 更新資料庫
-            session = Session()
-            session.execute(text("""
-                UPDATE "Booking" 
-                SET "discordEarlyTextChannelId" = :channel_id
-                WHERE id = :booking_id
-            """), {'channel_id': str(channel.id), 'booking_id': booking_id})
-            session.commit()
-            session.close()
+        # 使用 asyncio 來調用異步函數
+        import asyncio
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            channel = loop.run_until_complete(
+                create_booking_text_channel(guild, booking_id, customer_name, partner_name, True)
+            )
             
-            return jsonify({
-                'success': True,
-                'channel_id': str(channel.id),
-                'channel_name': channel.name
-            })
-                else:
-            return jsonify({'error': '創建頻道失敗'}), 500
+            if channel:
+                # 更新資料庫
+                session = Session()
+                session.execute(text("""
+                    UPDATE "Booking" 
+                    SET "discordEarlyTextChannelId" = :channel_id
+                    WHERE id = :booking_id
+                """), {'channel_id': str(channel.id), 'booking_id': booking_id})
+                session.commit()
+                session.close()
+                
+                return jsonify({
+                    'success': True,
+                    'channel_id': str(channel.id),
+                    'channel_name': channel.name
+                })
+            else:
+                return jsonify({'error': '創建頻道失敗'}), 500
+        finally:
+            loop.close()
             
     except Exception as e:
         print(f"❌ 創建即時文字頻道時發生錯誤: {e}")

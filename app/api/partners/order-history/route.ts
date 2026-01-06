@@ -88,6 +88,12 @@ export async function GET(request: NextRequest) {
               date: true,
               startTime: true,
               endTime: true,
+              partner: {
+                select: {
+                  supportsChatOnly: true,
+                  chatOnlyRate: true,
+                },
+              },
             },
           },
         },
@@ -131,7 +137,12 @@ export async function GET(request: NextRequest) {
           serviceType = '即時預約'
         } else if (booking.groupBookingId) {
           serviceType = '群組預約'
-        } else if (booking.serviceType === 'CHAT_ONLY') {
+        } else if (
+          booking.serviceType === 'CHAT_ONLY' || 
+          paymentInfo?.isChatOnly === true || 
+          paymentInfo?.isChatOnly === 'true' ||
+          (booking.schedule?.partner?.supportsChatOnly && booking.schedule?.partner?.chatOnlyRate)
+        ) {
           serviceType = '純聊天'
         }
 

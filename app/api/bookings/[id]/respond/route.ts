@@ -52,6 +52,7 @@ export async function POST(
                   id: true,
                   name: true,
                   email: true,
+                  discord: true,
                 },
               },
             },
@@ -65,6 +66,19 @@ export async function POST(
                       id: true,
                       name: true,
                       email: true,
+                      discord: true,
+                    },
+                  },
+                },
+                select: {
+                  id: true,
+                  isAvailableNow: true,
+                  user: {
+                    select: {
+                      id: true,
+                      name: true,
+                      email: true,
+                      discord: true,
                     },
                   },
                 },
@@ -206,13 +220,20 @@ export async function POST(
         },
       });
 
+      // 🔥 檢查是否為即時預約且夥伴「現在有空」
+      const paymentInfo = booking.paymentInfo as any;
+      const isInstantBooking = paymentInfo?.isInstantBooking === true || paymentInfo?.isInstantBooking === 'true';
+      const isAvailableNow = booking.schedule.partner.isAvailableNow === true;
+      const shouldCreateDiscordChannel = isInstantBooking && isAvailableNow && action === 'accept';
+
       return { 
         type: 'SUCCESS', 
         booking: updated, 
         action, 
         originalBooking: booking, 
         isMultiPlayerBooking,
-        multiPlayerBookingData // 🔥 傳遞多人陪玩數據
+        multiPlayerBookingData, // 🔥 傳遞多人陪玩數據
+        shouldCreateDiscordChannel, // 🔥 標記是否需要立即創建 Discord 頻道
       } as const;
     }, 'bookings:respond');
 
@@ -256,6 +277,59 @@ export async function POST(
           ).catch((error) => {
             console.error('❌ 自動創建聊天室失敗:', error);
           })
+        : Promise.resolve(),
+
+      // 🔥 如果是即時預約且夥伴「現在有空」，立即創建 Discord 文字頻道
+      result.shouldCreateDiscordChannel
+        ? (async () => {
+            try {
+              const originalBooking = result.originalBooking;
+              if (!originalBooking) return;
+
+              const customerName = originalBooking.customer.user.name || '客戶';
+              const partnerName = originalBooking.schedule.partner.user.name || '夥伴';
+              const customerDiscord = originalBooking.customer.user.discord;
+              const partnerDiscord = originalBooking.schedule.partner.user.discord;
+
+              // 調用 Discord bot API 創建文字頻道
+              const discordBotUrl = process.env.DISCORD_BOT_URL || 'http://localhost:5001';
+              const response = await fetch(`${discordBotUrl}/create_instant_text_channel`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  booking_id: resolvedParams.id,
+                  customer_name: customerName,
+                  partner_name: partnerName,
+                  customer_discord: customerDiscord,
+                  partner_discord: partnerDiscord,
+                  start_time: originalBooking.schedule.startTime.toISOString(),
+                  end_time: originalBooking.schedule.endTime.toISOString(),
+                }),
+              });
+
+              if (response.ok) {
+                const data = await response.json();
+                console.log(`✅ 即時預約 Discord 文字頻道已創建: ${data.channel_id} (booking: ${resolvedParams.id})`);
+                
+                // 更新資料庫中的 discordEarlyTextChannelId
+                await db.query(async (client) => {
+                  await client.booking.update({
+                    where: { id: resolvedParams.id },
+                    data: { discordEarlyTextChannelId: data.channel_id },
+                  });
+                }, 'bookings:respond:update-discord-channel').catch((error) => {
+                  console.error('❌ 更新 Discord 頻道 ID 失敗:', error);
+                });
+              } else {
+                const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+                console.error(`❌ 創建 Discord 文字頻道失敗:`, errorData);
+              }
+            } catch (error) {
+              console.error('❌ 調用 Discord bot API 失敗:', error);
+            }
+          })()
         : Promise.resolve(),
       
       // 发送邮件（使用原始 booking 数据，因为更新后的只包含部分字段）
