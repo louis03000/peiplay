@@ -738,6 +738,7 @@ async def check_new_bookings():
         session = Session()
         
         # 查找已確認但還沒有 Discord 頻道的新預約
+        # 即時預約應立即建立提前溝通頻道，其他預約延遲 3 分鐘以避免重複 / 早於付款的建立
         new_bookings = session.execute(text("""
             SELECT b.id, b.customerId, b.scheduleId, b."paymentInfo", b.discordDelayMinutes,
                    c.name as customer_name, p.name as partner_name, s.startTime
@@ -747,7 +748,10 @@ async def check_new_bookings():
             JOIN "Partner" p ON s.partnerId = p.id
             WHERE b.status = 'CONFIRMED' 
             AND b.discordEarlyTextChannelId IS NULL
-            AND b.createdAt <= NOW() - INTERVAL '3 minutes'
+            AND (
+                b."paymentInfo"->>'isInstantBooking' = 'true'
+                OR b.createdAt <= NOW() - INTERVAL '3 minutes'
+            )
         """)).fetchall()
         
         session.close()
@@ -811,11 +815,11 @@ async def check_instant_bookings_for_voice_channel():
         
         session = Session()
         
-        # 查找即時預約中需要創建語音頻道的
+        # 查找即時預約中需要創建頻道的（包括純聊天）
         now = datetime.now(timezone.utc)
         instant_bookings = session.execute(text("""
-            SELECT b.id, b.customerId, b.scheduleId, b.discordEarlyTextChannelId, b.discordVoiceChannelId,
-                   c.name as customer_name, p.name as partner_name, s.startTime, b."paymentInfo"
+            SELECT b.id, b.customerId, b.scheduleId, b.discordEarlyTextChannelId, b.discordVoiceChannelId, b.discordTextChannelId,
+                   b."serviceType", c.name as customer_name, p.name as partner_name, s.startTime, b."paymentInfo"
             FROM "Booking" b
             JOIN "Customer" c ON b.customerId = c.id
             JOIN "Schedule" s ON b.scheduleId = s.id
@@ -823,7 +827,7 @@ async def check_instant_bookings_for_voice_channel():
             WHERE b.status = 'CONFIRMED' 
             AND b."paymentInfo"->>'isInstantBooking' = 'true'
             AND b.discordEarlyTextChannelId IS NOT NULL
-            AND b.discordVoiceChannelId IS NULL
+            AND b.discordTextChannelId IS NULL
             AND s.startTime <= :now
         """), {'now': now}).fetchall()
         
@@ -831,32 +835,34 @@ async def check_instant_bookings_for_voice_channel():
         
         for booking in instant_bookings:
             try:
-                # 創建語音頻道
-                voice_channel = create_booking_voice_channel(
-                    guild, 
-                    booking.id, 
-                    booking.customer_name, 
-                    booking.partner_name
-                )
+                # 判斷是否為純聊天
+                is_chat_only = False
+                if booking.serviceType == 'CHAT_ONLY':
+                    is_chat_only = True
+                elif booking.paymentInfo and isinstance(booking.paymentInfo, dict):
+                    is_chat_only = booking.paymentInfo.get('isChatOnly') == True or booking.paymentInfo.get('isChatOnly') == 'true'
                 
-                if voice_channel:
+                # 純聊天只需要文字頻道，不需要語音頻道
+                if is_chat_only:
                     # 創建正式文字頻道
-                    text_channel = create_booking_text_channel(
+                    text_channel_coro = create_booking_text_channel(
                         guild, 
                         booking.id, 
                         booking.customer_name, 
-                        booking.partner_name
+                        booking.partner_name,
+                        True  # is_instant_booking
                     )
                     
-                    if text_channel:
-                        # 更新資料庫
+                    if text_channel_coro:
+                        text_channel = await text_channel_coro  # await the coroutine
+                        
+                        # 更新資料庫（只更新文字頻道，語音頻道為 NULL）
                         session = Session()
                         session.execute(text("""
                             UPDATE "Booking" 
-                            SET "discordVoiceChannelId" = :voice_id, "discordTextChannelId" = :text_id
+                            SET "discordTextChannelId" = :text_id
                             WHERE id = :booking_id
                         """), {
-                            'voice_id': str(voice_channel.id), 
                             'text_id': str(text_channel.id),
                             'booking_id': booking.id
                         })
@@ -868,22 +874,78 @@ async def check_instant_bookings_for_voice_channel():
                             early_channel = guild.get_channel(int(booking.discordEarlyTextChannelId))
                             if early_channel:
                                 await early_channel.delete()
-                                print(f"✅ 刪除即時預約提前溝通頻道: {booking.id}")
-                    except Exception as e:
-                            print(f"⚠️ 刪除即時預約提前溝通頻道失敗: {e}")
+                                print(f"✅ 刪除純聊天即時預約提前溝通頻道: {booking.id}")
+                        except Exception as e:
+                            print(f"⚠️ 刪除純聊天即時預約提前溝通頻道失敗: {e}")
                         
                         # 在正式文字頻道發送歡迎訊息
                         embed = discord.Embed(
-                            title="🎮 即時預約開始",
-                            description=f"即時預約已開始！請進入語音頻道開始遊戲。",
+                            title="💬 純聊天即時預約開始",
+                            description=f"純聊天即時預約已開始！請在此頻道開始聊天。",
                             color=0x0099ff
                         )
-                        embed.add_field(name="🎤 語音頻道", value=f"請點擊 {voice_channel.mention} 進入", inline=False)
                         
                         await text_channel.send(embed=embed)
-                        print(f"✅ 創建即時預約正式頻道: {booking.id}")
+                        print(f"✅ 創建純聊天即時預約正式頻道: {booking.id}")
+                else:
+                    # 非純聊天：創建語音頻道和文字頻道
+                    voice_channel_coro = create_booking_voice_channel(
+                        guild, 
+                        booking.id, 
+                        booking.customer_name, 
+                        booking.partner_name
+                    )
+                    
+                    if voice_channel_coro:
+                        voice_channel = await voice_channel_coro  # await the coroutine
+                        
+                        # 創建正式文字頻道
+                        text_channel_coro = create_booking_text_channel(
+                            guild, 
+                            booking.id, 
+                            booking.customer_name, 
+                            booking.partner_name,
+                            True  # is_instant_booking
+                        )
+                        
+                        if text_channel_coro:
+                            text_channel = await text_channel_coro  # await the coroutine
+                            
+                            # 更新資料庫
+                            session = Session()
+                            session.execute(text("""
+                                UPDATE "Booking" 
+                                SET "discordVoiceChannelId" = :voice_id, "discordTextChannelId" = :text_id
+                                WHERE id = :booking_id
+                            """), {
+                                'voice_id': str(voice_channel.id), 
+                                'text_id': str(text_channel.id),
+                                'booking_id': booking.id
+                            })
+                            session.commit()
+                            session.close()
+                            
+                            # 刪除提前溝通頻道
+                            try:
+                                early_channel = guild.get_channel(int(booking.discordEarlyTextChannelId))
+                                if early_channel:
+                                    await early_channel.delete()
+                                    print(f"✅ 刪除即時預約提前溝通頻道: {booking.id}")
+                            except Exception as e:
+                                print(f"⚠️ 刪除即時預約提前溝通頻道失敗: {e}")
+                            
+                            # 在正式文字頻道發送歡迎訊息
+                            embed = discord.Embed(
+                                title="🎮 即時預約開始",
+                                description=f"即時預約已開始！請進入語音頻道開始遊戲。",
+                                color=0x0099ff
+                            )
+                            embed.add_field(name="🎤 語音頻道", value=f"請點擊 {voice_channel.mention} 進入", inline=False)
+                            
+                            await text_channel.send(embed=embed)
+                            print(f"✅ 創建即時預約正式頻道: {booking.id}")
                 
-                    except Exception as e:
+            except Exception as e:
                 print(f"❌ 處理即時預約 {booking.id} 時發生錯誤: {e}")
         
                     except Exception as e:

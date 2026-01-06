@@ -1087,9 +1087,9 @@ function BookingWizardContent() {
               <div className="text-lg text-white/90 mb-4 text-center">
                 （3）選擇時段
               </div>
-              <div className="flex flex-wrap gap-2 justify-center">
+              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-7 gap-2 max-h-[600px] overflow-y-auto">
                 {availableTimeSlots.length === 0 ? (
-                  <div className="text-gray-600 text-center py-8">
+                  <div className="col-span-3 sm:col-span-4 md:col-span-5 lg:col-span-7 text-gray-600 text-center py-8">
                     該日期沒有可預約的時段
                   </div>
                 ) : (
@@ -1118,7 +1118,7 @@ function BookingWizardContent() {
                         key={schedule.id}
                         onClick={() => handleTimeSelect(schedule.id)}
                         disabled={loading}
-                        className={`px-4 py-2 rounded-lg transition-all duration-200 text-sm font-medium
+                        className={`px-3 py-2 rounded-lg transition-all duration-200 text-sm font-medium
                         ${loading ? "opacity-50 cursor-not-allowed" : ""}
                         ${
                           isSelected ? "shadow-lg scale-105" : "hover:shadow-md"
