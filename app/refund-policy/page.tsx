@@ -67,9 +67,24 @@ export default function RefundPolicyPage() {
             <section>
               <h2 className="text-2xl font-bold text-gray-900 mb-4">三、取消與退款規則</h2>
               
-              {/* （一）使用者主動取消 */}
+              {/* 預約模式說明 */}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-6">
+                <h3 className="text-xl font-semibold text-gray-900 mb-4">各預約模式說明</h3>
+                <div className="space-y-3 text-gray-700">
+                  <p><strong>一般預約：</strong>提前預約時段，需在開始前 2 小時取消</p>
+                  <p><strong>即時預約：</strong>立即開始，快速配對，夥伴確認前可取消</p>
+                  <p><strong>多人陪玩：</strong>選擇多位陪玩師一起遊戲，需在開始前 2 小時取消</p>
+                  <p><strong>群組預約：</strong>加入或創建群組，跟陌生人一起玩，不支援取消</p>
+                </div>
+              </div>
+
+              {/* （一）使用者主動取消 - 一般預約 */}
               <div className="bg-green-50 border border-green-200 rounded-lg p-6 mb-6">
-                <h3 className="text-xl font-semibold text-gray-900 mb-4">（一）使用者主動取消</h3>
+                <h3 className="text-xl font-semibold text-gray-900 mb-4">（一）一般預約 / 多人陪玩</h3>
+                <div className="mb-4 bg-white border border-green-300 rounded-lg p-4">
+                  <p className="text-green-800 font-semibold mb-2">📌 取消期限：</p>
+                  <p className="text-gray-700">必須在預約開始前 <strong>2 小時（含）</strong>才能取消</p>
+                </div>
                 <div className="overflow-x-auto">
                   <table className="w-full border-collapse border border-gray-300 bg-white">
                     <thead>
@@ -105,9 +120,52 @@ export default function RefundPolicyPage() {
                 </div>
               </div>
 
-              {/* （二）陪玩師或平台因素取消 */}
+              {/* （二）即時預約 */}
+              <div className="bg-purple-50 border border-purple-200 rounded-lg p-6 mb-6">
+                <h3 className="text-xl font-semibold text-gray-900 mb-4">（二）即時預約</h3>
+                <div className="mb-4 bg-white border border-purple-300 rounded-lg p-4">
+                  <p className="text-purple-800 font-semibold mb-2">📌 取消期限：</p>
+                  <p className="text-gray-700">在<strong>夥伴確認前</strong>取消，可獲得<strong>全額退款</strong></p>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full border-collapse border border-gray-300 bg-white">
+                    <thead>
+                      <tr className="bg-gray-100">
+                        <th className="border border-gray-300 px-4 py-3 text-left font-semibold text-gray-900">取消時間點</th>
+                        <th className="border border-gray-300 px-4 py-3 text-left font-semibold text-gray-900">退款方式</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td className="border border-gray-300 px-4 py-3 text-gray-700">夥伴確認前</td>
+                        <td className="border border-gray-300 px-4 py-3 text-green-600 font-semibold">全額退款</td>
+                      </tr>
+                      <tr className="bg-red-50">
+                        <td className="border border-gray-300 px-4 py-3 text-gray-700 font-semibold">夥伴確認後</td>
+                        <td className="border border-gray-300 px-4 py-3 text-red-600 font-semibold">不予退款</td>
+                      </tr>
+                      <tr className="bg-red-50">
+                        <td className="border border-gray-300 px-4 py-3 text-gray-700 font-semibold">Discord 頻道已建立</td>
+                        <td className="border border-gray-300 px-4 py-3 text-red-600 font-semibold">不予退款</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* （三）群組預約 */}
+              <div className="bg-orange-50 border border-orange-200 rounded-lg p-6 mb-6">
+                <h3 className="text-xl font-semibold text-gray-900 mb-4">（三）群組預約</h3>
+                <div className="bg-white border border-orange-300 rounded-lg p-4">
+                  <p className="text-orange-800 font-semibold">
+                    📌 群組預約不支援取消功能。請在加入群組前確認您的時間安排。
+                  </p>
+                </div>
+              </div>
+
+              {/* （四）陪玩師或平台因素取消 */}
               <div className="bg-purple-50 border border-purple-200 rounded-lg p-6">
-                <h3 className="text-xl font-semibold text-gray-900 mb-4">（二）陪玩師或平台因素取消</h3>
+                <h3 className="text-xl font-semibold text-gray-900 mb-4">（四）陪玩師或平台因素取消</h3>
                 <p className="text-gray-700 mb-4">
                   如因以下原因導致服務無法提供，使用者可申請 <strong className="text-green-600">100% 全額退款</strong>：
                 </p>
