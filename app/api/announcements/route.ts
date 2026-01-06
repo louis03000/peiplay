@@ -62,17 +62,43 @@ export async function GET() {
     );
 
     // 在應用層格式化資料，減少資料庫處理
-    const formattedAnnouncements = announcements.map(announcement => ({
-      id: announcement.id,
-      title: announcement.title,
-      content: announcement.content,
-      type: announcement.type,
-      createdAt: announcement.createdAt.toISOString(),
-      expiresAt: announcement.expiresAt?.toISOString() || null,
-      creator: {
-        name: announcement.creator.name
+    // 注意：從 Redis cache 返回的 createdAt 可能是字符串，需要處理
+    const formattedAnnouncements = announcements.map(announcement => {
+      // 處理 createdAt：如果是字符串則直接使用，如果是 Date 則轉換
+      let createdAtStr: string;
+      if (typeof announcement.createdAt === 'string') {
+        createdAtStr = announcement.createdAt;
+      } else if (announcement.createdAt instanceof Date) {
+        createdAtStr = announcement.createdAt.toISOString();
+      } else {
+        // 如果都不是，嘗試轉換為 Date 再轉為 ISO 字符串
+        createdAtStr = new Date(announcement.createdAt as any).toISOString();
       }
-    }));
+
+      // 處理 expiresAt：可能是字符串、Date 或 null
+      let expiresAtStr: string | null = null;
+      if (announcement.expiresAt) {
+        if (typeof announcement.expiresAt === 'string') {
+          expiresAtStr = announcement.expiresAt;
+        } else if (announcement.expiresAt instanceof Date) {
+          expiresAtStr = announcement.expiresAt.toISOString();
+        } else {
+          expiresAtStr = new Date(announcement.expiresAt as any).toISOString();
+        }
+      }
+
+      return {
+        id: announcement.id,
+        title: announcement.title,
+        content: announcement.content,
+        type: announcement.type,
+        createdAt: createdAtStr,
+        expiresAt: expiresAtStr,
+        creator: {
+          name: announcement.creator.name
+        }
+      };
+    });
 
     console.log(`📊 找到 ${formattedAnnouncements.length} 筆活躍公告`);
     

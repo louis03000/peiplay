@@ -389,7 +389,11 @@ export async function POST(
 
         const FREE_CHAT_LIMIT = 5;
         if (recentMessages.length >= FREE_CHAT_LIMIT) {
-          throw new Error(`免費聊天句數上限為${FREE_CHAT_LIMIT}句，您已達到上限`);
+          // 返回 403 而不是 500，因為這是業務邏輯限制，不是伺服器錯誤
+          return NextResponse.json(
+            { error: `免費聊天句數上限為${FREE_CHAT_LIMIT}句，您已達到上限` },
+            { status: 403 }
+          );
         }
       }
 
