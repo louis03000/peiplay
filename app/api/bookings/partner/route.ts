@@ -91,12 +91,12 @@ export async function GET() {
         const paymentInfo = booking.paymentInfo as any
         const isInstantBooking = paymentInfo?.isInstantBooking === true || paymentInfo?.isInstantBooking === 'true';
         
-        // 🔥 判斷是否是純聊天（優先於其他類型檢查）
+        // 🔥 判斷是否是純聊天（只有明確選擇純聊天篩選器時才是純聊天）
+        // 必須在創建預約時明確標記為純聊天，不能僅因為夥伴支持純聊天就判斷為純聊天
         const isChatOnly = 
           booking.serviceType === 'CHAT_ONLY' || 
           paymentInfo?.isChatOnly === true || 
-          paymentInfo?.isChatOnly === 'true' ||
-          (booking.schedule?.partner?.supportsChatOnly && booking.schedule?.partner?.chatOnlyRate);
+          paymentInfo?.isChatOnly === 'true';
         
         // 🔥 優先檢查多人陪玩（因為它可能同時有 paymentInfo）
         if (booking.multiPlayerBookingId) {
