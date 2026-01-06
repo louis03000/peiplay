@@ -60,16 +60,6 @@ export async function POST(
           schedule: {
             include: {
               partner: {
-                include: {
-                  user: {
-                    select: {
-                      id: true,
-                      name: true,
-                      email: true,
-                      discord: true,
-                    },
-                  },
-                },
                 select: {
                   id: true,
                   isAvailableNow: true,
