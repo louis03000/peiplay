@@ -15,11 +15,22 @@ export async function GET() {
 
     const withdrawals = await db.query(async (client) => {
       return client.withdrawalRequest.findMany({
-        include: {
+        select: {
+          id: true,
+          amount: true,
+          status: true,
+          requestedAt: true,
+          processedAt: true,
+          adminNote: true,
+          rejectionReason: true,
           partner: {
-            include: {
+            select: {
+              id: true,
+              name: true,
+              bankCode: true,
+              bankAccountNumber: true,
               user: {
-                select: { 
+                select: {
                   id: true,
                   name: true,
                   email: true,

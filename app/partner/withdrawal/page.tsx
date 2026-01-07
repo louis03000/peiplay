@@ -21,6 +21,7 @@ interface WithdrawalHistory {
   requestedAt: string
   processedAt?: string
   adminNote?: string
+  rejectionReason?: string
 }
 
 export default function WithdrawalPage() {
@@ -384,16 +385,25 @@ export default function WithdrawalPage() {
                           <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(withdrawal.status)}`}>
                             {getStatusText(withdrawal.status)}
                           </span>
+                          {withdrawal.status === 'REJECTED' && withdrawal.rejectionReason && (
+                            <div className="relative group">
+                              <button className="text-xs text-red-600 hover:text-red-800 underline ml-2">
+                                查看原因
+                              </button>
+                              <div className="absolute left-0 bottom-full mb-2 w-64 p-3 bg-white border border-gray-300 rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-10">
+                                <div className="text-xs font-semibold text-gray-700 mb-1">拒絕原因：</div>
+                                <div className="text-sm text-gray-900 whitespace-pre-wrap">{withdrawal.rejectionReason}</div>
+                                <div className="absolute bottom-0 left-4 transform translate-y-full">
+                                  <div className="w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-300"></div>
+                                </div>
+                              </div>
+                            </div>
+                          )}
                         </div>
                         <span className="text-sm text-gray-500">
                           {new Date(withdrawal.requestedAt).toLocaleDateString('zh-TW')}
                         </span>
                       </div>
-                      {withdrawal.adminNote && (
-                        <p className="text-sm text-gray-600 mt-2">
-                          <strong>管理員備註：</strong>{withdrawal.adminNote}
-                        </p>
-                      )}
                       {withdrawal.processedAt && (
                         <p className="text-xs text-gray-500 mt-1">
                           處理時間：{new Date(withdrawal.processedAt).toLocaleString('zh-TW')}

@@ -525,18 +525,19 @@ model RankingHistory {
 }
 
 model WithdrawalRequest {
-  id          String           @id @default(cuid())
-  partnerId   String           // 保留 partnerId 以便追蹤歷史記錄
-  amount      Float
-  status      WithdrawalStatus @default(PENDING)
-  requestedAt DateTime         @default(now())
-  processedAt DateTime?
-  adminNote   String?
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
+  id              String           @id @default(cuid())
+  partnerId       String           // 保留 partnerId 以便追蹤歷史記錄
+  amount          Float
+  status          WithdrawalStatus @default(PENDING)
+  requestedAt     DateTime         @default(now())
+  processedAt     DateTime?
+  adminNote       String?          // 管理員內部備註（不顯示給夥伴）
+  rejectionReason String?          // 拒絕原因（顯示給夥伴）
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
   // 永久保存：不設置 onDelete: Cascade，確保記錄永久保存
   // 即使 Partner 被刪除，提領記錄也會保留（需要在刪除 Partner 時處理外鍵約束）
-  partner     Partner          @relation(fields: [partnerId], references: [id])
+  partner         Partner          @relation(fields: [partnerId], references: [id])
 
   @@index([partnerId, status])
   @@index([partnerId, status, requestedAt(sort: Desc)])

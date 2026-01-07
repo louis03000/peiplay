@@ -31,6 +31,7 @@ export async function GET() {
           requestedAt: true,
           processedAt: true,
           adminNote: true,
+          rejectionReason: true,
         },
       })
 
@@ -43,6 +44,7 @@ export async function GET() {
           requestedAt: withdrawal.requestedAt.toISOString(),
           processedAt: withdrawal.processedAt?.toISOString(),
           adminNote: withdrawal.adminNote,
+          rejectionReason: withdrawal.rejectionReason,
         })),
       }
     }, 'partners:withdrawal:history')

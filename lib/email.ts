@@ -1384,6 +1384,248 @@ export async function sendEmail({
   }
 }
 
+// 發送提領申請通知給管理員
+export async function sendWithdrawalRequestNotificationToAdmin(
+  adminEmail: string,
+  partnerName: string,
+  partnerEmail: string,
+  amount: number,
+  bankCode: string | null,
+  bankAccountNumber: string | null
+) {
+  try {
+    const transporter = createTransporter();
+    const subject = `💰 新的提領申請 - ${partnerName}`;
+    
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; text-align: center; border-radius: 10px 10px 0 0;">
+          <h1 style="margin: 0; font-size: 24px;">💰 新的提領申請</h1>
+        </div>
+        
+        <div style="background: #f8f9fa; padding: 30px; border-radius: 0 0 10px 10px;">
+          <h2 style="color: #333; margin-top: 0;">管理員您好，</h2>
+          
+          <p style="color: #666; font-size: 16px; line-height: 1.6;">
+            夥伴 <strong>${partnerName}</strong> 已提交新的提領申請，請盡快審核。
+          </p>
+          
+          <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #667eea;">
+            <table style="width: 100%; border-collapse: collapse;">
+              <tr>
+                <td style="padding: 8px 0; color: #666; font-weight: bold; width: 120px;">夥伴名稱：</td>
+                <td style="padding: 8px 0; color: #333;">${partnerName}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; color: #666; font-weight: bold;">夥伴 Email：</td>
+                <td style="padding: 8px 0; color: #333;">${partnerEmail}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; color: #666; font-weight: bold;">提領金額：</td>
+                <td style="padding: 8px 0; color: #333; font-size: 18px; font-weight: bold; color: #667eea;">NT$ ${amount.toLocaleString()}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; color: #666; font-weight: bold;">銀行代碼：</td>
+                <td style="padding: 8px 0; color: #333;">${bankCode || '<span style="color: red;">未填寫</span>'}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; color: #666; font-weight: bold;">帳戶號碼：</td>
+                <td style="padding: 8px 0; color: #333;">${bankAccountNumber || '<span style="color: red;">未填寫</span>'}</td>
+              </tr>
+            </table>
+          </div>
+          
+          <div style="background: #e3f2fd; padding: 15px; border-radius: 8px; margin: 20px 0; text-align: center;">
+            <a href="${process.env.NEXTAUTH_URL || 'http://localhost:3004'}/admin/withdrawals" 
+               style="display: inline-block; background: #667eea; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">
+              🔍 前往審核
+            </a>
+          </div>
+          
+          <p style="color: #666; font-size: 14px; margin-top: 30px;">
+            請登入管理後台進行審核處理。
+          </p>
+        </div>
+        
+        <div style="text-align: center; margin-top: 20px; color: #999; font-size: 12px;">
+          <p>此郵件由 PeiPlay 系統自動發送，請勿回覆。</p>
+        </div>
+      </div>
+    `;
+    
+    await transporter.sendMail({
+      from: `"PeiPlay 提領系統" <${process.env.EMAIL_USER}>`,
+      to: adminEmail,
+      subject,
+      html
+    });
+    
+    console.log(`✅ 提領申請通知 Email 已發送給管理員: ${adminEmail}`);
+    return true;
+  } catch (error) {
+    console.error('❌ 發送提領申請通知 Email 失敗:', error);
+    return false;
+  }
+}
+
+// 發送提領核准通知給夥伴
+export async function sendWithdrawalApprovedEmail(
+  partnerEmail: string,
+  partnerName: string,
+  amount: number
+) {
+  try {
+    const transporter = createTransporter();
+    const subject = `✅ 提領申請已核准`;
+    
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <div style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; padding: 20px; text-align: center; border-radius: 10px 10px 0 0;">
+          <h1 style="margin: 0; font-size: 24px;">✅ 提領申請已核准</h1>
+        </div>
+        
+        <div style="background: #f8f9fa; padding: 30px; border-radius: 0 0 10px 10px;">
+          <h2 style="color: #333; margin-top: 0;">親愛的 ${partnerName}，</h2>
+          
+          <p style="color: #666; font-size: 16px; line-height: 1.6;">
+            您所申請之提款目前正在處理中，款項預計將於 <strong>2–5 個工作天內</strong> 匯入您指定之帳戶，敬請留意查收。
+          </p>
+          
+          <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #10b981;">
+            <table style="width: 100%; border-collapse: collapse;">
+              <tr>
+                <td style="padding: 8px 0; color: #666; font-weight: bold; width: 120px;">提領金額：</td>
+                <td style="padding: 8px 0; color: #333; font-size: 18px; font-weight: bold; color: #10b981;">NT$ ${amount.toLocaleString()}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; color: #666; font-weight: bold;">處理時間：</td>
+                <td style="padding: 8px 0; color: #333;">2–5 個工作天</td>
+              </tr>
+            </table>
+          </div>
+          
+          <div style="background: #d1fae5; padding: 15px; border-radius: 8px; margin: 20px 0;">
+            <p style="margin: 0; color: #065f46; font-weight: bold;">
+              💡 提醒：請確認您的銀行帳戶資訊正確，以確保款項能順利匯入。
+            </p>
+          </div>
+          
+          <p style="color: #666; font-size: 14px; margin-top: 30px;">
+            如有任何問題，請聯繫客服團隊。
+          </p>
+        </div>
+        
+        <div style="text-align: center; margin-top: 20px; color: #999; font-size: 12px;">
+          <p>此郵件由 PeiPlay 系統自動發送，請勿回覆。</p>
+        </div>
+      </div>
+    `;
+    
+    await transporter.sendMail({
+      from: `"PeiPlay 提領系統" <${process.env.EMAIL_USER}>`,
+      to: partnerEmail,
+      subject,
+      html
+    });
+    
+    console.log(`✅ 提領核准通知 Email 已發送給夥伴: ${partnerEmail}`);
+    return true;
+  } catch (error) {
+    console.error('❌ 發送提領核准通知 Email 失敗:', error);
+    return false;
+  }
+}
+
+// 發送提領拒絕通知給夥伴
+export async function sendWithdrawalRejectedEmail(
+  partnerEmail: string,
+  partnerName: string,
+  amount: number,
+  rejectionReason?: string | null
+) {
+  try {
+    const transporter = createTransporter();
+    const subject = `❌ 提領申請未通過審核`;
+    
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <div style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: white; padding: 20px; text-align: center; border-radius: 10px 10px 0 0;">
+          <h1 style="margin: 0; font-size: 24px;">❌ 提領申請未通過審核</h1>
+        </div>
+        
+        <div style="background: #f8f9fa; padding: 30px; border-radius: 0 0 10px 10px;">
+          <h2 style="color: #333; margin-top: 0;">親愛的 ${partnerName}，</h2>
+          
+          <p style="color: #666; font-size: 16px; line-height: 1.6;">
+            很抱歉，您所申請之提款未能通過本次審核。由於相關資料尚待確認，請依系統指示補齊資料後再重新申請提款。
+          </p>
+          
+          <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #ef4444;">
+            <table style="width: 100%; border-collapse: collapse;">
+              <tr>
+                <td style="padding: 8px 0; color: #666; font-weight: bold; width: 120px;">申請金額：</td>
+                <td style="padding: 8px 0; color: #333; font-size: 18px; font-weight: bold;">NT$ ${amount.toLocaleString()}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; color: #666; font-weight: bold;">審核結果：</td>
+                <td style="padding: 8px 0; color: #ef4444; font-weight: bold;">未通過</td>
+              </tr>
+            </table>
+          </div>
+          
+          ${rejectionReason ? `
+          <div style="background: #fff3cd; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #ef4444;">
+            <p style="margin: 0; color: #856404; font-weight: bold; margin-bottom: 8px;">
+              📋 拒絕原因：
+            </p>
+            <p style="margin: 0; color: #856404; line-height: 1.6; white-space: pre-wrap;">${rejectionReason}</p>
+          </div>
+          ` : `
+          <div style="background: #fee2e2; padding: 15px; border-radius: 8px; margin: 20px 0;">
+            <p style="margin: 0; color: #991b1b; font-weight: bold;">
+              ⚠️ 請檢查並補齊以下資料：
+            </p>
+            <ul style="margin: 10px 0 0 0; padding-left: 20px; color: #991b1b;">
+              <li>銀行代碼</li>
+              <li>銀行帳戶號碼</li>
+              <li>其他相關資料</li>
+            </ul>
+          </div>
+          `}
+          
+          <div style="background: #e3f2fd; padding: 15px; border-radius: 8px; margin: 20px 0; text-align: center;">
+            <a href="${process.env.NEXTAUTH_URL || 'http://localhost:3004'}/partner/withdrawal" 
+               style="display: inline-block; background: #667eea; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">
+              📝 前往補齊資料
+            </a>
+          </div>
+          
+          <p style="color: #666; font-size: 14px; margin-top: 30px;">
+            如有任何問題，請聯繫客服團隊。
+          </p>
+        </div>
+        
+        <div style="text-align: center; margin-top: 20px; color: #999; font-size: 12px;">
+          <p>此郵件由 PeiPlay 系統自動發送，請勿回覆。</p>
+        </div>
+      </div>
+    `;
+    
+    await transporter.sendMail({
+      from: `"PeiPlay 提領系統" <${process.env.EMAIL_USER}>`,
+      to: partnerEmail,
+      subject,
+      html
+    });
+    
+    console.log(`✅ 提領拒絕通知 Email 已發送給夥伴: ${partnerEmail}`);
+    return true;
+  } catch (error) {
+    console.error('❌ 發送提領拒絕通知 Email 失敗:', error);
+    return false;
+  }
+}
+
 // 發送群組預約加入通知給夥伴
 export async function sendGroupBookingJoinNotification(
   partnerEmail: string,

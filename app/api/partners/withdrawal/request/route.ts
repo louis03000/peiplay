@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db-resilience'
 import { createErrorResponse } from '@/lib/api-helpers'
 import { getPartnerLastWeekRank, calculatePlatformFeePercentage } from '@/lib/ranking-helpers'
+import { sendWithdrawalRequestNotificationToAdmin } from '@/lib/email'
 
 export const dynamic = 'force-dynamic'
 
@@ -102,6 +103,14 @@ export async function POST(request: Request) {
         return { type: 'PENDING_EXISTS' } as const
       }
 
+      const partnerBankInfo = await client.partner.findUnique({
+        where: { id: partner.id },
+        select: {
+          bankCode: true,
+          bankAccountNumber: true,
+        },
+      })
+
       const withdrawalRequest = await client.withdrawalRequest.create({
         data: {
           partnerId: partner.id,
@@ -110,6 +119,30 @@ export async function POST(request: Request) {
           requestedAt: new Date(),
         },
       })
+
+      // 獲取所有管理員的 Email 並發送通知
+      const admins = await client.user.findMany({
+        where: { role: 'ADMIN' },
+        select: { email: true },
+      })
+
+      // 異步發送郵件給所有管理員（不阻塞響應）
+      if (admins.length > 0 && partner.user.email) {
+        Promise.all(
+          admins.map(admin => 
+            admin.email ? sendWithdrawalRequestNotificationToAdmin(
+              admin.email,
+              partner.name,
+              partner.user.email!,
+              roundedAmount,
+              partnerBankInfo?.bankCode || null,
+              partnerBankInfo?.bankAccountNumber || null
+            ) : Promise.resolve(false)
+          )
+        ).catch(error => {
+          console.error('❌ 發送提領申請通知給管理員失敗:', error)
+        })
+      }
 
       const [totalOrders, recentBookings] = await Promise.all([
         client.booking.count({

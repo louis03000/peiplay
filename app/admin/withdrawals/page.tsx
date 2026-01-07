@@ -10,9 +10,12 @@ interface WithdrawalRequest {
   requestedAt: string;
   processedAt?: string;
   adminNote?: string;
+  rejectionReason?: string;
   partner: {
     id: string;
     name: string;
+    bankCode?: string | null;
+    bankAccountNumber?: string | null;
     user: {
       email: string;
     };
@@ -33,6 +36,9 @@ export default function AdminWithdrawalsPage() {
   const [adminNote, setAdminNote] = useState("");
   const [showNoteModal, setShowNoteModal] = useState(false);
   const [selectedWithdrawal, setSelectedWithdrawal] = useState<WithdrawalRequest | null>(null);
+  const [rejectionReason, setRejectionReason] = useState("");
+  const [showRejectionModal, setShowRejectionModal] = useState(false);
+  const [rejectingId, setRejectingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (status === "loading") return;
@@ -74,7 +80,7 @@ export default function AdminWithdrawalsPage() {
     }
   };
 
-  const handleStatusChange = async (withdrawalId: string, newStatus: 'APPROVED' | 'REJECTED' | 'COMPLETED') => {
+  const handleStatusChange = async (withdrawalId: string, newStatus: 'APPROVED' | 'REJECTED' | 'COMPLETED', rejectionReason?: string) => {
     setProcessingId(withdrawalId);
     try {
       const response = await fetch(`/api/admin/withdrawals/${withdrawalId}`, {
@@ -84,7 +90,8 @@ export default function AdminWithdrawalsPage() {
         },
         body: JSON.stringify({
           status: newStatus,
-          adminNote: adminNote
+          adminNote: adminNote,
+          rejectionReason: rejectionReason || null,
         }),
       });
 
@@ -93,6 +100,9 @@ export default function AdminWithdrawalsPage() {
         setAdminNote("");
         setShowNoteModal(false);
         setSelectedWithdrawal(null);
+        setRejectionReason("");
+        setShowRejectionModal(false);
+        setRejectingId(null);
       } else {
         setError('更新狀態失敗');
       }
@@ -100,7 +110,15 @@ export default function AdminWithdrawalsPage() {
       setError('更新狀態失敗');
     } finally {
       setProcessingId(null);
+      setRejectingId(null);
     }
+  };
+
+  const openRejectionModal = (withdrawal: WithdrawalRequest) => {
+    setSelectedWithdrawal(withdrawal);
+    setRejectionReason(withdrawal.rejectionReason || "");
+    setShowRejectionModal(true);
+    setRejectingId(withdrawal.id);
   };
 
   const openNoteModal = (withdrawal: WithdrawalRequest) => {
@@ -260,6 +278,9 @@ export default function AdminWithdrawalsPage() {
                       夥伴資訊
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
+                      銀行資訊
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
                       提領金額
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
@@ -286,6 +307,24 @@ export default function AdminWithdrawalsPage() {
                         <div>
                           <div className="text-sm font-medium text-gray-900">{withdrawal.partner.name}</div>
                           <div className="text-sm text-gray-700">{withdrawal.partner.user.email}</div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div>
+                          <div className="text-sm text-gray-900">
+                            {withdrawal.partner.bankCode ? (
+                              <span className="font-medium">銀行代碼：{withdrawal.partner.bankCode}</span>
+                            ) : (
+                              <span className="text-red-500">❌ 未填寫銀行代碼</span>
+                            )}
+                          </div>
+                          <div className="text-sm text-gray-900 mt-1">
+                            {withdrawal.partner.bankAccountNumber ? (
+                              <span className="font-medium">帳戶號碼：{withdrawal.partner.bankAccountNumber}</span>
+                            ) : (
+                              <span className="text-red-500">❌ 未填寫帳戶號碼</span>
+                            )}
+                          </div>
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
@@ -320,8 +359,8 @@ export default function AdminWithdrawalsPage() {
                               {processingId === withdrawal.id ? '處理中...' : '核准'}
                             </button>
                             <button
-                              onClick={() => handleStatusChange(withdrawal.id, 'REJECTED')}
-                              disabled={processingId === withdrawal.id}
+                              onClick={() => openRejectionModal(withdrawal)}
+                              disabled={processingId === withdrawal.id || rejectingId === withdrawal.id}
                               className="text-red-600 hover:text-red-900 disabled:opacity-50"
                             >
                               拒絕
@@ -351,11 +390,14 @@ export default function AdminWithdrawalsPage() {
           <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
             <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
               <div className="mt-3">
-                <h3 className="text-lg font-medium text-gray-900 mb-4">管理員備註</h3>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">管理員備註</h3>
+                <p className="text-sm text-gray-600 mb-4">
+                  此備註僅供管理員內部使用，不會發送給夥伴。可用於記錄審核原因、處理說明等資訊。
+                </p>
                 <textarea
                   value={adminNote}
                   onChange={(e) => setAdminNote(e.target.value)}
-                  placeholder="請輸入備註..."
+                  placeholder="請輸入備註（僅供管理員查看）..."
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 placeholder-gray-500"
                   style={{ color: '#111827' }}
                   rows={4}
@@ -379,6 +421,55 @@ export default function AdminWithdrawalsPage() {
                     className="px-4 py-2 text-white bg-blue-600 rounded-md hover:bg-blue-700"
                   >
                     保存
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 拒絕原因模態框 */}
+        {showRejectionModal && selectedWithdrawal && (
+          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+            <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+              <div className="mt-3">
+                <h3 className="text-lg font-medium text-gray-900 mb-2">填寫拒絕原因</h3>
+                <p className="text-sm text-gray-600 mb-4">
+                  此原因將發送給夥伴，請詳細說明拒絕的原因，以便夥伴了解並補齊相關資料。
+                </p>
+                <textarea
+                  value={rejectionReason}
+                  onChange={(e) => setRejectionReason(e.target.value)}
+                  placeholder="請輸入拒絕原因（此原因將發送給夥伴）..."
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 text-gray-900 placeholder-gray-500"
+                  style={{ color: '#111827' }}
+                  rows={5}
+                  required
+                />
+                <div className="flex justify-end gap-2 mt-4">
+                  <button
+                    onClick={() => {
+                      setShowRejectionModal(false);
+                      setSelectedWithdrawal(null);
+                      setRejectionReason("");
+                      setRejectingId(null);
+                    }}
+                    className="px-4 py-2 text-gray-600 bg-gray-200 rounded-md hover:bg-gray-300"
+                  >
+                    取消
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (!rejectionReason.trim()) {
+                        alert('請填寫拒絕原因');
+                        return;
+                      }
+                      handleStatusChange(selectedWithdrawal.id, 'REJECTED', rejectionReason);
+                    }}
+                    disabled={processingId === selectedWithdrawal.id}
+                    className="px-4 py-2 text-white bg-red-600 rounded-md hover:bg-red-700 disabled:opacity-50"
+                  >
+                    {processingId === selectedWithdrawal.id ? '處理中...' : '確認拒絕'}
                   </button>
                 </div>
               </div>
