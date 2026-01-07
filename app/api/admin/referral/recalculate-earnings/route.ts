@@ -204,7 +204,7 @@ export async function POST(request: NextRequest) {
       return {
         totalBookings: completedBookings.length,
         processed: bookingsToProcess.length,
-        success: results.success.length,
+        successCount: results.success.length,
         failed: results.failed.length,
         skipped: results.skipped.length,
         details: results,
