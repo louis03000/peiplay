@@ -1071,7 +1071,7 @@ function BookingWizardContent() {
                 選擇您想要預約的時長，系統會自動安排最適合的時間
               </div>
               <div className="flex flex-wrap gap-3 justify-center">
-                {[0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4].map((duration) => (
+                {[1/6, 0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4].map((duration) => (
                   <button
                     key={duration}
                     onClick={() => setSelectedDuration(duration)}
@@ -1090,11 +1090,13 @@ function BookingWizardContent() {
                       borderColor: "black",
                     }}
                   >
-                    {duration === 0.5
-                      ? "30分鐘"
-                      : duration === 1
-                        ? "1小時"
-                        : `${duration}小時`}
+                    {duration === 1/6
+                      ? "10分鐘"
+                      : duration === 0.5
+                        ? "30分鐘"
+                        : duration === 1
+                          ? "1小時"
+                          : `${duration}小時`}
                   </button>
                 ))}
               </div>
@@ -1204,11 +1206,13 @@ function BookingWizardContent() {
                           預約時長：
                         </span>
                         <span className="text-gray-900 font-bold">
-                          {selectedDuration === 0.5
-                            ? "30分鐘"
-                            : selectedDuration === 1
-                              ? "1小時"
-                              : `${selectedDuration}小時`}
+                          {selectedDuration === 1/6
+                            ? "10分鐘"
+                            : selectedDuration === 0.5
+                              ? "30分鐘"
+                              : selectedDuration === 1
+                                ? "1小時"
+                                : `${selectedDuration}小時`}
                         </span>
                       </div>
                     ) : (
