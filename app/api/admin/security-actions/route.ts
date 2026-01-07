@@ -198,6 +198,11 @@ async function deleteUser(client: PrismaClient, user: {
     }
 
     if (user.customer) {
+      // 先刪除群組預約參與者記錄（避免外鍵約束衝突）
+      await tx.groupBookingParticipant.deleteMany({ 
+        where: { customerId: user.customer.id } 
+      });
+      
       await tx.booking.deleteMany({ where: { customerId: user.customer.id } })
       await tx.order.deleteMany({ where: { customerId: user.customer.id } })
       await tx.customer.delete({ where: { id: user.customer.id } })

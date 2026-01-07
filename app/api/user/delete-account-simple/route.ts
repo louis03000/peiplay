@@ -30,6 +30,16 @@ export async function POST(request: Request) {
       }
 
       await client.$transaction(async (tx) => {
+        // 先找到 customer，以便刪除相關的 GroupBookingParticipant 記錄
+        const customer = await tx.customer.findUnique({ where: { userId: user.id } })
+        
+        if (customer) {
+          // 先刪除群組預約參與者記錄（避免外鍵約束衝突）
+          await tx.groupBookingParticipant.deleteMany({ 
+            where: { customerId: customer.id } 
+          });
+        }
+        
         await tx.booking.deleteMany({ where: { customer: { userId: user.id } } })
         await tx.order.deleteMany({ where: { customer: { userId: user.id } } })
         await tx.customer.deleteMany({ where: { userId: user.id } })
