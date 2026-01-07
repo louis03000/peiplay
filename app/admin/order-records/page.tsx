@@ -86,6 +86,44 @@ export default function AdminOrderRecordsPage() {
     return Math.round(total)
   }
 
+  // 匯出 Excel
+  const handleExportExcel = async () => {
+    try {
+      const url = selectedMonth
+        ? `/api/admin/order-records/export?month=${selectedMonth}`
+        : '/api/admin/order-records/export'
+      
+      const response = await fetch(url)
+      if (!response.ok) {
+        throw new Error('匯出失敗')
+      }
+
+      // 獲取文件名
+      const contentDisposition = response.headers.get('Content-Disposition')
+      let fileName = '訂單記錄.xlsx'
+      if (contentDisposition) {
+        const fileNameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/)
+        if (fileNameMatch && fileNameMatch[1]) {
+          fileName = decodeURIComponent(fileNameMatch[1].replace(/['"]/g, ''))
+        }
+      }
+
+      // 下載文件
+      const blob = await response.blob()
+      const downloadUrl = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = downloadUrl
+      link.download = fileName
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      window.URL.revokeObjectURL(downloadUrl)
+    } catch (error) {
+      console.error('匯出 Excel 失敗:', error)
+      alert('匯出 Excel 失敗，請稍後再試')
+    }
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -115,7 +153,7 @@ export default function AdminOrderRecordsPage() {
         {/* 標題和月份選擇 */}
         <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between">
           <h1 className="text-3xl font-bold text-gray-900 mb-4 sm:mb-0">訂單記錄</h1>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4 flex-wrap">
             <label className="text-sm font-medium text-gray-700">選擇月份：</label>
             <select
               value={selectedMonth}
@@ -134,6 +172,16 @@ export default function AdminOrderRecordsPage() {
               className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
             >
               刷新
+            </button>
+            <button
+              onClick={handleExportExcel}
+              disabled={availableMonths.length === 0}
+              className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              匯出 Excel
             </button>
           </div>
         </div>
