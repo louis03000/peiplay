@@ -109,11 +109,11 @@ export async function GET(request: NextRequest) {
           const availableBalance = partnerEarnings + referralEarnings - totalWithdrawn;
 
           return {
-            totalEarnings,
+            totalEarnings: Math.round(totalEarnings),
             totalOrders,
-            availableBalance: Math.max(0, availableBalance),
+            availableBalance: Math.max(0, Math.round(availableBalance)),
             pendingWithdrawals,
-            referralEarnings,
+            referralEarnings: Math.round(referralEarnings),
             platformFeePercentage: PLATFORM_FEE_PERCENTAGE,
             rank: rank || null
           };

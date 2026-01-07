@@ -120,9 +120,12 @@ export async function GET(request: NextRequest) {
 
       // 格式化數據
       let formattedBookings = bookings.map((booking) => {
-        const duration = booking.schedule
-          ? Math.round((new Date(booking.schedule.endTime).getTime() - new Date(booking.schedule.startTime).getTime()) / (1000 * 60 * 30)) // 以30分鐘為單位
+        // 🔥 計算時長（以分鐘為單位，而不是30分鐘為單位）
+        const durationMinutes = booking.schedule
+          ? Math.round((new Date(booking.schedule.endTime).getTime() - new Date(booking.schedule.startTime).getTime()) / (1000 * 60)) // 以分鐘為單位
           : 0;
+        // 為了向後兼容，保留 duration 字段（以30分鐘為單位），但主要使用 durationMinutes
+        const duration = Math.round(durationMinutes / 30);
 
         const paymentInfo = booking.paymentInfo as any;
         const isInstantBooking = paymentInfo?.isInstantBooking === true || paymentInfo?.isInstantBooking === 'true';
@@ -163,10 +166,11 @@ export async function GET(request: NextRequest) {
           customerId: booking.customer.id,
           startTime: booking.schedule.startTime.toISOString(),
           endTime: booking.schedule.endTime.toISOString(),
-          duration,
+          duration, // 保留以30分鐘為單位的字段（向後兼容）
+          durationMinutes, // 添加以分鐘為單位的字段
           status: booking.status,
-          originalAmount: booking.originalAmount || 0,
-          finalAmount: displayAmount, // 使用計算後的正確金額
+          originalAmount: Math.round(booking.originalAmount || 0), // 四舍五入
+          finalAmount: Math.round(displayAmount), // 使用計算後的正確金額，並四舍五入
           createdAt: booking.createdAt.toISOString(),
           updatedAt: booking.updatedAt.toISOString(),
           paymentInfo: booking.paymentInfo,

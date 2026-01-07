@@ -212,7 +212,7 @@ export default function WithdrawalPage() {
                 </div>
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600">總收入</p>
-                  <p className="text-2xl font-bold text-gray-900" style={{ color: '#111827' }}>NT$ {stats.totalEarnings.toLocaleString()}</p>
+                  <p className="text-2xl font-bold text-gray-900" style={{ color: '#111827' }}>NT$ {Math.round(stats.totalEarnings).toLocaleString()}</p>
                 </div>
               </div>
             </div>
@@ -240,9 +240,9 @@ export default function WithdrawalPage() {
                 </div>
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600">可提領餘額</p>
-                  <p className="text-2xl font-bold text-gray-900" style={{ color: '#111827' }}>NT$ {stats.availableBalance.toLocaleString()}</p>
+                  <p className="text-2xl font-bold text-gray-900" style={{ color: '#111827' }}>NT$ {Math.round(stats.availableBalance).toLocaleString()}</p>
                   {stats?.referralEarnings > 0 && (
-                    <p className="text-xs text-green-600">含推薦收入 NT$ {stats.referralEarnings.toLocaleString()}</p>
+                    <p className="text-xs text-green-600">含推薦收入 NT$ {Math.round(stats.referralEarnings).toLocaleString()}</p>
                   )}
                 </div>
               </div>
@@ -291,7 +291,7 @@ export default function WithdrawalPage() {
                   />
                   {stats && (
                     <p className="mt-1 text-sm text-gray-500">
-                      可提領餘額：NT$ {stats.availableBalance.toLocaleString()}
+                      可提領餘額：NT$ {Math.round(stats.availableBalance).toLocaleString()}
                     </p>
                   )}
                   {withdrawalAmount && parseFloat(withdrawalAmount) < 100 && (

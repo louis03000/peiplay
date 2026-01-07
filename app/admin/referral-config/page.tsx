@@ -25,6 +25,9 @@ export default function ReferralConfigPage() {
     referralPlatformFee: 10,
     referralBonusPercentage: 5
   });
+  const [recalculating, setRecalculating] = useState(false);
+  const [recalculateStats, setRecalculateStats] = useState<any>(null);
+  const [loadingStats, setLoadingStats] = useState(false);
 
   useEffect(() => {
     if (status === "loading") return;
@@ -89,6 +92,58 @@ export default function ReferralConfigPage() {
     setEditForm({ referralPlatformFee: 10, referralBonusPercentage: 5 });
   };
 
+  const fetchRecalculateStats = async () => {
+    try {
+      setLoadingStats(true);
+      const response = await fetch('/api/admin/referral/recalculate-earnings');
+      if (response.ok) {
+        const data = await response.json();
+        setRecalculateStats(data);
+      } else {
+        setError('獲取統計信息失敗');
+      }
+    } catch (err) {
+      setError('獲取統計信息失敗');
+    } finally {
+      setLoadingStats(false);
+    }
+  };
+
+  const handleRecalculateEarnings = async (partnerId?: string) => {
+    if (!confirm('確定要重新計算推薦收入嗎？這可能需要一些時間。')) {
+      return;
+    }
+
+    try {
+      setRecalculating(true);
+      setError('');
+      const response = await fetch('/api/admin/referral/recalculate-earnings', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          partnerId: partnerId || undefined,
+          forceRecalculate: false,
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setRecalculateStats(data);
+        alert(`重新計算完成！\n成功: ${data.success} 個\n失敗: ${data.failed} 個\n跳過: ${data.skipped} 個`);
+        await fetchPartners(); // 刷新夥伴列表
+      } else {
+        const errorData = await response.json();
+        setError(errorData.error || '重新計算失敗');
+      }
+    } catch (err) {
+      setError('重新計算失敗');
+    } finally {
+      setRecalculating(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-900 via-purple-900 to-indigo-900 flex items-center justify-center">
@@ -118,20 +173,100 @@ export default function ReferralConfigPage() {
         </div>
 
         {/* 管理功能按鈕 */}
-        <div className="mb-6 flex justify-end gap-2">
-          <a
-            href="/admin/withdrawals"
-            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-          >
-            提領申請管理
-          </a>
-          <a
-            href="/admin/partners"
-            className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
-          >
-            夥伴管理
-          </a>
+        <div className="mb-6 flex justify-between items-center">
+          <div className="flex gap-2">
+            <button
+              onClick={fetchRecalculateStats}
+              disabled={loadingStats}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+            >
+              {loadingStats ? '載入中...' : '查看統計'}
+            </button>
+            <button
+              onClick={() => handleRecalculateEarnings()}
+              disabled={recalculating}
+              className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors disabled:opacity-50"
+            >
+              {recalculating ? '計算中...' : '批量重新計算推薦收入'}
+            </button>
+          </div>
+          <div className="flex gap-2">
+            <a
+              href="/admin/withdrawals"
+              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+            >
+              提領申請管理
+            </a>
+            <a
+              href="/admin/partners"
+              className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+            >
+              夥伴管理
+            </a>
+          </div>
         </div>
+
+        {/* 統計信息 */}
+        {recalculateStats && (
+          <div className="bg-white rounded-lg shadow-lg p-6 mb-8">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">推薦收入計算統計</h3>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="bg-blue-50 p-4 rounded-lg">
+                <p className="text-sm text-gray-600">已完成訂單</p>
+                <p className="text-2xl font-bold text-blue-600">{recalculateStats.stats?.totalCompleted || 0}</p>
+              </div>
+              <div className="bg-green-50 p-4 rounded-lg">
+                <p className="text-sm text-gray-600">有推薦關係</p>
+                <p className="text-2xl font-bold text-green-600">{recalculateStats.stats?.withReferral || 0}</p>
+              </div>
+              <div className="bg-purple-50 p-4 rounded-lg">
+                <p className="text-sm text-gray-600">已計算</p>
+                <p className="text-2xl font-bold text-purple-600">{recalculateStats.stats?.calculated || 0}</p>
+              </div>
+              <div className="bg-orange-50 p-4 rounded-lg">
+                <p className="text-sm text-gray-600">待計算</p>
+                <p className="text-2xl font-bold text-orange-600">{recalculateStats.stats?.notCalculated || 0}</p>
+              </div>
+            </div>
+            {recalculateStats.stats?.totalCalculatedAmount !== undefined && (
+              <div className="mt-4 pt-4 border-t border-gray-200">
+                <p className="text-sm text-gray-600">總計算金額</p>
+                <p className="text-xl font-bold text-gray-900">
+                  NT$ {Math.round(recalculateStats.stats.totalCalculatedAmount).toLocaleString()}
+                </p>
+              </div>
+            )}
+            {recalculateStats.needsCalculation && recalculateStats.needsCalculation.length > 0 && (
+              <div className="mt-4">
+                <p className="text-sm font-medium text-gray-700 mb-2">
+                  需要計算的訂單（前 {Math.min(10, recalculateStats.needsCalculation.length)} 個）:
+                </p>
+                <div className="max-h-40 overflow-y-auto">
+                  <table className="min-w-full text-sm">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-3 py-2 text-left">訂單ID</th>
+                        <th className="px-3 py-2 text-left">夥伴</th>
+                        <th className="px-3 py-2 text-left">推薦人</th>
+                        <th className="px-3 py-2 text-right">金額</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200">
+                      {recalculateStats.needsCalculation.slice(0, 10).map((item: any) => (
+                        <tr key={item.bookingId}>
+                          <td className="px-3 py-2 font-mono text-xs">{item.bookingId.substring(0, 8)}...</td>
+                          <td className="px-3 py-2">{item.partnerName}</td>
+                          <td className="px-3 py-2">{item.inviterName}</td>
+                          <td className="px-3 py-2 text-right">NT$ {Math.round(item.amount).toLocaleString()}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* 配置說明 */}
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-8">

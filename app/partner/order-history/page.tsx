@@ -12,6 +12,7 @@ interface OrderHistoryItem {
   startTime: string
   endTime: string
   duration: number
+  durationMinutes?: number // 以分鐘為單位的時長
   status: string
   originalAmount: number
   finalAmount: number
@@ -112,18 +113,21 @@ export default function OrderHistoryPage() {
   }
 
   const getStatusBadge = (status: string) => {
-    const statusMap: { [key: string]: { text: string; className: string } } = {
-      'PENDING': { text: '待確認', className: 'bg-yellow-100 text-yellow-800' },
-      'CONFIRMED': { text: '已確認', className: 'bg-blue-100 text-blue-800' },
-      'PARTNER_ACCEPTED': { text: '夥伴已接受', className: 'bg-green-100 text-green-800' },
-      'COMPLETED': { text: '已完成', className: 'bg-gray-100 text-gray-800' },
-      'CANCELLED': { text: '已取消', className: 'bg-red-100 text-red-800' },
-      'REJECTED': { text: '已拒絕', className: 'bg-red-100 text-red-800' }
+    const statusMap: { [key: string]: { text: string; className: string; tooltip?: string } } = {
+      'PENDING': { text: '待確認', className: 'bg-yellow-100 text-yellow-800', tooltip: '等待夥伴確認' },
+      'CONFIRMED': { text: '已確認', className: 'bg-blue-100 text-blue-800', tooltip: '預約已確認，等待進行中' },
+      'PARTNER_ACCEPTED': { text: '夥伴已接受', className: 'bg-green-100 text-green-800', tooltip: '夥伴已接受預約' },
+      'COMPLETED': { text: '已完成', className: 'bg-gray-100 text-gray-800', tooltip: '預約已完成（時間已結束）' },
+      'CANCELLED': { text: '已取消', className: 'bg-red-100 text-red-800', tooltip: '預約已取消' },
+      'REJECTED': { text: '已拒絕', className: 'bg-red-100 text-red-800', tooltip: '預約已被拒絕' }
     }
     
     const statusInfo = statusMap[status] || { text: status, className: 'bg-gray-100 text-gray-800' }
     return (
-      <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusInfo.className}`}>
+      <span 
+        className={`px-2 py-1 rounded-full text-xs font-medium ${statusInfo.className}`}
+        title={statusInfo.tooltip}
+      >
         {statusInfo.text}
       </span>
     )
@@ -185,7 +189,7 @@ export default function OrderHistoryPage() {
                 </div>
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600">總收入</p>
-                  <p className="text-2xl font-bold text-gray-900">NT$ {stats.totalEarnings.toLocaleString()}</p>
+                  <p className="text-2xl font-bold text-gray-900">NT$ {Math.round(stats.totalEarnings).toLocaleString()}</p>
                 </div>
               </div>
             </div>
@@ -299,13 +303,13 @@ export default function OrderHistoryPage() {
                           {formatTime(booking.startTime)} - {formatTime(booking.endTime)}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {booking.duration * 30} 分鐘
+                          {booking.durationMinutes || booking.duration * 30} 分鐘
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           {getStatusBadge(booking.status)}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          NT$ {booking.finalAmount.toLocaleString()}
+                          NT$ {Math.round(booking.finalAmount).toLocaleString()}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span className={`px-2 py-1 rounded-full text-xs font-medium ${
