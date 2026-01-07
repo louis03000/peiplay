@@ -63,27 +63,27 @@ export default function AdminOrderRecordsPage() {
   // 獲取所有可用的月份
   const availableMonths = Object.keys(data).sort().reverse()
 
-  // 計算每個夥伴的總金額
+  // 計算每個夥伴的總金額（四捨五入）
   const calculatePartnerTotal = (records: OrderRecord[]) => {
-    return records.reduce((sum, record) => sum + record.amount, 0)
+    return Math.round(records.reduce((sum, record) => sum + record.amount, 0))
   }
 
-  // 計算每個月的總金額
+  // 計算每個月的總金額（四捨五入）
   const calculateMonthTotal = (monthData: { [partnerName: string]: OrderRecord[] }) => {
     let total = 0
     for (const partnerName in monthData) {
       total += calculatePartnerTotal(monthData[partnerName])
     }
-    return total
+    return Math.round(total)
   }
 
-  // 計算所有月份的總金額
+  // 計算所有月份的總金額（四捨五入）
   const calculateGrandTotal = () => {
     let total = 0
     for (const month in data) {
       total += calculateMonthTotal(data[month])
     }
-    return total
+    return Math.round(total)
   }
 
   if (loading) {
@@ -235,7 +235,7 @@ export default function AdminOrderRecordsPage() {
                                         {record.serviceType || '一般預約'}
                                       </td>
                                       <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 text-right">
-                                        NT$ {record.amount.toLocaleString()}
+                                        NT$ {Math.round(record.amount).toLocaleString()}
                                       </td>
                                     </tr>
                                   ))}

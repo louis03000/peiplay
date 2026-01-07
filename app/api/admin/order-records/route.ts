@@ -111,13 +111,13 @@ export async function GET(request: Request) {
       const endTime = new Date(booking.schedule.endTime)
       const durationMinutes = Math.floor((endTime.getTime() - startTime.getTime()) / (1000 * 60))
 
-      // 計算訂單金額
+      // 計算訂單金額（四捨五入）
       let orderAmount = 0
       if (finalAmount !== null && finalAmount !== undefined) {
-        orderAmount = parseFloat(finalAmount.toString())
+        orderAmount = Math.round(parseFloat(finalAmount.toString()))
       } else if (halfHourlyRate !== null && halfHourlyRate !== undefined && durationMinutes > 0) {
         // 如果沒有 finalAmount，根據時長和費率計算
-        orderAmount = (durationMinutes / 30) * parseFloat(halfHourlyRate.toString())
+        orderAmount = Math.round((durationMinutes / 30) * parseFloat(halfHourlyRate.toString()))
       }
       
       // 🔥 如果金額還是0，記錄警告但不跳過（可能是免費預約或測試）

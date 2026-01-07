@@ -38,6 +38,10 @@ export async function GET(request: NextRequest) {
       // 構建查詢條件
       const where: any = {
         schedule: { partnerId: partner.id },
+        // 🔥 排除已拒絕的訂單
+        status: {
+          notIn: [BookingStatus.REJECTED],
+        },
       };
 
       // 類型篩選（將在格式化數據後進行過濾）
@@ -60,6 +64,11 @@ export async function GET(request: NextRequest) {
           where.schedule.startTime.lte = endDateObj;
         }
       }
+
+      // 🔥 先查詢總數（用於分頁計算，排除已拒絕的訂單）
+      const totalCount = await client.booking.count({
+        where,
+      });
 
       // 查詢訂單列表
       // 如果有類型篩選，需要先查詢所有數據（因為類型是在格式化時計算的）
@@ -102,12 +111,13 @@ export async function GET(request: NextRequest) {
         ...(typeFilter === 'ALL' ? { skip: (page - 1) * limit, take: limit } : {}),
       });
 
-      // 計算統計數據（所有訂單，不受分頁限制）
+      // 計算統計數據（所有訂單，不受分頁限制，排除已拒絕的訂單）
       const statsBookings = await client.booking.findMany({
         where: {
           schedule: { partnerId: partner.id },
           status: {
             in: [BookingStatus.CONFIRMED, BookingStatus.COMPLETED, BookingStatus.PARTNER_ACCEPTED],
+            notIn: [BookingStatus.REJECTED],
           },
         },
         select: {
@@ -185,7 +195,8 @@ export async function GET(request: NextRequest) {
       }
 
       // 計算總數和分頁
-      const filteredCount = formattedBookings.length;
+      // 🔥 如果有類型篩選，使用篩選後的數量；否則使用查詢時的總數
+      const filteredCount = typeFilter !== 'ALL' ? formattedBookings.length : totalCount;
       const totalPages = Math.ceil(filteredCount / limit);
       // 如果有類型篩選，需要手動分頁；否則已經在查詢時分頁了
       const paginatedBookings = typeFilter !== 'ALL' 
