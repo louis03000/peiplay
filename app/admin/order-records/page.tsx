@@ -65,6 +65,8 @@ export default function AdminOrderRecordsPage() {
   const fetchData = async () => {
     try {
       setLoading(true)
+      
+      // 获取订单记录
       const url = selectedMonth 
         ? `/api/admin/order-records?month=${selectedMonth}`
         : '/api/admin/order-records'
@@ -77,13 +79,26 @@ export default function AdminOrderRecordsPage() {
       }
 
       // 获取平台总收入
-      const revenueUrl = selectedMonth
-        ? `/api/admin/platform-revenue?month=${selectedMonth}`
-        : '/api/admin/platform-revenue'
-      const revenueResponse = await fetch(revenueUrl)
-      if (revenueResponse.ok) {
-        const revenueResult = await revenueResponse.json()
-        setPlatformRevenue(revenueResult)
+      try {
+        const revenueUrl = selectedMonth
+          ? `/api/admin/platform-revenue?month=${selectedMonth}`
+          : '/api/admin/platform-revenue'
+        console.log('🔍 正在獲取平台總收入:', revenueUrl)
+        const revenueResponse = await fetch(revenueUrl)
+        console.log('📊 平台總收入響應狀態:', revenueResponse.status)
+        
+        if (revenueResponse.ok) {
+          const revenueResult = await revenueResponse.json()
+          console.log('✅ 平台總收入數據:', revenueResult)
+          setPlatformRevenue(revenueResult)
+        } else {
+          const errorText = await revenueResponse.text()
+          console.error('❌ 獲取平台總收入失敗:', revenueResponse.status, errorText)
+          // 不设置错误，让订单记录仍然可以显示
+        }
+      } catch (revenueErr) {
+        console.error('❌ 平台總收入請求異常:', revenueErr)
+        // 不设置错误，让订单记录仍然可以显示
       }
     } catch (err) {
       console.error('Fetch error:', err)
