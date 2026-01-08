@@ -152,13 +152,22 @@ export async function POST(request: NextRequest) {
         } as const;
       }
 
-      const platformFeePercentage = DEFAULT_REFERRAL_CONFIG.ORIGINAL_PLATFORM_FEE;
-      const referralBonusPercentage = calculateTieredReferralRate(inviter.referralCount);
-
-      const platformFee = totalAmount * platformFeePercentage;
+      // 🔥 被推薦夥伴永遠獲得85%收益（100% - 15%平台抽成）
+      // 推薦獎勵從平台維護費中扣除
+      const platformFeePercentage = DEFAULT_REFERRAL_CONFIG.ORIGINAL_PLATFORM_FEE; // 15%
+      const referralBonusPercentage = calculateTieredReferralRate(inviter.referralCount); // 2%, 3%, 或 4%
+      
+      // 平台實際抽成 = 15% - 推薦獎勵比例（從平台維護費中扣除）
+      const actualPlatformFee = platformFeePercentage - referralBonusPercentage;
+      
+      // 被推薦夥伴永遠獲得85%收益
+      const partnerEarning = totalAmount * (1 - platformFeePercentage); // 85% = 100% - 15%
+      
+      // 推薦獎勵 = 總金額 × 推薦獎勵比例（從平台維護費中扣除）
       const referralEarning = totalAmount * referralBonusPercentage;
-      const actualPlatformFee = platformFee - referralEarning;
-      const partnerEarning = totalAmount - platformFee;
+      
+      // 平台實際收入 = 總金額 × 實際平台抽成
+      const platformActualIncome = totalAmount * actualPlatformFee;
 
       console.log(`💰 推薦收入計算: 總金額 ${totalAmount}, 推薦比例 ${referralBonusPercentage * 100}%, 推薦收入 ${referralEarning}`);
 

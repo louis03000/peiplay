@@ -303,8 +303,15 @@ export default function ReferralConfigPage() {
                 <li>📈 推薦 10 人以上：獲得 4% 推薦獎勵</li>
               </ul>
             </li>
-            <li>• 兩個比例相加不能超過100%</li>
-            <li>• 被推薦夥伴實際獲得 = 100% - 平台抽成比例 - 推薦獎勵比例</li>
+            <li>• <strong>被推薦夥伴永遠獲得85%收益</strong>（100% - 15%平台抽成）</li>
+            <li>• <strong>推薦獎勵從平台維護費中扣除</strong>：
+              <ul className="ml-4 mt-1 space-y-1 text-sm">
+                <li>- 平台實際抽成 = 15% - 推薦獎勵比例</li>
+                <li>- 例如：推薦1-3人（2%獎勵），平台實際抽成 = 15% - 2% = 13%</li>
+                <li>- 例如：推薦4-10人（3%獎勵），平台實際抽成 = 15% - 3% = 12%</li>
+                <li>- 例如：推薦10人以上（4%獎勵），平台實際抽成 = 15% - 4% = 11%</li>
+              </ul>
+            </li>
             <li>• <strong>注意</strong>：推薦獎勵比例會根據夥伴的推薦人數自動計算，管理員可以手動調整，但建議保持階梯式制度</li>
           </ul>
         </div>
@@ -343,7 +350,11 @@ export default function ReferralConfigPage() {
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {partners.map((partner) => {
-                  const partnerEarning = 100 - partner.referralPlatformFee - partner.referralBonusPercentage;
+                  // 🔥 被推薦夥伴永遠獲得85%收益（100% - 15%平台抽成）
+                  // 推薦獎勵從平台維護費中扣除，不影響被推薦夥伴的收益
+                  // 平台實際抽成 = 15% - 推薦獎勵比例
+                  const actualPlatformFee = 15 - partner.referralBonusPercentage;
+                  const partnerEarning = 85; // 被推薦夥伴永遠獲得85%
                   const isEditing = editingPartner === partner.id;
                   
                   return (
@@ -413,14 +424,14 @@ export default function ReferralConfigPage() {
                         )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`text-sm font-medium ${
-                          partnerEarning >= 0 ? 'text-green-600' : 'text-red-600'
-                        }`}>
-                          {isEditing ? 
-                            (100 - editForm.referralPlatformFee - editForm.referralBonusPercentage).toFixed(2) + '%' :
-                            partnerEarning.toFixed(2) + '%'
-                          }
-                        </span>
+                        <div className="flex flex-col">
+                          <span className="text-sm font-medium text-green-600">
+                            {partnerEarning.toFixed(2)}% (固定)
+                          </span>
+                          <span className="text-xs text-gray-500">
+                            平台實際抽成: {actualPlatformFee.toFixed(2)}% (15% - {partner.referralBonusPercentage}%)
+                          </span>
+                        </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {partner.referralCount}

@@ -38,6 +38,13 @@ export async function GET(request: NextRequest) {
             throw new Error('您不是夥伴');
           }
 
+          // 檢查是否為被推薦夥伴（被推薦夥伴永遠獲得85%收益）
+          const referralRecord = await client.referralRecord.findUnique({
+            where: { inviteeId: partner.id }
+          });
+          
+          const isReferredPartner = !!referralRecord;
+
       // 優化：使用 raw SQL 進行高效的 JOIN 查詢
       // 添加日期範圍限制，只查詢最近 2 年的數據（大幅減少掃描量）
       // 並行執行所有查詢以提高性能
@@ -91,20 +98,26 @@ export async function GET(request: NextRequest) {
           const totalWithdrawn = totalWithdrawnResult._sum.amount || 0;
           const referralEarnings = partner.referralEarnings || 0;
 
-          // 優先使用 referralPlatformFee 字段（如果管理員有手動設定）
-          // 如果沒有設定，則使用排名計算的平台維護費
+          // 🔥 被推薦夥伴永遠獲得85%收益（100% - 15%平台抽成）
+          // 推薦獎勵從平台維護費中扣除，不影響被推薦夥伴的收益
           let rank: number | null = null;
-          let PLATFORM_FEE_PERCENTAGE = partner.referralPlatformFee / 100 || 0.15; // 優先使用 referralPlatformFee，默認 15%
+          let PLATFORM_FEE_PERCENTAGE = 0.15; // 默認 15%
           
-          // 如果 referralPlatformFee 沒有設定（為 null 或 0），則使用排名計算
-          if (!partner.referralPlatformFee || partner.referralPlatformFee === 0) {
-            try {
-              rank = await getPartnerLastWeekRank(partner.id);
-              PLATFORM_FEE_PERCENTAGE = calculatePlatformFeePercentage(rank);
-            } catch (error: any) {
-              // 如果獲取排名失敗，使用默認費率
-              console.warn('⚠️ 獲取排名失敗，使用默認費率:', error?.message || error);
-              PLATFORM_FEE_PERCENTAGE = 0.15; // 默認 15%
+          if (isReferredPartner) {
+            // 被推薦夥伴：永遠獲得85%收益，平台抽成固定15%
+            PLATFORM_FEE_PERCENTAGE = 0.15;
+          } else {
+            // 非被推薦夥伴：使用排名系統或 referralPlatformFee
+            if (partner.referralPlatformFee && partner.referralPlatformFee > 0) {
+              PLATFORM_FEE_PERCENTAGE = partner.referralPlatformFee / 100;
+            } else {
+              try {
+                rank = await getPartnerLastWeekRank(partner.id);
+                PLATFORM_FEE_PERCENTAGE = calculatePlatformFeePercentage(rank);
+              } catch (error: any) {
+                console.warn('⚠️ 獲取排名失敗，使用默認費率:', error?.message || error);
+                PLATFORM_FEE_PERCENTAGE = 0.15; // 默認 15%
+              }
             }
           }
 
