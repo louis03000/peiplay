@@ -43,17 +43,6 @@ export async function GET(request: NextRequest) {
 
       const completedBookings = await client.booking.findMany({
         where,
-        include: {
-          schedule: {
-            include: {
-              partner: {
-                select: {
-                  id: true,
-                },
-              },
-            },
-          },
-        },
         select: {
           id: true,
           finalAmount: true,
