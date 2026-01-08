@@ -126,9 +126,9 @@ export default function OrderHistoryPage() {
   const getStatusBadge = (status: string) => {
     const statusMap: { [key: string]: { text: string; className: string; tooltip?: string } } = {
       'PENDING': { text: '待確認', className: 'bg-yellow-100 text-yellow-800', tooltip: '等待夥伴確認' },
-      'CONFIRMED': { text: '進行中', className: 'bg-blue-100 text-blue-800', tooltip: '預約已確認，服務進行中' },
+      'CONFIRMED': { text: '已完成', className: 'bg-blue-100 text-blue-800', tooltip: '預約已完成' },
       'PARTNER_ACCEPTED': { text: '夥伴已接受', className: 'bg-green-100 text-green-800', tooltip: '夥伴已接受預約' },
-      'COMPLETED': { text: '已完成', className: 'bg-gray-100 text-gray-800', tooltip: '服務已完成，訂單已結束' },
+      'COMPLETED': { text: '已完成', className: 'bg-blue-100 text-blue-800', tooltip: '預約已完成' },
       'CANCELLED': { text: '已取消', className: 'bg-red-100 text-red-800', tooltip: '預約已取消' },
       'REJECTED': { text: '已拒絕', className: 'bg-red-100 text-red-800', tooltip: '預約已被拒絕' }
     }
