@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db-resilience'
 import { createErrorResponse } from '@/lib/api-helpers'
 import { BookingStatus } from '@prisma/client'
+import { getPartnerLastWeekRank, calculatePlatformFeePercentage } from '@/lib/ranking-helpers'
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -33,6 +34,20 @@ export async function GET(request: NextRequest) {
 
       if (!partner) {
         return { type: 'NO_PARTNER' } as const;
+      }
+
+      // 獲取夥伴上一週的排名並計算平台維護費
+      // 用於計算每個訂單的淨收入（扣除平台費用後）
+      let rank: number | null = null;
+      let PLATFORM_FEE_PERCENTAGE = 0.15; // 默認費率 15%
+      
+      try {
+        rank = await getPartnerLastWeekRank(partner.id);
+        PLATFORM_FEE_PERCENTAGE = calculatePlatformFeePercentage(rank);
+      } catch (error: any) {
+        // 如果獲取排名失敗，使用默認費率
+        console.warn('⚠️ 獲取排名失敗，使用默認費率:', error?.message || error);
+        PLATFORM_FEE_PERCENTAGE = 0.15; // 默認 15%
       }
 
       // 構建查詢條件
@@ -165,9 +180,14 @@ export async function GET(request: NextRequest) {
         // 🔥 計算正確的金額：如果是純聊天，使用 chatOnlyRate 計算
         let displayAmount = booking.finalAmount || 0;
         if (isChatOnly && booking.schedule?.partner?.chatOnlyRate) {
-          // 純聊天價格 = chatOnlyRate * 時長（以30分鐘為單位）
-          displayAmount = booking.schedule.partner.chatOnlyRate * duration;
+          // 純聊天價格 = chatOnlyRate * (實際分鐘數 / 30分鐘)
+          // 例如：100元/30分鐘，預約10分鐘 = 100 * (10/30) = 33.33元
+          displayAmount = booking.schedule.partner.chatOnlyRate * (durationMinutes / 30);
         }
+
+        // 🔥 計算夥伴實際收到的淨收入（扣除平台費用後）
+        // 淨收入 = 訂單金額 × (1 - 平台費用比例)
+        const partnerEarning = displayAmount * (1 - PLATFORM_FEE_PERCENTAGE);
 
         return {
           id: booking.id,
@@ -180,7 +200,8 @@ export async function GET(request: NextRequest) {
           durationMinutes, // 添加以分鐘為單位的字段
           status: booking.status,
           originalAmount: Math.round(booking.originalAmount || 0), // 四舍五入
-          finalAmount: Math.round(displayAmount), // 使用計算後的正確金額，並四舍五入
+          finalAmount: Math.round(displayAmount), // 訂單總金額（保留用於其他用途）
+          partnerEarning: Math.round(partnerEarning), // 夥伴實際收到的淨收入（扣除平台費用後）
           createdAt: booking.createdAt.toISOString(),
           updatedAt: booking.updatedAt.toISOString(),
           paymentInfo: booking.paymentInfo,

@@ -16,6 +16,7 @@ interface OrderHistoryItem {
   status: string
   originalAmount: number
   finalAmount: number
+  partnerEarning?: number // 夥伴實際收到的淨收入（扣除平台費用後）
   createdAt: string
   updatedAt: string
   paymentInfo: any
@@ -336,7 +337,7 @@ export default function OrderHistoryPage() {
                           {getStatusBadge(booking.status)}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          NT$ {Math.round(booking.finalAmount).toLocaleString()}
+                          NT$ {Math.round(booking.partnerEarning || booking.finalAmount).toLocaleString()}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span className={`px-2 py-1 rounded-full text-xs font-medium ${

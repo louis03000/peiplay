@@ -89,7 +89,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '請先登入' }, { status: 401 })
     }
 
-    const { partnerId, duration } = requestData
+    const { partnerId, duration, isChatOnly } = requestData
 
     // 驗證參數
     if (!partnerId || typeof partnerId !== 'string') {
@@ -103,6 +103,9 @@ export async function POST(request: NextRequest) {
       console.log(`[${requestId}] ❌ 參數驗證失敗: duration 無效`, { duration, durationNum, type: typeof duration })
       return NextResponse.json({ error: '缺少或無效的預約時長' }, { status: 400 })
     }
+
+    // 確保 isChatOnly 是布林值
+    const chatOnly = isChatOnly === true || isChatOnly === 'true'
 
     console.log(`[${requestId}] 🔍 開始執行資料庫查詢...`)
     let result
@@ -200,9 +203,32 @@ export async function POST(request: NextRequest) {
             return { type: 'CONFLICT', conflict } as const
           }
 
+          // 🔥 計算價格：如果是純聊天，使用 chatOnlyRate；否則使用 halfHourlyRate
+          let originalAmount: number
+          if (chatOnly && partner.chatOnlyRate) {
+            // 純聊天價格 = chatOnlyRate * (實際分鐘數 / 30分鐘)
+            // durationNum 是以小時為單位，所以實際分鐘數 = durationNum * 60
+            const durationMinutes = durationNum * 60
+            originalAmount = partner.chatOnlyRate * (durationMinutes / 30)
+            console.log(`[${requestId}] 💰 純聊天價格計算:`, {
+              chatOnlyRate: partner.chatOnlyRate,
+              durationHours: durationNum,
+              durationMinutes,
+              originalAmount,
+            })
+          } else {
+            // 一般預約價格 = halfHourlyRate * durationNum * 2
+            originalAmount = durationNum * partner.halfHourlyRate * 2
+            console.log(`[${requestId}] 💰 一般預約價格計算:`, {
+              halfHourlyRate: partner.halfHourlyRate,
+              durationHours: durationNum,
+              originalAmount,
+            })
+          }
+
           const pricing = {
             duration: durationNum,
-            originalAmount: durationNum * partner.halfHourlyRate * 2,
+            originalAmount,
           }
 
           console.log(`[${requestId}] 🔍 開始創建預約（事務）...`, {
@@ -248,8 +274,10 @@ export async function POST(request: NextRequest) {
                     status: BookingStatus.PAID_WAITING_PARTNER_CONFIRMATION,
                     originalAmount: pricing.originalAmount,
                     finalAmount: pricing.originalAmount,
+                    serviceType: chatOnly ? 'CHAT_ONLY' : undefined, // 設置服務類型
                     paymentInfo: {
                       isInstantBooking: true,
+                      isChatOnly: chatOnly, // 保存純聊天標誌
                     },
                   },
                 })
