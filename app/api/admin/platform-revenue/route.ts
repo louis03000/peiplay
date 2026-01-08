@@ -23,10 +23,22 @@ export async function GET(request: NextRequest) {
     const filterMonth = searchParams.get('month') // 格式：YYYY-MM
 
     const result = await db.query(async (client) => {
-      // 1. 获取所有已完成的订单
+      // 1. 获取所有有金额的订单（与订单记录页面保持一致）
+      // 注意：订单记录页面显示 ['CONFIRMED', 'COMPLETED', 'PARTNER_ACCEPTED']
+      // 但平台收入应该只计算真正已完成的订单（COMPLETED），因为这些订单才会产生平台抽成
+      // 如果订单记录页面的总金额与平台收入不一致，说明有订单还未完成（状态不是COMPLETED）
+      // 为了与订单记录页面保持一致，我们也查询这些状态的订单，但只计算有 finalAmount 的
       const where: any = {
-        status: 'COMPLETED',
+        status: {
+          in: ['CONFIRMED', 'COMPLETED', 'PARTNER_ACCEPTED'],
+        },
+        finalAmount: {
+          not: null,
+          gt: 0,
+        },
       }
+      
+      console.log(`📊 查询订单，过滤条件:`, filterMonth || '全部月份')
 
       // 如果指定了月份，过滤记录
       if (filterMonth) {
@@ -56,6 +68,8 @@ export async function GET(request: NextRequest) {
       })
 
       // 2. 计算总金额和基础平台抽成（15%）
+      // 注意：订单记录页面显示所有状态的订单（CONFIRMED, COMPLETED, PARTNER_ACCEPTED）
+      // 但平台收入应该只计算已完成的订单（COMPLETED），因为这些订单才会产生平台抽成
       let totalAmount = 0
       for (const booking of completedBookings) {
         if (booking.finalAmount) {
@@ -63,20 +77,22 @@ export async function GET(request: NextRequest) {
         }
       }
       const basePlatformFee = totalAmount * 0.15
+      
+      // 添加调试日志
+      console.log(`📊 平台收入计算: 已完成订单数 ${completedBookings.length}, 总金额 ${totalAmount.toFixed(2)}, 平台抽成 ${basePlatformFee.toFixed(2)}`)
+      console.log(`📊 推荐奖励支出: ${totalReferralExpense.toFixed(2)}, 第一名减免: ${totalFirstPlaceDiscount.toFixed(2)}`)
 
       // 3. 计算推荐奖励支出
       // 查询所有推荐收入记录（ReferralEarning）
-      const referralEarningsWhere: any = {
-        booking: {
-          status: 'COMPLETED',
-        },
-      }
+      // ReferralEarning 的 createdAt 对应推荐收入的创建时间（即订单完成时）
+      // 所以应该根据 ReferralEarning.createdAt 来过滤，而不是 booking.updatedAt
+      const referralEarningsWhere: any = {}
       
       if (filterMonth) {
         const [year, month] = filterMonth.split('-').map(Number)
         const startDate = new Date(Date.UTC(year, month - 1, 1, 0, 0, 0, 0))
         const endDate = new Date(Date.UTC(year, month, 0, 23, 59, 59, 999))
-        referralEarningsWhere.booking.updatedAt = {
+        referralEarningsWhere.createdAt = {
           gte: startDate,
           lte: endDate,
         }
@@ -86,12 +102,54 @@ export async function GET(request: NextRequest) {
         where: referralEarningsWhere,
         select: {
           amount: true,
+          createdAt: true,
         },
       })
 
       let totalReferralExpense = 0
       for (const earning of referralEarnings) {
         totalReferralExpense += Number(earning.amount)
+      }
+      
+      // 添加调试日志
+      console.log(`📊 推荐奖励记录: 找到 ${referralEarnings.length} 条记录，总金额 ${totalReferralExpense.toFixed(2)}`)
+      
+      // 如果没有推荐奖励记录，尝试检查是否有订单应该产生推荐奖励
+      if (referralEarnings.length === 0 && completedBookings.length > 0) {
+        console.log(`⚠️ 警告: 找到 ${completedBookings.length} 个已完成订单，但没有推荐奖励记录`)
+        // 检查是否有推荐关系但未计算推荐奖励的订单
+        const bookingsWithReferral = await client.booking.findMany({
+          where: {
+            ...where,
+            schedule: {
+              partner: {
+                referralsReceived: {
+                  isNot: null,
+                },
+              },
+            },
+          },
+          select: {
+            id: true,
+            finalAmount: true,
+            schedule: {
+              select: {
+                partner: {
+                  select: {
+                    id: true,
+                    name: true,
+                  },
+                },
+              },
+            },
+          },
+          take: 5, // 只取前5个作为示例
+        })
+        if (bookingsWithReferral.length > 0) {
+          console.log(`📋 发现 ${bookingsWithReferral.length} 个订单有推荐关系但未计算推荐奖励`)
+          console.log(`   示例订单: ${bookingsWithReferral.map(b => `ID=${b.id}, 伙伴=${b.schedule.partner.name}`).join(', ')}`)
+          console.log(`   💡 建议: 在管理后台运行"批量重新計算推薦收入"功能`)
+        }
       }
 
       // 4. 计算排行榜第一名减免
@@ -105,9 +163,13 @@ export async function GET(request: NextRequest) {
         }
 
         // 获取订单完成时间所在的那一周的开始日期（周一）
-        const weekStart = getWeekStartDate(new Date(booking.updatedAt))
+        const bookingDate = new Date(booking.updatedAt)
+        const weekStart = getWeekStartDate(bookingDate)
+        // 标准化为UTC时间的00:00:00，确保与数据库存储的格式一致
+        weekStart.setUTCHours(0, 0, 0, 0)
         
-        // 查询该周的第一名
+        // 查询该周的第一名（精确匹配 weekStartDate）
+        // RankingHistory 表中的 weekStartDate 存储的就是那一周的周一 00:00:00 UTC
         const rankingHistory = await client.rankingHistory.findFirst({
           where: {
             weekStartDate: weekStart,
@@ -115,6 +177,7 @@ export async function GET(request: NextRequest) {
           },
           select: {
             partnerId: true,
+            weekStartDate: true,
           },
         })
 
@@ -127,6 +190,7 @@ export async function GET(request: NextRequest) {
             amount: Number(booking.finalAmount),
             weekStart: weekStart.toISOString(),
           })
+          console.log(`✅ 找到第一名减免: 订单 ${booking.id}, 伙伴 ${booking.schedule.partnerId}, 金额 ${Number(booking.finalAmount)}, 减免 ${discount.toFixed(2)}`)
         }
       }
 
@@ -168,12 +232,9 @@ export async function GET(request: NextRequest) {
         
         const monthReferralEarnings = await client.referralEarning.findMany({
           where: {
-            booking: {
-              status: 'COMPLETED',
-              updatedAt: {
-                gte: monthStartDate,
-                lte: monthEndDate,
-              },
+            createdAt: {
+              gte: monthStartDate,
+              lte: monthEndDate,
             },
           },
           select: {
@@ -192,7 +253,10 @@ export async function GET(request: NextRequest) {
             continue
           }
 
-          const weekStart = getWeekStartDate(new Date(booking.updatedAt))
+          const bookingDate = new Date(booking.updatedAt)
+          const weekStart = getWeekStartDate(bookingDate)
+          weekStart.setUTCHours(0, 0, 0, 0)
+          
           const rankingHistory = await client.rankingHistory.findFirst({
             where: {
               weekStartDate: weekStart,
@@ -200,6 +264,7 @@ export async function GET(request: NextRequest) {
             },
             select: {
               partnerId: true,
+              weekStartDate: true,
             },
           })
 
