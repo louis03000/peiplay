@@ -147,8 +147,6 @@ evaluated_records = set()
 pending_ratings = {}
 processed_bookings = set()  # 記錄已處理的預約
 processed_text_channels = set()  # 記錄已創建文字頻道的預約
-rating_submitted_users = {}  # 追蹤每個記錄的已提交評價用戶 {record_id: set(user_ids)}
-rating_text_channels = {}  # 追蹤每個記錄的文字頻道 {record_id: text_channel}
 rating_sent_bookings = set()  # 追蹤已發送評價系統的預約
 processed_withdrawals = set()  # 記錄已處理的提領申請
 
@@ -1034,53 +1032,6 @@ async def cleanup_expired_channels():
                 if vc_id in active_voice_channels:
                     del active_voice_channels[vc_id]
         
-        # 檢查"匿名文字區"頻道：如果對應的語音頻道已刪除且沒有評價系統，則刪除文字頻道
-        try:
-            anonymous_text_channels = [ch for ch in guild.text_channels if ch.name == "🔒匿名文字區" or "匿名文字區" in ch.name]
-            
-            for text_channel in anonymous_text_channels:
-                try:
-                    # 檢查是否有對應的語音頻道（在同一分類中）
-                    category = text_channel.category
-                    if category:
-                        # 查找同一分類中的語音頻道
-                        voice_channels_in_category = [vc for vc in category.voice_channels if vc.name.endswith("頻道")]
-                        
-                        # 如果分類中沒有語音頻道，檢查文字頻道是否有評價系統
-                        if not voice_channels_in_category:
-                            # 檢查文字頻道中是否有評價系統的訊息
-                            has_rating_system = False
-                            try:
-                                async for message in text_channel.history(limit=50):
-                                    # 檢查是否有評價相關的訊息
-                                    if "⭐" in message.content or "評價" in message.content or "評分" in message.content:
-                                        # 檢查是否有評價按鈕
-                                        if message.components:
-                                            for component in message.components:
-                                                if hasattr(component, 'children'):
-                                                    for item in component.children:
-                                                        if isinstance(item, discord.ui.Button) and item.label and ("⭐" in item.label or "評分" in item.label or "評價" in item.label):
-                                                            has_rating_system = True
-                                                            break
-                                    if has_rating_system:
-                                        break
-                            except Exception as e:
-                                print(f"⚠️ 檢查評價系統時發生錯誤: {e}")
-                            
-                            # 如果沒有評價系統，且頻道創建時間超過5分鐘，則刪除
-                            if not has_rating_system:
-                                channel_age = (current_time - text_channel.created_at.replace(tzinfo=timezone.utc)).total_seconds()
-                                if channel_age > 300:  # 5分鐘
-                                    await text_channel.delete()
-                                    print(f"✅ 已刪除無評價系統的文字頻道: {text_channel.name} ({text_channel.id})")
-                except discord.errors.NotFound:
-                    # 頻道已經被刪除，跳過
-                    pass
-                except Exception as e:
-                    print(f"❌ 檢查文字頻道 {text_channel.id} 時發生錯誤: {e}")
-        except Exception as e:
-            print(f"❌ 檢查匿名文字區頻道時發生錯誤: {e}")
-        
     except Exception as e:
         print(f"❌ 清理過期頻道時發生錯誤: {e}")
 
@@ -1854,14 +1805,7 @@ async def send_rating_to_admin(record_id, rating_data, user1_id, user2_id):
             inline=True
         )
         
-        if 'role' in rating_data:
-            embed.add_field(
-                name="👤 身份",
-                value=rating_data['role'],
-                inline=True
-            )
-        
-        if rating_data.get('comment'):
+        if rating_data['comment']:
             embed.add_field(
                 name="💬 留言",
                 value=rating_data['comment'],
@@ -1884,107 +1828,18 @@ async def send_rating_to_admin(record_id, rating_data, user1_id, user2_id):
         import traceback
         traceback.print_exc()
 
-# --- 評價選擇 View（包含星等和身份選擇）---
-class RatingSelectionView(View):
-    """評價選擇界面，包含星等和身份選擇按鈕"""
+# --- 評分 Modal ---
+class RatingModal(Modal, title="匿名評分與留言"):
+    rating = TextInput(label="給予評分（1～5 星）", required=True)
+    comment = TextInput(label="留下你的留言（選填）", required=False)
+
     def __init__(self, record_id):
-        super().__init__(timeout=300)  # 5分鐘超時
-        self.record_id = record_id
-        self.selected_rating = {}  # {user_id: rating}
-        self.selected_role = {}  # {user_id: role}
-    
-    @discord.ui.button(label="⭐ 1星", style=discord.ButtonStyle.success, emoji="⭐", row=0)
-    async def rate_1_star(self, interaction: discord.Interaction, button: discord.ui.Button):
-        self.selected_rating[interaction.user.id] = 1
-        await interaction.response.send_message("✅ 已選擇1星評分", ephemeral=True)
-    
-    @discord.ui.button(label="⭐ 2星", style=discord.ButtonStyle.success, emoji="⭐", row=0)
-    async def rate_2_star(self, interaction: discord.Interaction, button: discord.ui.Button):
-        self.selected_rating[interaction.user.id] = 2
-        await interaction.response.send_message("✅ 已選擇2星評分", ephemeral=True)
-    
-    @discord.ui.button(label="⭐ 3星", style=discord.ButtonStyle.success, emoji="⭐", row=0)
-    async def rate_3_star(self, interaction: discord.Interaction, button: discord.ui.Button):
-        self.selected_rating[interaction.user.id] = 3
-        await interaction.response.send_message("✅ 已選擇3星評分", ephemeral=True)
-    
-    @discord.ui.button(label="⭐ 4星", style=discord.ButtonStyle.success, emoji="⭐", row=0)
-    async def rate_4_star(self, interaction: discord.Interaction, button: discord.ui.Button):
-        self.selected_rating[interaction.user.id] = 4
-        await interaction.response.send_message("✅ 已選擇4星評分", ephemeral=True)
-    
-    @discord.ui.button(label="⭐ 5星", style=discord.ButtonStyle.success, emoji="⭐", row=0)
-    async def rate_5_star(self, interaction: discord.Interaction, button: discord.ui.Button):
-        self.selected_rating[interaction.user.id] = 5
-        await interaction.response.send_message("✅ 已選擇5星評分", ephemeral=True)
-    
-    @discord.ui.button(label="我是顧客", style=discord.ButtonStyle.primary, row=1)
-    async def select_customer(self, interaction: discord.Interaction, button: discord.ui.Button):
-        self.selected_role[interaction.user.id] = "顧客"
-        await interaction.response.send_message("✅ 已選擇身份:顧客", ephemeral=True)
-    
-    @discord.ui.button(label="我是夥伴", style=discord.ButtonStyle.success, row=1)
-    async def select_partner(self, interaction: discord.Interaction, button: discord.ui.Button):
-        self.selected_role[interaction.user.id] = "夥伴"
-        await interaction.response.send_message("✅ 已選擇身份:夥伴", ephemeral=True)
-    
-    @discord.ui.button(label="提交評價", style=discord.ButtonStyle.success, row=2)
-    async def submit_rating(self, interaction: discord.Interaction, button: discord.ui.Button):
-        try:
-            user_id = interaction.user.id
-            
-            # 檢查是否已選擇評分和身份
-            if user_id not in self.selected_rating:
-                await interaction.response.send_message("❌ 請先選擇評分（1-5星）", ephemeral=True)
-                return
-            
-            if user_id not in self.selected_role:
-                await interaction.response.send_message("❌ 請先選擇身份（顧客或夥伴）", ephemeral=True)
-                return
-            
-            rating = self.selected_rating[user_id]
-            role = self.selected_role[user_id]
-            
-            # 檢查用戶是否已經提交過評價
-            if self.record_id in rating_submitted_users:
-                if str(user_id) in rating_submitted_users[self.record_id]:
-                    await interaction.response.send_message("❗ 您已經提交過評價了。", ephemeral=True)
-                    return
-            
-            # 打開留言表單（選填）
-            modal = RatingCommentModal(self.record_id, rating, role)
-            await interaction.response.send_modal(modal)
-            
-        except Exception as e:
-            print(f"❌ 處理評價提交時發生錯誤: {e}")
-            import traceback
-            traceback.print_exc()
-            try:
-                if not interaction.response.is_done():
-                    await interaction.response.send_message("❌ 處理請求時發生錯誤，請稍後再試。", ephemeral=True)
-            except:
-                pass
-
-# --- 留言 Modal（選填）---
-class RatingCommentModal(Modal, title="匿名評分與留言"):
-    comment = TextInput(
-        label="留下你的留言（選填）",
-        required=False,
-        style=discord.TextStyle.paragraph,
-        placeholder="可以留下您的意見或建議..."
-    )
-
-    def __init__(self, record_id, rating, role):
         super().__init__()
         self.record_id = record_id
-        self.rating = rating
-        self.role = role
 
     async def on_submit(self, interaction: discord.Interaction):
         try:
-            comment_text = self.comment.value.strip() if self.comment.value else ""
-            
-            print(f"🔍 收到評價提交: record_id={self.record_id}, rating={self.rating}, role={self.role}, comment={comment_text}")
+            print(f"🔍 收到評價提交: record_id={self.record_id}, rating={self.rating}, comment={self.comment}")
             
             # 使用新的 session 來避免連接問題
             with Session() as s:
@@ -1998,25 +1853,21 @@ class RatingCommentModal(Modal, title="匿名評分與留言"):
                 user1_id = record.user1Id
                 user2_id = record.user2Id
                 
-                # 保存評價
-                record.rating = self.rating
-                record.comment = f"[{self.role}] {comment_text}" if comment_text else f"[{self.role}]"
+                # 配對記錄資訊，減少日誌輸出
+                
+                record.rating = int(str(self.rating))
+                record.comment = str(self.comment)
                 s.commit()
+                # 評價已保存到資料庫，減少日誌輸出
             
             await interaction.response.send_message("✅ 感謝你的匿名評價！", ephemeral=True)
-
-            # 標記用戶已提交評價（統一使用字符串格式）
-            if self.record_id not in rating_submitted_users:
-                rating_submitted_users[self.record_id] = set()
-            rating_submitted_users[self.record_id].add(str(interaction.user.id))
 
             if self.record_id not in pending_ratings:
                 pending_ratings[self.record_id] = []
             
             rating_data = {
-                'rating': self.rating,
-                'role': self.role,
-                'comment': comment_text,
+                'rating': int(str(self.rating)),
+                'comment': str(self.comment),
                 'user1': str(interaction.user.id),
                 'user2': str(user2_id if str(interaction.user.id) == user1_id else user1_id)
             }
@@ -2028,34 +1879,6 @@ class RatingCommentModal(Modal, title="匿名評分與留言"):
 
             evaluated_records.add(self.record_id)
             print(f"✅ 評價流程完成")
-            
-            # 檢查是否所有用戶都已提交評價，如果是則刪除文字頻道
-            if self.record_id in rating_text_channels:
-                text_channel = rating_text_channels[self.record_id]
-                
-                # 檢查是否所有相關用戶都已提交
-                with Session() as s:
-                    record = s.get(PairingRecord, self.record_id)
-                    if record:
-                        user1_id = record.user1Id
-                        user2_id = record.user2Id
-                        
-                        submitted_users = rating_submitted_users.get(self.record_id, set())
-                        
-                        # 檢查兩個用戶是否都已提交評價（統一使用字符串格式比較）
-                        user1_submitted = str(user1_id) in submitted_users
-                        user2_submitted = str(user2_id) in submitted_users
-                        
-                        # 如果兩個用戶都已提交，刪除頻道
-                        if user1_submitted and user2_submitted:
-                            try:
-                                if text_channel and not text_channel.deleted:
-                                    await text_channel.delete()
-                                    print(f"✅ 所有用戶已提交評價，已刪除文字頻道: {text_channel.name}")
-                                    # 清理追蹤
-                                    rating_text_channels.pop(self.record_id, None)
-                            except Exception as e:
-                                print(f"❌ 刪除文字頻道失敗: {e}")
         except Exception as e:
             print(f"❌ 評分提交錯誤: {e}")
             import traceback
@@ -2064,42 +1887,6 @@ class RatingCommentModal(Modal, title="匿名評分與留言"):
                 await interaction.response.send_message("❌ 提交失敗，請稍後再試", ephemeral=True)
             except:
                 # 如果已經回應過，就忽略錯誤
-                pass
-
-# --- 評價按鈕 View ---
-class RatingSubmitButton(View):
-    """評價提交按鈕，點擊後會打開評價選擇界面"""
-    def __init__(self, record_id):
-        super().__init__(timeout=None)  # 設置為 None，讓按鈕永久有效
-        self.record_id = record_id
-
-    @discord.ui.button(label="⭐ 匿名評分", style=discord.ButtonStyle.success, emoji="⭐")
-    async def submit(self, interaction: discord.Interaction, button: discord.ui.Button):
-        try:
-            print(f"🔍 用戶 {interaction.user.id} 點擊了評價按鈕，record_id={self.record_id}")
-            
-            # 檢查用戶是否已經提交過評價（使用全局字典，統一使用字符串格式）
-            if self.record_id in rating_submitted_users:
-                if str(interaction.user.id) in rating_submitted_users[self.record_id]:
-                    await interaction.response.send_message("❗ 您已經提交過評價了。", ephemeral=True)
-                    return
-            
-            # 打開評價選擇界面（包含星等和身份選擇按鈕）
-            rating_view = RatingSelectionView(self.record_id)
-            await interaction.response.send_message(
-                "📝 請選擇您的評分和身份，然後點擊「提交評價」按鈕：",
-                view=rating_view,
-                ephemeral=True
-            )
-            
-        except Exception as e:
-            print(f"❌ 處理評價按鈕點擊時發生錯誤: {e}")
-            import traceback
-            traceback.print_exc()
-            try:
-                if not interaction.response.is_done():
-                    await interaction.response.send_message("❌ 處理請求時發生錯誤，請稍後再試。", ephemeral=True)
-            except:
                 pass
 
 # --- 延長按鈕 ---
@@ -2665,26 +2452,41 @@ async def countdown(vc_id, animal_channel_name, text_channel, vc, interaction, m
         await vc.delete()
         print(f"🎯 語音頻道已刪除，開始評價流程: record_id={record_id}")
         
-        # 檢查 record_id 是否有效，如果無效則直接刪除文字頻道
-        if not record_id:
-            print(f"❌ record_id 為 None，無法顯示評價系統，刪除文字頻道")
-            try:
-                if text_channel and not text_channel.deleted:
-                    await text_channel.delete()
-                    print(f"✅ 已刪除文字頻道（無評價系統）: {text_channel.name}")
-            except Exception as e:
-                print(f"❌ 刪除文字頻道失敗: {e}")
-            active_voice_channels.pop(vc_id, None)
-            return
-        
-        # 在現有的文字頻道顯示評價系統
-        rating_system_sent = False
+        # 創建臨時評價頻道（因為預約前的溝通頻道已經被刪除）
         try:
-            # 檢查文字頻道是否存在
-            if not text_channel or text_channel.deleted:
-                print(f"⚠️ 文字頻道不存在或已刪除，無法顯示評價系統")
-                active_voice_channels.pop(vc_id, None)
-                return
+            # 從 members 中提取 customer_member 和 partner_member
+            customer_member = None
+            partner_member = None
+            if members and len(members) >= 2:
+                customer_member = members[0]  # 假設第一個是顧客
+                partner_member = members[1]   # 假設第二個是夥伴
+            
+            # 查找語音頻道所屬的分類
+            category = vc.category if vc.category else None
+            if not category:
+                category = discord.utils.get(guild.categories, name="Voice Channels")
+            if not category:
+                category = discord.utils.get(guild.categories, name="語音頻道")
+            
+            # 創建臨時評價頻道
+            evaluation_channel_name = f"📝評價-{vc.name.replace('📅', '').replace('⚡即時', '')}"
+            
+            # 設置頻道權限
+            overwrites = {
+                guild.default_role: discord.PermissionOverwrite(view_channel=False),
+            }
+            
+            # 添加成員權限（如果成員存在）
+            if customer_member:
+                overwrites[customer_member] = discord.PermissionOverwrite(view_channel=True, send_messages=True)
+            if partner_member:
+                overwrites[partner_member] = discord.PermissionOverwrite(view_channel=True, send_messages=True)
+            
+            evaluation_channel = await guild.create_text_channel(
+                name=evaluation_channel_name,
+                category=category,
+                overwrites=overwrites
+            )
             
             # 發送評價提示訊息
             embed = discord.Embed(
@@ -2694,54 +2496,40 @@ async def countdown(vc_id, animal_channel_name, text_channel, vc, interaction, m
             )
             embed.add_field(
                 name="📝 評價說明",
-                value="• 點擊按鈕後會彈出評價表單\n• 評分範圍：1-5 星\n• 請選擇您的身份（顧客或夥伴）\n• 留言為選填項目\n• 評價完全匿名\n• 評價結果會回報給管理員",
+                value="• 評分範圍：1-5 星\n• 留言為選填項目\n• 評價完全匿名\n• 評價結果會回報給管理員",
                 inline=False
             )
             embed.set_footer(text="評價有助於我們提供更好的服務品質")
             
-            await text_channel.send(embed=embed)
-            await text_channel.send("📝 請點擊以下按鈕進行匿名評分：")
+            await evaluation_channel.send(embed=embed)
+            await evaluation_channel.send("📝 請點擊以下按鈕進行匿名評分：")
             
-            # 使用定義在函數外部的 RatingSubmitButton 類
-            rating_view = RatingSubmitButton(record_id)
-            await text_channel.send(view=rating_view)
-            
-            # 追蹤文字頻道，以便提交評價後刪除
-            rating_text_channels[record_id] = text_channel
-            
-            rating_system_sent = True
-            print(f"✅ 評價系統已成功顯示")
+            # 更新 text_channel 變數為新的評價頻道
+            text_channel = evaluation_channel
             
         except Exception as e:
-            print(f"❌ 顯示評價系統失敗: {e}")
-            rating_system_sent = False
-        
-        # 如果評價系統沒有成功顯示，刪除文字頻道
-        if not rating_system_sent:
-            try:
-                if text_channel and not text_channel.deleted:
-                    await text_channel.delete()
-                    print(f"✅ 已刪除文字頻道（評價系統顯示失敗）: {text_channel.name}")
-            except Exception as e2:
-                print(f"❌ 刪除文字頻道失敗: {e2}")
-            active_voice_channels.pop(vc_id, None)
+            print(f"❌ 創建評價頻道失敗: {e}")
             return
-        
-        # 等待 5 分鐘讓用戶填寫評價
-        print(f"⏰ 評價按鈕已發送，等待 300 秒後刪除文字頻道（如果尚未刪除）")
-        await asyncio.sleep(300)  # 5分鐘 = 300秒
-        
-        # 檢查文字頻道是否仍然存在（可能已經被提交評價後刪除）
-        if record_id in rating_text_channels:
-            text_channel_to_delete = rating_text_channels[record_id]
-            try:
-                if text_channel_to_delete and not text_channel_to_delete.deleted:
-                    await text_channel_to_delete.delete()
-                    print(f"🗑️ 5分鐘內未完成評價，已刪除文字頻道: {text_channel_to_delete.name}")
-                    rating_text_channels.pop(record_id, None)
-            except Exception as e:
-                print(f"❌ 刪除文字頻道失敗: {e}")
-                rating_text_channels.pop(record_id, None)
+
+        class SubmitButton(View):
+            def __init__(self):
+                super().__init__(timeout=600)  # 延長到10分鐘
+                self.clicked = False
+
+            @discord.ui.button(label="⭐ 匿名評分", style=discord.ButtonStyle.success, emoji="⭐")
+            async def submit(self, interaction: discord.Interaction, button: Button):
+                print(f"🔍 用戶 {interaction.user.id} 點擊了評價按鈕")
+                if self.clicked:
+                    await interaction.response.send_message("❗ 已提交過評價。", ephemeral=True)
+                    return
+                self.clicked = True
+                await interaction.response.send_modal(RatingModal(record_id))
+
+        await text_channel.send(view=SubmitButton())
+        print(f"⏰ 評價按鈕已發送，等待 600 秒後刪除文字頻道")
+        await asyncio.sleep(600)  # 延長到10分鐘，給用戶更多時間評價
+        await text_channel.delete()
+        print(f"🗑️ 文字頻道已刪除，評價流程結束")
 
         # 使用新的 session 來更新記錄
         with Session() as s:
@@ -2779,13 +2567,7 @@ async def countdown(vc_id, animal_channel_name, text_channel, vc, interaction, m
                 if booking_id:
                     header += f" | 預約ID: {booking_id}"
 
-                # 檢查是否有評價（優先檢查 pending_ratings，然後檢查 evaluated_records 和資料庫）
-                has_ratings = False
-                feedback = ""
-                
-                # 1. 檢查 pending_ratings（如果還有未處理的評價）
-                if record_id in pending_ratings and len(pending_ratings[record_id]) > 0:
-                    has_ratings = True
+                if record_id in pending_ratings:
                     feedback = "\n⭐ 評價回饋："
                     for r in pending_ratings[record_id]:
                         try:
@@ -2801,28 +2583,9 @@ async def countdown(vc_id, animal_channel_name, text_channel, vc, interaction, m
                             to_user_display = f"<@{r['user2']}>"
                         
                         feedback += f"\n- 「{from_user_display} → {to_user_display}」：{r['rating']} ⭐"
-                        if r.get('role'):
-                            feedback += f" [{r['role']}]"
-                        if r.get('comment'):
+                        if r['comment']:
                             feedback += f"\n  💬 {r['comment']}"
-                    # 不清空 pending_ratings，因為可能還有其他評價
-                
-                # 2. 檢查 evaluated_records（如果已經評價過）
-                if not has_ratings and record_id in evaluated_records:
-                    has_ratings = True
-                    feedback = "\n⭐ 評價已提交（已發送到管理員頻道）"
-                
-                # 3. 檢查資料庫中是否有評價
-                if not has_ratings:
-                    with Session() as s:
-                        db_record = s.get(PairingRecord, record_id)
-                        if db_record and db_record.rating:
-                            has_ratings = True
-                            feedback = f"\n⭐ 評價回饋：評分 {db_record.rating} ⭐"
-                            if db_record.comment:
-                                feedback += f"\n  💬 {db_record.comment}"
-                
-                if has_ratings:
+                    del pending_ratings[record_id]
                     await admin.send(f"{header}{feedback}")
                 else:
                     await admin.send(f"{header}\n⭐ 沒有收到任何評價。")
@@ -2896,12 +2659,7 @@ async def createvc(interaction: discord.Interaction, members: str, minutes: int,
             # 添加調試信息
             print(f"🔍 創建配對記錄: {user1_id} × {user2_id}")
             
-            # 生成唯一的 ID（類似 Prisma 的 cuid）
-            import uuid
-            record_id = f"pair_{uuid.uuid4().hex[:12]}"
-            
             record = PairingRecord(
-                id=record_id,
                 user1Id=user1_id,
                 user2Id=user2_id,
                 duration=minutes * 60,
@@ -2909,7 +2667,7 @@ async def createvc(interaction: discord.Interaction, members: str, minutes: int,
             )
             s.add(record)
             s.commit()
-            # record_id 已經在上面生成
+            record_id = record.id  # 保存 ID，避免 Session 關閉後無法訪問
 
         active_voice_channels[vc.id] = {
             'text_channel': text_channel,

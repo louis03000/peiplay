@@ -37,6 +37,7 @@ export async function POST(request: Request) {
           id: true,
           name: true,
           userId: true,
+          referralPlatformFee: true,
           user: {
             select: {
               id: true,
@@ -51,17 +52,23 @@ export async function POST(request: Request) {
         return { type: 'NOT_PARTNER' } as const
       }
 
-      // 獲取夥伴上一週的排名並計算平台維護費
-      // 本週的排名決定下週的減免，所以計算當前週的費用時，需要查詢上一週的排名
+      // 優先使用 referralPlatformFee 字段（如果管理員有手動設定）
+      // 如果沒有設定，則使用排名計算的平台維護費
       let rank: number | null = null
-      try {
-        rank = await getPartnerLastWeekRank(partner.id)
-      } catch (error) {
-        // 如果查詢排名失敗，使用默認費率（15%）
-        console.warn('⚠️ 獲取上一週排名失敗，使用默認費率:', error)
-        rank = null
+      let PLATFORM_FEE_PERCENTAGE = (partner.referralPlatformFee || 0) / 100 || 0.15 // 優先使用 referralPlatformFee，默認 15%
+      
+      // 如果 referralPlatformFee 沒有設定（為 null 或 0），則使用排名計算
+      if (!partner.referralPlatformFee || partner.referralPlatformFee === 0) {
+        try {
+          rank = await getPartnerLastWeekRank(partner.id)
+          PLATFORM_FEE_PERCENTAGE = calculatePlatformFeePercentage(rank)
+        } catch (error) {
+          // 如果查詢排名失敗，使用默認費率（15%）
+          console.warn('⚠️ 獲取上一週排名失敗，使用默認費率:', error)
+          rank = null
+          PLATFORM_FEE_PERCENTAGE = 0.15
+        }
       }
-      const PLATFORM_FEE_PERCENTAGE = calculatePlatformFeePercentage(rank)
 
       const [totalEarnings, totalWithdrawn] = await Promise.all([
         client.booking.aggregate({

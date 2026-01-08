@@ -29,7 +29,8 @@ export async function GET(request: NextRequest) {
             where: { userId: session.user.id },
             select: {
               id: true,
-              referralEarnings: true
+              referralEarnings: true,
+              referralPlatformFee: true
             }
           });
 
@@ -90,18 +91,21 @@ export async function GET(request: NextRequest) {
           const totalWithdrawn = totalWithdrawnResult._sum.amount || 0;
           const referralEarnings = partner.referralEarnings || 0;
 
-          // 獲取夥伴上一週的排名並計算平台維護費
-          // 本週的排名決定下週的減免，所以計算當前週的費用時，需要查詢上一週的排名
+          // 優先使用 referralPlatformFee 字段（如果管理員有手動設定）
+          // 如果沒有設定，則使用排名計算的平台維護費
           let rank: number | null = null;
-          let PLATFORM_FEE_PERCENTAGE = 0.15; // 默認費率 15%
+          let PLATFORM_FEE_PERCENTAGE = partner.referralPlatformFee / 100 || 0.15; // 優先使用 referralPlatformFee，默認 15%
           
-          try {
-            rank = await getPartnerLastWeekRank(partner.id);
-            PLATFORM_FEE_PERCENTAGE = calculatePlatformFeePercentage(rank);
-          } catch (error: any) {
-            // 如果獲取排名失敗，使用默認費率
-            console.warn('⚠️ 獲取排名失敗，使用默認費率:', error?.message || error);
-            PLATFORM_FEE_PERCENTAGE = 0.15; // 默認 15%
+          // 如果 referralPlatformFee 沒有設定（為 null 或 0），則使用排名計算
+          if (!partner.referralPlatformFee || partner.referralPlatformFee === 0) {
+            try {
+              rank = await getPartnerLastWeekRank(partner.id);
+              PLATFORM_FEE_PERCENTAGE = calculatePlatformFeePercentage(rank);
+            } catch (error: any) {
+              // 如果獲取排名失敗，使用默認費率
+              console.warn('⚠️ 獲取排名失敗，使用默認費率:', error?.message || error);
+              PLATFORM_FEE_PERCENTAGE = 0.15; // 默認 15%
+            }
           }
 
           // 計算可提領餘額

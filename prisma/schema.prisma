@@ -100,8 +100,8 @@ model Partner {
   referralEarnings        Float                     @default(0)
   referralCount           Int                       @default(0)
   totalReferralEarnings   Float                     @default(0)
-  referralPlatformFee     Float                     @default(10.00)
-  referralBonusPercentage Float                     @default(5.00)
+  referralPlatformFee     Float                     @default(15.00)
+  referralBonusPercentage Float                     @default(0.00)
   noResponseCount         Int                       @default(0)
   lastNoResponseReset     DateTime?
   allowGroupBooking       Boolean                   @default(false)

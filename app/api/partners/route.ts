@@ -473,12 +473,31 @@ export async function POST(request: Request) {
           },
         })
 
+        // 更新推薦人的推薦數量，並自動更新推薦獎勵比例（階梯式）
+        const inviterPartner = await client.partner.findUnique({
+          where: { id: inviterId },
+          select: { referralCount: true }
+        })
+        
+        const newReferralCount = (inviterPartner?.referralCount || 0) + 1
+        // 計算階梯式推薦獎勵比例
+        let newReferralBonusPercentage = 0
+        if (newReferralCount >= 1 && newReferralCount <= 3) {
+          newReferralBonusPercentage = 2 // 2%
+        } else if (newReferralCount >= 4 && newReferralCount <= 10) {
+          newReferralBonusPercentage = 3 // 3%
+        } else if (newReferralCount > 10) {
+          newReferralBonusPercentage = 4 // 4%
+        }
+        
         await client.partner.update({
           where: { id: inviterId },
           data: {
             referralCount: {
               increment: 1,
             },
+            // 自動更新推薦獎勵比例（階梯式）
+            referralBonusPercentage: newReferralBonusPercentage,
           },
         })
       }

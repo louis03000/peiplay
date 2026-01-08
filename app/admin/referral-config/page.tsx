@@ -288,8 +288,14 @@ export default function ReferralConfigPage() {
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-8">
           <h3 className="text-lg font-semibold text-blue-900 mb-3">推薦系統說明</h3>
           <ul className="space-y-2 text-blue-800">
-            <li>• <strong>平台抽成比例</strong>：被推薦夥伴享受的平台抽成比例（原本15%）</li>
-            <li>• <strong>推薦獎勵比例</strong>：推薦人獲得的獎勵比例（階梯式制度，根據推薦人數自動計算）</li>
+            <li>• <strong>平台抽成比例</strong>：被推薦夥伴享受的平台抽成比例（原本標準是15%，被推薦後可降低，例如10%）</li>
+            <li>• <strong>推薦獎勵比例</strong>：推薦人獲得的獎勵比例
+              <ul className="ml-4 mt-1 space-y-1 text-sm">
+                <li>- 顯示的百分比是當前手動設定的值</li>
+                <li>- 括號內顯示的是根據推薦人數自動計算的階梯式建議值</li>
+                <li>- 如果兩者不一致，會顯示「(手動設定)」標記</li>
+              </ul>
+            </li>
             <li>• <strong>階梯式推薦獎勵制度</strong>：
               <ul className="ml-4 mt-1 space-y-1 text-sm">
                 <li>📈 推薦 1-3 人：獲得 2% 推薦獎勵</li>
@@ -347,20 +353,28 @@ export default function ReferralConfigPage() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         {isEditing ? (
-                          <input
-                            type="number"
-                            min="0"
-                            max="100"
-                            step="0.01"
-                            value={editForm.referralPlatformFee}
-                            onChange={(e) => setEditForm({
-                              ...editForm,
-                              referralPlatformFee: parseFloat(e.target.value) || 0
-                            })}
-                            className="w-20 px-2 py-1 border border-gray-300 rounded text-sm"
-                          />
+                          <div className="flex flex-col gap-1">
+                            <input
+                              type="number"
+                              min="0"
+                              max="100"
+                              step="0.01"
+                              value={editForm.referralPlatformFee}
+                              onChange={(e) => setEditForm({
+                                ...editForm,
+                                referralPlatformFee: parseFloat(e.target.value) || 0
+                              })}
+                              className="w-20 px-2 py-1 border border-gray-300 rounded text-sm"
+                            />
+                            <span className="text-xs text-gray-500">被推薦夥伴的平台抽成</span>
+                          </div>
                         ) : (
-                          <span className="text-sm text-gray-900">{partner.referralPlatformFee}%</span>
+                          <div className="flex flex-col">
+                            <span className="text-sm text-gray-900">{partner.referralPlatformFee}%</span>
+                            <span className="text-xs text-gray-500">
+                              {partner.referralPlatformFee < 15 ? `(原本15%，優惠${(15 - partner.referralPlatformFee).toFixed(0)}%)` : '(標準15%)'}
+                            </span>
+                          </div>
                         )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
@@ -379,14 +393,21 @@ export default function ReferralConfigPage() {
                               className="w-20 px-2 py-1 border border-gray-300 rounded text-sm"
                             />
                             <span className="text-xs text-gray-500">
-                              建議: {calculateTieredReferralRate(partner.referralCount)}%
+                              建議: {calculateTieredReferralRate(partner.referralCount)}% (根據推薦{partner.referralCount}人計算)
                             </span>
                           </div>
                         ) : (
                           <div className="flex flex-col">
-                            <span className="text-sm text-gray-900">{partner.referralBonusPercentage}%</span>
+                            <span className="text-sm text-gray-900">
+                              {partner.referralBonusPercentage}%
+                              {partner.referralBonusPercentage !== calculateTieredReferralRate(partner.referralCount) && (
+                                <span className="ml-1 text-xs text-orange-600">(手動設定)</span>
+                              )}
+                            </span>
                             <span className="text-xs text-gray-500">
-                              (階梯式: {calculateTieredReferralRate(partner.referralCount)}%)
+                              階梯式建議: {calculateTieredReferralRate(partner.referralCount)}% 
+                              {partner.referralCount > 0 && ` (推薦${partner.referralCount}人)`}
+                              {partner.referralCount === 0 && ' (尚未推薦任何人)'}
                             </span>
                           </div>
                         )}
