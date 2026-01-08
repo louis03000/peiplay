@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth/next'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db-resilience'
 import { createErrorResponse } from '@/lib/api-helpers'
-import { getPartnerLastWeekRank, calculatePlatformFeePercentage } from '@/lib/ranking-helpers'
+import { getPartnerLastWeekRank, calculatePlatformFeePercentage, getPlatformFeeDiscount } from '@/lib/ranking-helpers'
 import { Cache, CacheKeys, CacheTTL } from '@/lib/redis-cache'
 
 export const dynamic = 'force-dynamic';
