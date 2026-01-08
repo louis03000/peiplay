@@ -23,22 +23,22 @@ export async function GET(request: NextRequest) {
     const filterMonth = searchParams.get('month') // 格式：YYYY-MM
 
     const result = await db.query(async (client) => {
-      // 1. 獲取所有有金額的訂單（與訂單記錄頁面保持一致）
-      // 注意：訂單記錄頁面顯示 ['CONFIRMED', 'COMPLETED', 'PARTNER_ACCEPTED']
-      // 但平台收入應該只計算真正已完成的訂單（COMPLETED），因為這些訂單才會產生平台抽成
-      // 如果訂單記錄頁面的總金額與平台收入不一致，說明有訂單還未完成（狀態不是COMPLETED）
-      // 為了與訂單記錄頁面保持一致，我們也查詢這些狀態的訂單，但只計算有 finalAmount 的
-      const where: any = {
-        status: {
-          in: ['CONFIRMED', 'COMPLETED', 'PARTNER_ACCEPTED'],
-        },
-        finalAmount: {
-          not: null,
-          gt: 0,
-        },
-      }
-      
-      console.log(`📊 查詢訂單，過濾條件:`, filterMonth || '全部月份')
+      try {
+        // 1. 獲取所有有金額的訂單（與訂單記錄頁面保持一致）
+        // 注意：訂單記錄頁面顯示 ['CONFIRMED', 'COMPLETED', 'PARTNER_ACCEPTED']
+        // 但平台收入應該只計算真正已完成的訂單（COMPLETED），因為這些訂單才會產生平台抽成
+        // 如果訂單記錄頁面的總金額與平台收入不一致，說明有訂單還未完成（狀態不是COMPLETED）
+        // 為了與訂單記錄頁面保持一致，我們也查詢這些狀態的訂單，但只計算有 finalAmount 的
+        const where: any = {
+          status: {
+            in: ['CONFIRMED', 'COMPLETED', 'PARTNER_ACCEPTED'],
+          },
+          finalAmount: {
+            gt: 0, // gt: 0 已经隐含了 not: null，所以不需要单独指定
+          },
+        }
+        
+        console.log(`📊 查詢訂單，過濾條件:`, filterMonth || '全部月份')
 
       // 如果指定了月份，過濾記錄
       if (filterMonth) {
@@ -114,40 +114,47 @@ export async function GET(request: NextRequest) {
       console.log(`📊 推薦獎勵記錄: 找到 ${referralEarnings.length} 條記錄，總金額 ${totalReferralExpense.toFixed(2)}`)
       
       // 如果沒有推薦獎勵記錄，嘗試檢查是否有訂單應該產生推薦獎勵
+      // 注意：這個查詢只是用於調試，如果失敗不應該影響主要功能
       if (referralEarnings.length === 0 && completedBookings.length > 0) {
         console.log(`⚠️ 警告: 找到 ${completedBookings.length} 個已完成訂單，但沒有推薦獎勵記錄`)
-        // 檢查是否有推薦關係但未計算推薦獎勵的訂單
-        const bookingsWithReferral = await client.booking.findMany({
-          where: {
-            ...where,
-            schedule: {
-              partner: {
-                referralsReceived: {
-                  isNot: null,
-                },
-              },
-            },
-          },
-          select: {
-            id: true,
-            finalAmount: true,
-            schedule: {
-              select: {
+        try {
+          // 檢查是否有推薦關係但未計算推薦獎勵的訂單
+          // 使用更安全的查詢方式
+          const bookingsWithReferral = await client.booking.findMany({
+            where: {
+              ...where,
+              schedule: {
                 partner: {
-                  select: {
-                    id: true,
-                    name: true,
+                  referralsReceived: {
+                    isNot: null,
                   },
                 },
               },
             },
-          },
-          take: 5, // 只取前5個作為示例
-        })
-        if (bookingsWithReferral.length > 0) {
-          console.log(`📋 發現 ${bookingsWithReferral.length} 個訂單有推薦關係但未計算推薦獎勵`)
-          console.log(`   示例訂單: ${bookingsWithReferral.map(b => `ID=${b.id}, 夥伴=${b.schedule.partner.name}`).join(', ')}`)
-          console.log(`   💡 建議: 在管理後台運行"批量重新計算推薦收入"功能`)
+            select: {
+              id: true,
+              finalAmount: true,
+              schedule: {
+                select: {
+                  partner: {
+                    select: {
+                      id: true,
+                      name: true,
+                    },
+                  },
+                },
+              },
+            },
+            take: 5, // 只取前5個作為示例
+          })
+          if (bookingsWithReferral.length > 0) {
+            console.log(`📋 發現 ${bookingsWithReferral.length} 個訂單有推薦關係但未計算推薦獎勵`)
+            console.log(`   示例訂單: ${bookingsWithReferral.map(b => `ID=${b.id}, 夥伴=${b.schedule.partner.name}`).join(', ')}`)
+            console.log(`   💡 建議: 在管理後台運行"批量重新計算推薦收入"功能`)
+          }
+        } catch (referralCheckError) {
+          // 這個查詢失敗不應該影響主要功能，只記錄警告
+          console.warn('⚠️ 檢查推薦關係時發生錯誤（不影響主要功能）:', referralCheckError)
         }
       }
 
@@ -286,26 +293,48 @@ export async function GET(request: NextRequest) {
         }
       }
 
-      return {
-        total: {
-          totalAmount,
-          basePlatformFee,
-          referralExpense: totalReferralExpense,
-          firstPlaceDiscount: totalFirstPlaceDiscount,
-          platformRevenue,
-        },
-        monthly: monthlyData,
-        details: {
-          firstPlaceBookingsCount: firstPlaceBookings.length,
-        },
+        return {
+          total: {
+            totalAmount,
+            basePlatformFee,
+            referralExpense: totalReferralExpense,
+            firstPlaceDiscount: totalFirstPlaceDiscount,
+            platformRevenue,
+          },
+          monthly: monthlyData,
+          details: {
+            firstPlaceBookingsCount: firstPlaceBookings.length,
+          },
+        }
+      } catch (dbError) {
+        console.error('❌ 數據庫查詢錯誤:', dbError)
+        const errorMessage = dbError instanceof Error ? dbError.message : String(dbError)
+        const errorStack = dbError instanceof Error ? dbError.stack : undefined
+        console.error('數據庫錯誤詳情:', {
+          message: errorMessage,
+          stack: errorStack,
+          error: dbError
+        })
+        throw dbError // 重新拋出錯誤，讓外層 catch 處理
       }
     }, 'admin:platform-revenue')
 
     return NextResponse.json(result)
   } catch (error) {
-    console.error('Error calculating platform revenue:', error)
+    console.error('❌ 計算平台總收入時發生錯誤:', error)
+    const errorMessage = error instanceof Error ? error.message : String(error)
+    const errorStack = error instanceof Error ? error.stack : undefined
+    console.error('錯誤詳情:', {
+      message: errorMessage,
+      stack: errorStack,
+      error: error
+    })
     return NextResponse.json(
-      { error: 'Failed to calculate platform revenue' },
+      { 
+        error: 'Failed to calculate platform revenue',
+        details: errorMessage,
+        ...(process.env.NODE_ENV === 'development' && { stack: errorStack })
+      },
       { status: 500 }
     )
   }
