@@ -111,7 +111,7 @@ export async function GET(request: NextRequest) {
           return {
             totalEarnings: Math.round(totalEarnings),
             totalOrders,
-            availableBalance: Math.max(0, Math.round(availableBalance)),
+            availableBalance: Math.max(0, Math.floor(availableBalance)), // 使用向下取整（捨去法）
             pendingWithdrawals,
             referralEarnings: Math.round(referralEarnings),
             platformFeePercentage: PLATFORM_FEE_PERCENTAGE,

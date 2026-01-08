@@ -34,6 +34,7 @@ export default function WithdrawalPage() {
   const [withdrawalAmount, setWithdrawalAmount] = useState('')
   const [showSuccess, setShowSuccess] = useState(false)
   const [error, setError] = useState('')
+  const [showConfirmModal, setShowConfirmModal] = useState(false)
 
   useEffect(() => {
     if (status === 'loading') return
@@ -84,9 +85,27 @@ export default function WithdrawalPage() {
       return
     }
 
+    // 顯示確認對話框
+    setShowConfirmModal(true)
+  }
+
+  const handleConfirmSubmit = async () => {
+    if (!withdrawalAmount || parseFloat(withdrawalAmount) <= 0) {
+      setError('請輸入有效的提領金額')
+      setShowConfirmModal(false)
+      return
+    }
+
+    if (!stats || parseFloat(withdrawalAmount) > stats.availableBalance) {
+      setError('提領金額不能超過可用餘額')
+      setShowConfirmModal(false)
+      return
+    }
+
     try {
       setSubmitting(true)
       setError('')
+      setShowConfirmModal(false)
 
       const response = await fetch('/api/partners/withdrawal/request', {
         method: 'POST',
@@ -115,6 +134,10 @@ export default function WithdrawalPage() {
     } finally {
       setSubmitting(false)
     }
+  }
+
+  const handleCancelSubmit = () => {
+    setShowConfirmModal(false)
   }
 
   const getStatusColor = (status: string) => {
@@ -241,7 +264,7 @@ export default function WithdrawalPage() {
                 </div>
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600">可提領餘額</p>
-                  <p className="text-2xl font-bold text-gray-900" style={{ color: '#111827' }}>NT$ {Math.round(stats.availableBalance).toLocaleString()}</p>
+                  <p className="text-2xl font-bold text-gray-900" style={{ color: '#111827' }}>NT$ {Math.floor(stats.availableBalance).toLocaleString()}</p>
                   {stats?.referralEarnings > 0 && (
                     <p className="text-xs text-green-600">含推薦收入 NT$ {Math.round(stats.referralEarnings).toLocaleString()}</p>
                   )}
@@ -292,7 +315,7 @@ export default function WithdrawalPage() {
                   />
                   {stats && (
                     <p className="mt-1 text-sm text-gray-500">
-                      可提領餘額：NT$ {Math.round(stats.availableBalance).toLocaleString()}
+                      可提領餘額：NT$ {Math.floor(stats.availableBalance).toLocaleString()}
                     </p>
                   )}
                   {withdrawalAmount && parseFloat(withdrawalAmount) < 100 && (
@@ -417,6 +440,57 @@ export default function WithdrawalPage() {
           </div>
         </div>
       </div>
+
+      {/* 確認對話框 */}
+      {showConfirmModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+            <div className="p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                確認提領申請
+              </h3>
+              <div className="mb-6">
+                <p className="text-sm text-gray-600 mb-2">
+                  您即將提交以下提領申請：
+                </p>
+                <div className="bg-gray-50 rounded-md p-4 mb-4">
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-sm text-gray-600">提領金額：</span>
+                    <span className="text-lg font-bold text-gray-900">
+                      NT$ {parseFloat(withdrawalAmount).toLocaleString()}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center text-sm text-gray-500">
+                    <span>可提領餘額：</span>
+                    <span>NT$ {stats ? Math.floor(stats.availableBalance).toLocaleString() : '0'}</span>
+                  </div>
+                </div>
+                <p className="text-sm text-gray-600">
+                  提交後，管理員將審核您的申請。審核通過後，款項將在 1-3 個工作天內處理。
+                </p>
+              </div>
+              <div className="flex gap-3 justify-end">
+                <button
+                  type="button"
+                  onClick={handleCancelSubmit}
+                  disabled={submitting}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  取消
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmSubmit}
+                  disabled={submitting}
+                  className="px-4 py-2 text-sm font-medium text-white bg-purple-600 rounded-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {submitting ? '提交中...' : '確認提交'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

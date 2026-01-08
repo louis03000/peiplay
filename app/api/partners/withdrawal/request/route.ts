@@ -201,7 +201,7 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: '您不是夥伴' }, { status: 403 })
       case 'EXCEEDS_BALANCE':
         return NextResponse.json({
-          error: `提領金額不能超過可用餘額 NT$ ${result.availableBalance.toLocaleString()}`,
+          error: `提領金額不能超過可用餘額 NT$ ${Math.floor(result.availableBalance).toLocaleString()}`,
         }, { status: 400 })
       case 'PENDING_EXISTS':
         return NextResponse.json({

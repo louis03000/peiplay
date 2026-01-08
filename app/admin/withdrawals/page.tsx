@@ -39,6 +39,8 @@ export default function AdminWithdrawalsPage() {
   const [rejectionReason, setRejectionReason] = useState("");
   const [showRejectionModal, setShowRejectionModal] = useState(false);
   const [rejectingId, setRejectingId] = useState<string | null>(null);
+  const [showApproveConfirmModal, setShowApproveConfirmModal] = useState(false);
+  const [approvingWithdrawal, setApprovingWithdrawal] = useState<WithdrawalRequest | null>(null);
 
   useEffect(() => {
     if (status === "loading") return;
@@ -103,6 +105,8 @@ export default function AdminWithdrawalsPage() {
         setRejectionReason("");
         setShowRejectionModal(false);
         setRejectingId(null);
+        setShowApproveConfirmModal(false);
+        setApprovingWithdrawal(null);
       } else {
         setError('更新狀態失敗');
       }
@@ -111,6 +115,50 @@ export default function AdminWithdrawalsPage() {
     } finally {
       setProcessingId(null);
       setRejectingId(null);
+    }
+  };
+
+  const handleConfirmApprove = () => {
+    if (approvingWithdrawal) {
+      handleStatusChange(approvingWithdrawal.id, 'APPROVED');
+    }
+  };
+
+  const handleCancelApprove = () => {
+    setShowApproveConfirmModal(false);
+    setApprovingWithdrawal(null);
+  };
+
+  const handleExportAllRecords = async () => {
+    try {
+      const response = await fetch('/api/admin/withdrawals/export');
+      if (!response.ok) {
+        throw new Error('匯出失敗');
+      }
+
+      // 獲取文件名
+      const contentDisposition = response.headers.get('Content-Disposition');
+      let fileName = '提領記錄.xlsx';
+      if (contentDisposition) {
+        const fileNameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+        if (fileNameMatch && fileNameMatch[1]) {
+          fileName = decodeURIComponent(fileNameMatch[1].replace(/['"]/g, ''));
+        }
+      }
+
+      // 下載文件
+      const blob = await response.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(downloadUrl);
+    } catch (error) {
+      console.error('匯出 Excel 失敗:', error);
+      alert('匯出 Excel 失敗，請稍後再試');
     }
   };
 
@@ -229,31 +277,42 @@ export default function AdminWithdrawalsPage() {
         </div>
 
         {/* 管理功能按鈕 */}
-        <div className="mb-6 flex justify-end gap-2">
-          <a
-            href="/admin/referral-config"
-            className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
+        <div className="mb-6 flex justify-between items-center flex-wrap gap-2">
+          <button
+            onClick={handleExportAllRecords}
+            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2"
           >
-            推薦配置管理
-          </a>
-          <a
-            href="/admin/partners"
-            className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
-          >
-            夥伴管理
-          </a>
-          <a
-            href="/admin/users"
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            用戶管理
-          </a>
-          <a
-            href="/admin/anti-money-laundering"
-            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-          >
-            反洗錢監控
-          </a>
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            匯出所有提領記錄
+          </button>
+          <div className="flex gap-2">
+            <a
+              href="/admin/referral-config"
+              className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
+            >
+              推薦配置管理
+            </a>
+            <a
+              href="/admin/partners"
+              className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+            >
+              夥伴管理
+            </a>
+            <a
+              href="/admin/users"
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              用戶管理
+            </a>
+            <a
+              href="/admin/anti-money-laundering"
+              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+            >
+              反洗錢監控
+            </a>
+          </div>
         </div>
 
         {/* 提領申請列表 */}
@@ -352,11 +411,14 @@ export default function AdminWithdrawalsPage() {
                               備註
                             </button>
                             <button
-                              onClick={() => handleStatusChange(withdrawal.id, 'APPROVED')}
+                              onClick={() => {
+                                setApprovingWithdrawal(withdrawal);
+                                setShowApproveConfirmModal(true);
+                              }}
                               disabled={processingId === withdrawal.id}
                               className="text-green-600 hover:text-green-900 disabled:opacity-50"
                             >
-                              {processingId === withdrawal.id ? '處理中...' : '核准'}
+                              核准
                             </button>
                             <button
                               onClick={() => openRejectionModal(withdrawal)}
@@ -470,6 +532,85 @@ export default function AdminWithdrawalsPage() {
                     className="px-4 py-2 text-white bg-red-600 rounded-md hover:bg-red-700 disabled:opacity-50"
                   >
                     {processingId === selectedWithdrawal.id ? '處理中...' : '確認拒絕'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 核准確認對話框 */}
+        {showApproveConfirmModal && approvingWithdrawal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+              <div className="p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                  確認核准提領申請
+                </h3>
+                <div className="mb-6">
+                  <div className="bg-gray-50 rounded-md p-4 mb-4">
+                    <div className="space-y-3">
+                      <div>
+                        <span className="text-sm font-medium text-gray-600">夥伴名稱：</span>
+                        <span className="text-sm text-gray-900 ml-2">{approvingWithdrawal.partner.name}</span>
+                      </div>
+                      <div>
+                        <span className="text-sm font-medium text-gray-600">夥伴Email：</span>
+                        <span className="text-sm text-gray-900 ml-2">{approvingWithdrawal.partner.user.email}</span>
+                      </div>
+                      <div>
+                        <span className="text-sm font-medium text-gray-600">提領金額：</span>
+                        <span className="text-lg font-bold text-gray-900 ml-2">
+                          NT$ {approvingWithdrawal.amount.toLocaleString()}
+                        </span>
+                      </div>
+                      <div className="border-t border-gray-200 pt-3 mt-3">
+                        <p className="text-sm font-semibold text-gray-700 mb-2">銀行資訊：</p>
+                        <div className="space-y-2">
+                          <div>
+                            <span className="text-sm font-medium text-gray-600">銀行代碼：</span>
+                            {approvingWithdrawal.partner.bankCode ? (
+                              <span className="text-sm font-bold text-gray-900 ml-2">
+                                {approvingWithdrawal.partner.bankCode}
+                              </span>
+                            ) : (
+                              <span className="text-sm text-red-500 ml-2">❌ 未填寫</span>
+                            )}
+                          </div>
+                          <div>
+                            <span className="text-sm font-medium text-gray-600">帳戶號碼：</span>
+                            {approvingWithdrawal.partner.bankAccountNumber ? (
+                              <span className="text-sm font-bold text-gray-900 ml-2">
+                                {approvingWithdrawal.partner.bankAccountNumber}
+                              </span>
+                            ) : (
+                              <span className="text-sm text-red-500 ml-2">❌ 未填寫</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <p className="text-sm text-gray-600">
+                    請確認銀行資訊無誤後，點擊「確認核准」完成操作。
+                  </p>
+                </div>
+                <div className="flex gap-3 justify-end">
+                  <button
+                    type="button"
+                    onClick={handleCancelApprove}
+                    disabled={processingId === approvingWithdrawal.id}
+                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    取消
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleConfirmApprove}
+                    disabled={processingId === approvingWithdrawal.id}
+                    className="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {processingId === approvingWithdrawal.id ? '處理中...' : '確認核准'}
                   </button>
                 </div>
               </div>
