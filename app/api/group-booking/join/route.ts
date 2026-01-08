@@ -316,9 +316,11 @@ export async function POST(request: Request) {
         // 創建 Booking 記錄（用於顯示在「我的預約」中）
         let booking;
         try {
+          // 先創建 booking（不設置 orderNumber），然後使用生成的 id 來生成訂單編號
+          // 這樣可以確保訂單編號格式與其他預約類型一致（ORD-{id前8位大寫}）
           booking = await tx.booking.create({
             data: {
-              id: `booking-${Date.now()}`,
+              // 移除手動設置的 id，讓 Prisma 使用默認的 cuid() 生成
               customerId: customer.id,
               partnerId: groupBooking.initiatorId,
               scheduleId: schedule.id,
@@ -326,7 +328,7 @@ export async function POST(request: Request) {
               originalAmount: groupBooking.pricePerPerson || 0,
               finalAmount: groupBooking.pricePerPerson || 0,
               isGroupBooking: true,
-              groupBookingId: groupBookingId
+              groupBookingId: groupBookingId,
             },
             include: {
               schedule: {
@@ -338,7 +340,17 @@ export async function POST(request: Request) {
               }
             }
           });
-          console.log('✅ Booking 記錄創建成功');
+          
+          // 使用生成的 booking.id 來生成訂單編號（與其他預約類型保持一致）
+          const orderNumber = `ORD-${booking.id.substring(0, 8).toUpperCase()}`
+          
+          // 更新 booking 設置訂單編號
+          booking = await tx.booking.update({
+            where: { id: booking.id },
+            data: { orderNumber },
+          });
+          
+          console.log('✅ Booking 記錄創建成功，訂單編號:', orderNumber);
         } catch (bookingError: any) {
           console.error('❌ 創建 Booking 記錄失敗:', bookingError);
           

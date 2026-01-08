@@ -48,6 +48,7 @@ export default function OrderHistoryPage() {
   const [typeFilter, setTypeFilter] = useState('ALL')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
+  const [hideCancelled, setHideCancelled] = useState(false)
 
   useEffect(() => {
     if (status === 'loading') return
@@ -56,7 +57,7 @@ export default function OrderHistoryPage() {
       return
     }
     fetchOrderHistory()
-  }, [session, status, currentPage, typeFilter, startDate, endDate])
+  }, [session, status, currentPage, typeFilter, startDate, endDate, hideCancelled])
 
   const fetchOrderHistory = async () => {
     try {
@@ -82,7 +83,16 @@ export default function OrderHistoryPage() {
       }
 
       const data = await response.json()
-      setBookings(data.bookings)
+      
+      // 如果勾选了隐藏已取消订单，过滤掉 CANCELLED 状态的订单
+      let filteredBookings = data.bookings
+      if (hideCancelled) {
+        filteredBookings = data.bookings.filter((booking: OrderHistoryItem) => booking.status !== 'CANCELLED')
+      }
+      
+      setBookings(filteredBookings)
+      // 保持原始分页信息（因为后端返回的是所有订单的分页，前端过滤只影响显示）
+      // 如果用户希望更准确的分页，可以考虑在API层面支持状态筛选
       setPagination(data.pagination)
       setStats(data.stats)
     } catch (error) {
@@ -109,15 +119,16 @@ export default function OrderHistoryPage() {
     setTypeFilter('ALL')
     setStartDate('')
     setEndDate('')
+    setHideCancelled(false)
     setCurrentPage(1)
   }
 
   const getStatusBadge = (status: string) => {
     const statusMap: { [key: string]: { text: string; className: string; tooltip?: string } } = {
       'PENDING': { text: '待確認', className: 'bg-yellow-100 text-yellow-800', tooltip: '等待夥伴確認' },
-      'CONFIRMED': { text: '已確認', className: 'bg-blue-100 text-blue-800', tooltip: '預約已確認，等待進行中' },
+      'CONFIRMED': { text: '進行中', className: 'bg-blue-100 text-blue-800', tooltip: '預約已確認，服務進行中' },
       'PARTNER_ACCEPTED': { text: '夥伴已接受', className: 'bg-green-100 text-green-800', tooltip: '夥伴已接受預約' },
-      'COMPLETED': { text: '已完成', className: 'bg-gray-100 text-gray-800', tooltip: '預約已完成（時間已結束）' },
+      'COMPLETED': { text: '已完成', className: 'bg-gray-100 text-gray-800', tooltip: '服務已完成，訂單已結束' },
       'CANCELLED': { text: '已取消', className: 'bg-red-100 text-red-800', tooltip: '預約已取消' },
       'REJECTED': { text: '已拒絕', className: 'bg-red-100 text-red-800', tooltip: '預約已被拒絕' }
     }
@@ -211,7 +222,7 @@ export default function OrderHistoryPage() {
 
         {/* 篩選器 */}
         <div className="bg-white rounded-lg shadow mb-6 p-6">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">類型篩選</label>
               <select
@@ -253,6 +264,22 @@ export default function OrderHistoryPage() {
                 清除篩選
               </button>
             </div>
+          </div>
+          <div className="border-t border-gray-200 pt-4">
+            <label className="flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                checked={hideCancelled}
+                onChange={(e) => {
+                  setHideCancelled(e.target.checked)
+                  setCurrentPage(1) // 重置到第一頁
+                }}
+                className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+              />
+              <span className="ml-2 text-sm text-gray-700">
+                已取消訂單將暫不顯示於列表中
+              </span>
+            </label>
           </div>
         </div>
 

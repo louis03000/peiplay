@@ -26,27 +26,38 @@ export async function GET(request: Request) {
             in: ['CONFIRMED', 'COMPLETED', 'PARTNER_ACCEPTED']
           }
         },
-        include: {
-          customer: {
-            include: {
-              user: {
-                select: {
-                  discord: true,
-                  name: true
-                }
-              }
-            }
-          },
+        select: {
+          id: true,
+          orderNumber: true,
+          finalAmount: true,
+          createdAt: true,
+          paymentInfo: true,
+          groupBookingId: true,
+          multiPlayerBookingId: true,
+          serviceType: true,
           schedule: {
-            include: {
+            select: {
+              startTime: true,
+              endTime: true,
               partner: {
-                include: {
+                select: {
+                  halfHourlyRate: true,
                   user: {
                     select: {
                       discord: true,
                       name: true
                     }
                   }
+                }
+              }
+            }
+          },
+          customer: {
+            select: {
+              user: {
+                select: {
+                  discord: true,
+                  name: true
                 }
               }
             }
@@ -125,6 +136,9 @@ export async function GET(request: Request) {
         console.warn(`⚠️ 預約 ${booking.id} 沒有金額信息：finalAmount=${finalAmount}, halfHourlyRate=${halfHourlyRate}`)
       }
 
+      // 生成訂單編號（與夥伴端保持一致）
+      const orderNumber = booking.orderNumber || `ORD-${booking.id.substring(0, 8).toUpperCase()}`
+
       processedRecords.push({
         date: dateStr,
         time: timeStr,
@@ -134,7 +148,9 @@ export async function GET(request: Request) {
         customerName,
         serviceType,
         amount: orderAmount,
-        timestamp: createdAt
+        timestamp: createdAt,
+        orderNumber: orderNumber,
+        bookingId: booking.id
       })
     }
     

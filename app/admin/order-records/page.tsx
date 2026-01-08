@@ -14,6 +14,8 @@ interface OrderRecord {
   serviceType: string
   amount: number
   timestamp: Date
+  orderNumber: string
+  bookingId: string
 }
 
 interface GroupedData {
@@ -336,6 +338,9 @@ export default function AdminOrderRecordsPage() {
                                 <thead className="bg-gray-50">
                                   <tr>
                                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                      訂單編號
+                                    </th>
+                                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                       日期
                                     </th>
                                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -358,6 +363,9 @@ export default function AdminOrderRecordsPage() {
                                 <tbody className="bg-white divide-y divide-gray-200">
                                   {partnerRecords.map((record, index) => (
                                     <tr key={index} className="hover:bg-gray-50">
+                                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 font-mono">
+                                        {record.orderNumber || `ORD-${record.bookingId.substring(0, 8).toUpperCase()}`}
+                                      </td>
                                       <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
                                         {record.date}
                                       </td>

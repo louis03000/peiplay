@@ -26,27 +26,38 @@ export async function GET(request: Request) {
             in: ['CONFIRMED', 'COMPLETED', 'PARTNER_ACCEPTED']
           }
         },
-        include: {
-          customer: {
-            include: {
-              user: {
-                select: {
-                  discord: true,
-                  name: true
-                }
-              }
-            }
-          },
+        select: {
+          id: true,
+          orderNumber: true,
+          finalAmount: true,
+          createdAt: true,
+          paymentInfo: true,
+          groupBookingId: true,
+          multiPlayerBookingId: true,
+          serviceType: true,
           schedule: {
-            include: {
+            select: {
+              startTime: true,
+              endTime: true,
               partner: {
-                include: {
+                select: {
+                  halfHourlyRate: true,
                   user: {
                     select: {
                       discord: true,
                       name: true
                     }
                   }
+                }
+              }
+            }
+          },
+          customer: {
+            select: {
+              user: {
+                select: {
+                  discord: true,
+                  name: true
                 }
               }
             }
@@ -117,6 +128,9 @@ export async function GET(request: Request) {
         orderAmount = Math.round((durationMinutes / 30) * parseFloat(halfHourlyRate.toString()))
       }
 
+      // 生成訂單編號（與夥伴端保持一致）
+      const orderNumber = booking.orderNumber || `ORD-${booking.id.substring(0, 8).toUpperCase()}`
+
       processedRecords.push({
         date: dateStr,
         time: timeStr,
@@ -126,7 +140,9 @@ export async function GET(request: Request) {
         customerName,
         serviceType,
         amount: orderAmount,
-        timestamp: createdAt
+        timestamp: createdAt,
+        orderNumber: orderNumber,
+        bookingId: booking.id
       })
     }
 
@@ -160,6 +176,7 @@ export async function GET(request: Request) {
       
       // 設置列標題
       sheet.columns = [
+        { header: '訂單編號', key: 'orderNumber', width: 18 },
         { header: '日期', key: 'date', width: 12 },
         { header: '時間', key: 'time', width: 10 },
         { header: '時長（分鐘）', key: 'duration', width: 12 },
@@ -181,7 +198,8 @@ export async function GET(request: Request) {
 
         // 添加夥伴標題行
         sheet.addRow({
-          date: `${partnerName} - 小計`,
+          orderNumber: `${partnerName} - 小計`,
+          date: '',
           time: '',
           duration: '',
           partnerName: '',
@@ -193,6 +211,7 @@ export async function GET(request: Request) {
         // 添加該夥伴的所有記錄
         for (const record of partnerRecords) {
           sheet.addRow({
+            orderNumber: record.orderNumber || `ORD-${record.bookingId.substring(0, 8).toUpperCase()}`,
             date: record.date,
             time: record.time,
             duration: record.duration,
@@ -209,7 +228,8 @@ export async function GET(request: Request) {
 
       // 添加月份總計行
       sheet.addRow({
-        date: `${month}月 - 總計`,
+        orderNumber: `${month}月 - 總計`,
+        date: '',
         time: '',
         duration: '',
         partnerName: '',
@@ -231,11 +251,11 @@ export async function GET(request: Request) {
       // 設置小計和總計行樣式
       for (let i = 1; i <= sheet.rowCount; i++) {
         const row = sheet.getRow(i)
-        const dateCell = row.getCell(1)
-        const dateValue = dateCell.value
-        if (dateValue) {
-          const dateStr = String(dateValue)
-          if (dateStr.includes('小計') || dateStr.includes('總計')) {
+        const orderNumberCell = row.getCell(1)
+        const orderNumberValue = orderNumberCell.value
+        if (orderNumberValue) {
+          const orderNumberStr = String(orderNumberValue)
+          if (orderNumberStr.includes('小計') || orderNumberStr.includes('總計')) {
             row.font = { bold: true }
             row.fill = {
               type: 'pattern',
