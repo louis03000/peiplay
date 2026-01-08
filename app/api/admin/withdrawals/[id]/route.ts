@@ -30,16 +30,14 @@ export async function PATCH(
         where: { id },
         include: {
           partner: {
-            include: {
+            select: {
+              name: true,
               user: {
                 select: { 
                   email: true,
                   name: true,
                 },
               },
-            },
-            select: {
-              name: true,
             },
           },
         },

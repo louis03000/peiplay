@@ -199,8 +199,9 @@ export default function ReferralPage() {
                 <p className="text-sm font-medium text-gray-500">推薦獎勵比例</p>
                 <p className="text-2xl font-bold text-gray-900">
                   {stats?.partner?.referralCount !== undefined ? (
-                    stats.partner.referralCount <= 3 ? '2%' : 
-                    stats.partner.referralCount <= 10 ? '3%' : '4%'
+                    stats.partner.referralCount >= 1 && stats.partner.referralCount <= 3 ? '2%' : 
+                    stats.partner.referralCount >= 4 && stats.partner.referralCount <= 10 ? '3%' : 
+                    stats.partner.referralCount > 10 ? '4%' : '0%'
                   ) : '0%'}
                 </p>
               </div>

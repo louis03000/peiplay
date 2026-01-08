@@ -12,6 +12,22 @@ interface PartnerReferralConfig {
   totalReferralEarnings: number;
 }
 
+// 計算階梯式推薦獎勵比例
+function calculateTieredReferralRate(referralCount: number): number {
+  // 📈 推薦 1-3 人：獲得 2% 推薦獎勵
+  // 📈 推薦 4-10 人：獲得 3% 推薦獎勵
+  // 📈 推薦 10 人以上：獲得 4% 推薦獎勵
+  if (referralCount >= 1 && referralCount <= 3) {
+    return 2; // 2%
+  } else if (referralCount >= 4 && referralCount <= 10) {
+    return 3; // 3%
+  } else if (referralCount > 10) {
+    return 4; // 4%
+  } else {
+    return 0; // 0%
+  }
+}
+
 export default function ReferralConfigPage() {
   const router = useRouter();
   const sessionData = typeof window !== "undefined" ? useSession() : { data: undefined, status: "unauthenticated" };
@@ -273,9 +289,17 @@ export default function ReferralConfigPage() {
           <h3 className="text-lg font-semibold text-blue-900 mb-3">推薦系統說明</h3>
           <ul className="space-y-2 text-blue-800">
             <li>• <strong>平台抽成比例</strong>：被推薦夥伴享受的平台抽成比例（原本15%）</li>
-            <li>• <strong>推薦獎勵比例</strong>：推薦人獲得的獎勵比例</li>
+            <li>• <strong>推薦獎勵比例</strong>：推薦人獲得的獎勵比例（階梯式制度，根據推薦人數自動計算）</li>
+            <li>• <strong>階梯式推薦獎勵制度</strong>：
+              <ul className="ml-4 mt-1 space-y-1 text-sm">
+                <li>📈 推薦 1-3 人：獲得 2% 推薦獎勵</li>
+                <li>📈 推薦 4-10 人：獲得 3% 推薦獎勵</li>
+                <li>📈 推薦 10 人以上：獲得 4% 推薦獎勵</li>
+              </ul>
+            </li>
             <li>• 兩個比例相加不能超過100%</li>
             <li>• 被推薦夥伴實際獲得 = 100% - 平台抽成比例 - 推薦獎勵比例</li>
+            <li>• <strong>注意</strong>：推薦獎勵比例會根據夥伴的推薦人數自動計算，管理員可以手動調整，但建議保持階梯式制度</li>
           </ul>
         </div>
 
@@ -341,20 +365,30 @@ export default function ReferralConfigPage() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         {isEditing ? (
-                          <input
-                            type="number"
-                            min="0"
-                            max="100"
-                            step="0.01"
-                            value={editForm.referralBonusPercentage}
-                            onChange={(e) => setEditForm({
-                              ...editForm,
-                              referralBonusPercentage: parseFloat(e.target.value) || 0
-                            })}
-                            className="w-20 px-2 py-1 border border-gray-300 rounded text-sm"
-                          />
+                          <div className="flex flex-col gap-1">
+                            <input
+                              type="number"
+                              min="0"
+                              max="100"
+                              step="0.01"
+                              value={editForm.referralBonusPercentage}
+                              onChange={(e) => setEditForm({
+                                ...editForm,
+                                referralBonusPercentage: parseFloat(e.target.value) || 0
+                              })}
+                              className="w-20 px-2 py-1 border border-gray-300 rounded text-sm"
+                            />
+                            <span className="text-xs text-gray-500">
+                              建議: {calculateTieredReferralRate(partner.referralCount)}%
+                            </span>
+                          </div>
                         ) : (
-                          <span className="text-sm text-gray-900">{partner.referralBonusPercentage}%</span>
+                          <div className="flex flex-col">
+                            <span className="text-sm text-gray-900">{partner.referralBonusPercentage}%</span>
+                            <span className="text-xs text-gray-500">
+                              (階梯式: {calculateTieredReferralRate(partner.referralCount)}%)
+                            </span>
+                          </div>
                         )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">

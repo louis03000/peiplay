@@ -22,10 +22,31 @@ interface GroupedData {
   }
 }
 
+interface PlatformRevenue {
+  total: {
+    totalAmount: number
+    basePlatformFee: number
+    referralExpense: number
+    firstPlaceDiscount: number
+    platformRevenue: number
+  }
+  monthly: Record<string, {
+    totalAmount: number
+    basePlatformFee: number
+    referralExpense: number
+    firstPlaceDiscount: number
+    platformRevenue: number
+  }>
+  details: {
+    firstPlaceBookingsCount: number
+  }
+}
+
 export default function AdminOrderRecordsPage() {
   const router = useRouter()
   const { data: session, status } = useSession()
   const [data, setData] = useState<GroupedData>({})
+  const [platformRevenue, setPlatformRevenue] = useState<PlatformRevenue | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [selectedMonth, setSelectedMonth] = useState<string>('')
@@ -51,6 +72,16 @@ export default function AdminOrderRecordsPage() {
         setData(result.data || {})
       } else {
         setError('獲取訂單記錄失敗')
+      }
+
+      // 获取平台总收入
+      const revenueUrl = selectedMonth
+        ? `/api/admin/platform-revenue?month=${selectedMonth}`
+        : '/api/admin/platform-revenue'
+      const revenueResponse = await fetch(revenueUrl)
+      if (revenueResponse.ok) {
+        const revenueResult = await revenueResponse.json()
+        setPlatformRevenue(revenueResult)
       }
     } catch (err) {
       console.error('Fetch error:', err)
@@ -188,11 +219,41 @@ export default function AdminOrderRecordsPage() {
 
         {/* 總計卡片 */}
         {!selectedMonth && (
-          <div className="mb-6 bg-red-500 text-white p-4 rounded-lg shadow-lg">
-            <div className="flex items-center justify-between">
-              <span className="text-lg font-semibold">總計（所有月份）</span>
-              <span className="text-2xl font-bold">NT$ {calculateGrandTotal().toLocaleString()}</span>
+          <div className="mb-6 space-y-4">
+            <div className="bg-red-500 text-white p-4 rounded-lg shadow-lg">
+              <div className="flex items-center justify-between">
+                <span className="text-lg font-semibold">總計（所有月份）</span>
+                <span className="text-2xl font-bold">NT$ {calculateGrandTotal().toLocaleString()}</span>
+              </div>
             </div>
+            
+            {/* 平台总收入 */}
+            {platformRevenue && (
+              <div className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white p-6 rounded-lg shadow-lg">
+                <div className="mb-4">
+                  <h3 className="text-xl font-bold mb-2">💰 平台總收入（所有月份）</h3>
+                  <div className="text-3xl font-bold">NT$ {Math.round(platformRevenue.total.platformRevenue).toLocaleString()}</div>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                  <div className="bg-white/10 rounded p-2">
+                    <div className="text-white/80">基礎平台抽成 (15%)</div>
+                    <div className="font-semibold">NT$ {Math.round(platformRevenue.total.basePlatformFee).toLocaleString()}</div>
+                  </div>
+                  <div className="bg-white/10 rounded p-2">
+                    <div className="text-white/80">推薦獎勵支出</div>
+                    <div className="font-semibold text-red-200">-NT$ {Math.round(platformRevenue.total.referralExpense).toLocaleString()}</div>
+                  </div>
+                  <div className="bg-white/10 rounded p-2">
+                    <div className="text-white/80">第一名減免 (2%)</div>
+                    <div className="font-semibold text-yellow-200">-NT$ {Math.round(platformRevenue.total.firstPlaceDiscount).toLocaleString()}</div>
+                  </div>
+                  <div className="bg-white/10 rounded p-2">
+                    <div className="text-white/80">總訂單金額</div>
+                    <div className="font-semibold">NT$ {Math.round(platformRevenue.total.totalAmount).toLocaleString()}</div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -220,6 +281,36 @@ export default function AdminOrderRecordsPage() {
                         </span>
                       </div>
                     </div>
+
+                    {/* 該月的平台总收入 */}
+                    {platformRevenue?.monthly[month] && (
+                      <div className="bg-gradient-to-r from-purple-500 to-indigo-500 text-white px-6 py-4 border-b border-purple-400">
+                        <div className="flex items-center justify-between mb-2">
+                          <h3 className="text-lg font-bold">💰 平台總收入</h3>
+                          <span className="text-2xl font-bold">
+                            NT$ {Math.round(platformRevenue.monthly[month].platformRevenue).toLocaleString()}
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs mt-3">
+                          <div className="bg-white/10 rounded p-2">
+                            <div className="text-white/80">基礎平台抽成 (15%)</div>
+                            <div className="font-semibold">NT$ {Math.round(platformRevenue.monthly[month].basePlatformFee).toLocaleString()}</div>
+                          </div>
+                          <div className="bg-white/10 rounded p-2">
+                            <div className="text-white/80">推薦獎勵支出</div>
+                            <div className="font-semibold text-red-200">-NT$ {Math.round(platformRevenue.monthly[month].referralExpense).toLocaleString()}</div>
+                          </div>
+                          <div className="bg-white/10 rounded p-2">
+                            <div className="text-white/80">第一名減免 (2%)</div>
+                            <div className="font-semibold text-yellow-200">-NT$ {Math.round(platformRevenue.monthly[month].firstPlaceDiscount).toLocaleString()}</div>
+                          </div>
+                          <div className="bg-white/10 rounded p-2">
+                            <div className="text-white/80">該月總金額</div>
+                            <div className="font-semibold">NT$ {Math.round(platformRevenue.monthly[month].totalAmount).toLocaleString()}</div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
 
                     {/* 按夥伴分組顯示 */}
                     <div className="divide-y divide-gray-200">

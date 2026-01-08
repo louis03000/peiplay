@@ -14,12 +14,18 @@ const DEFAULT_REFERRAL_CONFIG = {
 };
 
 function calculateTieredReferralRate(referralCount: number): number {
-  if (referralCount <= 3) {
-    return DEFAULT_REFERRAL_CONFIG.TIERED_REFERRAL_RATES[1];
-  } else if (referralCount <= 10) {
-    return DEFAULT_REFERRAL_CONFIG.TIERED_REFERRAL_RATES[3];
+  // 📈 推薦 1-3 人：獲得 2% 推薦獎勵
+  // 📈 推薦 4-10 人：獲得 3% 推薦獎勵
+  // 📈 推薦 10 人以上：獲得 4% 推薦獎勵
+  if (referralCount >= 1 && referralCount <= 3) {
+    return DEFAULT_REFERRAL_CONFIG.TIERED_REFERRAL_RATES[1]; // 2%
+  } else if (referralCount >= 4 && referralCount <= 10) {
+    return DEFAULT_REFERRAL_CONFIG.TIERED_REFERRAL_RATES[3]; // 3%
+  } else if (referralCount > 10) {
+    return DEFAULT_REFERRAL_CONFIG.TIERED_REFERRAL_RATES[10]; // 4%
   } else {
-    return DEFAULT_REFERRAL_CONFIG.TIERED_REFERRAL_RATES[10];
+    // 如果 referralCount 為 0 或負數，返回 0
+    return 0;
   }
 }
 
@@ -178,7 +184,9 @@ export async function POST(request: NextRequest) {
           referralEarningRecord,
           tieredRate: {
             percentage: referralBonusPercentage * 100,
-            tier: inviter.referralCount <= 3 ? '1-3人' : inviter.referralCount <= 10 ? '4-10人' : '10人以上',
+            tier: inviter.referralCount >= 1 && inviter.referralCount <= 3 ? '1-3人' : 
+                  inviter.referralCount >= 4 && inviter.referralCount <= 10 ? '4-10人' : 
+                  inviter.referralCount > 10 ? '10人以上' : '0人',
           },
         },
       } as const;
