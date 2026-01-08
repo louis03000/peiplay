@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db-resilience';
 import { createErrorResponse } from '@/lib/api-helpers';
+import { BookingStatus } from '@prisma/client';
 
 export const dynamic = 'force-dynamic';
 
@@ -63,6 +64,40 @@ export async function POST(request: NextRequest) {
 
       if (!booking.schedule?.partner) {
         return { type: 'PARTNER_NOT_FOUND' } as const;
+      }
+
+      // 🔥 如果訂單已經結束但狀態不是 COMPLETED，先更新狀態
+      const now = new Date();
+      const scheduleEndTime = booking.schedule?.endTime;
+      if (scheduleEndTime && scheduleEndTime <= now && booking.status !== BookingStatus.COMPLETED) {
+        // 訂單已經結束，更新狀態為 COMPLETED
+        await client.booking.update({
+          where: { id: booking.id },
+          data: { status: BookingStatus.COMPLETED }
+        });
+        console.log(`✅ 訂單 ${bookingId} 已結束，狀態已更新為 COMPLETED`);
+        // 重新查詢訂單以獲取最新狀態
+        const updatedBooking = await client.booking.findUnique({
+          where: { id: bookingId },
+          include: {
+            schedule: {
+              include: {
+                partner: {
+                  include: {
+                    referralsReceived: {
+                      include: {
+                        inviter: true,
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        });
+        if (updatedBooking) {
+          booking = updatedBooking;
+        }
       }
 
       const partner = booking.schedule.partner;

@@ -28,9 +28,12 @@ export async function POST(request: NextRequest) {
     } = body
 
     const result = await db.query(async (client) => {
-      // 構建查詢條件：查找所有已完成的訂單
+      // 構建查詢條件：查找所有已完成的訂單（包括 COMPLETED、CONFIRMED、PARTNER_ACCEPTED）
+      // 這些狀態都表示訂單已經完成，應該計算推薦收入
       const where: any = {
-        status: BookingStatus.COMPLETED,
+        status: {
+          in: [BookingStatus.COMPLETED, BookingStatus.CONFIRMED, BookingStatus.PARTNER_ACCEPTED]
+        },
         finalAmount: {
           not: null,
           gt: 0, // 金額必須大於 0

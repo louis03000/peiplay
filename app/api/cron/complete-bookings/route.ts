@@ -10,10 +10,12 @@ export async function GET() {
     const now = new Date();
     
     const result = await db.query(async (client) => {
-      // 查找已結束但狀態仍為 CONFIRMED 的預約（排除群組預約，群組預約由 group-booking-status 處理）
+      // 查找已結束但狀態仍為 CONFIRMED 或 PARTNER_ACCEPTED 的預約（排除群組預約，群組預約由 group-booking-status 處理）
       const endedBookings = await client.booking.findMany({
         where: {
-          status: BookingStatus.CONFIRMED,
+          status: {
+            in: [BookingStatus.CONFIRMED, BookingStatus.PARTNER_ACCEPTED]
+          },
           schedule: {
             endTime: {
               lte: now
