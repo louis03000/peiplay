@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
     }
 
     const result = await db.query(async (client) => {
-      const booking = await client.booking.findUnique({
+      let booking = await client.booking.findUnique({
         where: { id: bookingId },
         include: {
           schedule: {
