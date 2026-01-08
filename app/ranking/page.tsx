@@ -348,18 +348,26 @@ export default function RankingPage() {
                         {/* 只有夥伴身分才能看到排名前10的獎勵信息 */}
                         {/* 🔥 只有「全部遊戲」的第一名才顯示2%減免，篩選器後的第一名不顯示 */}
                         {partner.rank <= 10 && session?.user?.partnerId && (
-                          <div className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                            partner.rank === 1 
-                              ? 'bg-yellow-100 text-yellow-800' 
-                              : partner.rank <= 3
-                              ? 'bg-gray-100 text-gray-800'
-                              : 'bg-blue-100 text-blue-800'
-                          }`}>
-                            {partner.rank === 1 && selectedGame === 'all' && '🏆 平台維護費減免 2%'}
-                            {partner.rank === 1 && selectedGame !== 'all' && '🥇 第一名'}
-                            {partner.rank === 2 && '🥈 平台維護費減免 1%'}
-                            {partner.rank === 3 && '🥉 平台維護費減免 1%'}
-                            {partner.rank >= 4 && partner.rank <= 10 && '🎁 可申請優惠碼'}
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <div className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                              partner.rank === 1 
+                                ? 'bg-yellow-100 text-yellow-800' 
+                                : partner.rank <= 3
+                                ? 'bg-gray-100 text-gray-800'
+                                : 'bg-blue-100 text-blue-800'
+                            }`}>
+                              {partner.rank === 1 && selectedGame === 'all' && '🏆 平台維護費減免 2%'}
+                              {partner.rank === 1 && selectedGame !== 'all' && '🥇 第一名'}
+                              {partner.rank === 2 && '🥈 平台維護費減免 1%'}
+                              {partner.rank === 3 && '🥉 平台維護費減免 1%'}
+                              {partner.rank >= 4 && partner.rank <= 10 && '🎁 可申請優惠碼'}
+                            </div>
+                            {/* 顯示說明：排名優惠生效時間 */}
+                            {(partner.rank === 1 || partner.rank === 2 || partner.rank === 3) && (
+                              <span className="text-xs text-gray-500">
+                                (生效於下禮拜的所有訂單(禮拜一 ~ 禮拜日))
+                              </span>
+                            )}
                           </div>
                         )}
                       </div>

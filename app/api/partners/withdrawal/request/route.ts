@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db-resilience'
 import { createErrorResponse } from '@/lib/api-helpers'
-import { getPartnerLastWeekRank, calculatePlatformFeePercentage } from '@/lib/ranking-helpers'
+import { getPartnerLastWeekRank, calculatePlatformFeePercentage, getPlatformFeeDiscount } from '@/lib/ranking-helpers'
 import { sendWithdrawalRequestNotificationToAdmin } from '@/lib/email'
 
 export const dynamic = 'force-dynamic'
@@ -59,27 +59,35 @@ export async function POST(request: Request) {
       
       const isReferredPartner = !!referralRecord
 
-      // 🔥 被推薦夥伴永遠獲得85%收益（100% - 15%平台抽成）
+      // 🔥 被推薦夥伴基礎收益是85%（100% - 15%平台抽成）
+      // 但排名優惠仍然要加上去（第一名+2%，第二三名+1%）
       // 推薦獎勵從平台維護費中扣除，不影響被推薦夥伴的收益
       let rank: number | null = null
       let PLATFORM_FEE_PERCENTAGE = 0.15 // 默認 15%
+      let rankDiscount = 0 // 排名優惠
+      
+      // 獲取排名（無論是否被推薦，都需要排名來計算優惠）
+      try {
+        rank = await getPartnerLastWeekRank(partner.id)
+        rankDiscount = getPlatformFeeDiscount(rank)
+      } catch (error) {
+        console.warn('⚠️ 獲取上一週排名失敗:', error)
+        rank = null
+        rankDiscount = 0
+      }
       
       if (isReferredPartner) {
-        // 被推薦夥伴：永遠獲得85%收益，平台抽成固定15%
-        PLATFORM_FEE_PERCENTAGE = 0.15
+        // 被推薦夥伴：基礎收益85%，加上排名優惠
+        // 例如：第一名 = 85% + 2% = 87%
+        // 例如：第二名 = 85% + 1% = 86%
+        // 平台抽成 = 15% - 排名優惠
+        PLATFORM_FEE_PERCENTAGE = 0.15 - rankDiscount
       } else {
         // 非被推薦夥伴：使用排名系統或 referralPlatformFee
         if (partner.referralPlatformFee && partner.referralPlatformFee > 0) {
           PLATFORM_FEE_PERCENTAGE = partner.referralPlatformFee / 100
         } else {
-          try {
-            rank = await getPartnerLastWeekRank(partner.id)
-            PLATFORM_FEE_PERCENTAGE = calculatePlatformFeePercentage(rank)
-          } catch (error) {
-            console.warn('⚠️ 獲取上一週排名失敗，使用默認費率:', error)
-            rank = null
-            PLATFORM_FEE_PERCENTAGE = 0.15
-          }
+          PLATFORM_FEE_PERCENTAGE = calculatePlatformFeePercentage(rank)
         }
       }
 

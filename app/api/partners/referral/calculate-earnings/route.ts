@@ -152,16 +152,31 @@ export async function POST(request: NextRequest) {
         } as const;
       }
 
-      // 🔥 被推薦夥伴永遠獲得85%收益（100% - 15%平台抽成）
+      // 🔥 被推薦夥伴基礎收益是85%（100% - 15%平台抽成）
+      // 但排名優惠仍然要加上去（第一名+2%，第二三名+1%）
       // 推薦獎勵從平台維護費中扣除
       const platformFeePercentage = DEFAULT_REFERRAL_CONFIG.ORIGINAL_PLATFORM_FEE; // 15%
       const referralBonusPercentage = calculateTieredReferralRate(inviter.referralCount); // 2%, 3%, 或 4%
       
-      // 平台實際抽成 = 15% - 推薦獎勵比例（從平台維護費中扣除）
-      const actualPlatformFee = platformFeePercentage - referralBonusPercentage;
+      // 獲取被推薦夥伴的排名優惠
+      let inviteeRankDiscount = 0;
+      try {
+        const { getPartnerLastWeekRank, getPlatformFeeDiscount } = await import('@/lib/ranking-helpers');
+        const inviteeRank = await getPartnerLastWeekRank(partner.id);
+        inviteeRankDiscount = getPlatformFeeDiscount(inviteeRank);
+      } catch (error) {
+        console.warn(`⚠️ 獲取被推薦夥伴排名失敗:`, error);
+        inviteeRankDiscount = 0;
+      }
       
-      // 被推薦夥伴永遠獲得85%收益
-      const partnerEarning = totalAmount * (1 - platformFeePercentage); // 85% = 100% - 15%
+      // 被推薦夥伴實際獲得 = 85% + 排名優惠
+      // 例如：第一名 = 85% + 2% = 87%
+      // 例如：第二名 = 85% + 1% = 86%
+      const inviteeActualFee = platformFeePercentage - inviteeRankDiscount; // 平台對被推薦夥伴的實際抽成
+      const partnerEarning = totalAmount * (1 - inviteeActualFee);
+      
+      // 平台實際抽成 = 15% - 推薦獎勵比例 - 排名優惠（從平台維護費中扣除）
+      const actualPlatformFee = platformFeePercentage - referralBonusPercentage - inviteeRankDiscount;
       
       // 推薦獎勵 = 總金額 × 推薦獎勵比例（從平台維護費中扣除）
       const referralEarning = totalAmount * referralBonusPercentage;
