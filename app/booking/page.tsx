@@ -472,21 +472,17 @@ function BookingWizardContent() {
   const availableDates = useMemo(() => {
     if (!selectedPartner) return [];
     const schedules = partnerSchedules.get(selectedPartner.id) || [];
-    const dateSet = new Set<string>();
+    const dateSet = new Set<number>();
     const now = new Date();
     schedules.forEach((s) => {
       if (!s.isAvailable) return;
       if (new Date(s.startTime) <= now) return;
+      // 直接使用日期的時間戳（只取日期部分，忽略時間）
       const d = new Date(s.date);
-      const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
-      dateSet.add(key);
+      const dateOnly = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+      dateSet.add(dateOnly.getTime());
     });
-    return Array.from(dateSet)
-      .map((key) => {
-        const [year, month, date] = key.split("-").map(Number);
-        return new Date(year, month, date).getTime();
-      })
-      .sort((a, b) => a - b);
+    return Array.from(dateSet).sort((a, b) => a - b);
   }, [selectedPartner, partnerSchedules]);
 
   // 優化時段選擇邏輯 - 過濾掉所有與已預約時段重疊的時段

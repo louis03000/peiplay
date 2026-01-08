@@ -41,9 +41,14 @@ export async function GET(
     // 解析日期範圍
     let scheduleDateFilter: any = { gte: todayStart };
     if (startDate && endDate) {
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      // 使用 lte 而不是 lt，確保包含最後一天的時段
+      // 將 endDate 設置為該日的最後時刻（23:59:59.999）
+      end.setHours(23, 59, 59, 999);
       scheduleDateFilter = {
-        gte: new Date(startDate),
-        lt: new Date(endDate),
+        gte: start,
+        lte: end,
       };
     }
 
@@ -81,6 +86,7 @@ export async function GET(
         }
 
         // 查詢所有可用時段（包含預約資訊）
+        // 移除 take 限制，確保所有日期範圍內的時段都被查詢到
         const allSchedules = await client.schedule.findMany({
           where: {
             partnerId,
@@ -100,7 +106,6 @@ export async function GET(
             },
           },
           orderBy: [{ date: 'asc' }, { startTime: 'asc' }],
-          take: 100, // 限制結果數量
         });
 
         // 在應用層過濾：只返回沒有預約或預約狀態是終止狀態的時段
