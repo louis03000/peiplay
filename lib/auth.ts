@@ -309,19 +309,19 @@ export const authOptions: NextAuthOptions = {
         } else {
           // email 不存在，創建新用戶
           try {
-            dbUser = await prisma.user.create({
-              data: {
-                id: userId,
+        dbUser = await prisma.user.create({
+          data: {
+            id: userId,
                 email: emailToUse,
-                password: '', // LINE 用戶不需要密碼
-                name: user.name || 'New User',
-                role: 'CUSTOMER',
-                phone: '',
-                birthday: new Date('2000-01-01'),
-              },
-            });
-            isNewUser = true;
-            console.log('新用戶已創建:', dbUser.id);
+            password: '', // LINE 用戶不需要密碼
+            name: user.name || 'New User',
+            role: 'CUSTOMER',
+            phone: '',
+            birthday: new Date('2000-01-01'),
+          },
+        });
+        isNewUser = true;
+        console.log('新用戶已創建:', dbUser.id);
           } catch (error: any) {
             // 如果創建失敗（可能是 id 衝突），嘗試查找現有用戶
             console.error('創建用戶失敗，嘗試查找現有用戶:', error);

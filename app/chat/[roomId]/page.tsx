@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter, useParams } from 'next/navigation';
-import { useChatSocket } from '@/lib/hooks/useChatSocket';
+import { useChatRest } from '@/lib/hooks/useChatRest';
 import { format } from 'date-fns';
 import { zhTW } from 'date-fns/locale';
 
@@ -86,11 +86,7 @@ export default function ChatRoomPage() {
   const loadingRef = useRef(false);
   const abortControllerRef = useRef<AbortController | null>(null);
   
-  // ✅ Meta-first polling refs（當 WebSocket 不可用時的後備方案）
-  const pollingInFlightRef = useRef(false);
-  const pollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const lastMetaAtRef = useRef<string | null>(null);
-  const stoppedPollingRef = useRef(false);
+  // ✅ REST-only：移除 WebSocket polling refs（不再需要）
 
   // 檢查是否是免費聊天室（沒有關聯booking）
   const isFreeChat = Boolean(
@@ -98,11 +94,9 @@ export default function ChatRoomPage() {
   );
   const FREE_CHAT_LIMIT = 5;
 
-  // ✅ 關鍵優化：延後 WebSocket 初始化，直到 messages 載入完成
-  const [messagesLoaded, setMessagesLoaded] = useState(false);
-  
+  // ✅ REST-only：使用純 REST API hook
   const {
-    messages: socketMessages,
+    messages: restMessages,
     isConnected,
     typingUsers,
     onlineMembers,
@@ -110,9 +104,10 @@ export default function ChatRoomPage() {
     startTyping,
     stopTyping,
     markAsRead,
-  } = useChatSocket({ 
+  } = useChatRest({ 
     roomId, 
-    enabled: !!roomId && messagesLoaded // ✅ 只在 messages 載入後才啟用 socket
+    enabled: !!roomId,
+    pollInterval: 2500 // 2.5秒輪詢一次
   });
 
   // ✅ 關鍵優化：延後載入聊天室資訊（不阻塞首屏）
@@ -201,7 +196,6 @@ export default function ChatRoomPage() {
             if (!meta.lastMessageAt) {
               console.log('📭 Room has no messages, skipping messages query');
               setLoadedHistoryMessages([]);
-              setMessagesLoaded(true);
               setLoadingMessages(false);
               loadingRef.current = false;
               return;
@@ -249,7 +243,6 @@ export default function ChatRoomPage() {
               createdAt: msg.createdAt,
             }));
             setLoadedHistoryMessages(formattedMessages);
-            setMessagesLoaded(true); // ✅ 標記 messages 已載入，允許啟用 socket
             
             // 計算用戶已發送的消息數量（僅計算免費聊天室）
             const currentRoom = room;
@@ -293,119 +286,17 @@ export default function ChatRoomPage() {
     loadMessages();
   }, [roomId, session?.user?.id]); // ✅ 關鍵：依賴 roomId，切換房間時重新載入
 
-  // ✅ 關鍵優化：Meta-first polling（當 WebSocket 不可用時的後備方案）
-  useEffect(() => {
-    if (!roomId || !session?.user?.id || !messagesLoaded) return;
-    
-    // 如果 WebSocket 已連接，不需要 polling
-    if (isConnected) {
-      if (pollTimeoutRef.current) {
-        clearTimeout(pollTimeoutRef.current);
-        pollTimeoutRef.current = null;
-      }
-      stoppedPollingRef.current = true;
-      return;
-    }
-
-    // WebSocket 未連接，啟用 polling
-    stoppedPollingRef.current = false;
-    pollingInFlightRef.current = false;
-    lastMetaAtRef.current = null;
-
-    let retryDelay = 2500;
-
-    const pollOnce = async () => {
-      if (pollingInFlightRef.current || stoppedPollingRef.current) return;
-      pollingInFlightRef.current = true;
-
-      try {
-        const metaRes = await fetch(`/api/chat/rooms/${roomId}/meta`);
-        if (metaRes.status !== 200) {
-          stoppedPollingRef.current = true;
-          pollingInFlightRef.current = false;
-          return;
-        }
-
-        const meta = await metaRes.json();
-        if (meta.lastMessageAt !== lastMetaAtRef.current) {
-          lastMetaAtRef.current = meta.lastMessageAt;
-          const messagesRes = await fetch(`/api/chat/rooms/${roomId}/messages?limit=10`);
-          
-          if (messagesRes.ok) {
-            const messagesData = await messagesRes.json();
-            if (messagesData.messages && Array.isArray(messagesData.messages)) {
-              const formattedMessages: ChatMessage[] = messagesData.messages.map((msg: any) => ({
-                id: msg.id,
-                roomId: msg.roomId,
-                senderId: msg.senderId,
-                senderName: msg.senderName || msg.sender?.name,
-                senderAvatarUrl: msg.senderAvatarUrl || msg.sender?.avatarUrl,
-                sender: {
-                  id: msg.senderId,
-                  name: msg.senderName || msg.sender?.name || null,
-                  email: msg.sender?.email || '',
-                  role: msg.sender?.role || '',
-                  avatarUrl: msg.senderAvatarUrl || msg.sender?.avatarUrl || null,
-                },
-                content: msg.content,
-                contentType: msg.contentType || 'TEXT',
-                status: msg.status || 'SENT',
-                moderationStatus: msg.moderationStatus || 'APPROVED',
-                createdAt: msg.createdAt,
-              }));
-
-              setLoadedHistoryMessages((prev) => {
-                const existingIds = new Set(prev.map((m) => m.id));
-                const newMessages = formattedMessages.filter((m: ChatMessage) => !existingIds.has(m.id));
-                return [...prev, ...newMessages].sort(
-                  (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-                );
-              });
-
-              retryDelay = 2500;
-            }
-          }
-        }
-      } catch (error) {
-        console.error('Error polling:', error);
-        retryDelay = Math.min(retryDelay * 1.5, 15000);
-      } finally {
-        pollingInFlightRef.current = false;
-        if (!stoppedPollingRef.current && !isConnected) {
-          const delay = document.hidden ? 15000 : retryDelay;
-          pollTimeoutRef.current = setTimeout(pollOnce, delay);
-        }
-      }
-    };
-
-    pollOnce();
-    const handleVisibilityChange = () => {
-      if (!document.hidden && !pollingInFlightRef.current && !stoppedPollingRef.current && !isConnected) {
-        pollOnce();
-      }
-    };
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-
-    return () => {
-      stoppedPollingRef.current = true;
-      pollingInFlightRef.current = false;
-      if (pollTimeoutRef.current) {
-        clearTimeout(pollTimeoutRef.current);
-        pollTimeoutRef.current = null;
-      }
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
-  }, [roomId, session?.user?.id, messagesLoaded, isConnected]);
+  // ✅ REST-only：輪詢由 useChatRest hook 處理，這裡不需要額外的 polling
 
   // 滾動到底部
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [socketMessages, typingUsers, optimisticMessages]);
+  }, [restMessages, typingUsers, optimisticMessages]);
 
   // 標記已讀
   useEffect(() => {
-    if (socketMessages.length > 0 && session?.user?.id) {
-      const unreadMessageIds = socketMessages
+    if (restMessages.length > 0 && session?.user?.id) {
+      const unreadMessageIds = restMessages
         .filter(
           (msg) =>
             msg.senderId !== session.user.id &&
@@ -426,8 +317,8 @@ export default function ChatRoomPage() {
         const todayStart = new Date(taipeiNow);
         todayStart.setHours(0, 0, 0, 0);
         
-        // 合併歷史消息和 socket 消息來計算今天的消息
-        const allMessages = [...loadedHistoryMessages, ...socketMessages];
+        // 合併歷史消息和 REST 消息來計算今天的消息
+        const allMessages = [...loadedHistoryMessages, ...restMessages];
         const userSentCount = allMessages.filter((msg) => {
           if (msg.senderId !== session.user.id || msg.id.startsWith('temp-')) return false;
           // 檢查消息是否在今天
@@ -438,7 +329,7 @@ export default function ChatRoomPage() {
         setUserMessageCount(userSentCount);
       }
     }
-  }, [socketMessages, session?.user?.id, markAsRead, isFreeChat]);
+  }, [restMessages, session?.user?.id, markAsRead, isFreeChat, loadedHistoryMessages]);
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -489,11 +380,11 @@ export default function ChatRoomPage() {
     sendMessage(trimmedContent)
       .then(() => {
         // 發送成功，移除樂觀更新的消息
-        // 實際消息會通過 socket 或 API 返回並添加到 socketMessages
+        // 實際消息會通過 REST API 返回並添加到 restMessages
         // 延遲移除，確保實際消息已經到達
         setTimeout(() => {
           setOptimisticMessages((prev) => prev.filter((m) => m.id !== tempId));
-        }, 1000); // 給足夠時間讓消息通過API或socket返回
+        }, 1000); // 給足夠時間讓消息通過 REST API 返回
       })
       .catch((error: any) => {
         console.error('Error sending message:', error);
@@ -506,7 +397,7 @@ export default function ChatRoomPage() {
           alert(error.message);
           // 重置計數為實際值
           if (isFreeChat && session?.user?.id) {
-            const allMessages = [...loadedHistoryMessages, ...socketMessages];
+            const allMessages = [...loadedHistoryMessages, ...restMessages];
             const actualCount = allMessages.filter(
               (msg) => msg.senderId === session.user.id && !msg.id.startsWith('temp-')
             ).length;
@@ -616,16 +507,7 @@ export default function ChatRoomPage() {
             <div>
               <h1 className="text-lg font-semibold text-gray-900">{getRoomTitle()}</h1>
               <div className="flex items-center mt-1">
-                {isConnected ? (
-                  <span className="text-xs text-green-600">● 線上</span>
-                ) : (
-                  <span className="text-xs text-gray-400">離線</span>
-                )}
-                {onlineMembers.length > 0 && (
-                  <span className="ml-2 text-xs text-gray-500">
-                    {onlineMembers.length} 人在線
-                  </span>
-                )}
+                <span className="text-xs text-gray-400">REST API</span>
               </div>
             </div>
           </div>
@@ -638,7 +520,7 @@ export default function ChatRoomPage() {
         className="flex-1 overflow-y-auto px-4 py-4 space-y-4"
       >
         {/* ✅ 關鍵優化：立即顯示 skeleton，不阻塞 UI */}
-        {loadingMessages && loadedHistoryMessages.length === 0 && socketMessages.length === 0 && optimisticMessages.length === 0 && (
+        {loadingMessages && loadedHistoryMessages.length === 0 && restMessages.length === 0 && optimisticMessages.length === 0 && (
           <div className="space-y-4">
             {/* Skeleton 消息 */}
             {[1, 2, 3, 4, 5].map((i) => (
@@ -663,8 +545,8 @@ export default function ChatRoomPage() {
             allMessagesMap.set(msg.id, msg);
           });
           
-          // 再添加 socket 消息（會覆蓋重複的歷史消息）
-          socketMessages.forEach(msg => {
+          // 再添加 REST 消息（會覆蓋重複的歷史消息）
+          restMessages.forEach(msg => {
             allMessagesMap.set(msg.id, msg);
           });
           
@@ -801,11 +683,6 @@ export default function ChatRoomPage() {
             {sending ? '發送中...' : '發送'}
           </button>
         </div>
-        {!isConnected && (
-          <p className="mt-2 text-xs text-yellow-600">
-            ⚠️ 即時連線不可用，訊息將通過 API 發送（功能正常）
-          </p>
-        )}
       </form>
     </div>
   );

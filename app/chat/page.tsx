@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
-import { useChatSocket } from '@/lib/hooks/useChatSocket';
+// REST-only: WebSocket removed
 import { format } from 'date-fns';
 import { zhTW } from 'date-fns/locale';
 
@@ -212,16 +212,8 @@ export default function ChatPage() {
     return () => clearTimeout(timeoutId);
   }, [status, session?.user?.id]);
 
-  const {
-    messages: socketMessages,
-    isConnected,
-    typingUsers,
-    onlineMembers,
-    sendMessage,
-    startTyping,
-    stopTyping,
-    markAsRead,
-  } = useChatSocket({ roomId: selectedRoomId, enabled: !!selectedRoomId });
+  // REST-only: 移除 WebSocket，使用純 REST API
+  // 這個頁面主要顯示聊天室列表，不需要實時消息更新
 
   // 從列表更新選中的聊天室詳情（避免額外請求）
   useEffect(() => {
@@ -258,7 +250,7 @@ export default function ChatPage() {
   // 滾動到底部
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [socketMessages, typingUsers]);
+  }, [loadedHistoryMessages]);
 
   // ✅ 載入歷史訊息（當選擇聊天室時）- 添加請求去重
   useEffect(() => {
@@ -339,8 +331,8 @@ export default function ChatPage() {
 
   // 標記已讀
   useEffect(() => {
-    if (socketMessages.length > 0 && session?.user?.id && selectedRoomId) {
-      const unreadMessageIds = socketMessages
+    if (loadedHistoryMessages.length > 0 && session?.user?.id && selectedRoomId) {
+      const unreadMessageIds = loadedHistoryMessages
         .filter(
           (msg) =>
             msg.senderId !== session.user.id &&
@@ -350,10 +342,15 @@ export default function ChatPage() {
         .map((msg) => msg.id);
 
       if (unreadMessageIds.length > 0) {
-        markAsRead(unreadMessageIds);
+        // REST API 標記已讀
+        fetch(`/api/chat/rooms/${selectedRoomId}/read`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ messageIds: unreadMessageIds }),
+        }).catch(console.error);
       }
     }
-  }, [socketMessages, session?.user?.id, selectedRoomId, markAsRead]);
+  }, [loadedHistoryMessages, session?.user?.id, selectedRoomId]);
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -361,11 +358,41 @@ export default function ChatPage() {
 
     setSending(true);
     try {
-      await sendMessage(messageInput);
+      // REST API 發送消息
+      const res = await fetch(`/api/chat/rooms/${selectedRoomId}/messages`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: messageInput.trim() }),
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || '發送訊息失敗');
+      }
+
+      const data = await res.json();
       setMessageInput('');
-      stopTyping();
+      
+      // 將新消息添加到本地狀態
+      if (data.message) {
+        const newMessage: ChatMessage = {
+          id: data.message.id,
+          roomId: data.message.roomId,
+          senderId: data.message.senderId,
+          senderName: data.message.senderName,
+          senderAvatarUrl: data.message.senderAvatarUrl,
+          sender: data.message.sender,
+          content: data.message.content,
+          contentType: data.message.contentType || 'TEXT',
+          status: data.message.status || 'SENT',
+          moderationStatus: data.message.moderationStatus || 'APPROVED',
+          createdAt: data.message.createdAt,
+        };
+        setLoadedHistoryMessages((prev) => [...prev, newMessage]);
+      }
     } catch (error) {
       console.error('Error sending message:', error);
+      alert(error instanceof Error ? error.message : '發送訊息失敗');
     } finally {
       setSending(false);
     }
@@ -373,11 +400,7 @@ export default function ChatPage() {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setMessageInput(e.target.value);
-    if (e.target.value.trim()) {
-      startTyping();
-    } else {
-      stopTyping();
-    }
+    // REST-only: typing 指示器可選，這裡移除
   };
 
   const getRoomTitle = (room: ChatRoom | RoomDetail | null) => {
@@ -497,16 +520,7 @@ export default function ChatPage() {
                 <div>
                   <h1 className="text-lg font-semibold text-gray-900">{getRoomTitle(selectedRoom)}</h1>
                   <div className="flex items-center mt-1">
-                    {isConnected ? (
-                      <span className="text-xs text-green-600">● 線上</span>
-                    ) : (
-                      <span className="text-xs text-gray-400">● 離線</span>
-                    )}
-                    {onlineMembers.length > 0 && (
-                      <span className="ml-2 text-xs text-gray-500">
-                        {onlineMembers.length} 人在線
-                      </span>
-                    )}
+                    <span className="text-xs text-gray-400">REST API</span>
                   </div>
                 </div>
               </div>
@@ -518,7 +532,7 @@ export default function ChatPage() {
               className="flex-1 overflow-y-auto px-4 py-4 space-y-4"
             >
               {(() => {
-                // 合併歷史消息和 socket 消息，去重
+                // 合併歷史消息，去重（REST-only）
                 const allMessagesMap = new Map<string, ChatMessage>();
                 
                 // 先添加歷史消息
@@ -526,10 +540,7 @@ export default function ChatPage() {
                   allMessagesMap.set(msg.id, msg);
                 });
                 
-                // 再添加 socket 消息（會覆蓋重複的歷史消息）
-                socketMessages.forEach(msg => {
-                  allMessagesMap.set(msg.id, msg);
-                });
+                // REST-only: 只使用歷史消息
                 
                 return Array.from(allMessagesMap.values())
                   .filter((msg) => msg.moderationStatus !== 'REJECTED')

@@ -195,78 +195,78 @@ export default function AdminReviewsPage() {
           </div>
         </div>
 
-        <div className="grid gap-6">
+        <div className="grid gap-4">
           {/* 一般預約評論 */}
           {activeTab === 'general' && (
             <>
               {reviews.map((review) => (
-            <div key={review.id} className="bg-white rounded-xl shadow-lg p-6 border border-gray-200">
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 flex items-center justify-center text-white font-bold">
+            <div key={review.id} className="bg-white rounded-xl shadow-lg p-4 border border-gray-200">
+              <div className="flex items-start justify-between mb-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 flex items-center justify-center text-white font-bold text-sm">
                     {review.reviewer.name.charAt(0)}
                   </div>
                   <div>
-                    <h3 className="font-semibold text-gray-900">{review.reviewer.name}</h3>
-                    <p className="text-sm text-gray-500">評價 {review.booking.schedule.partner.name}</p>
+                    <h3 className="font-semibold text-gray-900 text-sm">{review.reviewer.name}</h3>
+                    <p className="text-xs text-gray-500">評價 {review.booking.schedule.partner.name}</p>
                   </div>
                 </div>
                 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1">
                   {[...Array(5)].map((_, i) => (
-                    <span key={i} className={i < review.rating ? 'text-yellow-400' : 'text-gray-300'}>
+                    <span key={i} className={`text-sm ${i < review.rating ? 'text-yellow-400' : 'text-gray-300'}`}>
                       ⭐
                     </span>
                   ))}
                 </div>
               </div>
 
-              <div className="mb-4">
-                <p className="text-gray-700 bg-gray-50 rounded-lg p-4 border-l-4 border-blue-500">
+              <div className="mb-3">
+                <p className="text-sm text-gray-700 bg-gray-50 rounded-lg p-3 border-l-4 border-blue-500">
                   "{review.comment}"
                 </p>
               </div>
 
               <div className="flex items-center justify-between">
-                <div className="text-sm text-gray-500">
+                <div className="text-xs text-gray-500">
                   提交時間：{new Date(review.createdAt).toLocaleString('zh-TW')}
                   {review.approvedAt && (
-                    <span className="ml-4">
+                    <span className="ml-3">
                       審核時間：{new Date(review.approvedAt).toLocaleString('zh-TW')}
                     </span>
                   )}
                 </div>
 
-                <div className="flex gap-3">
+                <div className="flex gap-2">
                   {review.isApproved ? (
                     <div className="flex items-center gap-2">
-                      <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">
+                      <span className="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs font-medium">
                         ✅ 已上架
                       </span>
                       <button
                         onClick={() => handleReviewAction(review.id, 'reject')}
                         disabled={updating === review.id}
-                        className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50"
+                        className="px-3 py-1.5 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50 text-sm"
                       >
                         {updating === review.id ? '處理中...' : '下架'}
                       </button>
                     </div>
                   ) : (
                     <div className="flex items-center gap-2">
-                      <span className="px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full text-sm font-medium">
+                      <span className="px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs font-medium">
                         ⏳ 待審核
                       </span>
                       <button
                         onClick={() => handleReviewAction(review.id, 'reject')}
                         disabled={updating === review.id}
-                        className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors disabled:opacity-50"
+                        className="px-3 py-1.5 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors disabled:opacity-50 text-sm"
                       >
                         {updating === review.id ? '處理中...' : '拒絕'}
                       </button>
                       <button
                         onClick={() => handleReviewAction(review.id, 'approve')}
                         disabled={updating === review.id}
-                        className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors disabled:opacity-50"
+                        className="px-3 py-1.5 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors disabled:opacity-50 text-sm"
                       >
                         {updating === review.id ? '處理中...' : '上架'}
                       </button>
@@ -291,26 +291,26 @@ export default function AdminReviewsPage() {
           {activeTab === 'multiplayer' && (
             <>
               {groupBookingReviews.map((review) => (
-                <div key={review.id} className="bg-white rounded-xl shadow-lg p-6 border border-gray-200">
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-full bg-gradient-to-r from-purple-600 to-pink-600 flex items-center justify-center text-white font-bold">
+                <div key={review.id} className="bg-white rounded-xl shadow-lg p-4 border border-gray-200">
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-gradient-to-r from-purple-600 to-pink-600 flex items-center justify-center text-white font-bold text-sm">
                         {review.Customer.user.name.charAt(0)}
                       </div>
                       <div>
-                        <h3 className="font-semibold text-gray-900">{review.Customer.user.name}</h3>
-                        <p className="text-sm text-gray-500">
+                        <h3 className="font-semibold text-gray-900 text-sm">{review.Customer.user.name}</h3>
+                        <p className="text-xs text-gray-500">
                           {review.GroupBooking.title || '多人陪玩/群組預約'}
                         </p>
-                        <p className="text-xs text-gray-400 mt-1">
+                        <p className="text-xs text-gray-400 mt-0.5">
                           {new Date(review.GroupBooking.startTime).toLocaleString('zh-TW')} - {new Date(review.GroupBooking.endTime).toLocaleString('zh-TW', { hour: '2-digit', minute: '2-digit' })}
                         </p>
                       </div>
                     </div>
                     
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1">
                       {[...Array(5)].map((_, i) => (
-                        <span key={i} className={i < review.rating ? 'text-yellow-400' : 'text-gray-300'}>
+                        <span key={i} className={`text-sm ${i < review.rating ? 'text-yellow-400' : 'text-gray-300'}`}>
                           ⭐
                         </span>
                       ))}
@@ -318,22 +318,22 @@ export default function AdminReviewsPage() {
                   </div>
 
                   {review.comment && (
-                    <div className="mb-4">
-                      <p className="text-gray-700 bg-gray-50 rounded-lg p-4 border-l-4 border-purple-500">
+                    <div className="mb-3">
+                      <p className="text-sm text-gray-700 bg-gray-50 rounded-lg p-3 border-l-4 border-purple-500">
                         "{review.comment}"
                       </p>
                     </div>
                   )}
 
                   <div className="flex items-center justify-between">
-                    <div className="text-sm text-gray-500">
+                    <div className="text-xs text-gray-500">
                       提交時間：{new Date(review.createdAt).toLocaleString('zh-TW')}
                     </div>
 
                     <button
                       onClick={() => handleDeleteGroupBookingReview(review.id)}
                       disabled={updating === review.id}
-                      className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50"
+                      className="px-3 py-1.5 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50 text-sm"
                     >
                       {updating === review.id ? '處理中...' : '刪除評論'}
                     </button>
