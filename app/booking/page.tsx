@@ -474,14 +474,39 @@ function BookingWizardContent() {
     const schedules = partnerSchedules.get(selectedPartner.id) || [];
     const dateSet = new Set<number>();
     const now = new Date();
+    const today = new Date();
+    const todayOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    
+    // 收集所有有未來時段的日期
     schedules.forEach((s) => {
       if (!s.isAvailable) return;
-      if (new Date(s.startTime) <= now) return;
+      
       // 直接使用日期的時間戳（只取日期部分，忽略時間）
       const d = new Date(s.date);
       const dateOnly = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-      dateSet.add(dateOnly.getTime());
+      const dateKey = dateOnly.getTime();
+      
+      // 檢查這個時段是否在未來
+      const startTime = new Date(s.startTime);
+      if (startTime > now) {
+        dateSet.add(dateKey);
+      }
     });
+    
+    // 特別處理今天：即使某些時段已經過了，只要還有未來的時段，就應該顯示今天
+    const todayKey = todayOnly.getTime();
+    const hasTodayFutureSlot = schedules.some((s) => {
+      if (!s.isAvailable) return false;
+      const scheduleDate = new Date(s.date);
+      const scheduleDateOnly = new Date(scheduleDate.getFullYear(), scheduleDate.getMonth(), scheduleDate.getDate());
+      if (scheduleDateOnly.getTime() !== todayKey) return false;
+      return new Date(s.startTime) > now;
+    });
+    
+    if (hasTodayFutureSlot) {
+      dateSet.add(todayKey);
+    }
+    
     return Array.from(dateSet).sort((a, b) => a - b);
   }, [selectedPartner, partnerSchedules]);
 
