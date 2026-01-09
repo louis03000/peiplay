@@ -58,6 +58,7 @@ export default function RegisterPage() {
   const [customGame, setCustomGame] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const [showDiscordInvite, setShowDiscordInvite] = useState(false)
   const {
     register,
     handleSubmit,
@@ -72,11 +73,17 @@ export default function RegisterPage() {
     }
   }, [status, router]);
 
-  useEffect(() => {
-    if (isSuccess) {
-      window.location.href = '/auth/login'
+  // 處理關閉 Discord 邀請 modal 後的跳轉
+  const handleCloseDiscordInvite = () => {
+    setShowDiscordInvite(false)
+    // 關閉 modal 後，獲取 email 並跳轉到驗證頁面
+    // 這裡需要從註冊成功的響應中獲取 email，我們需要保存它
+    const savedEmail = sessionStorage.getItem('registeredEmail')
+    if (savedEmail) {
+      router.push(`/auth/verify-email?email=${encodeURIComponent(savedEmail)}`)
+      sessionStorage.removeItem('registeredEmail')
     }
-  }, [isSuccess])
+  }
 
   if (status === "loading") {
     return <div className="text-center py-10">載入中...</div>;
@@ -130,9 +137,23 @@ export default function RegisterPage() {
         return
       }
   
-      // 註冊成功，跳轉到 Email 驗證頁面
+      // 註冊成功
       const formData = await response.json()
-      router.push(`/auth/verify-email?email=${encodeURIComponent(formData.email || '')}`)
+      const registeredEmail = formData.email || ''
+      
+      // 保存 email 到 sessionStorage，以便關閉 modal 後使用
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('registeredEmail', registeredEmail)
+      }
+      
+      // 檢查是否已經顯示過 Discord 邀請（使用 localStorage）
+      if (typeof window !== 'undefined' && !localStorage.getItem('discordInviteShown')) {
+        setShowDiscordInvite(true)
+        localStorage.setItem('discordInviteShown', '1')
+      } else {
+        // 如果已經顯示過，直接跳轉到 Email 驗證頁面
+        router.push(`/auth/verify-email?email=${encodeURIComponent(registeredEmail)}`)
+      }
     } catch (error) {
       console.error(error)
       setErrorMsg(error instanceof Error ? error.message : '註冊失敗')
@@ -322,6 +343,65 @@ export default function RegisterPage() {
           </div>
         </div>
       </div>
+
+      {/* Discord 邀請 Modal */}
+      {showDiscordInvite && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          {/* 半透明遮罩 */}
+          <div 
+            className="absolute inset-0 bg-black bg-opacity-50"
+            onClick={handleCloseDiscordInvite}
+          ></div>
+          
+          {/* Modal 內容 */}
+          <div className="relative bg-[#1e293b] rounded-lg shadow-xl p-6 max-w-sm w-full mx-4 border border-gray-700">
+            {/* 關閉按鈕 */}
+            <button
+              onClick={handleCloseDiscordInvite}
+              className="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors"
+              aria-label="關閉"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+
+            {/* 標題 */}
+            <div className="text-center mb-4">
+              <h3 className="text-xl font-bold text-white mb-2">🎮 歡迎加入 PeiPlay！</h3>
+            </div>
+
+            {/* 說明文字 */}
+            <p className="text-gray-300 text-sm mb-6 text-center">
+              為了進行陪玩、語音服務與即時通知，<br />
+              請加入我們的 Discord 伺服器。
+            </p>
+
+            {/* 主要行動按鈕 */}
+            <div className="space-y-3">
+              <a
+                href="https://discord.gg/jNtHxN6DDC"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block w-full bg-[#5865F2] hover:bg-[#4752C4] text-white font-medium py-3 px-4 rounded-md text-center transition-colors flex items-center justify-center gap-2"
+              >
+                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515a.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0a12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057a19.9 19.9 0 0 0 5.993 3.03a.078.078 0 0 0 .084-.028a14.09 14.09 0 0 0 1.226-1.994a.076.076 0 0 0-.041-.106a13.107 13.107 0 0 1-1.872-.892a.077.077 0 0 1-.008-.128a10.2 10.2 0 0 0 .372-.292a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127a12.299 12.299 0 0 1-1.873.892a.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028a19.839 19.839 0 0 0 6.002-3.03a.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419c0-1.333.956-2.419 2.157-2.419c1.21 0 2.176 1.096 2.157 2.42c0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419c0-1.333.955-2.419 2.157-2.419c1.21 0 2.176 1.096 2.157 2.42c0 1.333-.946 2.418-2.157 2.418z"/>
+                </svg>
+                加入 PeiPlay Discord
+              </a>
+
+              {/* 次要操作 */}
+              <button
+                onClick={handleCloseDiscordInvite}
+                className="block w-full text-gray-400 hover:text-gray-300 text-sm py-2 transition-colors"
+              >
+                稍後再說
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 } 

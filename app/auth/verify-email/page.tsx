@@ -4,23 +4,26 @@ import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 
 // Discord 加入按鈕組件
-function DiscordJoinButton() {
+function DiscordJoinButton({ email }: { email: string | null }) {
   const [loading, setLoading] = useState(false)
   const [oauthUrl, setOauthUrl] = useState<string | null>(null)
 
   useEffect(() => {
-    // 獲取 Discord OAuth URL
-    fetch('/api/discord/oauth-url')
+    // 獲取 Discord OAuth URL（如果未登入，使用 email 參數）
+    const url = email ? `/api/discord/oauth-url?email=${encodeURIComponent(email)}` : '/api/discord/oauth-url'
+    fetch(url)
       .then(res => res.json())
       .then(data => {
         if (data.oauthUrl) {
           setOauthUrl(data.oauthUrl)
+        } else if (data.error) {
+          console.error('獲取 Discord OAuth URL 失敗:', data.error)
         }
       })
       .catch(err => {
         console.error('獲取 Discord OAuth URL 失敗:', err)
       })
-  }, [])
+  }, [email])
 
   const handleJoinDiscord = () => {
     if (oauthUrl) {
@@ -182,7 +185,7 @@ function VerifyEmailContent() {
               <h1 className="text-2xl font-bold text-green-600 mb-4">🎉 驗證成功！</h1>
               <p className="text-gray-600 mb-6">您的 Email 已成功驗證，現在可以登入使用 PeiPlay 了！</p>
               <div className="space-y-3">
-                <DiscordJoinButton />
+                <DiscordJoinButton email={email} />
                 <button
                   onClick={() => router.push('/auth/login')}
                   className="w-full bg-green-600 text-white py-3 px-4 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 font-medium"
