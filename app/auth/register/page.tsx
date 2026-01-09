@@ -17,7 +17,7 @@ const registerSchema = z.object({
   email: z.string().email('請輸入有效的電子郵件'),
   password: z.string().min(6, '密碼至少需要6個字'),
   confirmPassword: z.string().min(6, '密碼至少需要6個字'),
-  name: z.string().min(2, '姓名至少需要2個字'),
+  name: z.string().min(2, '名字至少需要2個字'),
   birthday: z.string().min(1, '請選擇生日'),
   phone: z.string().min(10, '請輸入有效的電話號碼'),
   discord: z.string()
@@ -261,7 +261,7 @@ export default function RegisterPage() {
               )}
               <input
                 className="w-full px-4 py-2 rounded bg-gray-900 text-white placeholder-gray-400 border border-gray-700"
-                placeholder="姓名"
+                placeholder="名字"
                 {...register('name')}
               />
               {errors.name && (

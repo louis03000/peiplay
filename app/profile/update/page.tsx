@@ -8,7 +8,7 @@ import { useSession } from 'next-auth/react';
 import { useState } from 'react';
 
 const schema = z.object({
-  name: z.string().min(2, '姓名至少2字'),
+  name: z.string().min(2, '名字至少2字'),
   phone: z.string().min(10, '請輸入有效電話'),
   birthday: z.string().min(1, '請選擇生日'),
   discord: z.string().optional(),
@@ -81,7 +81,7 @@ export default function UpdateProfilePage() {
         
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div>
-            <label className="block mb-1 text-gray-800 font-semibold">姓名</label>
+            <label className="block mb-1 text-gray-800 font-semibold">名字</label>
             <input 
               type="text" 
               {...register('name')} 

@@ -13,7 +13,7 @@ import Link from 'next/link'
 const MAX_GAMES = 10;
 
 const partnerSchema = z.object({
-  name: z.string().min(2, '姓名至少需要2個字'),
+  name: z.string().min(2, '名字至少需要2個字'),
   birthday: z.string().min(1, '請選擇生日'),
   phone: z.string().min(10, '請輸入有效的電話號碼'),
   gender: z.string().min(1, '請選擇性別'),
