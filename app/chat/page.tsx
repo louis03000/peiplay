@@ -398,9 +398,13 @@ export default function ChatPage() {
     }
   };
 
+  const stopTyping = () => {
+    // REST-only: typing 指示器已移除
+  };
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setMessageInput(e.target.value);
-    // REST-only: typing 指示器可選，這裡移除
+    // REST-only: typing 指示器已移除
   };
 
   const getRoomTitle = (room: ChatRoom | RoomDetail | null) => {
