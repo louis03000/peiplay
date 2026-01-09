@@ -248,8 +248,7 @@ export async function GET(request: NextRequest) {
       const where: any = {
         status: BookingStatus.COMPLETED,
         finalAmount: {
-          not: null,
-          gt: 0,
+          gt: 0, // 金額必須大於 0（gt: 0 已經隱含了 not null）
         },
       }
 

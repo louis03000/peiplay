@@ -476,33 +476,36 @@ function BookingWizardContent() {
     const now = new Date();
     const today = new Date();
     const todayOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const todayKey = todayOnly.getTime();
     
     // 收集所有有未來時段的日期
     schedules.forEach((s) => {
       if (!s.isAvailable) return;
       
-      // 直接使用日期的時間戳（只取日期部分，忽略時間）
-      const d = new Date(s.date);
-      const dateOnly = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-      const dateKey = dateOnly.getTime();
+      // 使用 startTime 來確定日期（更準確，因為 startTime 包含完整的日期時間信息）
+      const startTime = new Date(s.startTime);
+      const scheduleDateOnly = new Date(startTime.getFullYear(), startTime.getMonth(), startTime.getDate());
+      const dateKey = scheduleDateOnly.getTime();
       
       // 檢查這個時段是否在未來
-      const startTime = new Date(s.startTime);
       if (startTime > now) {
         dateSet.add(dateKey);
       }
     });
     
-    // 特別處理今天：即使某些時段已經過了，只要還有未來的時段，就應該顯示今天
-    const todayKey = todayOnly.getTime();
+    // 特別處理今天：檢查今天是否有任何未來的時段
+    // 使用 startTime 來判斷日期，而不是 s.date（因為可能有時區問題）
     const hasTodayFutureSlot = schedules.some((s) => {
       if (!s.isAvailable) return false;
-      const scheduleDate = new Date(s.date);
-      const scheduleDateOnly = new Date(scheduleDate.getFullYear(), scheduleDate.getMonth(), scheduleDate.getDate());
+      const startTime = new Date(s.startTime);
+      const scheduleDateOnly = new Date(startTime.getFullYear(), startTime.getMonth(), startTime.getDate());
+      // 檢查是否是今天
       if (scheduleDateOnly.getTime() !== todayKey) return false;
-      return new Date(s.startTime) > now;
+      // 檢查是否還有未來的時段
+      return startTime > now;
     });
     
+    // 如果今天有未來的時段，確保今天被加入
     if (hasTodayFutureSlot) {
       dateSet.add(todayKey);
     }
@@ -760,8 +763,10 @@ function BookingWizardContent() {
     setLoadingSchedules(true);
     try {
       const now = new Date();
+      // 使用今天的開始時間（00:00:00），而不是當前時間，確保包含今天的所有時段
+      const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
       const endDate = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000); // 7天後
-      const url = `/api/partners/${partnerId}/schedules?startDate=${now.toISOString()}&endDate=${endDate.toISOString()}`;
+      const url = `/api/partners/${partnerId}/schedules?startDate=${todayStart.toISOString()}&endDate=${endDate.toISOString()}`;
       
       console.log('[預約頁面] 時段 API URL:', url);
       const res = await fetch(url, {

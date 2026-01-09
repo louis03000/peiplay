@@ -169,7 +169,7 @@ export default function ReferralPage() {
               </div>
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-700">累計推薦收入</p>
-                <p className="text-2xl font-bold text-gray-900">NT$ {(stats?.stats.totalEarnings || 0).toLocaleString()}</p>
+                <p className="text-2xl font-bold text-gray-900">NT$ {Math.floor(stats?.stats.totalEarnings || 0).toLocaleString()}</p>
               </div>
             </div>
           </div>
@@ -183,7 +183,7 @@ export default function ReferralPage() {
               </div>
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-500">可提領推薦收入</p>
-                <p className="text-2xl font-bold text-gray-900">NT$ {(stats?.stats.currentEarnings || 0).toLocaleString()}</p>
+                <p className="text-2xl font-bold text-gray-900">NT$ {Math.floor(stats?.stats.currentEarnings || 0).toLocaleString()}</p>
               </div>
             </div>
           </div>

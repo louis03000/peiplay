@@ -152,10 +152,16 @@ export class Cache {
     try {
       const value = await client.get(key);
       if (value === null || value === undefined) {
-        console.error(`📭 Cache.get(${key}): MISS (no value found)`);
+        // 只在開發環境記錄 MISS（生產環境太多噪音）
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`📭 Cache.get(${key}): MISS (no value found)`);
+        }
         return null;
       }
-      console.error(`✅ Cache.get(${key}): HIT (value found)`);
+      // 只在開發環境記錄 HIT（生產環境太多噪音）
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`✅ Cache.get(${key}): HIT (value found)`);
+      }
       // Upstash 已經自動處理 JSON，但我們還是確保類型正確
       return value as T;
     } catch (error: any) {
@@ -181,17 +187,26 @@ export class Cache {
 
     try {
       const valueStr = JSON.stringify(value);
-      console.error(`💾 Cache.set(${key}): Setting value (size: ${valueStr.length} bytes, TTL: ${ttlSeconds}s)`);
+      // 只在開發環境或重要操作時記錄詳細日誌
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`💾 Cache.set(${key}): Setting value (size: ${valueStr.length} bytes, TTL: ${ttlSeconds}s)`);
+      }
       
       // Upstash Redis 使用 setEx 方法，參數順序：key, seconds, value
       await client.set(key, value, { ex: ttlSeconds });
       
-      // ✅ 驗證是否真的寫入了
+      // ✅ 驗證是否真的寫入了（增加短暫延遲以應對 HTTP 模式的同步延遲）
+      // 注意：Upstash Redis HTTP 模式可能有輕微延遲，所以驗證失敗不一定表示寫入失敗
+      await new Promise(resolve => setTimeout(resolve, 50)); // 50ms 延遲
       const verify = await client.get(key);
       if (verify !== null && verify !== undefined) {
-        console.error(`✅ Cache.set(${key}): Success and verified (TTL: ${ttlSeconds}s)`);
+        // 只在開發環境記錄成功日誌
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`✅ Cache.set(${key}): Success and verified (TTL: ${ttlSeconds}s)`);
+        }
       } else {
-        console.error(`❌ Cache.set(${key}): Set succeeded but verification failed (value not found)`);
+        // 改為警告而非錯誤，因為 HTTP 模式的延遲可能導致誤報
+        console.warn(`⚠️  Cache.set(${key}): Verification failed (may be due to HTTP mode delay, cache may still be valid)`);
       }
       
       return true;
