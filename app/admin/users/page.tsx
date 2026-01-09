@@ -36,6 +36,7 @@ export default function AdminUsersPage() {
   const [suspendingUser, setSuspendingUser] = useState<string | null>(null);
   const [suspensionReason, setSuspensionReason] = useState("");
   const [deletingUser, setDeletingUser] = useState<string | null>(null);
+  const [deleteConfirmStep, setDeleteConfirmStep] = useState<{ userId: string; step: number } | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [roleFilter, setRoleFilter] = useState("ALL");
 
@@ -148,9 +149,24 @@ export default function AdminUsersPage() {
     }
   };
 
-  const handleDeleteUser = async (userId: string) => {
-    if (!confirm("確定要刪除此用戶嗎？此操作無法復原！")) return;
+  const handleDeleteUser = (userId: string) => {
+    // 開始第一次確認
+    setDeleteConfirmStep({ userId, step: 1 });
+  };
 
+  const handleDeleteConfirm = async () => {
+    if (!deleteConfirmStep) return;
+
+    const { userId, step } = deleteConfirmStep;
+
+    // 如果還沒到第三次確認，繼續下一步
+    if (step < 3) {
+      setDeleteConfirmStep({ userId, step: step + 1 });
+      return;
+    }
+
+    // 第三次確認後，執行刪除
+    setDeleteConfirmStep(null);
     setDeletingUser(userId);
     try {
       const res = await fetch("/api/admin/users/delete", {
@@ -170,6 +186,10 @@ export default function AdminUsersPage() {
     } finally {
       setDeletingUser(null);
     }
+  };
+
+  const handleDeleteCancel = () => {
+    setDeleteConfirmStep(null);
   };
 
   const formatDate = (dateString: string) => {
@@ -465,6 +485,53 @@ export default function AdminUsersPage() {
                 className="px-4 py-2 bg-yellow-600 text-white rounded hover:bg-yellow-700 disabled:opacity-50"
               >
                 確認停權
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 刪除帳號三次確認對話框 */}
+      {deleteConfirmStep && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <div className="mb-4">
+              <div className="flex items-center justify-center mb-4">
+                <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-xl ${
+                  deleteConfirmStep.step === 1 ? 'bg-red-500' :
+                  deleteConfirmStep.step === 2 ? 'bg-orange-500' :
+                  'bg-red-600'
+                }`}>
+                  {deleteConfirmStep.step}
+                </div>
+              </div>
+              <h3 className="text-xl font-bold text-red-600 text-center mb-2">
+                第 {deleteConfirmStep.step} 次確認
+              </h3>
+              <p className="text-gray-700 text-center mb-4">
+                確定要刪除此用戶嗎？此操作無法復原！
+              </p>
+              <p className="text-sm text-gray-500 text-center">
+                {deleteConfirmStep.step < 3 && `還需要 ${3 - deleteConfirmStep.step} 次確認才能刪除`}
+                {deleteConfirmStep.step === 3 && "最後一次確認，點擊後將立即刪除"}
+              </p>
+            </div>
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={handleDeleteCancel}
+                className="px-4 py-2 text-gray-600 hover:text-gray-800 border border-gray-300 rounded hover:bg-gray-50"
+              >
+                取消
+              </button>
+              <button
+                onClick={handleDeleteConfirm}
+                className={`px-4 py-2 text-white rounded hover:opacity-90 ${
+                  deleteConfirmStep.step === 1 ? 'bg-red-500 hover:bg-red-600' :
+                  deleteConfirmStep.step === 2 ? 'bg-orange-500 hover:bg-orange-600' :
+                  'bg-red-600 hover:bg-red-700'
+                }`}
+              >
+                {deleteConfirmStep.step < 3 ? '繼續確認' : '確認刪除'}
               </button>
             </div>
           </div>

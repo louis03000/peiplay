@@ -44,21 +44,46 @@
 
 在 OAuth2 頁面，你會看到：
 
-- **Client ID** - 這是你的 `DISCORD_CLIENT_ID`
+- **Client ID** - 這是你的 `DISCORD_CLIENT_ID`（直接複製即可，例如：`1382291813519331379`）
 - **Client Secret** - 點擊 "Reset Secret" 獲取，這是你的 `DISCORD_CLIENT_SECRET`
+
+⚠️ **關於 Reset Secret**：
+- 如果這是**第一次設定 OAuth2**，可以安全地點擊 "Reset Secret" 獲取新的 Secret
+- **重要**：Secret 只顯示一次，請立即複製並保存
+- 重置後，舊的 Secret 會立即失效，所以必須立即更新到 Vercel 環境變數
 
 ### 6. 設定環境變數
 
-在你的 `.env` 或 Vercel 環境變數中，添加以下變數：
+⚠️ **重要：有兩個地方需要設定環境變數**
 
+#### A. Discord Bot 的環境變數（Python Bot，在 `E:\python.12\discord-bot\.env`）
+
+這個你已經有了，包含：
 ```env
-# Discord OAuth2 設定
-DISCORD_CLIENT_ID=你的_client_id
-DISCORD_CLIENT_SECRET=你的_client_secret
-
-# Discord Bot 設定（應該已經有了）
 DISCORD_BOT_TOKEN=你的_bot_token
 DISCORD_GUILD_ID=你的伺服器_id
+ADMIN_CHANNEL_ID=你的管理員頻道_id
+POSTGRES_CONN=你的資料庫連接
+CHECK_INTERVAL=30
+```
+
+#### B. Next.js/Vercel 的環境變數（用於 OAuth2 功能）
+
+**這需要在 Vercel 環境變數中設定**（不是 Discord Bot 的 .env）：
+
+1. 前往 [Vercel Dashboard](https://vercel.com/dashboard)
+2. 選擇你的專案（PeiPlay）
+3. 進入 **Settings** → **Environment Variables**
+4. 添加以下變數：
+
+```env
+# Discord OAuth2 設定（新增）
+DISCORD_CLIENT_ID=你的_client_id（從 Discord Developer Portal 複製）
+DISCORD_CLIENT_SECRET=你的_client_secret（點擊 Reset Secret 後複製）
+
+# Discord Bot 設定（如果還沒有，需要添加）
+DISCORD_BOT_TOKEN=你的_bot_token（與 Discord Bot 的 .env 相同）
+DISCORD_GUILD_ID=你的伺服器_id（與 Discord Bot 的 .env 相同）
 
 # Redirect URI（可選，如果不設定會使用預設值）
 DISCORD_REDIRECT_URI=https://peiplay.vercel.app/api/discord/callback
@@ -66,6 +91,10 @@ DISCORD_REDIRECT_URI=https://peiplay.vercel.app/api/discord/callback
 # NextAuth URL（應該已經有了）
 NEXTAUTH_URL=https://peiplay.vercel.app
 ```
+
+**注意**：
+- `DISCORD_BOT_TOKEN` 和 `DISCORD_GUILD_ID` 可以與 Discord Bot 的 .env 相同
+- 但 `DISCORD_CLIENT_ID` 和 `DISCORD_CLIENT_SECRET` 是 OAuth2 專用的，需要從 Discord Developer Portal 獲取
 
 ## 流程說明
 
