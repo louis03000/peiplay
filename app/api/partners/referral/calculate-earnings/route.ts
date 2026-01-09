@@ -107,6 +107,11 @@ export async function POST(request: NextRequest) {
       console.log(`🔍 計算推薦收入: 預約 ${bookingId}, 夥伴 ${partner.id} (${partner.name})`);
       console.log(`   預約狀態: ${booking.status}, 金額: ${booking.finalAmount}`);
       console.log(`   推薦記錄: ${referralRecord ? '存在' : '不存在'}`);
+      if (referralRecord) {
+        console.log(`   推薦人ID: ${referralRecord.inviterId}, 被推薦人ID: ${referralRecord.inviteeId}`);
+      } else {
+        console.log(`   ⚠️ 夥伴 ${partner.id} 沒有推薦記錄，可能不是被推薦的夥伴`);
+      }
 
       if (!referralRecord) {
         console.log(`⚠️ 夥伴 ${partner.id} 沒有推薦記錄，跳過推薦收入計算`);
