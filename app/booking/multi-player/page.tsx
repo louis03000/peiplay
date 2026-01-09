@@ -723,7 +723,15 @@ ${formatScheduleChecks(p)}
                 value={selectedDate}
                 onChange={(e) => setSelectedDate(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 text-gray-900"
-                min={new Date().toISOString().split('T')[0]}
+                min={(() => {
+                  // 使用台灣時區的今天日期作為最小值
+                  const now = new Date();
+                  const taipeiDate = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Taipei' }));
+                  const year = taipeiDate.getFullYear();
+                  const month = String(taipeiDate.getMonth() + 1).padStart(2, '0');
+                  const day = String(taipeiDate.getDate()).padStart(2, '0');
+                  return `${year}-${month}-${day}`;
+                })()}
               />
             </div>
             <div>
@@ -742,9 +750,14 @@ ${formatScheduleChecks(p)}
                   const minute = (i % 2) * 30
                   const timeStr = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`
                   
-                  // 檢查時段是否已經過去
+                  // 檢查時段是否已經過去（使用台灣時區）
                   const now = new Date()
-                  const today = now.toISOString().split('T')[0]
+                  // 獲取台灣時區的今天日期
+                  const taipeiNow = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Taipei' }));
+                  const year = taipeiNow.getFullYear();
+                  const month = String(taipeiNow.getMonth() + 1).padStart(2, '0');
+                  const day = String(taipeiNow.getDate()).padStart(2, '0');
+                  const today = `${year}-${month}-${day}`;
                   let isPast = false
                   
                   if (selectedDate) {
@@ -752,12 +765,13 @@ ${formatScheduleChecks(p)}
                     if (selectedDate < today) {
                       isPast = true
                     } 
-                    // 如果選擇的日期是今天，檢查該時段是否已過
+                    // 如果選擇的日期是今天，檢查該時段是否已過（使用台灣時區）
                     else if (selectedDate === today) {
                       const [timeHour, timeMinute] = timeStr.split(':').map(Number)
-                      const timeDate = new Date(now)
-                      timeDate.setHours(timeHour, timeMinute, 0, 0)
-                      isPast = timeDate.getTime() < now.getTime()
+                      // 創建台灣時區的日期時間對象
+                      const timeDateTaipei = new Date(taipeiNow);
+                      timeDateTaipei.setHours(timeHour, timeMinute, 0, 0);
+                      isPast = timeDateTaipei.getTime() < taipeiNow.getTime()
                     }
                   }
                   

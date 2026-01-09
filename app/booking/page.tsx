@@ -568,11 +568,18 @@ function BookingWizardContent() {
 
       const scheduleDate = new Date(schedule.date);
       if (!isSameDay(scheduleDate, selectedDate)) return false;
-      if (new Date(schedule.startTime) <= now) return false;
-
-      // 檢查是否與任何已預約時段重疊
+      
+      // 使用台灣時區比較：檢查時段是否已過去
       const scheduleStart = new Date(schedule.startTime);
       const scheduleEnd = new Date(schedule.endTime);
+      
+      // 獲取台灣時區的當前時間
+      const nowTaipei = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Taipei' }));
+      // 將時段開始時間轉換為台灣時區進行比較
+      const scheduleStartTaipei = new Date(scheduleStart.toLocaleString('en-US', { timeZone: 'Asia/Taipei' }));
+      if (scheduleStartTaipei.getTime() <= nowTaipei.getTime()) return false;
+
+      // 檢查是否與任何已預約時段重疊
 
       for (const bookedSlot of bookedTimeSlots) {
         if (
