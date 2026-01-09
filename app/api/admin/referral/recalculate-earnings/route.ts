@@ -35,8 +35,7 @@ export async function POST(request: NextRequest) {
           in: [BookingStatus.COMPLETED, BookingStatus.CONFIRMED, BookingStatus.PARTNER_ACCEPTED]
         },
         finalAmount: {
-          not: null,
-          gt: 0, // 金額必須大於 0
+          gt: 0, // 金額必須大於 0（gt: 0 已經隱含了 not null）
         },
       }
 
