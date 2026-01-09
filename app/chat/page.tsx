@@ -413,13 +413,8 @@ export default function ChatPage() {
   };
 
   const getTypingText = () => {
-    if (typingUsers.length === 0) return null;
-    if (typingUsers.length === 1) {
-      const userId = typingUsers[0];
-      const user = selectedRoom?.members.find((m) => m.id === userId);
-      return `${user?.name || '有人'} 正在輸入...`;
-    }
-    return '多人正在輸入...';
+    // REST-only: typing 指示器已移除
+    return null;
   };
 
   if (loading) {
