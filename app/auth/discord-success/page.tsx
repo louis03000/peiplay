@@ -1,9 +1,9 @@
 'use client'
 
 import { useRouter, useSearchParams } from 'next/navigation'
-import { useEffect } from 'react'
+import { Suspense } from 'react'
 
-export default function DiscordSuccessPage() {
+function SuccessContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const alreadyMember = searchParams.get('already_member') === 'true'
@@ -45,5 +45,17 @@ export default function DiscordSuccessPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function DiscordSuccessPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-50 pt-20 flex items-center justify-center">
+        <div className="text-gray-600">載入中...</div>
+      </div>
+    }>
+      <SuccessContent />
+    </Suspense>
   )
 }

@@ -1,8 +1,9 @@
 'use client'
 
 import { useRouter, useSearchParams } from 'next/navigation'
+import { Suspense } from 'react'
 
-export default function DiscordErrorPage() {
+function ErrorContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const error = searchParams.get('error')
@@ -60,5 +61,17 @@ export default function DiscordErrorPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function DiscordErrorPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-50 pt-20 flex items-center justify-center">
+        <div className="text-gray-600">載入中...</div>
+      </div>
+    }>
+      <ErrorContent />
+    </Suspense>
   )
 }
