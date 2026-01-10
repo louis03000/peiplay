@@ -811,6 +811,7 @@ export async function POST(
       return NextResponse.json({ error: '參數錯誤' }, { status: 400 });
     }
 
+    // ✅ 確保 Redis cache 操作只在 DB 寫入成功後才執行
     const result = await db.query(async (client) => {
       // ✅ 獲取使用者資訊（確保 senderId 不是 undefined）
       const user = await client.user.findUnique({
@@ -891,8 +892,18 @@ export async function POST(
       };
     }, 'chat:rooms:roomId:messages:post');
 
-    // ✅ Write-through cache：同步更新 Redis List
-    if (redisStatus === 'SET') {
+    // ✅ 成功 → 一定回 messageId：確保 result 存在且有 id
+    if (!result || !result.id) {
+      console.error('[POST /api/chat/rooms/[roomId]/messages] ❌ DB 寫入失敗：result 為空或沒有 id', result);
+      return NextResponse.json(
+        { error: '訊息發送失敗，請重試' },
+        { status: 500 }
+      );
+    }
+
+    // ✅ 確保 Redis cache 操作只在 DB 寫入成功後才執行
+    // ✅ Write-through cache：同步更新 Redis List（只在 DB 成功後執行）
+    if (redisStatus === 'SET' && result.id) {
       const listKey = CacheKeys.chat.messages(roomId);
       
       // 格式化訊息（與 GET API 格式一致）
@@ -924,8 +935,31 @@ export async function POST(
       Cache.delete(CacheKeys.chat.meta(roomId)).catch(() => {});
     }
 
-    return NextResponse.json({ message: result });
-  } catch (error) {
+    // ✅ 成功 → 一定回 messageId
+    return NextResponse.json({ 
+      message: result,
+      messageId: result.id // ✅ 確保返回 messageId
+    });
+  } catch (error: any) {
+    // ✅ Prisma 失敗 → 回 500
+    console.error('[POST /api/chat/rooms/[roomId]/messages] ❌ Error:', error);
+    
+    // ✅ 未登入 → 回 401（如果 session 檢查失敗）
+    if (error?.message?.includes('請先登入') || error?.message?.includes('無法識別用戶')) {
+      return NextResponse.json(
+        { error: error.message || '請先登入' },
+        { status: 401 }
+      );
+    }
+    
+    // ✅ Prisma 失敗 → 回 500
+    if (error?.code || error?.message?.includes('Prisma') || error?.message?.includes('database')) {
+      return NextResponse.json(
+        { error: '訊息發送失敗，資料庫錯誤' },
+        { status: 500 }
+      );
+    }
+    
     return createErrorResponse(error, 'chat:rooms:roomId:messages:post');
   }
 }
