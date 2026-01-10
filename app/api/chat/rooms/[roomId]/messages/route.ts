@@ -903,6 +903,7 @@ export async function POST(
 
     // ✅ 確保 Redis cache 操作只在 DB 寫入成功後才執行
     // ✅ Write-through cache：同步更新 Redis List（只在 DB 成功後執行）
+    // ✅ 重要：必須等待 Redis 更新完成，確保對方讀取時能看到新消息
     if (redisStatus === 'SET' && result.id) {
       const listKey = CacheKeys.chat.messages(roomId);
       
@@ -921,18 +922,23 @@ export async function POST(
         sender: result.sender,
       };
 
-      // 從左邊推入新訊息（最新的在最前面）
-      Cache.listPush(listKey, formattedMessage)
-        .then(() => Cache.listTrim(listKey, 0, 49)) // 只保留最近 50 則
-        .then(() => {
-          console.error(`✅ Write-through cache: ${listKey} updated with new message`);
-        })
-        .catch((error: any) => {
-          console.error(`⚠️ Failed to update Redis List for ${listKey}:`, error.message);
-        });
+      try {
+        // ✅ 同步等待 Redis List 更新完成（確保對方讀取時能看到新消息）
+        await Cache.listPush(listKey, formattedMessage);
+        await Cache.listTrim(listKey, 0, 49); // 只保留最近 50 則
+        console.error(`✅ Write-through cache: ${listKey} updated with new message (synced)`);
+      } catch (error: any) {
+        // Redis 更新失敗不影響 API 響應（消息已成功寫入 DB）
+        console.error(`⚠️ Failed to update Redis List for ${listKey}:`, error.message);
+      }
 
       // 同時清除 meta cache（讓 meta polling 知道有新訊息）
-      Cache.delete(CacheKeys.chat.meta(roomId)).catch(() => {});
+      try {
+        await Cache.delete(CacheKeys.chat.meta(roomId));
+      } catch (error: any) {
+        // Meta cache 刪除失敗不影響主要功能
+        console.error(`⚠️ Failed to delete meta cache:`, error.message);
+      }
     }
 
     // ✅ 成功 → 一定回 messageId
