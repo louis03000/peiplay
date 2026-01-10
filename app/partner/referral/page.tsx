@@ -150,7 +150,7 @@ export default function ReferralPage() {
         <div className="text-center">
           <div className="text-red-400 text-xl mb-4">{error}</div>
           <button
-            onClick={fetchStats}
+            onClick={() => fetchStats(false)}
             className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
           >
             重試
