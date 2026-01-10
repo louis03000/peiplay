@@ -569,15 +569,15 @@ function BookingWizardContent() {
       const scheduleDate = new Date(schedule.date);
       if (!isSameDay(scheduleDate, selectedDate)) return false;
       
-      // 使用台灣時區比較：檢查時段是否已過去
+      // ✅ 檢查時段是否已過去（使用 UTC 時間戳直接比較，更可靠）
       const scheduleStart = new Date(schedule.startTime);
       const scheduleEnd = new Date(schedule.endTime);
       
-      // 獲取台灣時區的當前時間
-      const nowTaipei = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Taipei' }));
-      // 將時段開始時間轉換為台灣時區進行比較
-      const scheduleStartTaipei = new Date(scheduleStart.toLocaleString('en-US', { timeZone: 'Asia/Taipei' }));
-      if (scheduleStartTaipei.getTime() <= nowTaipei.getTime()) return false;
+      // 直接比較 UTC 時間戳，因為 schedule.startTime 和 now 都是 UTC 時間
+      // 如果時段開始時間已經過去，過濾掉
+      if (scheduleStart.getTime() <= now.getTime()) {
+        return false; // 時段已過，不顯示
+      }
 
       // 檢查是否與任何已預約時段重疊
 

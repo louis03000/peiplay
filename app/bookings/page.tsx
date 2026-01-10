@@ -573,14 +573,19 @@ export default function BookingsPage() {
                       )}
                       <td className="py-4 px-6 text-white font-medium">
                         {booking.schedule?.startTime
-                          ? new Date(
-                              booking.schedule.startTime,
-                            ).toLocaleDateString("zh-TW", {
-                              timeZone: 'Asia/Taipei',
-                              year: "numeric",
-                              month: "2-digit",
-                              day: "2-digit",
-                            })
+                          ? (() => {
+                              // ✅ 使用統一的時區轉換，確保日期和時間都基於台灣時區
+                              // 將 UTC 時間轉換為台灣時區，然後提取日期部分
+                              const startTime = new Date(booking.schedule.startTime);
+                              // 使用 Intl.DateTimeFormat 確保日期和時間使用相同的時區轉換
+                              const formatter = new Intl.DateTimeFormat('zh-TW', {
+                                timeZone: 'Asia/Taipei',
+                                year: 'numeric',
+                                month: '2-digit',
+                                day: '2-digit',
+                              });
+                              return formatter.format(startTime);
+                            })()
                           : "-"}
                       </td>
                       <td className="py-4 px-6 text-white font-medium">
@@ -618,21 +623,21 @@ export default function BookingsPage() {
                         {booking.schedule?.startTime &&
                         booking.schedule?.endTime
                           ? (() => {
-                              // 使用固定時區（Asia/Taipei）確保時間顯示一致
+                              // ✅ 使用統一的時區轉換，確保日期和時間都基於台灣時區
+                              // 將 UTC 時間轉換為台灣時區，然後提取時間部分
                               const startTime = new Date(booking.schedule.startTime);
                               const endTime = new Date(booking.schedule.endTime);
-                              const startStr = startTime.toLocaleTimeString('zh-TW', { 
+                              
+                              // 使用 Intl.DateTimeFormat 確保日期和時間使用相同的時區轉換
+                              const timeFormatter = new Intl.DateTimeFormat('zh-TW', {
                                 timeZone: 'Asia/Taipei',
-                                hour: "2-digit", 
-                                minute: "2-digit", 
-                                hour12: false 
+                                hour: '2-digit',
+                                minute: '2-digit',
+                                hour12: false,
                               });
-                              const endStr = endTime.toLocaleTimeString('zh-TW', { 
-                                timeZone: 'Asia/Taipei',
-                                hour: "2-digit", 
-                                minute: "2-digit", 
-                                hour12: false 
-                              });
+                              
+                              const startStr = timeFormatter.format(startTime);
+                              const endStr = timeFormatter.format(endTime);
                               return `${startStr} - ${endStr}`;
                             })()
                           : "-"}
