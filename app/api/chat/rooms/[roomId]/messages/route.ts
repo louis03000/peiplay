@@ -329,13 +329,57 @@ export async function POST(
 
     const session = await getServerSession(authOptions);
 
-    if (!session?.user?.id) {
+    // ✅ 檢查 session 和 user
+    if (!session?.user) {
       return NextResponse.json({ error: '請先登入' }, { status: 401 });
+    }
+
+    // ✅ 在 POST 一開始 console.log(session.user) 用於調試
+    console.log('[POST /api/chat/rooms/[roomId]/messages] session.user:', session.user);
+
+    // ✅ 確保 session.user.id 存在，如果不存在則嘗試使用 email 查找用戶
+    let senderId: string | undefined = session.user.id;
+    
+    if (!senderId) {
+      // 如果沒有 id，嘗試使用 email 查找用戶
+      if (session.user.email) {
+        try {
+          const userByEmail = await db.query(async (client) => {
+            return await client.user.findUnique({
+              where: { email: session.user.email! },
+              select: { id: true },
+            });
+          }, 'chat:rooms:roomId:messages:post:find-user-by-email');
+          
+          if (userByEmail?.id) {
+            senderId = userByEmail.id;
+            console.log('[POST /api/chat/rooms/[roomId]/messages] Found user by email:', senderId);
+          } else {
+            return NextResponse.json({ error: '無法識別用戶，請重新登入' }, { status: 401 });
+          }
+        } catch (error) {
+          console.error('[POST /api/chat/rooms/[roomId]/messages] Error finding user by email:', error);
+          return NextResponse.json({ error: '無法識別用戶，請重新登入' }, { status: 401 });
+        }
+      } else {
+        return NextResponse.json({ error: '無法識別用戶，請重新登入' }, { status: 401 });
+      }
+    }
+
+    // ✅ 確保 senderId 不是 undefined
+    if (!senderId) {
+      return NextResponse.json({ error: '無法識別用戶，請重新登入' }, { status: 401 });
     }
 
     // 處理 params 可能是 Promise 的情況（Next.js 15）
     const resolvedParams = params instanceof Promise ? await params : params;
     const { roomId } = resolvedParams;
+
+    // ✅ 確保 roomId 不是 undefined
+    if (!roomId) {
+      return NextResponse.json({ error: '聊天室 ID 不能為空' }, { status: 400 });
+    }
+
     const body = await request.json();
     const { content } = body;
 
@@ -348,33 +392,95 @@ export async function POST(
     const redisToken = process.env.UPSTASH_REDIS_REST_TOKEN;
     const redisStatus = (redisUrl && redisToken) ? 'SET' : 'NOT_SET';
 
-    // 先檢查免費聊天限制（在 db.query 外部）
-    const roomCheck = await db.query(async (client) => {
-      const [membership, room] = await Promise.all([
-        (client as any).chatRoomMember.findUnique({
-          where: {
-            roomId_userId: {
-              roomId,
-              userId: session.user.id,
+    // ✅ 先檢查免費聊天限制（在 db.query 外部）
+    // ✅ 確保不會 throw Error，而是返回適當的錯誤碼
+    let roomCheck: any = null;
+    try {
+      roomCheck = await db.query(async (client) => {
+        // ✅ 確保 roomId 和 senderId 都不是 undefined 才查詢
+        if (!roomId || !senderId) {
+          return null;
+        }
+
+        const [membership, room] = await Promise.all([
+          client.chatRoomMember.findUnique({
+            where: {
+              roomId_userId: {
+                roomId,
+                userId: senderId,
+              },
             },
-          },
-        }),
-        (client as any).chatRoom.findUnique({
-          where: { id: roomId },
-          select: {
-            bookingId: true,
-            groupBookingId: true,
-            multiPlayerBookingId: true,
-          },
-        }),
-      ]);
+            select: { id: true },
+          }),
+          client.chatRoom.findUnique({
+            where: { id: roomId },
+            select: {
+              id: true,
+              bookingId: true,
+              groupBookingId: true,
+              multiPlayerBookingId: true,
+            },
+          }),
+        ]);
 
-      if (!membership) {
-        throw new Error('無權限訪問此聊天室');
+        // ✅ membership 或 room 不存在時返回 null，不要 throw Error
+        if (!membership) {
+          return null; // 會在外部處理，返回 403
+        }
+
+        if (!room) {
+          return null; // 會在外部處理，返回 404
+        }
+
+        return room;
+      }, 'chat:rooms:roomId:messages:post:check');
+    } catch (error: any) {
+      // ✅ 資料庫錯誤時返回 500，但記錄詳細信息
+      console.error('[POST /api/chat/rooms/[roomId]/messages] roomCheck error:', error);
+      return NextResponse.json({ error: '檢查聊天室權限時發生錯誤' }, { status: 500 });
+    }
+
+    // ✅ roomCheck 不存在時不要 throw，返回適當的錯誤碼
+    if (!roomCheck) {
+      // 再次查詢確認是 membership 還是 room 不存在
+      try {
+        const [membershipCheck, roomCheckOnly] = await Promise.all([
+          db.query(async (client) => {
+            if (!roomId || !senderId) return null;
+            return await client.chatRoomMember.findUnique({
+              where: {
+                roomId_userId: {
+                  roomId,
+                  userId: senderId,
+                },
+              },
+              select: { id: true },
+            });
+          }, 'chat:rooms:roomId:messages:post:check-membership'),
+          db.query(async (client) => {
+            if (!roomId) return null;
+            return await client.chatRoom.findUnique({
+              where: { id: roomId },
+              select: { id: true },
+            });
+          }, 'chat:rooms:roomId:messages:post:check-room'),
+        ]);
+
+        if (!roomCheckOnly) {
+          return NextResponse.json({ error: '聊天室不存在' }, { status: 404 });
+        }
+
+        if (!membershipCheck) {
+          return NextResponse.json({ error: '無權限訪問此聊天室' }, { status: 403 });
+        }
+
+        // 如果都存在但 roomCheck 為 null，可能是其他問題
+        return NextResponse.json({ error: '無法訪問此聊天室' }, { status: 403 });
+      } catch (error: any) {
+        console.error('[POST /api/chat/rooms/[roomId]/messages] Error checking membership/room:', error);
+        return NextResponse.json({ error: '檢查聊天室權限時發生錯誤' }, { status: 500 });
       }
-
-      return room;
-    }, 'chat:rooms:roomId:messages:post:check');
+    }
 
     const isFreeChat =
       !roomCheck?.bookingId && !roomCheck?.groupBookingId && !roomCheck?.multiPlayerBookingId;
@@ -392,11 +498,16 @@ export async function POST(
       const todayStartTaipei = dayjs.tz('Asia/Taipei').startOf('day');
       const todayStartUTCForDB = todayStartTaipei.utc().toDate();
 
+      // ✅ 確保 roomId 和 senderId 都不是 undefined
+      if (!roomId || !senderId) {
+        return NextResponse.json({ error: '參數錯誤' }, { status: 400 });
+      }
+
       const todayMessages = await db.query(async (client) => {
-        return await (client as any).chatMessage.findMany({
+        return await client.chatMessage.findMany({
           where: {
             roomId,
-            senderId: session.user.id,
+            senderId: senderId,
             createdAt: {
               gte: todayStartUTCForDB, // 只計算今天的消息
             },
@@ -420,11 +531,15 @@ export async function POST(
       }
     }
 
-    const result = await db.query(async (client) => {
+    // ✅ 確保 roomId 和 senderId 都不是 undefined 才進行 Prisma 查詢
+    if (!roomId || !senderId) {
+      return NextResponse.json({ error: '參數錯誤' }, { status: 400 });
+    }
 
-      // 獲取使用者資訊
+    const result = await db.query(async (client) => {
+      // ✅ 獲取使用者資訊（確保 senderId 不是 undefined）
       const user = await client.user.findUnique({
-        where: { id: session.user.id },
+        where: { id: senderId },
         select: {
           name: true,
           partner: {
@@ -444,12 +559,13 @@ export async function POST(
         content.toLowerCase().includes(keyword.toLowerCase())
       );
 
-      // 寫入訊息並更新 ChatRoom.lastMessageAt
-      const message = await (client as any).$transaction(async (tx: any) => {
+      // ✅ 寫入訊息並更新 ChatRoom.lastMessageAt
+      // ✅ chatMessage.create 前保證 FK 合法：roomId 和 senderId 都已經驗證不是 undefined
+      const message = await client.$transaction(async (tx) => {
         const newMessage = await tx.chatMessage.create({
           data: {
-            roomId,
-            senderId: session.user.id,
+            roomId: roomId, // ✅ 已確保不是 undefined
+            senderId: senderId, // ✅ 已確保不是 undefined
             senderName: senderName,
             senderAvatarUrl: avatarUrl,
             content: content.trim(),

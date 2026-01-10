@@ -160,7 +160,28 @@ export const authOptions: NextAuthOptions = {
     async session({ session, token }) {
       // 確保 session.user 一定存在
       session.user = session.user || {};
-      session.user.id = token.sub as string;
+      // ✅ 確保 session.user.id 存在：優先使用 token.sub，如果不存在則嘗試從 user 對象獲取
+      if (token.sub) {
+        session.user.id = token.sub as string;
+      } else if (session.user.id) {
+        // 如果 session.user.id 已經存在，保持不變
+      } else {
+        // 如果都沒有，嘗試從資料庫查找（使用 email）
+        if (session.user.email) {
+          try {
+            await ensureConnection();
+            const userByEmail = await prisma.user.findUnique({
+              where: { email: session.user.email },
+              select: { id: true },
+            });
+            if (userByEmail?.id) {
+              session.user.id = userByEmail.id;
+            }
+          } catch (error) {
+            console.error('Session callback: Error finding user by email:', error);
+          }
+        }
+      }
       session.user.role = token.role as UserRole;
       session.user.provider = token.provider as string;
       // 添加伙伴信息到 session（如果存在）
