@@ -88,13 +88,20 @@ export async function GET(request: Request) {
       // 判斷服務類型
       let serviceType = '一般預約'
       const paymentInfo = booking.paymentInfo as any
-      if (paymentInfo?.isInstantBooking === true || paymentInfo?.isInstantBooking === 'true') {
-        serviceType = '即時預約'
+      const isInstantBooking = paymentInfo?.isInstantBooking === true || paymentInfo?.isInstantBooking === 'true'
+      const isChatOnly = booking.serviceType === 'CHAT_ONLY' || paymentInfo?.isChatOnly === true || paymentInfo?.isChatOnly === 'true'
+      
+      // 優先檢查多人陪玩和群組預約（這些不能與即時預約或純聊天組合）
+      if (booking.multiPlayerBookingId) {
+        serviceType = '多人陪玩'
       } else if (booking.groupBookingId) {
         serviceType = '群組預約'
-      } else if (booking.multiPlayerBookingId) {
-        serviceType = '多人陪玩'
-      } else if (booking.serviceType === 'CHAT_ONLY') {
+      } else if (isInstantBooking && isChatOnly) {
+        // ✅ 即時預約+純聊天：同時顯示兩者
+        serviceType = '即時預約、純聊天'
+      } else if (isInstantBooking) {
+        serviceType = '即時預約'
+      } else if (isChatOnly) {
         serviceType = '純聊天'
       }
 
