@@ -92,8 +92,17 @@ export async function GET(
       const dbStart = performance.now();
       try {
         const result = await db.query(async (client) => {
-          // 權限驗證
-          const [membership, user] = await Promise.all([
+          // ✅ 權限驗證：改為檢查 room 是否存在，以及用戶是否是參與者
+          const [room, membership, user] = await Promise.all([
+            client.chatRoom.findUnique({
+              where: { id: roomId },
+              select: {
+                id: true,
+                bookingId: true,
+                groupBookingId: true,
+                multiPlayerBookingId: true,
+              },
+            }),
             client.chatRoomMember.findUnique({
               where: {
                 roomId_userId: {
@@ -109,8 +118,126 @@ export async function GET(
             }),
           ]);
 
-          if (!membership && user?.role !== 'ADMIN') {
-            throw new Error('無權限訪問此聊天室');
+          // ✅ 如果 room 不存在，返回 404
+          if (!room) {
+            throw new Error('聊天室不存在');
+          }
+
+          // ✅ 如果用戶是 ADMIN，直接允許
+          if (user?.role === 'ADMIN') {
+            // 允許訪問
+          } else if (membership) {
+            // ✅ 如果用戶在 chatRoomMember 中，允許訪問
+            // 允許訪問
+          } else {
+            // ✅ 檢查用戶是否是 room 對應的 booking/groupBooking/multiPlayerBooking 參與者
+            let hasAccess = false;
+
+            // 檢查一般預約 (Booking)
+            if (room.bookingId) {
+              const booking = await client.booking.findUnique({
+                where: { id: room.bookingId },
+                select: {
+                  customerId: true,
+                  partnerId: true,
+                },
+              });
+              if (booking) {
+                // 檢查用戶是否是顧客或夥伴
+                const customer = await client.customer.findUnique({
+                  where: { id: booking.customerId },
+                  select: { userId: true },
+                });
+                const partner = await client.partner.findUnique({
+                  where: { id: booking.partnerId },
+                  select: { userId: true },
+                });
+                if (customer?.userId === session.user.id || partner?.userId === session.user.id) {
+                  hasAccess = true;
+                }
+              }
+            }
+
+            // 檢查群組預約 (GroupBooking)
+            if (!hasAccess && room.groupBookingId) {
+              // 檢查用戶是否在相關的 Booking 中
+              const relatedBooking = await client.booking.findFirst({
+                where: {
+                  groupBookingId: room.groupBookingId,
+                },
+                select: {
+                  customerId: true,
+                  schedule: {
+                    select: {
+                      partnerId: true,
+                    },
+                  },
+                },
+              });
+              if (relatedBooking) {
+                const customer = await client.customer.findUnique({
+                  where: { id: relatedBooking.customerId },
+                  select: { userId: true },
+                });
+                const partner = relatedBooking.schedule
+                  ? await client.partner.findUnique({
+                      where: { id: relatedBooking.schedule.partnerId },
+                      select: { userId: true },
+                    })
+                  : null;
+                if (customer?.userId === session.user.id || partner?.userId === session.user.id) {
+                  hasAccess = true;
+                }
+              }
+            }
+
+            // 檢查多人陪玩 (MultiPlayerBooking)
+            if (!hasAccess && room.multiPlayerBookingId) {
+              const multiPlayerBooking = await client.multiPlayerBooking.findUnique({
+                where: { id: room.multiPlayerBookingId },
+                select: {
+                  customerId: true,
+                  bookings: {
+                    select: {
+                      schedule: {
+                        select: {
+                          partnerId: true,
+                        },
+                      },
+                    },
+                  },
+                },
+              });
+              if (multiPlayerBooking) {
+                // 檢查用戶是否是顧客
+                const customer = await client.customer.findUnique({
+                  where: { id: multiPlayerBooking.customerId },
+                  select: { userId: true },
+                });
+                if (customer?.userId === session.user.id) {
+                  hasAccess = true;
+                } else {
+                  // 檢查用戶是否是任何一個陪玩者
+                  for (const booking of multiPlayerBooking.bookings) {
+                    if (booking.schedule) {
+                      const partner = await client.partner.findUnique({
+                        where: { id: booking.schedule.partnerId },
+                        select: { userId: true },
+                      });
+                      if (partner?.userId === session.user.id) {
+                        hasAccess = true;
+                        break;
+                      }
+                    }
+                  }
+                }
+              }
+            }
+
+            // ✅ membership 驗證失敗時：不可回空陣列，必須回 403
+            if (!hasAccess) {
+              throw new Error('無權限訪問此聊天室');
+            }
           }
 
           // 查詢訊息
@@ -153,6 +280,7 @@ export async function GET(
         const dbMs = performance.now() - dbStart;
         const messages = result.messages || [];
 
+        // ✅ 禁止 cache 空訊息結果：messages.length === 0 時不要回填 Redis List
         // 🟩 回填 Redis List（背景執行，不阻塞回應）
         if (messages.length > 0) {
           // 清空舊的並回填（從右邊推入，保持時間順序）
@@ -191,6 +319,13 @@ export async function GET(
         );
       } catch (error: any) {
         console.error(`⚠️ DB query error:`, error.message);
+        // ✅ membership 驗證失敗時：不可回空陣列，必須回 403，不可被 Redis cache
+        if (error.message === '無權限訪問此聊天室' || error.message === '聊天室不存在') {
+          return NextResponse.json(
+            { error: error.message },
+            { status: error.message === '聊天室不存在' ? 404 : 403 }
+          );
+        }
         // Fall through to DB query below
       }
     }
@@ -198,8 +333,17 @@ export async function GET(
     // ✅ 沒有 cache key 或 Redis 不可用，直接查 DB
     const dbStart = performance.now();
     const result = await db.query(async (client) => {
-      // 權限驗證
-      const [membership, user] = await Promise.all([
+      // ✅ 權限驗證：改為檢查 room 是否存在，以及用戶是否是參與者
+      const [room, membership, user] = await Promise.all([
+        client.chatRoom.findUnique({
+          where: { id: roomId },
+          select: {
+            id: true,
+            bookingId: true,
+            groupBookingId: true,
+            multiPlayerBookingId: true,
+          },
+        }),
         client.chatRoomMember.findUnique({
           where: {
             roomId_userId: {
@@ -215,8 +359,132 @@ export async function GET(
         }),
       ]);
 
-      if (!membership && user?.role !== 'ADMIN') {
-        throw new Error('無權限訪問此聊天室');
+      // ✅ 如果 room 不存在，返回 404
+      if (!room) {
+        throw new Error('聊天室不存在');
+      }
+
+      // ✅ 如果用戶是 ADMIN，直接允許
+      if (user?.role === 'ADMIN') {
+        // 允許訪問
+      } else if (membership) {
+        // ✅ 如果用戶在 chatRoomMember 中，允許訪問
+        // 允許訪問
+      } else {
+        // ✅ 檢查用戶是否是 room 對應的 booking/groupBooking/multiPlayerBooking 參與者
+        let hasAccess = false;
+
+        // 檢查一般預約 (Booking)
+        if (room.bookingId) {
+          const booking = await client.booking.findUnique({
+            where: { id: room.bookingId },
+            select: {
+              customerId: true,
+              partnerId: true,
+            },
+          });
+          if (booking) {
+            // 檢查用戶是否是顧客或夥伴
+            const customer = await client.customer.findUnique({
+              where: { id: booking.customerId },
+              select: { userId: true },
+            });
+            const partner = await client.partner.findUnique({
+              where: { id: booking.partnerId },
+              select: { userId: true },
+            });
+            if (customer?.userId === session.user.id || partner?.userId === session.user.id) {
+              hasAccess = true;
+            }
+          }
+        }
+
+        // 檢查群組預約 (GroupBooking)
+        if (!hasAccess && room.groupBookingId) {
+          const groupBooking = await client.groupBooking.findUnique({
+            where: { id: room.groupBookingId },
+            select: { id: true },
+          });
+          if (groupBooking) {
+            // 檢查用戶是否在相關的 Booking 中
+            const relatedBooking = await client.booking.findFirst({
+              where: {
+                groupBookingId: room.groupBookingId,
+              },
+              select: {
+                customerId: true,
+                schedule: {
+                  select: {
+                    partnerId: true,
+                  },
+                },
+              },
+            });
+            if (relatedBooking) {
+              const customer = await client.customer.findUnique({
+                where: { id: relatedBooking.customerId },
+                select: { userId: true },
+              });
+              const partner = relatedBooking.schedule
+                ? await client.partner.findUnique({
+                    where: { id: relatedBooking.schedule.partnerId },
+                    select: { userId: true },
+                  })
+                : null;
+              if (customer?.userId === session.user.id || partner?.userId === session.user.id) {
+                hasAccess = true;
+              }
+            }
+          }
+        }
+
+        // 檢查多人陪玩 (MultiPlayerBooking)
+        if (!hasAccess && room.multiPlayerBookingId) {
+          const multiPlayerBooking = await client.multiPlayerBooking.findUnique({
+            where: { id: room.multiPlayerBookingId },
+            select: {
+              customerId: true,
+              bookings: {
+                select: {
+                  schedule: {
+                    select: {
+                      partnerId: true,
+                    },
+                  },
+                },
+              },
+            },
+          });
+          if (multiPlayerBooking) {
+            // 檢查用戶是否是顧客
+            const customer = await client.customer.findUnique({
+              where: { id: multiPlayerBooking.customerId },
+              select: { userId: true },
+            });
+            if (customer?.userId === session.user.id) {
+              hasAccess = true;
+            } else {
+              // 檢查用戶是否是任何一個陪玩者
+              for (const booking of multiPlayerBooking.bookings) {
+                if (booking.schedule) {
+                  const partner = await client.partner.findUnique({
+                    where: { id: booking.schedule.partnerId },
+                    select: { userId: true },
+                  });
+                  if (partner?.userId === session.user.id) {
+                    hasAccess = true;
+                    break;
+                  }
+                }
+              }
+            }
+          }
+        }
+
+        // ✅ membership 驗證失敗時：不可回空陣列，必須回 403
+        if (!hasAccess) {
+          throw new Error('無權限訪問此聊天室');
+        }
       }
 
       // 查詢訊息
@@ -303,7 +571,14 @@ export async function GET(
         },
       }
     );
-  } catch (error) {
+  } catch (error: any) {
+    // ✅ membership 驗證失敗時：不可回空陣列，必須回 403，不可被 Redis cache
+    if (error?.message === '無權限訪問此聊天室' || error?.message === '聊天室不存在') {
+      return NextResponse.json(
+        { error: error.message },
+        { status: error.message === '聊天室不存在' ? 404 : 403 }
+      );
+    }
     return createErrorResponse(error, 'chat:rooms:roomId:messages:get');
   }
 }
