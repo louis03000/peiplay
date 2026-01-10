@@ -43,6 +43,7 @@ export default function ReferralPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [generating, setGenerating] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   useEffect(() => {
     if (status === "loading") return;
@@ -51,11 +52,30 @@ export default function ReferralPage() {
       return;
     }
     fetchStats();
+    
+    // ✅ 添加自動刷新機制：每 30 秒自動更新推薦收入（靜默模式，不顯示 loading）
+    const intervalId = setInterval(() => {
+      fetchStats(true); // 靜默刷新，不顯示 loading 狀態
+    }, 30000); // 30 秒刷新一次
+    
+    // 清理定時器
+    return () => {
+      clearInterval(intervalId);
+    };
   }, [session, status, router]);
 
-  const fetchStats = async () => {
+  const fetchStats = async (silent: boolean = false) => {
+    // 如果正在刷新且不是靜默模式，跳過
+    if (isRefreshing && !silent) return;
+    
     try {
-      const response = await fetch('/api/partners/referral/stats');
+      if (!silent) {
+        setIsRefreshing(true);
+      }
+      
+      const response = await fetch('/api/partners/referral/stats', {
+        cache: 'no-store', // 確保獲取最新數據
+      });
       const data = await response.json();
       console.log('[推薦系統] 獲取統計響應:', { status: response.status, ok: response.ok });
       
@@ -65,13 +85,18 @@ export default function ReferralPage() {
       } else {
         const errorMessage = data.error || '獲取推薦統計失敗';
         console.error('[推薦系統] 獲取統計失敗:', errorMessage);
-        setError(errorMessage);
+        if (!silent) {
+          setError(errorMessage);
+        }
       }
     } catch (err) {
       console.error('[推薦系統] 獲取統計異常:', err);
-      setError(err instanceof Error ? err.message : '獲取推薦統計失敗');
+      if (!silent) {
+        setError(err instanceof Error ? err.message : '獲取推薦統計失敗');
+      }
     } finally {
       setLoading(false);
+      setIsRefreshing(false);
     }
   };
 
@@ -139,9 +164,21 @@ export default function ReferralPage() {
     <div className="min-h-screen bg-white">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* 頁面標題 */}
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">推薦系統</h1>
-          <p className="text-gray-600">邀請好友成為夥伴，獲得推薦獎勵</p>
+        <div className="mb-8 flex items-center justify-between">
+          <div>
+            <h1 className="text-4xl font-bold text-gray-900 mb-2">推薦系統</h1>
+            <p className="text-gray-600">邀請好友成為夥伴，獲得推薦獎勵</p>
+          </div>
+          <button
+            onClick={() => fetchStats(false)}
+            disabled={isRefreshing || loading}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+          >
+            <svg className={`w-5 h-5 ${isRefreshing ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            {isRefreshing ? '更新中...' : '手動更新'}
+          </button>
         </div>
 
         {/* 統計卡片 */}
