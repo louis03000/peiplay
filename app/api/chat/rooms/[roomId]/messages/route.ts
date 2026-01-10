@@ -812,89 +812,142 @@ export async function POST(
     }
 
     // ✅ 確保 Redis cache 操作只在 DB 寫入成功後才執行
-    const result = await db.query(async (client) => {
-      // ✅ 獲取使用者資訊（確保 senderId 不是 undefined）
-      const user = await client.user.findUnique({
-        where: { id: senderId },
-        select: {
-          name: true,
-          partner: {
-            select: {
-              coverImage: true,
+    let result: any = null;
+    try {
+      result = await db.query(async (client) => {
+        // ✅ 獲取使用者資訊（確保 senderId 不是 undefined）
+        const user = await client.user.findUnique({
+          where: { id: senderId },
+          select: {
+            name: true,
+            partner: {
+              select: {
+                coverImage: true,
+              },
             },
           },
-        },
-      });
+        });
 
-      const avatarUrl = user?.partner?.coverImage || null;
-      const senderName = user?.name || session.user.email || '未知用戶';
+        if (!user) {
+          throw new Error('找不到用戶記錄');
+        }
 
-      // 內容過濾
-      const blockedKeywords = ['垃圾', 'spam'];
-      const hasBlockedKeyword = blockedKeywords.some((keyword) =>
-        content.toLowerCase().includes(keyword.toLowerCase())
+        const avatarUrl = user?.partner?.coverImage || null;
+        const senderName = user?.name || session.user.email || '未知用戶';
+
+        // 內容過濾
+        const blockedKeywords = ['垃圾', 'spam'];
+        const hasBlockedKeyword = blockedKeywords.some((keyword) =>
+          content.toLowerCase().includes(keyword.toLowerCase())
+        );
+
+        // ✅ 寫入訊息並更新 ChatRoom.lastMessageAt
+        // ✅ chatMessage.create 前保證 FK 合法：roomId 和 senderId 都已經驗證不是 undefined
+        const message = await client.$transaction(async (tx) => {
+          // ✅ 再次確認 roomId 和 senderId 存在（防止並發刪除）
+          const roomExists = await tx.chatRoom.findUnique({
+            where: { id: roomId },
+            select: { id: true },
+          });
+
+          if (!roomExists) {
+            throw new Error('聊天室不存在或已被刪除');
+          }
+
+          const newMessage = await tx.chatMessage.create({
+            data: {
+              roomId: roomId, // ✅ 已確保不是 undefined
+              senderId: senderId, // ✅ 已確保不是 undefined
+              senderName: senderName,
+              senderAvatarUrl: avatarUrl,
+              content: content.trim(),
+              contentType: 'TEXT',
+              status: 'SENT',
+              moderationStatus: hasBlockedKeyword ? 'FLAGGED' : 'APPROVED',
+            },
+            select: {
+              id: true,
+              roomId: true,
+              senderId: true,
+              senderName: true,
+              senderAvatarUrl: true,
+              content: true,
+              contentType: true,
+              status: true,
+              moderationStatus: true,
+              createdAt: true,
+            },
+          });
+
+          await tx.chatRoom.update({
+            where: { id: roomId },
+            data: { lastMessageAt: newMessage.createdAt },
+          });
+
+          return newMessage;
+        });
+
+        return {
+          id: message.id,
+          roomId: message.roomId,
+          senderId: message.senderId,
+          senderName: message.senderName,
+          senderAvatarUrl: message.senderAvatarUrl,
+          content: message.content,
+          contentType: message.contentType,
+          status: message.status,
+          moderationStatus: message.moderationStatus,
+          createdAt: message.createdAt.toISOString(),
+          sender: {
+            id: message.senderId,
+            name: message.senderName,
+            email: '',
+            role: '',
+            avatarUrl: message.senderAvatarUrl,
+          },
+        };
+      }, 'chat:rooms:roomId:messages:post');
+    } catch (dbError: any) {
+      // ✅ 捕獲資料庫錯誤並返回詳細錯誤訊息
+      console.error('[POST /api/chat/rooms/[roomId]/messages] ❌ DB 錯誤:', dbError);
+      console.error('[POST /api/chat/rooms/[roomId]/messages] ❌ 錯誤訊息:', dbError?.message);
+      console.error('[POST /api/chat/rooms/[roomId]/messages] ❌ 錯誤代碼:', dbError?.code);
+      console.error('[POST /api/chat/rooms/[roomId]/messages] ❌ 錯誤堆疊:', dbError?.stack);
+      
+      // ✅ 根據錯誤類型返回適當的錯誤碼
+      if (dbError?.message?.includes('找不到用戶記錄')) {
+        return NextResponse.json(
+          { error: '找不到用戶記錄，請重新登入' },
+          { status: 401 }
+        );
+      }
+      
+      if (dbError?.message?.includes('聊天室不存在') || dbError?.code === 'P2025') {
+        return NextResponse.json(
+          { error: '聊天室不存在或已被刪除' },
+          { status: 404 }
+        );
+      }
+      
+      if (dbError?.code === 'P2003' || dbError?.message?.includes('Foreign key constraint')) {
+        return NextResponse.json(
+          { error: '聊天室或用戶不存在，無法發送訊息' },
+          { status: 400 }
+        );
+      }
+      
+      // ✅ 其他資料庫錯誤返回 500
+      return NextResponse.json(
+        { error: '訊息發送失敗，請稍後再試' },
+        { status: 500 }
       );
-
-      // ✅ 寫入訊息並更新 ChatRoom.lastMessageAt
-      // ✅ chatMessage.create 前保證 FK 合法：roomId 和 senderId 都已經驗證不是 undefined
-      const message = await client.$transaction(async (tx) => {
-        const newMessage = await tx.chatMessage.create({
-          data: {
-            roomId: roomId, // ✅ 已確保不是 undefined
-            senderId: senderId, // ✅ 已確保不是 undefined
-            senderName: senderName,
-            senderAvatarUrl: avatarUrl,
-            content: content.trim(),
-            contentType: 'TEXT',
-            status: 'SENT',
-            moderationStatus: hasBlockedKeyword ? 'FLAGGED' : 'APPROVED',
-          },
-          select: {
-            id: true,
-            roomId: true,
-            senderId: true,
-            senderName: true,
-            senderAvatarUrl: true,
-            content: true,
-            contentType: true,
-            status: true,
-            moderationStatus: true,
-            createdAt: true,
-          },
-        });
-
-        await tx.chatRoom.update({
-          where: { id: roomId },
-          data: { lastMessageAt: newMessage.createdAt },
-        });
-
-        return newMessage;
-      });
-
-      return {
-        id: message.id,
-        roomId: message.roomId,
-        senderId: message.senderId,
-        senderName: message.senderName,
-        senderAvatarUrl: message.senderAvatarUrl,
-        content: message.content,
-        contentType: message.contentType,
-        status: message.status,
-        moderationStatus: message.moderationStatus,
-        createdAt: message.createdAt.toISOString(),
-        sender: {
-          id: message.senderId,
-          name: message.senderName,
-          email: '',
-          role: '',
-          avatarUrl: message.senderAvatarUrl,
-        },
-      };
-    }, 'chat:rooms:roomId:messages:post');
+    }
 
     // ✅ 成功 → 一定回 messageId：確保 result 存在且有 id
     if (!result || !result.id) {
       console.error('[POST /api/chat/rooms/[roomId]/messages] ❌ DB 寫入失敗：result 為空或沒有 id', result);
+      console.error('[POST /api/chat/rooms/[roomId]/messages] ❌ roomId:', roomId);
+      console.error('[POST /api/chat/rooms/[roomId]/messages] ❌ senderId:', senderId);
       return NextResponse.json(
         { error: '訊息發送失敗，請重試' },
         { status: 500 }
