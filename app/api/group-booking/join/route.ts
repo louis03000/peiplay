@@ -80,7 +80,15 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: '群組預約即將開始，剩餘時間不足10分鐘，無法加入' }, { status: 400 });
     }
 
-    if (groupBooking.GroupBookingParticipant.length >= groupBooking.maxParticipants) {
+    // maxParticipants 表示除了夥伴之外的參與者數量
+    // 總人數 = maxParticipants + 1（夥伴）
+    // 所以檢查時應該：參與者數量（包括夥伴）<= maxParticipants + 1
+    // 但因為夥伴已經在 GroupBookingParticipant 中，所以檢查：參與者數量 <= maxParticipants + 1
+    // 或者更簡單：除了夥伴之外的參與者數量 < maxParticipants
+    const nonPartnerParticipants = groupBooking.GroupBookingParticipant.filter(
+      p => !p.partnerId || p.partnerId !== groupBooking.initiatorId
+    );
+    if (nonPartnerParticipants.length >= groupBooking.maxParticipants) {
       return NextResponse.json({ error: '群組預約已滿' }, { status: 400 });
     }
 

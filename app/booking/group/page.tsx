@@ -817,7 +817,7 @@ function GroupBookingContent() {
                     </div>
                     <div className="text-right">
                       <div className="text-sm text-gray-500">
-                        {booking.currentParticipants}/{booking.maxParticipants} 人
+                        {booking.currentParticipants}/{booking.maxParticipants + 1} 人
                       </div>
                       <div className="text-sm text-gray-500">
                         {new Date(booking.startTime).toLocaleDateString('zh-TW', { timeZone: 'Asia/Taipei' })} {new Date(booking.startTime).toLocaleTimeString('zh-TW', { timeZone: 'Asia/Taipei', hour: '2-digit', minute: '2-digit', hour12: false })} - {new Date(booking.endTime).toLocaleTimeString('zh-TW', { timeZone: 'Asia/Taipei', hour: '2-digit', minute: '2-digit', hour12: false })}
@@ -846,7 +846,7 @@ function GroupBookingContent() {
                         查看詳情
                       </button>
                       
-                      {booking.currentParticipants < booking.maxParticipants ? (
+                      {booking.currentParticipants < booking.maxParticipants + 1 ? (
                         booking.isJoined || joinedGroupIds.has(booking.id) ? (
                           <span className="px-4 py-2 bg-green-100 text-green-700 rounded-lg font-medium">
                             已加入

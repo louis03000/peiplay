@@ -71,6 +71,8 @@ export default function PartnerSchedulePage() {
   const [customGameInput, setCustomGameInput] = useState('');
   const [myGroups, setMyGroups] = useState<any[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [cancellingGroupId, setCancellingGroupId] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
   const autoCloseTimerRef = useRef<NodeJS.Timeout | null>(null);
   const [currentTime, setCurrentTime] = useState(new Date()); // 用於定期更新時間提醒
@@ -608,6 +610,42 @@ export default function PartnerSchedulePage() {
     }
   };
 
+  // 確認創建群組（從確認彈窗調用）
+  const confirmCreateGroup = async () => {
+    setShowConfirmModal(false);
+    await createGroup();
+  };
+
+  // 取消群組
+  const handleCancelGroup = async (groupId: string) => {
+    if (!confirm('確定要取消這個群組預約嗎？')) {
+      return;
+    }
+
+    try {
+      setCancellingGroupId(groupId);
+      const response = await fetch(`/api/partner/groups/${groupId}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {
+        alert('群組預約已成功取消！');
+        refreshData();
+      } else {
+        alert(result.error || '取消失敗，請重試');
+      }
+    } catch (error) {
+      console.error('取消群組失敗:', error);
+      alert('取消失敗，請重試');
+    } finally {
+      setCancellingGroupId(null);
+    }
+  };
 
   const handleViewChange = (view: 'today' | 'nextWeek') => {
     setCurrentView(view);
@@ -1836,14 +1874,14 @@ export default function PartnerSchedulePage() {
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">最大人數 (最多9人)</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">最大人數 (最多9人，不含夥伴，總共最多10人)</label>
                         <select
                           value={groupForm.maxParticipants}
                           onChange={(e) => setGroupForm({...groupForm, maxParticipants: parseInt(e.target.value)})}
                           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-900"
                         >
                           {[2,3,4,5,6,7,8,9].map(num => (
-                            <option key={num} value={num}>{num} 人</option>
+                            <option key={num} value={num}>{num} 人（總共 {num + 1} 人）</option>
                           ))}
                         </select>
                       </div>
@@ -1954,11 +1992,11 @@ export default function PartnerSchedulePage() {
                         取消
                       </button>
                       <button
-                        onClick={createGroup}
+                        onClick={() => setShowConfirmModal(true)}
                         disabled={saving}
                         className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
                       >
-                        {saving ? '創建中...' : '創建群組'}
+                        創建群組
                       </button>
                     </div>
                   </div>
@@ -2003,7 +2041,7 @@ export default function PartnerSchedulePage() {
                                     hour12: false 
                                   })}</span>
                                   <span>💰 ${group.pricePerPerson}/人</span>
-                                  <span>👥 {group.currentParticipants}/{group.maxParticipants} 人</span>
+                                  <span>👥 {group.currentParticipants}/{group.maxParticipants + 1} 人</span>
                                 </div>
                                 {/* 提醒訊息：距離開始時間剩下10分鐘 */}
                                 {isWithin10Minutes && group.status === 'ACTIVE' && !isInProgress && (
@@ -2014,7 +2052,7 @@ export default function PartnerSchedulePage() {
                                   </div>
                                 )}
                               </div>
-                              <div className="flex space-x-2 ml-4">
+                              <div className="flex flex-col items-end space-y-2 ml-4">
                                 <span className={`px-2 py-1 rounded-full text-xs whitespace-nowrap ${
                                   isInProgress ? 'bg-blue-100 text-blue-800' :
                                   group.status === 'ACTIVE' ? 'bg-green-100 text-green-800' :
@@ -2025,6 +2063,15 @@ export default function PartnerSchedulePage() {
                                    group.status === 'ACTIVE' ? '開放中' :
                                    group.status === 'FULL' ? '已滿' : '已關閉'}
                                 </span>
+                                {group.status === 'ACTIVE' && group.currentParticipants === 1 && !isInProgress && (
+                                  <button
+                                    onClick={() => handleCancelGroup(group.id)}
+                                    disabled={cancellingGroupId === group.id}
+                                    className="px-3 py-1 text-xs bg-red-100 text-red-700 rounded-md hover:bg-red-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                  >
+                                    {cancellingGroupId === group.id ? '取消中...' : '取消'}
+                                  </button>
+                                )}
                               </div>
                             </div>
                           </div>
@@ -2037,6 +2084,78 @@ export default function PartnerSchedulePage() {
                 </div>
               </div>
           </div>
+
+          {/* 確認創建群組彈窗 */}
+          {showConfirmModal && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+                <div className="p-6">
+                  <h3 className="text-xl font-semibold text-gray-900 mb-4">確認創建群組預約</h3>
+                  <div className="space-y-3 text-sm">
+                    <div className="flex items-start">
+                      <span className="font-medium text-gray-700 w-24 flex-shrink-0">群組標題：</span>
+                      <span className="text-gray-900">{groupForm.title || '(未填寫)'}</span>
+                    </div>
+                    <div className="flex items-start">
+                      <span className="font-medium text-gray-700 w-24 flex-shrink-0">日期：</span>
+                      <span className="text-gray-900">{groupForm.date || '(未填寫)'}</span>
+                    </div>
+                    <div className="flex items-start">
+                      <span className="font-medium text-gray-700 w-24 flex-shrink-0">時間：</span>
+                      <span className="text-gray-900">
+                        {groupForm.startTime || '(未填寫)'} - {groupForm.endTime || '(未填寫)'}
+                      </span>
+                    </div>
+                    <div className="flex items-start">
+                      <span className="font-medium text-gray-700 w-24 flex-shrink-0">每人費用：</span>
+                      <span className="text-gray-900">${groupForm.pricePerPerson || 0}</span>
+                    </div>
+                    <div className="flex items-start">
+                      <span className="font-medium text-gray-700 w-24 flex-shrink-0">最大人數：</span>
+                      <span className="text-gray-900">{groupForm.maxParticipants} 人（不含夥伴，總共最多 {groupForm.maxParticipants + 1} 人）</span>
+                    </div>
+                    {groupForm.games && groupForm.games.length > 0 && (
+                      <div className="flex items-start">
+                        <span className="font-medium text-gray-700 w-24 flex-shrink-0">遊戲：</span>
+                        <div className="flex flex-wrap gap-2">
+                          {groupForm.games.map((game, idx) => (
+                            <span
+                              key={idx}
+                              className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800"
+                            >
+                              {game}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {groupForm.description && (
+                      <div className="flex items-start">
+                        <span className="font-medium text-gray-700 w-24 flex-shrink-0">描述：</span>
+                        <span className="text-gray-900 whitespace-pre-wrap">{groupForm.description}</span>
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex justify-end space-x-3 mt-6">
+                    <button
+                      onClick={() => setShowConfirmModal(false)}
+                      className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
+                    >
+                      取消
+                    </button>
+                    <button
+                      onClick={confirmCreateGroup}
+                      disabled={saving}
+                      className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
+                    >
+                      {saving ? '創建中...' : '確認創建'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* 手機版說明 */}
           <div className="sm:hidden px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg mx-3 mb-2">
             <div className="text-xs text-blue-800">
