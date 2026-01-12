@@ -33,9 +33,8 @@ export async function GET() {
               games: true,
               halfHourlyRate: true,
               contractFile: true,
-              // TODO: 取消注释以下字段，运行数据库迁移后
-              // idVerificationPhoto: true,
-              // bankBookPhoto: true,
+              idVerificationPhoto: true,
+              bankBookPhoto: true,
               coverImage: true,
             },
           },

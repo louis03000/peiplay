@@ -523,28 +523,38 @@ export default function AdminUsersPage() {
                       {/* 圖片查看按鈕 - 只有夥伴才顯示 */}
                       {user.partner && (
                         <>
-                          {user.partner.idVerificationPhoto && (
-                            <button
-                              onClick={() => {
+                          <button
+                            onClick={() => {
+                              if (user.partner!.idVerificationPhoto) {
                                 window.open(user.partner!.idVerificationPhoto!, '_blank');
-                              }}
-                              className="text-purple-600 hover:text-purple-900 text-xs flex items-center gap-1"
-                              title="在新窗口中查看手持身分證自拍"
-                            >
-                              📷 手持身分證自拍
-                            </button>
-                          )}
-                          {user.partner.bankBookPhoto && (
-                            <button
-                              onClick={() => {
+                              }
+                            }}
+                            disabled={!user.partner.idVerificationPhoto}
+                            className={`text-xs flex items-center gap-1 ${
+                              user.partner.idVerificationPhoto
+                                ? 'text-purple-600 hover:text-purple-900 cursor-pointer'
+                                : 'text-gray-400 cursor-not-allowed opacity-50'
+                            }`}
+                            title={user.partner.idVerificationPhoto ? "在新窗口中查看手持身分證自拍" : "尚未上傳手持身分證自拍"}
+                          >
+                            📷 手持身分證自拍
+                          </button>
+                          <button
+                            onClick={() => {
+                              if (user.partner!.bankBookPhoto) {
                                 window.open(user.partner!.bankBookPhoto!, '_blank');
-                              }}
-                              className="text-blue-600 hover:text-blue-900 text-xs flex items-center gap-1"
-                              title="在新窗口中查看銀行存摺"
-                            >
-                              📷 銀行存摺
-                            </button>
-                          )}
+                              }
+                            }}
+                            disabled={!user.partner.bankBookPhoto}
+                            className={`text-xs flex items-center gap-1 ${
+                              user.partner.bankBookPhoto
+                                ? 'text-blue-600 hover:text-blue-900 cursor-pointer'
+                                : 'text-gray-400 cursor-not-allowed opacity-50'
+                            }`}
+                            title={user.partner.bankBookPhoto ? "在新窗口中查看銀行存摺" : "尚未上傳銀行存摺"}
+                          >
+                            📷 銀行存摺
+                          </button>
                           {user.partner.contractFile && (
                             <button
                               onClick={() => {
