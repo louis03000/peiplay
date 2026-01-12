@@ -48,35 +48,104 @@ export async function DELETE(request: Request) {
 
       await client.$transaction(async (tx) => {
         if (user.partner) {
-          await tx.schedule.deleteMany({ where: { partnerId: user.partner.id } });
-        }
-
-        if (user.customer) {
-          // 先刪除群組預約參與者記錄（避免外鍵約束衝突）
-          await tx.groupBookingParticipant.deleteMany({ 
-            where: { customerId: user.customer.id } 
+          // 先刪除 Partner 相關的所有關聯資料
+          const partnerId = user.partner.id;
+          
+          // 1. 刪除 Schedule（已有）
+          await tx.schedule.deleteMany({ where: { partnerId } });
+          
+          // 2. 刪除 ReferralRecord（推薦記錄）
+          // 先刪除 ReferralEarning（因為它依賴 ReferralRecord）
+          const referralRecords = await tx.referralRecord.findMany({
+            where: {
+              OR: [
+                { inviterId: partnerId },
+                { inviteeId: partnerId },
+              ],
+            },
+            select: { id: true },
           });
           
-          await tx.booking.deleteMany({ where: { customerId: user.customer.id } });
-        }
-
-        await tx.review.deleteMany({
-          where: {
-            OR: [
-              { reviewerId: userId },
-              { revieweeId: userId },
-            ],
-          },
-        });
-
-        if (user.customer) {
-          await tx.order.deleteMany({ where: { customerId: user.customer.id } });
-        }
-
-        if (user.partner) {
-          // 檢查是否有提領記錄（提領記錄永久保存，不允許刪除）
+          for (const record of referralRecords) {
+            await tx.referralEarning.deleteMany({ 
+              where: { referralRecordId: record.id } 
+            });
+          }
+          
+          await tx.referralRecord.deleteMany({
+            where: {
+              OR: [
+                { inviterId: partnerId },
+                { inviteeId: partnerId },
+              ],
+            },
+          });
+          
+          // 3. 刪除 PromoCode
+          await tx.promoCode.deleteMany({ where: { partnerId } });
+          
+          // 4. 刪除 RankingHistory
+          await tx.rankingHistory.deleteMany({ where: { partnerId } });
+          
+          // 5. 刪除 GroupBookingParticipant（作為 partner）
+          await tx.groupBookingParticipant.deleteMany({ 
+            where: { partnerId } 
+          });
+          
+          // 6. 刪除 FavoritePartner（作為被收藏的 partner）
+          await tx.favoritePartner.deleteMany({ where: { partnerId } });
+          
+          // 7. 刪除 PartnerVerification
+          await tx.partnerVerification.deleteMany({ 
+            where: { partnerId } 
+          });
+          
+          // 8. 刪除 Booking（透過 partnerId）
+          const partnerBookings = await tx.booking.findMany({
+            where: { partnerId },
+            select: { id: true },
+          });
+          
+          for (const booking of partnerBookings) {
+            // 刪除 Booking 相關的 ChatRoom（如果存在）
+            await tx.chatRoom.deleteMany({ 
+              where: { bookingId: booking.id } 
+            });
+            // 刪除 Booking 相關的 ReferralEarning
+            await tx.referralEarning.deleteMany({ 
+              where: { bookingId: booking.id } 
+            });
+            // 刪除 Booking 相關的 Payment
+            await tx.payment.deleteMany({ 
+              where: { bookingId: booking.id } 
+            });
+            // 刪除 Booking 相關的 RefundRequest
+            await tx.refundRequest.deleteMany({ 
+              where: { bookingId: booking.id } 
+            });
+            // 刪除 Booking 相關的 SupportTicket
+            await tx.supportTicket.deleteMany({ 
+              where: { bookingId: booking.id } 
+            });
+            // 刪除 Booking 相關的 BookingCancellation
+            await tx.bookingCancellation.deleteMany({ 
+              where: { bookingId: booking.id } 
+            });
+            // 刪除 Booking 相關的 Review
+            await tx.review.deleteMany({ 
+              where: { bookingId: booking.id } 
+            });
+            // 刪除 Booking 相關的 Order
+            await tx.order.deleteMany({ 
+              where: { bookingId: booking.id } 
+            });
+          }
+          
+          await tx.booking.deleteMany({ where: { partnerId } });
+          
+          // 9. 檢查是否有提領記錄（提領記錄永久保存，不允許刪除）
           const withdrawalCount = await tx.withdrawalRequest.count({
-            where: { partnerId: user.partner.id },
+            where: { partnerId },
           });
           
           if (withdrawalCount > 0) {
@@ -86,13 +155,112 @@ export async function DELETE(request: Request) {
             throw new Error(`無法刪除夥伴：該夥伴有 ${withdrawalCount} 筆提領記錄，提領記錄需要永久保存`);
           }
           
-          await tx.partner.delete({ where: { id: user.partner.id } });
+          // 10. 最後刪除 Partner
+          await tx.partner.delete({ where: { id: partnerId } });
         }
 
         if (user.customer) {
-          await tx.customer.delete({ where: { id: user.customer.id } });
+          // 先刪除 Customer 相關的所有關聯資料
+          const customerId = user.customer.id;
+          
+          // 1. 刪除 GroupBookingParticipant（作為 customer）
+          await tx.groupBookingParticipant.deleteMany({ 
+            where: { customerId } 
+          });
+          
+          // 2. 刪除 GroupBookingReview
+          await tx.groupBookingReview.deleteMany({ 
+            where: { reviewerId: customerId } 
+          });
+          
+          // 3. 刪除 MultiPlayerBooking
+          await tx.multiPlayerBooking.deleteMany({ 
+            where: { customerId } 
+          });
+          
+          // 4. 刪除 FavoritePartner（作為收藏者）
+          await tx.favoritePartner.deleteMany({ 
+            where: { customerId } 
+          });
+          
+          // 5. 刪除 MultiPlayerBooking 相關的 ChatRoom
+          const multiPlayerBookings = await tx.multiPlayerBooking.findMany({
+            where: { customerId },
+            select: { id: true },
+          });
+          
+          for (const mpBooking of multiPlayerBookings) {
+            await tx.chatRoom.deleteMany({ 
+              where: { multiPlayerBookingId: mpBooking.id } 
+            });
+          }
+          
+          // 6. 刪除 Booking（透過 customerId）
+          const customerBookings = await tx.booking.findMany({
+            where: { customerId },
+            select: { id: true },
+          });
+          
+          for (const booking of customerBookings) {
+            // 刪除 Booking 相關的 ChatRoom（如果存在）
+            await tx.chatRoom.deleteMany({ 
+              where: { bookingId: booking.id } 
+            });
+            // 刪除 Booking 相關的 ReferralEarning
+            await tx.referralEarning.deleteMany({ 
+              where: { bookingId: booking.id } 
+            });
+            // 刪除 Booking 相關的 Payment
+            await tx.payment.deleteMany({ 
+              where: { bookingId: booking.id } 
+            });
+            // 刪除 Booking 相關的 RefundRequest
+            await tx.refundRequest.deleteMany({ 
+              where: { bookingId: booking.id } 
+            });
+            // 刪除 Booking 相關的 SupportTicket
+            await tx.supportTicket.deleteMany({ 
+              where: { bookingId: booking.id } 
+            });
+            // 刪除 Booking 相關的 BookingCancellation
+            await tx.bookingCancellation.deleteMany({ 
+              where: { bookingId: booking.id } 
+            });
+            // 刪除 Booking 相關的 Review
+            await tx.review.deleteMany({ 
+              where: { bookingId: booking.id } 
+            });
+            // 刪除 Booking 相關的 Order
+            await tx.order.deleteMany({ 
+              where: { bookingId: booking.id } 
+            });
+          }
+          
+          await tx.booking.deleteMany({ where: { customerId } });
+          
+          // 7. 刪除 Order（透過 customerId）
+          await tx.order.deleteMany({ where: { customerId } });
+          
+          // 8. 刪除 BookingCancellation（透過 customerId）
+          await tx.bookingCancellation.deleteMany({ 
+            where: { customerId } 
+          });
+          
+          // 9. 最後刪除 Customer
+          await tx.customer.delete({ where: { id: customerId } });
         }
 
+        // 刪除 User 相關的 Review（作為 reviewer 或 reviewee）
+        await tx.review.deleteMany({
+          where: {
+            OR: [
+              { reviewerId: userId },
+              { revieweeId: userId },
+            ],
+          },
+        });
+
+        // 最後刪除 User
         await tx.user.delete({ where: { id: userId } });
       });
 
