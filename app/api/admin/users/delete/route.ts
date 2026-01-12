@@ -316,12 +316,84 @@ export async function DELETE(request: Request) {
           where: { userId } 
         });
         
-        // 刪除 User 相關的 RefundRequest（直接關聯到 userId）
+        // 刪除 User 相關的 RefundRequest（作為創建者或處理者）
         await tx.refundRequest.deleteMany({ 
+          where: {
+            OR: [
+              { userId },
+              { adminId: userId },
+            ],
+          }
+        });
+
+        // 刪除 User 相關的 Message（作為發送者或接收者）
+        await tx.message.deleteMany({
+          where: {
+            OR: [
+              { senderId: userId },
+              { receiverId: userId },
+            ],
+          },
+        });
+
+        // 刪除 User 相關的 ChatMessage（作為發送者）
+        await tx.chatMessage.deleteMany({ 
+          where: { senderId: userId } 
+        });
+
+        // 刪除 User 相關的 Notification
+        await tx.notification.deleteMany({ 
           where: { userId } 
         });
 
-        // 最後刪除 User
+        // 刪除 User 相關的 Announcement（作為創建者）
+        await tx.announcement.deleteMany({ 
+          where: { createdBy: userId } 
+        });
+
+        // 刪除 User 相關的 PersonalNotification（作為接收者或發送者）
+        await tx.personalNotification.deleteMany({
+          where: {
+            OR: [
+              { userId },
+              { senderId: userId },
+            ],
+          },
+        });
+
+        // 刪除 User 相關的 AdminMessage（作為接收者或發送者）
+        await tx.adminMessage.deleteMany({
+          where: {
+            OR: [
+              { userId },
+              { adminId: userId },
+            ],
+          },
+        });
+
+        // 刪除 User 相關的 LogEntry（作為操作者）
+        await tx.logEntry.deleteMany({ 
+          where: { actorId: userId } 
+        });
+
+        // 刪除 User 相關的 KYC（作為審核者）
+        await tx.kYC.updateMany({
+          where: { reviewerId: userId },
+          data: { reviewerId: null },
+        });
+
+        // 刪除 User 相關的 PartnerVerification（作為審核者）
+        await tx.partnerVerification.updateMany({
+          where: { reviewerId: userId },
+          data: { reviewerId: null },
+        });
+
+        // 刪除 User 相關的 SupportMessage（作為發送者）
+        await tx.supportMessage.deleteMany({ 
+          where: { senderId: userId } 
+        });
+
+        // 最後刪除 User（KYC、SecurityLog、PasswordHistory、ChatRoomMember、MessageReadReceipt、PreChatRoom 有 onDelete: Cascade，會自動刪除）
         await tx.user.delete({ where: { id: userId } });
       });
 
@@ -341,6 +413,34 @@ export async function DELETE(request: Request) {
         return NextResponse.json({ error: '未知錯誤' }, { status: 500 });
     }
   } catch (error) {
+    console.error('❌ 刪除用戶錯誤:', error);
+    
+    // 檢查是否為業務邏輯錯誤（提領記錄相關）
+    if (error instanceof Error && error.message.includes('提領記錄需要永久保存')) {
+      return NextResponse.json(
+        { 
+          error: error.message,
+          code: 'WITHDRAWAL_RECORDS_EXIST'
+        },
+        { status: 400 }
+      );
+    }
+    
+    // 檢查是否為 Prisma 外鍵約束錯誤
+    if (error && typeof error === 'object' && 'code' in error) {
+      const prismaError = error as any;
+      if (prismaError.code === 'P2003') {
+        return NextResponse.json(
+          { 
+            error: '資料關聯錯誤，無法刪除用戶',
+            code: 'FOREIGN_KEY_CONSTRAINT',
+            details: process.env.NODE_ENV === 'development' ? prismaError.message : undefined
+          },
+          { status: 400 }
+        );
+      }
+    }
+    
     return createErrorResponse(error, 'admin:users:delete');
   }
 } 
