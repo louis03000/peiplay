@@ -51,71 +51,7 @@ export async function DELETE(request: Request) {
           // 先刪除 Partner 相關的所有關聯資料
           const partnerId = user.partner.id;
           
-          // 1. 刪除 Schedule（已有）
-          await tx.schedule.deleteMany({ where: { partnerId } });
-          
-          // 2. 刪除 ReferralRecord（推薦記錄）
-          // 先刪除 ReferralEarning（因為它依賴 ReferralRecord）
-          const referralRecords = await tx.referralRecord.findMany({
-            where: {
-              OR: [
-                { inviterId: partnerId },
-                { inviteeId: partnerId },
-              ],
-            },
-            select: { id: true },
-          });
-          
-          for (const record of referralRecords) {
-            await tx.referralEarning.deleteMany({ 
-              where: { referralRecordId: record.id } 
-            });
-          }
-          
-          await tx.referralRecord.deleteMany({
-            where: {
-              OR: [
-                { inviterId: partnerId },
-                { inviteeId: partnerId },
-              ],
-            },
-          });
-          
-          // 3. 刪除 PromoCode
-          await tx.promoCode.deleteMany({ where: { partnerId } });
-          
-          // 4. 刪除 RankingHistory
-          await tx.rankingHistory.deleteMany({ where: { partnerId } });
-          
-          // 5. 刪除 GroupBookingParticipant（作為 partner）
-          await tx.groupBookingParticipant.deleteMany({ 
-            where: { partnerId } 
-          });
-          
-          // 5.1. 處理 GroupBooking 相關的 ChatRoom（如果 initiatorId 是 partnerId）
-          const groupBookings = await tx.groupBooking.findMany({
-            where: { 
-              initiatorId: partnerId,
-              initiatorType: 'PARTNER'
-            },
-            select: { id: true },
-          });
-          
-          for (const gb of groupBookings) {
-            await tx.chatRoom.deleteMany({ 
-              where: { groupBookingId: gb.id } 
-            });
-          }
-          
-          // 6. 刪除 FavoritePartner（作為被收藏的 partner）
-          await tx.favoritePartner.deleteMany({ where: { partnerId } });
-          
-          // 7. 刪除 PartnerVerification
-          await tx.partnerVerification.deleteMany({ 
-            where: { partnerId } 
-          });
-          
-          // 8. 刪除 Booking（透過 partnerId）
+          // 1. 先刪除所有 Booking 及其關聯資料（必須在刪除 Schedule 之前）
           const partnerBookings = await tx.booking.findMany({
             where: { partnerId },
             select: { id: true },
@@ -156,7 +92,72 @@ export async function DELETE(request: Request) {
             });
           }
           
+          // 刪除所有 Booking
           await tx.booking.deleteMany({ where: { partnerId } });
+          
+          // 2. 現在可以安全地刪除 Schedule（因為所有 Booking 都已刪除）
+          await tx.schedule.deleteMany({ where: { partnerId } });
+          
+          // 3. 刪除 ReferralRecord（推薦記錄）
+          // 先刪除 ReferralEarning（因為它依賴 ReferralRecord）
+          const referralRecords = await tx.referralRecord.findMany({
+            where: {
+              OR: [
+                { inviterId: partnerId },
+                { inviteeId: partnerId },
+              ],
+            },
+            select: { id: true },
+          });
+          
+          for (const record of referralRecords) {
+            await tx.referralEarning.deleteMany({ 
+              where: { referralRecordId: record.id } 
+            });
+          }
+          
+          await tx.referralRecord.deleteMany({
+            where: {
+              OR: [
+                { inviterId: partnerId },
+                { inviteeId: partnerId },
+              ],
+            },
+          });
+          
+          // 4. 刪除 PromoCode
+          await tx.promoCode.deleteMany({ where: { partnerId } });
+          
+          // 5. 刪除 RankingHistory
+          await tx.rankingHistory.deleteMany({ where: { partnerId } });
+          
+          // 6. 刪除 GroupBookingParticipant（作為 partner）
+          await tx.groupBookingParticipant.deleteMany({ 
+            where: { partnerId } 
+          });
+          
+          // 6.1. 處理 GroupBooking 相關的 ChatRoom（如果 initiatorId 是 partnerId）
+          const groupBookings = await tx.groupBooking.findMany({
+            where: { 
+              initiatorId: partnerId,
+              initiatorType: 'PARTNER'
+            },
+            select: { id: true },
+          });
+          
+          for (const gb of groupBookings) {
+            await tx.chatRoom.deleteMany({ 
+              where: { groupBookingId: gb.id } 
+            });
+          }
+          
+          // 7. 刪除 FavoritePartner（作為被收藏的 partner）
+          await tx.favoritePartner.deleteMany({ where: { partnerId } });
+          
+          // 8. 刪除 PartnerVerification
+          await tx.partnerVerification.deleteMany({ 
+            where: { partnerId } 
+          });
           
           // 9. 刪除 SupportTicket（直接關聯到 partnerId，不透過 booking）
           await tx.supportTicket.deleteMany({ 
