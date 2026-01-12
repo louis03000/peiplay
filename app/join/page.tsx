@@ -1085,6 +1085,42 @@ export default function JoinPage() {
                     </div>
                   </div>
                 </div>
+
+                {/* 銀行存摺上傳 */}
+                <div>
+                  <label
+                    htmlFor="bankBookPhoto"
+                    className="block text-sm font-medium text-gray-700"
+                  >
+                    銀行存摺
+                  </label>
+                  <div className="mt-1">
+                    <input
+                      type="file"
+                      id="bankBookPhoto"
+                      accept="image/*,.pdf"
+                      onChange={handleBankBookUpload}
+                      className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-100 file:text-blue-700 hover:file:bg-blue-200"
+                    />
+                    {uploadingBankBook && <span className="text-sm text-gray-500">上傳中...</span>}
+                    {bankBookPhoto && (
+                      <div className="mt-2">
+                        <img
+                          src={bankBookPhoto}
+                          alt="銀行存摺預覽"
+                          className="h-32 w-auto rounded-lg border border-gray-300"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">預覽</p>
+                      </div>
+                    )}
+                    <input type="hidden" {...register('bankBookPhoto')} value={bankBookPhoto || ''} />
+                    {errors.bankBookPhoto && (
+                      <p className="text-sm text-red-600">
+                        {errors.bankBookPhoto.message}
+                      </p>
+                    )}
+                  </div>
+                </div>
                 
                 <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
                   <div className="flex items-start">
