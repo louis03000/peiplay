@@ -17,6 +17,14 @@ export async function GET(request: NextRequest) {
     const result = await db.query(async (client) => {
       const partner = await client.partner.findUnique({
         where: { userId: session.user.id },
+        select: {
+          id: true,
+          name: true,
+          inviteCode: true,
+          referralCount: true,
+          referralEarnings: true,
+          totalReferralEarnings: true,
+        },
       })
 
       if (!partner) {
