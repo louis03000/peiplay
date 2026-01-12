@@ -92,6 +92,21 @@ export async function DELETE(request: Request) {
             where: { partnerId } 
           });
           
+          // 5.1. 處理 GroupBooking 相關的 ChatRoom（如果 initiatorId 是 partnerId）
+          const groupBookings = await tx.groupBooking.findMany({
+            where: { 
+              initiatorId: partnerId,
+              initiatorType: 'PARTNER'
+            },
+            select: { id: true },
+          });
+          
+          for (const gb of groupBookings) {
+            await tx.chatRoom.deleteMany({ 
+              where: { groupBookingId: gb.id } 
+            });
+          }
+          
           // 6. 刪除 FavoritePartner（作為被收藏的 partner）
           await tx.favoritePartner.deleteMany({ where: { partnerId } });
           
@@ -143,7 +158,17 @@ export async function DELETE(request: Request) {
           
           await tx.booking.deleteMany({ where: { partnerId } });
           
-          // 9. 檢查是否有提領記錄（提領記錄永久保存，不允許刪除）
+          // 9. 刪除 SupportTicket（直接關聯到 partnerId，不透過 booking）
+          await tx.supportTicket.deleteMany({ 
+            where: { partnerId } 
+          });
+          
+          // 10. 刪除 RefundRequest（直接關聯到 partnerId，不透過 booking）
+          await tx.refundRequest.deleteMany({ 
+            where: { partnerId } 
+          });
+          
+          // 11. 檢查是否有提領記錄（提領記錄永久保存，不允許刪除）
           const withdrawalCount = await tx.withdrawalRequest.count({
             where: { partnerId },
           });
@@ -155,7 +180,7 @@ export async function DELETE(request: Request) {
             throw new Error(`無法刪除夥伴：該夥伴有 ${withdrawalCount} 筆提領記錄，提領記錄需要永久保存`);
           }
           
-          // 10. 最後刪除 Partner
+          // 12. 最後刪除 Partner
           await tx.partner.delete({ where: { id: partnerId } });
         }
 
@@ -167,6 +192,21 @@ export async function DELETE(request: Request) {
           await tx.groupBookingParticipant.deleteMany({ 
             where: { customerId } 
           });
+          
+          // 1.1. 處理 GroupBooking 相關的 ChatRoom（如果 initiatorId 是 customerId）
+          const customerGroupBookings = await tx.groupBooking.findMany({
+            where: { 
+              initiatorId: customerId,
+              initiatorType: 'CUSTOMER'
+            },
+            select: { id: true },
+          });
+          
+          for (const gb of customerGroupBookings) {
+            await tx.chatRoom.deleteMany({ 
+              where: { groupBookingId: gb.id } 
+            });
+          }
           
           // 2. 刪除 GroupBookingReview
           await tx.groupBookingReview.deleteMany({ 
@@ -246,7 +286,17 @@ export async function DELETE(request: Request) {
             where: { customerId } 
           });
           
-          // 9. 最後刪除 Customer
+          // 9. 刪除 SupportTicket（直接關聯到 userId，不透過 booking）
+          await tx.supportTicket.deleteMany({ 
+            where: { userId } 
+          });
+          
+          // 10. 刪除 RefundRequest（直接關聯到 userId，不透過 booking）
+          await tx.refundRequest.deleteMany({ 
+            where: { userId } 
+          });
+          
+          // 11. 最後刪除 Customer
           await tx.customer.delete({ where: { id: customerId } });
         }
 
@@ -258,6 +308,16 @@ export async function DELETE(request: Request) {
               { revieweeId: userId },
             ],
           },
+        });
+
+        // 刪除 User 相關的 SupportTicket（直接關聯到 userId）
+        await tx.supportTicket.deleteMany({ 
+          where: { userId } 
+        });
+        
+        // 刪除 User 相關的 RefundRequest（直接關聯到 userId）
+        await tx.refundRequest.deleteMany({ 
+          where: { userId } 
         });
 
         // 最後刪除 User
