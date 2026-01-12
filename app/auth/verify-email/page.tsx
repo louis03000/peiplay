@@ -296,13 +296,22 @@ function VerifyEmailContent() {
                   <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
                 </svg>
               </div>
-              <div className="ml-3">
+              <div className="ml-3 flex-1">
                 <h3 className="text-sm font-medium text-yellow-800 mb-2">
                   ⚠️ Discord 新註冊帳號請先完成 Email 驗證
                 </h3>
-                <div className="mt-2 text-sm text-yellow-700">
+                <div className="mt-2 text-sm text-yellow-700 space-y-1">
                   <p>並等待約 5–10 分鐘後再加入伺服器</p>
-                  <p className="mt-1">若立即加入失敗，請稍後再試</p>
+                  <p>若立即加入失敗，請稍後再試</p>
+                </div>
+                <div className="mt-4 pt-4 border-t border-yellow-200">
+                  <p className="text-sm font-medium text-yellow-800 mb-2">加入伺服器步驟：</p>
+                  <ol className="text-sm text-yellow-700 space-y-1.5 list-decimal list-inside">
+                    <li>先打開 Discord App</li>
+                    <li>左側點「＋」</li>
+                    <li>選擇「加入伺服器」</li>
+                    <li>貼上邀請碼：https://discord.gg/g7Qfn2UN</li>
+                  </ol>
                 </div>
               </div>
             </div>
