@@ -55,11 +55,6 @@ export default function ProfileClientComplete() {
   }>>([]);
   const [loadingRegisteredGames, setLoadingRegisteredGames] = useState(false);
 
-  // 註銷帳號相關狀態
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [showFinalConfirm, setShowFinalConfirm] = useState(false);
-  const [confirmationCode, setConfirmationCode] = useState("");
-  const [deleteLoading, setDeleteLoading] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -308,37 +303,6 @@ export default function ProfileClientComplete() {
     }
   };
 
-  // 處理註銷帳號
-  const handleDeleteAccount = async () => {
-    if (confirmationCode !== "delect_account") {
-      setError("確認碼錯誤");
-      return;
-    }
-
-    setDeleteLoading(true);
-    setError("");
-
-    try {
-      const res = await fetch("/api/user/delete-account-simple", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ confirmationCode }),
-      });
-
-      const data = await res.json();
-
-      if (res.ok) {
-        // 註銷成功，登出用戶
-        window.location.href = "/";
-      } else {
-        setError(data.error || "註銷失敗");
-      }
-    } catch (err) {
-      setError("註銷失敗");
-    } finally {
-      setDeleteLoading(false);
-    }
-  };
 
   // 如果還在載入或未掛載，顯示載入狀態
   if (status === "loading" || !mounted) {
@@ -434,15 +398,57 @@ export default function ProfileClientComplete() {
               </InfoCard>
             )}
 
-            {isPartner && userData.partner?.supportsChatOnly && (
+            {isPartner && userData.partner?.chatOnlyRate && (
               <InfoCard bgColor="green" className="mt-6">
                 <p className="text-sm font-medium text-gray-600 mb-2">
                   純聊天服務
                 </p>
                 <p className="text-2xl font-bold text-gray-900">
-                  ${userData.partner.chatOnlyRate || 0}/30分
+                  ${userData.partner.chatOnlyRate}/30分
                 </p>
               </InfoCard>
+            )}
+
+            {/* 性別和興趣（僅夥伴） */}
+            {isPartner && (userData.partner?.gender || (userData.partner?.interests && userData.partner.interests.length > 0)) && (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+                {userData.partner?.gender && (
+                  <div className="p-4 bg-gray-50 rounded-2xl">
+                    <span className="block text-gray-600 mb-2 text-sm font-medium">
+                      性別
+                    </span>
+                    <span className="text-gray-900 font-semibold text-lg">
+                      {userData.partner.gender === 'male' ? '男性' : userData.partner.gender === 'female' ? '女性' : '其他'}
+                    </span>
+                  </div>
+                )}
+                {userData.partner?.interests && userData.partner.interests.length > 0 && (
+                  <div className="p-4 bg-gray-50 rounded-2xl lg:col-span-2">
+                    <span className="block text-gray-600 mb-2 text-sm font-medium">
+                      興趣
+                    </span>
+                    <div className="flex flex-wrap gap-2">
+                      {userData.partner.interests.map((interest: string, index: number) => (
+                        <span
+                          key={index}
+                          className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-sm"
+                        >
+                          {interest === 'gaming' ? '遊戲' :
+                           interest === 'music' ? '音樂' :
+                           interest === 'movies' ? '電影' :
+                           interest === 'sports' ? '運動' :
+                           interest === 'travel' ? '旅遊' :
+                           interest === 'food' ? '美食' :
+                           interest === 'art' ? '藝術' :
+                           interest === 'technology' ? '科技' :
+                           interest === 'books' ? '閱讀' :
+                           interest === 'photography' ? '攝影' : interest}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
             )}
 
             {isPartner && (
@@ -467,84 +473,6 @@ export default function ProfileClientComplete() {
               修改個人資料
             </button>
 
-            {/* 註銷帳號區域 */}
-            <InfoCard bgColor="gray" className="mt-8">
-              <SectionTitle
-                title="⚠️ 危險操作"
-                subtitle="註銷帳號將永久刪除您的所有資料，包括個人資料、預約記錄、訂單歷史等，此操作無法復原。"
-              />
-
-              {!showDeleteConfirm ? (
-                <button
-                  className="w-full py-3 rounded-2xl bg-red-600 text-white font-bold hover:bg-red-700 transition-all duration-300"
-                  onClick={() => setShowDeleteConfirm(true)}
-                >
-                  註銷帳號
-                </button>
-              ) : !showFinalConfirm ? (
-                <div className="bg-red-50 border border-red-200 rounded-2xl p-4">
-                  <p className="text-red-800 text-sm mb-4">
-                    <strong>
-                      第一次確認：您確定要註銷帳號嗎？此操作將永久刪除您的所有資料。
-                    </strong>
-                  </p>
-                  <div className="flex gap-3">
-                    <button
-                      className="flex-1 py-2 bg-red-600 text-white font-bold rounded-2xl hover:bg-red-700 transition-all duration-300"
-                      onClick={() => setShowFinalConfirm(true)}
-                    >
-                      確定註銷
-                    </button>
-                    <button
-                      className="flex-1 py-2 bg-gray-600 text-white font-bold rounded-2xl hover:bg-gray-700 transition-all duration-300"
-                      onClick={() => setShowDeleteConfirm(false)}
-                    >
-                      取消
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div className="bg-red-50 border border-red-200 rounded-2xl p-4">
-                  <p className="text-red-800 text-sm mb-4">
-                    <strong>
-                      第二次確認：請輸入確認碼 delect_account 來完成註銷。
-                    </strong>
-                  </p>
-                  <input
-                    type="text"
-                    value={confirmationCode}
-                    onChange={(e) => setConfirmationCode(e.target.value)}
-                    placeholder="請輸入確認碼"
-                    className="w-full px-4 py-3 rounded-2xl bg-white text-gray-900 border-2 border-red-500 focus:border-red-600 focus:outline-none focus:ring-2 focus:ring-red-200 mb-4 transition-all duration-300"
-                  />
-                  {error && (
-                    <div className="text-red-600 text-sm mb-4 font-medium">
-                      {error}
-                    </div>
-                  )}
-                  <div className="flex gap-3">
-                    <button
-                      className="flex-1 py-2 bg-red-600 text-white font-bold rounded-2xl hover:bg-red-700 transition-all duration-300 disabled:opacity-50"
-                      onClick={handleDeleteAccount}
-                      disabled={deleteLoading}
-                    >
-                      {deleteLoading ? "處理中..." : "確定註銷"}
-                    </button>
-                    <button
-                      className="flex-1 py-2 bg-gray-600 text-white font-bold rounded-2xl hover:bg-gray-700 transition-all duration-300"
-                      onClick={() => {
-                        setShowFinalConfirm(false);
-                        setShowDeleteConfirm(false);
-                        setConfirmationCode("");
-                        setError("");
-                      }}
-                    >
-                      取消
-                    </button>
-                  </div>
-                </div>
-              )}
-            </InfoCard>
           </>
         ) : (
           <form

@@ -199,6 +199,8 @@ export async function GET(request: Request) {
               supportsChatOnly: true,
               chatOnlyRate: true,
               status: true,
+              gender: true,
+              interests: true,
             },
           },
         },

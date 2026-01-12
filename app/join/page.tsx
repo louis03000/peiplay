@@ -26,6 +26,7 @@ const partnerSchema = z.object({
   idVerificationPhoto: z.string().min(1, '請上傳身分證自拍'),
   bankCode: z.string().min(1, '請填寫銀行代碼'),
   bankAccountNumber: z.string().min(1, '請填寫銀行帳號'),
+  bankBookPhoto: z.string().min(1, '請上傳銀行存摺'),
   inviteCode: z.string().optional(),
   contractFile: z.string().min(1, '請上傳已簽署的合作承攬合約書'),
 })
@@ -79,8 +80,10 @@ export default function JoinPage() {
 
   const [coverImageUrl, setCoverImageUrl] = useState<string>('')
   const [contractFileUrl, setContractFileUrl] = useState<string>('')
+  const [bankBookPhoto, setBankBookPhoto] = useState<string>('')
   const [uploading, setUploading] = useState(false)
   const [uploadingContract, setUploadingContract] = useState(false)
+  const [uploadingBankBook, setUploadingBankBook] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string>('')
   const [selectedGames, setSelectedGames] = useState<string[]>([])
@@ -429,6 +432,7 @@ export default function JoinPage() {
           halfHourlyRate: data.halfHourlyRate,
           bankCode: data.bankCode,
           bankAccountNumber: data.bankAccountNumber,
+          bankBookPhoto: bankBookPhoto,
           inviteCode: inviteCode.trim() || undefined,
         }),
       })
@@ -527,6 +531,51 @@ export default function JoinPage() {
       setError(err instanceof Error ? err.message : '上傳失敗')
     } finally {
       setUploadingContract(false)
+    }
+  }
+
+  const handleBankBookUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    // 檢查檔案大小 (限制為 10MB)
+    const maxSize = 10 * 1024 * 1024; // 10MB
+    if (file.size > maxSize) {
+      setError('銀行存摺照片大小不能超過 10MB，請壓縮圖片後重新上傳')
+      return
+    }
+
+    // 檢查檔案類型
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'application/pdf']
+    if (!allowedTypes.includes(file.type)) {
+      setError('請上傳 JPG、PNG 或 PDF 格式的檔案')
+      return
+    }
+
+    setUploadingBankBook(true)
+    setError('')
+
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      })
+      const result = await res.json()
+
+      if (!res.ok) {
+        throw new Error(result.error || '上傳失敗')
+      }
+
+      if (result.url) {
+        setBankBookPhoto(result.url)
+        setValue('bankBookPhoto', result.url, { shouldValidate: true })
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '上傳失敗')
+    } finally {
+      setUploadingBankBook(false)
     }
   }
 
@@ -1201,7 +1250,7 @@ export default function JoinPage() {
                 <div className="flex justify-end">
                   <button
                     type="submit"
-                    disabled={submitting || !coverImageUrl || !contractFileUrl || selectedGames.length === 0 || !canAgree}
+                    disabled={submitting || !coverImageUrl || !contractFileUrl || !bankBookPhoto || selectedGames.length === 0 || !canAgree}
                     className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {submitting ? '提交中...' : '提交申請'}

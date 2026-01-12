@@ -51,6 +51,8 @@ export type Partner = {
   customerMessage?: string;
   averageRating?: number;
   totalReviews?: number;
+  gender?: string | null;
+  interests?: string[];
 };
 
 // 工具函式：判斷兩個日期是否同一天（本地時區）

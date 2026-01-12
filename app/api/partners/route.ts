@@ -36,6 +36,8 @@ type PartnerRecord = {
   customerMessage: string | null
   supportsChatOnly: boolean
   chatOnlyRate: number | null
+  gender: string | null
+  interests: string[]
   user: {
     isSuspended: boolean
     suspensionEndsAt: Date | null
@@ -180,6 +182,8 @@ export async function GET(request: NextRequest) {
                 customerMessage: true,
                 supportsChatOnly: true,
                 chatOnlyRate: true,
+                gender: true,
+                interests: true,
                 user: {
                   select: {
                     isSuspended: true,
@@ -337,6 +341,8 @@ export async function GET(request: NextRequest) {
           customerMessage: partner.customerMessage,
           supportsChatOnly: partner.supportsChatOnly,
           chatOnlyRate: partner.chatOnlyRate,
+          gender: partner.gender || null,
+          interests: Array.isArray(partner.interests) ? partner.interests : [],
           user: partner.user,
           images,
           schedules: availableSchedules,
@@ -388,7 +394,7 @@ export async function POST(request: Request) {
     }
     const body = data as Record<string, unknown>
     // 驗證必填欄位（移除 userId）
-    const requiredFields = ['name', 'birthday', 'phone', 'halfHourlyRate', 'games', 'coverImage', 'bankCode', 'bankAccountNumber', 'contractFile']
+    const requiredFields = ['name', 'birthday', 'phone', 'halfHourlyRate', 'games', 'coverImage', 'bankCode', 'bankAccountNumber', 'bankBookPhoto', 'contractFile']
     for (const field of requiredFields) {
       if (!body[field]) {
         return NextResponse.json(
@@ -414,6 +420,10 @@ export async function POST(request: Request) {
       contractFile: string
       bankCode: string
       bankAccountNumber: string
+      bankBookPhoto: string
+      idVerificationPhoto?: string
+      gender?: string
+      interests?: string[]
       inviteCode?: string
     }
     const result = await db.query(async (client) => {
@@ -460,6 +470,12 @@ export async function POST(request: Request) {
           contractFile: payload.contractFile,
           bankCode: payload.bankCode,
           bankAccountNumber: payload.bankAccountNumber,
+          bankBookPhoto: payload.bankBookPhoto,
+          idVerificationPhoto: (body.idVerificationPhoto as string) || undefined,
+          gender: (body.gender as string) || undefined,
+          interests: Array.isArray(body.interests) ? (body.interests as string[]) : [],
+          supportsChatOnly: typeof body.supportsChatOnly === 'boolean' ? body.supportsChatOnly : false,
+          chatOnlyRate: typeof body.chatOnlyRate === 'number' ? body.chatOnlyRate : undefined,
           invitedBy: inviterId,
         },
       })

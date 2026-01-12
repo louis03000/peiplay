@@ -32,6 +32,8 @@ export async function GET(request: Request) {
           status: true,
           bankCode: true,
           bankAccountNumber: true,
+          bankBookPhoto: true,
+          idVerificationPhoto: true,
           customerMessage: true,
           isRankBooster: true,
           rankBoosterNote: true,

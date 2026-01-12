@@ -96,6 +96,7 @@ model Partner {
   invitedBy               String?
   bankAccountNumber       String?
   bankCode                String?
+  bankBookPhoto           String? // 銀行存摺
   contractFile            String?
   referralEarnings        Float                     @default(0)
   referralCount           Int                       @default(0)

@@ -18,6 +18,9 @@ interface User {
     games: string[];
     halfHourlyRate: number;
     contractFile: string | null;
+    idVerificationPhoto: string | null;
+    bankBookPhoto: string | null;
+    coverImage: string;
   };
   customer?: {
     id: string;
@@ -517,18 +520,43 @@ export default function AdminUsersPage() {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <div className="flex flex-col gap-2">
-                      {/* 契約書查看按鈕 - 只有夥伴才顯示 */}
-                      {user.partner && user.partner.contractFile && (
-                        <button
-                          onClick={() => {
-                            // 在新窗口中打開契約書
-                            window.open(user.partner!.contractFile!, '_blank');
-                          }}
-                          className="text-blue-600 hover:text-blue-900 text-xs flex items-center gap-1"
-                          title="在新窗口中查看契約書"
-                        >
-                          📄 查看契約書
-                        </button>
+                      {/* 圖片查看按鈕 - 只有夥伴才顯示 */}
+                      {user.partner && (
+                        <>
+                          {user.partner.idVerificationPhoto && (
+                            <button
+                              onClick={() => {
+                                window.open(user.partner!.idVerificationPhoto!, '_blank');
+                              }}
+                              className="text-purple-600 hover:text-purple-900 text-xs flex items-center gap-1"
+                              title="在新窗口中查看手持身分證自拍"
+                            >
+                              📷 手持身分證自拍
+                            </button>
+                          )}
+                          {user.partner.bankBookPhoto && (
+                            <button
+                              onClick={() => {
+                                window.open(user.partner!.bankBookPhoto!, '_blank');
+                              }}
+                              className="text-blue-600 hover:text-blue-900 text-xs flex items-center gap-1"
+                              title="在新窗口中查看銀行存摺"
+                            >
+                              📷 銀行存摺
+                            </button>
+                          )}
+                          {user.partner.contractFile && (
+                            <button
+                              onClick={() => {
+                                window.open(user.partner!.contractFile!, '_blank');
+                              }}
+                              className="text-green-600 hover:text-green-900 text-xs flex items-center gap-1"
+                              title="在新窗口中查看契約書"
+                            >
+                              📄 查看契約書
+                            </button>
+                          )}
+                        </>
                       )}
                       {user.isSuspended ? (
                         <button

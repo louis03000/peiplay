@@ -33,6 +33,9 @@ export async function GET() {
               games: true,
               halfHourlyRate: true,
               contractFile: true,
+              idVerificationPhoto: true,
+              bankBookPhoto: true,
+              coverImage: true,
             },
           },
           customer: {

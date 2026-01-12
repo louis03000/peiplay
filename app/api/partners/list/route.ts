@@ -117,6 +117,8 @@ export async function GET(request: NextRequest) {
                 customerMessage: true,
                 supportsChatOnly: true,
                 chatOnlyRate: true,
+                gender: true,
+                interests: true,
                 userId: true, // 用於查詢評價
                 user: {
                   select: {
@@ -321,6 +323,8 @@ export async function GET(request: NextRequest) {
         customerMessage: partner.customerMessage,
         supportsChatOnly: partner.supportsChatOnly,
         chatOnlyRate: partner.chatOnlyRate,
+        gender: partner.gender || null,
+        interests: Array.isArray(partner.interests) ? partner.interests : [],
         images,
         averageRating: ratingData.averageRating,
         totalReviews: ratingData.totalReviews,

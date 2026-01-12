@@ -15,6 +15,8 @@ interface Partner {
   status: string;
   bankCode: string | null;
   bankAccountNumber: string | null;
+  bankBookPhoto: string | null;
+  idVerificationPhoto: string | null;
   customerMessage: string | null;
   isRankBooster: boolean;
   rankBoosterNote: string | null;
@@ -242,8 +244,37 @@ export default function AdminPartnersPage() {
                       ) : (
                         <div className="text-red-500">❌ 未填寫帳戶號碼</div>
                       )}
+                      {p.bankBookPhoto && (
+                        <div className="mt-2">
+                          <a 
+                            href={p.bankBookPhoto} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-2 px-3 py-2 bg-blue-100 text-blue-800 rounded-lg hover:bg-blue-200 transition-colors"
+                          >
+                            📷 查看銀行存摺
+                          </a>
+                        </div>
+                      )}
                     </div>
                   </div>
+
+                  {/* 身分驗證圖片 */}
+                  {p.idVerificationPhoto && (
+                    <div className="text-sm">
+                      <span className="font-medium text-gray-700">身分驗證:</span>
+                      <div className="mt-1">
+                        <a 
+                          href={p.idVerificationPhoto} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-2 px-3 py-2 bg-purple-100 text-purple-800 rounded-lg hover:bg-purple-200 transition-colors"
+                        >
+                          📷 查看身分證自拍
+                        </a>
+                      </div>
+                    </div>
+                  )}
                   
                   {/* 客戶訊息 */}
                   {p.customerMessage && (

@@ -20,6 +20,8 @@ interface Partner {
   customerMessage?: string
   averageRating?: number
   totalReviews?: number
+  gender?: string | null
+  interests?: string[]
 }
 
 interface PartnerCardProps {
@@ -420,6 +422,33 @@ const PartnerCard = memo(function PartnerCard({ partner, onQuickBook, showNextSt
                   <span className="text-sm text-gray-600">
                     {partner.averageRating.toFixed(1)} ({partner.totalReviews} 則評價)
                   </span>
+                </div>
+              </div>
+            )}
+
+            {/* 性別 */}
+            {partner.gender && (
+              <div className="mb-4">
+                <h4 className="font-semibold text-gray-700 mb-2">性別</h4>
+                <p className="text-sm text-gray-600">
+                  {partner.gender === 'male' ? '男性' : partner.gender === 'female' ? '女性' : '其他'}
+                </p>
+              </div>
+            )}
+
+            {/* 興趣 */}
+            {partner.interests && partner.interests.length > 0 && (
+              <div className="mb-4">
+                <h4 className="font-semibold text-gray-700 mb-2">興趣</h4>
+                <div className="flex flex-wrap gap-2">
+                  {partner.interests.map((interest, index) => (
+                    <span
+                      key={index}
+                      className="px-2 py-1 bg-purple-100 text-purple-700 rounded-full text-xs"
+                    >
+                      {interest}
+                    </span>
+                  ))}
                 </div>
               </div>
             )}
