@@ -39,6 +39,8 @@ export default function AdminUsersPage() {
   const [deleteConfirmStep, setDeleteConfirmStep] = useState<{ userId: string; step: number } | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [roleFilter, setRoleFilter] = useState("ALL");
+  const [resettingDatabase, setResettingDatabase] = useState(false);
+  const [resetConfirmStep, setResetConfirmStep] = useState(0);
 
   useEffect(() => {
     if (status === "loading") return;
@@ -192,6 +194,66 @@ export default function AdminUsersPage() {
     setDeleteConfirmStep(null);
   };
 
+  const handleResetDatabase = async () => {
+    // 確認步驟 1: 第一次確認
+    if (resetConfirmStep === 0) {
+      if (!confirm('⚠️ 警告：此操作將完全清除所有用戶資料（除了管理員）\n\n確定要繼續嗎？')) {
+        return;
+      }
+      setResetConfirmStep(1);
+      return;
+    }
+
+    // 確認步驟 2: 第二次確認
+    if (resetConfirmStep === 1) {
+      if (!confirm('⚠️ 第二次確認\n\n這將刪除所有用戶、夥伴、訂單、提領記錄等資料\n\n確定要執行資料庫重置嗎？')) {
+        setResetConfirmStep(0);
+        return;
+      }
+      setResetConfirmStep(2);
+      return;
+    }
+
+    // 確認步驟 3: 最終確認
+    if (resetConfirmStep === 2) {
+      const finalConfirm = prompt('⚠️ 最終確認\n\n請輸入 "RESET" 以確認資料庫重置：');
+      if (finalConfirm !== 'RESET') {
+        alert('輸入不正確，操作已取消');
+        setResetConfirmStep(0);
+        return;
+      }
+
+      try {
+        setResettingDatabase(true);
+        const res = await fetch('/api/admin/reset-database', {
+          method: 'POST',
+        });
+
+        const data = await res.json();
+
+        if (res.ok) {
+          alert('✅ 資料庫重置完成！\n\n所有非管理員用戶資料已清除。');
+          setResetConfirmStep(0);
+          // 重新載入用戶列表
+          await fetchUsers();
+        } else {
+          alert(`❌ 重置失敗：${data.error || '未知錯誤'}`);
+          setResetConfirmStep(0);
+        }
+      } catch (err) {
+        console.error('Reset database error:', err);
+        alert('重置失敗，請稍後再試');
+        setResetConfirmStep(0);
+      } finally {
+        setResettingDatabase(false);
+      }
+    }
+  };
+
+  const handleResetCancel = () => {
+    setResetConfirmStep(0);
+  };
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleString("zh-TW");
   };
@@ -232,6 +294,56 @@ export default function AdminUsersPage() {
           </a>
         </div>
       </div>
+
+      {/* 資料庫重置功能（僅測試環境） */}
+      {process.env.NODE_ENV !== 'production' && (
+        <div className="mb-6 p-4 bg-red-50 border-2 border-red-300 rounded-lg">
+          <div className="flex items-start justify-between">
+            <div className="flex-1">
+              <h3 className="text-lg font-bold text-red-800 mb-2">
+                ⚠️ 資料庫重置（僅測試環境）
+              </h3>
+              <p className="text-sm text-red-700 mb-4">
+                此功能將完全清除所有用戶資料（除了管理員），包括：用戶、夥伴、訂單、提領記錄等。
+                <br />
+                <strong>此操作無法復原，請謹慎使用！</strong>
+              </p>
+              {resetConfirmStep === 0 && (
+                <button
+                  onClick={handleResetDatabase}
+                  disabled={resettingDatabase}
+                  className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+                >
+                  {resettingDatabase ? '重置中...' : '重置資料庫'}
+                </button>
+              )}
+              {resetConfirmStep > 0 && (
+                <div className="space-y-2">
+                  <p className="text-sm font-medium text-red-800">
+                    確認步驟 {resetConfirmStep} / 3
+                  </p>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={handleResetDatabase}
+                      disabled={resettingDatabase}
+                      className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+                    >
+                      {resetConfirmStep === 3 ? (resettingDatabase ? '重置中...' : '確認重置') : '繼續'}
+                    </button>
+                    <button
+                      onClick={handleResetCancel}
+                      disabled={resettingDatabase}
+                      className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      取消
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 搜尋框 */}
       <div className="mb-6">
