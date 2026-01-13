@@ -563,9 +563,14 @@ function BookingWizardContent() {
       currentTimeMs: currentTimeMs
     });
     
-    // 🔍 調試：檢查前幾個時段的時間
+    // 🔍 調試：檢查所有時段的時間分布
     if (schedules.length > 0) {
-      const sampleSchedules = schedules.slice(0, 5);
+      // 檢查前10個和後10個時段
+      const sampleSchedules = [
+        ...schedules.slice(0, 5),
+        ...schedules.slice(-5)
+      ];
+      console.log(`[預約頁面] 檢查樣本時段 (總共 ${schedules.length} 個，顯示前5個和後5個):`);
       sampleSchedules.forEach((s, idx) => {
         const sStart = new Date(s.startTime);
         const sStartTW = sStart.toLocaleString('zh-TW', { 
@@ -575,11 +580,39 @@ function BookingWizardContent() {
           day: '2-digit',
           hour: '2-digit',
           minute: '2-digit',
+          second: '2-digit',
           hour12: false
         });
         const isPast = sStart.getTime() <= currentTimeMs;
-        console.log(`[預約頁面] 樣本時段 ${idx + 1}: ID=${s.id}, 開始時間 UTC=${sStart.toISOString()}, 台灣時間=${sStartTW}, 是否已過期=${isPast}`);
+        const timeDiff = isPast ? Math.round((currentTimeMs - sStart.getTime()) / 1000 / 60) : Math.round((sStart.getTime() - currentTimeMs) / 1000 / 60);
+        console.log(`[預約頁面] 樣本時段 ${idx + 1}: ID=${s.id}, 開始時間 UTC=${sStart.toISOString()}, 台灣時間=${sStartTW}, 是否已過期=${isPast}, 時間差=${timeDiff}分鐘`);
       });
+      
+      // 🔍 統計：找出所有已過期的時段
+      const pastSchedules = schedules.filter(s => {
+        const sStart = new Date(s.startTime);
+        return sStart.getTime() <= currentTimeMs;
+      });
+      if (pastSchedules.length > 0) {
+        console.log(`[預約頁面] ⚠️ 發現 ${pastSchedules.length} 個已過期時段，前5個:`);
+        pastSchedules.slice(0, 5).forEach((s, idx) => {
+          const sStart = new Date(s.startTime);
+          const sStartTW = sStart.toLocaleString('zh-TW', { 
+            timeZone: 'Asia/Taipei',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: false
+          });
+          const timeDiff = Math.round((currentTimeMs - sStart.getTime()) / 1000 / 60);
+          console.log(`[預約頁面] 已過期時段 ${idx + 1}: ID=${s.id}, 台灣時間=${sStartTW}, 已過期 ${timeDiff} 分鐘`);
+        });
+      } else {
+        console.log(`[預約頁面] ✅ 所有時段都未過期`);
+      }
     }
     schedules.forEach((schedule) => {
       // 只考慮同一天的時段

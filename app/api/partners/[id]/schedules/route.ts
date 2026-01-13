@@ -111,12 +111,17 @@ export async function GET(
         const bookedScheduleIds = new Set(allActiveBookings.map(b => b.scheduleId).filter(Boolean));
 
         // 查詢所有可用時段（包含預約資訊）
-        // 移除 take 限制，確保所有日期範圍內的時段都被查詢到
+        // 🔥 在數據庫層面就過濾掉已過期的時段（使用 startTime 而不是 date）
+        // 這樣可以減少需要處理的數據量
         const allSchedules = await client.schedule.findMany({
           where: {
             partnerId,
             isAvailable: true,
             date: scheduleDateFilter,
+            // 🔥 在數據庫層面過濾：只查詢開始時間在當前時間之後的時段
+            startTime: {
+              gt: currentTime, // 只查詢開始時間 > 當前時間的時段
+            },
           },
           select: {
             id: true,
@@ -153,10 +158,14 @@ export async function GET(
         
         console.log(`[API] 過濾時段 - 當前時間 UTC: ${currentTime.toISOString()}, 台灣時間: ${currentTimeTW}, 時段總數: ${allSchedules.length}`);
         
-        // 🔍 調試：檢查前幾個時段的時間
+        // 🔍 調試：檢查所有時段的時間分布
         if (allSchedules.length > 0) {
-          const sampleSchedules = allSchedules.slice(0, 5);
-          console.log(`[API] 檢查樣本時段 (總共 ${allSchedules.length} 個):`);
+          // 檢查前10個和後10個時段
+          const sampleSchedules = [
+            ...allSchedules.slice(0, 5),
+            ...allSchedules.slice(-5)
+          ];
+          console.log(`[API] 檢查樣本時段 (總共 ${allSchedules.length} 個，顯示前5個和後5個):`);
           sampleSchedules.forEach((s, idx) => {
             // 確保 startTime 是 Date 對象
             const sStart = s.startTime instanceof Date ? s.startTime : new Date(s.startTime);
@@ -175,6 +184,32 @@ export async function GET(
             const timeDiff = isPast ? Math.round((currentTimeMs - sStartMs) / 1000 / 60) : Math.round((sStartMs - currentTimeMs) / 1000 / 60);
             console.log(`[API] 樣本時段 ${idx + 1}: ID=${s.id}, 開始時間 UTC=${sStart.toISOString()}, 台灣時間=${sStartTW}, 是否已過期=${isPast}, 時間差=${timeDiff}分鐘`);
           });
+          
+          // 🔍 統計：找出所有已過期的時段
+          const pastSchedules = allSchedules.filter(s => {
+            const sStart = s.startTime instanceof Date ? s.startTime : new Date(s.startTime);
+            return sStart.getTime() <= currentTimeMs;
+          });
+          if (pastSchedules.length > 0) {
+            console.log(`[API] ⚠️ 發現 ${pastSchedules.length} 個已過期時段，前5個:`);
+            pastSchedules.slice(0, 5).forEach((s, idx) => {
+              const sStart = s.startTime instanceof Date ? s.startTime : new Date(s.startTime);
+              const sStartTW = sStart.toLocaleString('zh-TW', { 
+                timeZone: 'Asia/Taipei',
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: false
+              });
+              const timeDiff = Math.round((currentTimeMs - sStart.getTime()) / 1000 / 60);
+              console.log(`[API] 已過期時段 ${idx + 1}: ID=${s.id}, 台灣時間=${sStartTW}, 已過期 ${timeDiff} 分鐘`);
+            });
+          } else {
+            console.log(`[API] ✅ 所有時段都未過期`);
+          }
         }
         
         let pastCount = 0;
