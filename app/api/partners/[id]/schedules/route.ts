@@ -155,9 +155,12 @@ export async function GET(
         
         // 🔍 調試：檢查前幾個時段的時間
         if (allSchedules.length > 0) {
-          const sampleSchedules = allSchedules.slice(0, 3);
+          const sampleSchedules = allSchedules.slice(0, 5);
+          console.log(`[API] 檢查樣本時段 (總共 ${allSchedules.length} 個):`);
           sampleSchedules.forEach((s, idx) => {
-            const sStart = new Date(s.startTime);
+            // 確保 startTime 是 Date 對象
+            const sStart = s.startTime instanceof Date ? s.startTime : new Date(s.startTime);
+            const sStartMs = sStart.getTime();
             const sStartTW = sStart.toLocaleString('zh-TW', { 
               timeZone: 'Asia/Taipei',
               year: 'numeric',
@@ -165,20 +168,24 @@ export async function GET(
               day: '2-digit',
               hour: '2-digit',
               minute: '2-digit',
+              second: '2-digit',
               hour12: false
             });
-            const isPast = sStart.getTime() <= currentTimeMs;
-            console.log(`[API] 樣本時段 ${idx + 1}: ID=${s.id}, 開始時間 UTC=${sStart.toISOString()}, 台灣時間=${sStartTW}, 是否已過期=${isPast}`);
+            const isPast = sStartMs <= currentTimeMs;
+            const timeDiff = isPast ? Math.round((currentTimeMs - sStartMs) / 1000 / 60) : Math.round((sStartMs - currentTimeMs) / 1000 / 60);
+            console.log(`[API] 樣本時段 ${idx + 1}: ID=${s.id}, 開始時間 UTC=${sStart.toISOString()}, 台灣時間=${sStartTW}, 是否已過期=${isPast}, 時間差=${timeDiff}分鐘`);
           });
         }
         
         let pastCount = 0;
         const filteredSchedules = allSchedules.filter((schedule) => {
           // 0. 🔥 首先檢查時段是否已過去（必須在當前時間之後）
-          const scheduleStart = new Date(schedule.startTime);
+          // 確保 startTime 是 Date 對象
+          const scheduleStart = schedule.startTime instanceof Date ? schedule.startTime : new Date(schedule.startTime);
           const scheduleStartMs = scheduleStart.getTime();
           
-          // 嚴格檢查：如果時段開始時間 <= 當前時間，過濾掉
+          // 🔥 嚴格檢查：如果時段開始時間 <= 當前時間，過濾掉
+          // 注意：使用 <= 而不是 <，因為如果時段正好是當前時間，也應該被過濾
           if (scheduleStartMs <= currentTimeMs) {
             pastCount++;
             const timeDiffMinutes = Math.round((currentTimeMs - scheduleStartMs) / 1000 / 60);
