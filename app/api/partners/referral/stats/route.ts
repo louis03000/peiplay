@@ -101,6 +101,33 @@ export async function GET(request: NextRequest) {
         }
       }
       
+      // 🔥 添加诊断信息：检查被邀请人的订单状态
+      const inviteeIds = referralStats.map(r => r.inviteeId);
+      const inviteeBookings = inviteeIds.length > 0 ? await client.booking.findMany({
+        where: {
+          schedule: {
+            partnerId: { in: inviteeIds },
+          },
+          status: { in: ['COMPLETED', 'CONFIRMED', 'PARTNER_ACCEPTED'] },
+          finalAmount: { gt: 0 },
+        },
+        include: {
+          schedule: {
+            select: {
+              endTime: true,
+            },
+          },
+        },
+        orderBy: {
+          createdAt: 'desc',
+        },
+        take: 20,
+      }) : [];
+      
+      const now = new Date();
+      const endedBookings = inviteeBookings.filter(b => b.schedule?.endTime && b.schedule.endTime <= now);
+      const completedBookings = inviteeBookings.filter(b => b.status === 'COMPLETED');
+      
       // 🔥 添加调试日志：检查推荐收入和统计
       console.log(`[推薦統計] 夥伴 ${partner.id} (${partner.name}):`, {
         referralCount: partner.referralCount,
@@ -111,6 +138,10 @@ export async function GET(request: NextRequest) {
         totalReferrals: totalReferrals,
         referralRecordsCount: referralStats.length,
         referralEarningsCount: recentReferrals.length,
+        inviteeBookingsCount: inviteeBookings.length,
+        endedBookingsCount: endedBookings.length,
+        completedBookingsCount: completedBookings.length,
+        inviteeIds: inviteeIds,
       });
 
       const referrals = referralStats.map((record) => ({

@@ -28,8 +28,9 @@ export async function POST(request: NextRequest) {
     } = body
 
     const result = await db.query(async (client) => {
+      const now = new Date();
       // 構建查詢條件：查找所有已完成的訂單（包括 COMPLETED、CONFIRMED、PARTNER_ACCEPTED）
-      // 這些狀態都表示訂單已經完成，應該計算推薦收入
+      // 🔥 只處理已結束的訂單（endTime <= now），因為只有已結束的訂單才能計算推薦收入
       const where: any = {
         status: {
           in: [BookingStatus.COMPLETED, BookingStatus.CONFIRMED, BookingStatus.PARTNER_ACCEPTED]
@@ -37,20 +38,20 @@ export async function POST(request: NextRequest) {
         finalAmount: {
           gt: 0, // 金額必須大於 0（gt: 0 已經隱含了 not null）
         },
+        schedule: {
+          endTime: {
+            lte: now, // 🔥 只處理已結束的訂單
+          },
+        },
       }
 
       // 如果指定了夥伴 ID，只處理該夥伴的訂單
       if (partnerId) {
-        where.schedule = {
-          partnerId: partnerId,
-        }
+        where.schedule.partnerId = partnerId;
       }
 
       // 如果指定了日期範圍
       if (startDate || endDate) {
-        if (!where.schedule) {
-          where.schedule = {}
-        }
         if (startDate) {
           where.schedule.startTime = {
             ...where.schedule.startTime,
