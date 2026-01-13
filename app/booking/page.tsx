@@ -95,6 +95,7 @@ function BookingWizardContent() {
   const [retryCount, setRetryCount] = useState(0);
   const [partnerSchedules, setPartnerSchedules] = useState<Map<string, Partner['schedules']>>(new Map());
   const [loadingSchedules, setLoadingSchedules] = useState(false);
+  const [timeRefreshKey, setTimeRefreshKey] = useState(0); // 用於定期觸發時段列表重新計算
 
   // 處理翻面功能
   const handleCardFlip = (partnerId: string) => {
@@ -418,6 +419,17 @@ function BookingWizardContent() {
     };
   }, [onlyAvailable, onlyRankBooster, retryCount, sessionStatus, session]);
 
+  // 定期更新時段列表，過濾掉已過期的時段（每分鐘更新一次）
+  useEffect(() => {
+    if (!selectedPartner || !selectedDate) return;
+    
+    const interval = setInterval(() => {
+      setTimeRefreshKey(prev => prev + 1);
+    }, 60000); // 每分鐘更新一次
+    
+    return () => clearInterval(interval);
+  }, [selectedPartner, selectedDate]);
+
   // 手動重試函數
   const handleRetry = () => {
     setRetryCount((prev) => prev + 1);
@@ -524,11 +536,12 @@ function BookingWizardContent() {
 
     // 收集所有已預約的時段（排除已取消、已拒絕、已完成的）
     const bookedTimeSlots: Array<{ startTime: Date; endTime: Date }> = [];
+    // 🔥 實時獲取當前時間，確保過濾掉已過期的時段
     const now = new Date();
 
     // 遍歷所有時段，收集有效預約
     const schedules = partnerSchedules.get(selectedPartner.id) || [];
-    console.log('[預約頁面] availableTimeSlots: 載入時段', { partnerId: selectedPartner.id, schedulesCount: schedules.length, selectedDate });
+    console.log('[預約頁面] availableTimeSlots: 載入時段', { partnerId: selectedPartner.id, schedulesCount: schedules.length, selectedDate, currentTime: now.toISOString() });
     schedules.forEach((schedule) => {
       // 只考慮同一天的時段
       const scheduleDate = new Date(schedule.date);
@@ -571,13 +584,20 @@ function BookingWizardContent() {
       const scheduleDate = new Date(schedule.date);
       if (!isSameDay(scheduleDate, selectedDate)) return false;
       
-      // ✅ 檢查時段是否已過去（使用 UTC 時間戳直接比較，更可靠）
+      // ✅ 檢查時段是否已過去（實時獲取當前時間進行比較）
       const scheduleStart = new Date(schedule.startTime);
       const scheduleEnd = new Date(schedule.endTime);
       
-      // 直接比較 UTC 時間戳，因為 schedule.startTime 和 now 都是 UTC 時間
-      // 如果時段開始時間已經過去，過濾掉
-      if (scheduleStart.getTime() <= now.getTime()) {
+      // 🔥 實時獲取當前時間，確保過濾掉已過期的時段
+      // 如果時段開始時間已經過去或等於當前時間，過濾掉
+      const currentTime = new Date();
+      if (scheduleStart.getTime() <= currentTime.getTime()) {
+        console.log('[預約頁面] 過濾已過期時段:', {
+          scheduleId: schedule.id,
+          scheduleStart: scheduleStart.toISOString(),
+          currentTime: currentTime.toISOString(),
+          timeDiff: (currentTime.getTime() - scheduleStart.getTime()) / 1000 / 60, // 分鐘
+        });
         return false; // 時段已過，不顯示
       }
 
@@ -653,7 +673,7 @@ function BookingWizardContent() {
     });
     console.log('[預約頁面] availableTimeSlots 最終結果:', sorted.length, '個可用時段');
     return sorted;
-  }, [selectedPartner, selectedDate, partnerSchedules]);
+  }, [selectedPartner, selectedDate, partnerSchedules, timeRefreshKey]);
 
   // 計算所需金幣
   const calculateRequiredCoins = () => {

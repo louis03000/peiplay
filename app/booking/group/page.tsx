@@ -738,16 +738,21 @@ function GroupBookingContent() {
                     </div>
                   </div>
                   
-                  {selectedGroupBooking.games && selectedGroupBooking.games.length > 0 && (
+                  {/* 顯示群組預約創建時填寫的遊戲項目 */}
+                  {selectedGroupBooking.serviceType !== '純聊天' && (
                     <div>
                       <span className="text-gray-500 text-sm">遊戲：</span>
-                      <div className="flex flex-wrap gap-1 mt-1">
-                        {selectedGroupBooking.games.map((game, idx) => (
-                          <span key={idx} className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">
-                            {game}
-                          </span>
-                        ))}
-                      </div>
+                      {selectedGroupBooking.games && selectedGroupBooking.games.length > 0 ? (
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {selectedGroupBooking.games.map((game, idx) => (
+                            <span key={idx} className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-medium">
+                              {game}
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="ml-2 text-sm text-gray-500">未指定遊戲</span>
+                      )}
                     </div>
                   )}
                 </div>
@@ -805,15 +810,22 @@ function GroupBookingContent() {
                       {booking.description && (
                         <p className="text-gray-600 text-sm mt-1">{booking.description}</p>
                       )}
-                      {booking.games && booking.games.length > 0 && booking.serviceType !== '純聊天' && (
+                      {/* 顯示群組預約創建時填寫的遊戲項目 */}
+                      {booking.games && booking.games.length > 0 && booking.serviceType !== '純聊天' ? (
                         <div className="flex flex-wrap gap-1 mt-2">
                           {booking.games.map((game, idx) => (
-                            <span key={idx} className="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs">
+                            <span key={idx} className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-medium">
                               {game}
                             </span>
                           ))}
                         </div>
-                      )}
+                      ) : booking.serviceType !== '純聊天' ? (
+                        <div className="mt-2">
+                          <span className="px-2 py-1 bg-gray-100 text-gray-500 rounded-full text-xs">
+                            未指定遊戲
+                          </span>
+                        </div>
+                      ) : null}
                     </div>
                     <div className="text-right">
                       <div className="text-sm text-gray-500">
