@@ -103,14 +103,22 @@ export async function POST(request: NextRequest) {
       const partner = booking.schedule.partner;
       const referralRecord = partner.referralsReceived;
 
-      // 🔥 添加调试日志
-      console.log(`🔍 計算推薦收入: 預約 ${bookingId}, 夥伴 ${partner.id} (${partner.name})`);
-      console.log(`   預約狀態: ${booking.status}, 金額: ${booking.finalAmount}`);
-      console.log(`   推薦記錄: ${referralRecord ? '存在' : '不存在'}`);
-      if (referralRecord) {
-        console.log(`   推薦人ID: ${referralRecord.inviterId}, 被推薦人ID: ${referralRecord.inviteeId}`);
+      // 🔥 添加详细调试日志
+      console.log(`🔍 [推薦收入計算] 預約 ${bookingId}:`, {
+        bookingStatus: booking.status,
+        bookingAmount: booking.finalAmount,
+        partnerId: partner.id,
+        partnerName: partner.name,
+        hasReferralRecord: !!referralRecord,
+        referralRecordId: referralRecord?.id,
+        inviterId: referralRecord?.inviterId,
+        inviteeId: referralRecord?.inviteeId,
+      });
+      
+      if (!referralRecord) {
+        console.log(`   ⚠️ 夥伴 ${partner.id} (${partner.name}) 沒有推薦記錄，可能不是被推薦的夥伴`);
       } else {
-        console.log(`   ⚠️ 夥伴 ${partner.id} 沒有推薦記錄，可能不是被推薦的夥伴`);
+        console.log(`   ✅ 找到推薦記錄: 推薦人 ${referralRecord.inviterId}, 被推薦人 ${referralRecord.inviteeId}`);
       }
 
       if (!referralRecord) {
