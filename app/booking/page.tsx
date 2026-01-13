@@ -541,7 +541,14 @@ function BookingWizardContent() {
 
     // 遍歷所有時段，收集有效預約
     const schedules = partnerSchedules.get(selectedPartner.id) || [];
-    console.log('[預約頁面] availableTimeSlots: 載入時段', { partnerId: selectedPartner.id, schedulesCount: schedules.length, selectedDate, currentTime: now.toISOString() });
+    const currentTimeMs = Date.now();
+    console.log('[預約頁面] availableTimeSlots: 載入時段', { 
+      partnerId: selectedPartner.id, 
+      schedulesCount: schedules.length, 
+      selectedDate, 
+      currentTimeUTC: new Date(currentTimeMs).toISOString(),
+      currentTimeMs: currentTimeMs
+    });
     schedules.forEach((schedule) => {
       // 只考慮同一天的時段
       const scheduleDate = new Date(schedule.date);
@@ -577,6 +584,12 @@ function BookingWizardContent() {
     };
 
     const seenTimeSlots = new Set<string>();
+    // 🔥 在過濾開始前獲取當前時間，確保所有時段使用相同的基準時間
+    const filterCurrentTimeMs = Date.now();
+    const filterCurrentTime = new Date(filterCurrentTimeMs);
+    
+    console.log('[預約頁面] 開始過濾時段，當前時間（UTC）:', filterCurrentTime.toISOString(), '時間戳:', filterCurrentTimeMs);
+    
     const uniqueSchedules = schedules.filter((schedule) => {
       // 基本檢查：時段必須可用
       if (!schedule.isAvailable) return false;
@@ -587,17 +600,24 @@ function BookingWizardContent() {
       // ✅ 檢查時段是否已過去（實時獲取當前時間進行比較）
       const scheduleStart = new Date(schedule.startTime);
       const scheduleEnd = new Date(schedule.endTime);
+      const scheduleStartMs = scheduleStart.getTime();
       
-      // 🔥 實時獲取當前時間（UTC），確保過濾掉已過期的時段
-      // 如果時段開始時間已經過去或等於當前時間，過濾掉
-      // 使用 Date.now() 獲取當前 UTC 時間戳，確保時間比較準確
-      const currentTime = Date.now();
-      if (scheduleStart.getTime() <= currentTime) {
-        console.log('[預約頁面] 過濾已過期時段:', {
+      // 🔥 嚴格檢查：如果時段開始時間 <= 當前時間，過濾掉
+      // 使用統一的當前時間戳進行比較，確保準確性
+      if (scheduleStartMs <= filterCurrentTimeMs) {
+        const timeDiffMinutes = Math.round((filterCurrentTimeMs - scheduleStartMs) / 1000 / 60);
+        // 轉換為台灣時間用於日誌顯示
+        const scheduleStartTW = scheduleStart.toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' });
+        const currentTimeTW = filterCurrentTime.toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' });
+        console.log('[預約頁面] 🚫 過濾已過期時段:', {
           scheduleId: schedule.id,
-          scheduleStart: scheduleStart.toISOString(),
-          currentTime: new Date(currentTime).toISOString(),
-          timeDiff: (currentTime - scheduleStart.getTime()) / 1000 / 60, // 分鐘
+          scheduleStartUTC: scheduleStart.toISOString(),
+          scheduleStartTW: scheduleStartTW,
+          scheduleStartMs: scheduleStartMs,
+          currentTimeUTC: filterCurrentTime.toISOString(),
+          currentTimeTW: currentTimeTW,
+          currentTimeMs: filterCurrentTimeMs,
+          timeDiffMinutes: timeDiffMinutes,
         });
         return false; // 時段已過，不顯示
       }

@@ -135,13 +135,43 @@ export async function GET(
 
         // 在應用層過濾：只返回沒有預約或預約狀態是終止狀態的時段
         const terminalStatusSet = new Set(TERMINAL_BOOKING_STATUSES);
-        const currentTime = new Date(); // 獲取當前時間（UTC）
+        // 🔥 使用 Date.now() 獲取當前 UTC 時間戳（毫秒），確保時間比較準確
+        const currentTimeMs = Date.now();
+        const currentTime = new Date(currentTimeMs);
         
+        // 轉換為台灣時間用於日誌顯示
+        const currentTimeTW = currentTime.toLocaleString('zh-TW', { 
+          timeZone: 'Asia/Taipei',
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+          hour12: false
+        });
+        
+        console.log(`[API] 過濾時段 - 當前時間 UTC: ${currentTime.toISOString()}, 台灣時間: ${currentTimeTW}, 時段總數: ${allSchedules.length}`);
+        
+        let pastCount = 0;
         const filteredSchedules = allSchedules.filter((schedule) => {
           // 0. 🔥 首先檢查時段是否已過去（必須在當前時間之後）
           const scheduleStart = new Date(schedule.startTime);
-          if (scheduleStart.getTime() <= currentTime.getTime()) {
-            console.log(`🚫 時段 ${schedule.id} 已過去 (開始時間: ${scheduleStart.toISOString()}, 當前時間: ${currentTime.toISOString()})，已過濾`);
+          const scheduleStartMs = scheduleStart.getTime();
+          
+          // 嚴格檢查：如果時段開始時間 <= 當前時間，過濾掉
+          if (scheduleStartMs <= currentTimeMs) {
+            pastCount++;
+            const timeDiffMinutes = Math.round((currentTimeMs - scheduleStartMs) / 1000 / 60);
+            const scheduleStartTW = scheduleStart.toLocaleString('zh-TW', { 
+              timeZone: 'Asia/Taipei',
+              hour: '2-digit',
+              minute: '2-digit',
+              hour12: false
+            });
+            if (pastCount <= 5) { // 只記錄前5個，避免日誌過多
+              console.log(`🚫 時段 ${schedule.id} 已過去 (開始時間 UTC: ${scheduleStart.toISOString()}, 台灣時間: ${scheduleStartTW}, 當前時間 UTC: ${currentTime.toISOString()}, 台灣時間: ${currentTimeTW}, 相差: ${timeDiffMinutes} 分鐘)，已過濾`);
+            }
             return false;
           }
           
@@ -180,7 +210,7 @@ export async function GET(
           return true;
         });
         
-        console.log(`✅ 查詢到 ${allSchedules.length} 個時段，過濾後剩餘 ${filteredSchedules.length} 個可用時段`);
+        console.log(`✅ 查詢到 ${allSchedules.length} 個時段，已過期: ${pastCount} 個，過濾後剩餘 ${filteredSchedules.length} 個可用時段`);
         return filteredSchedules;
       },
       'partners:schedules'
