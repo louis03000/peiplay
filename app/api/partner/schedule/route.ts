@@ -282,12 +282,64 @@ export async function GET() {
         return { type: 'NOT_PARTNER' } as const
       }
 
+      // 🔥 檢查所有類型的預約（一般、群組、多人陪玩、即時）
+      // 查詢該夥伴所有活躍的預約（包括群組預約和多人陪玩的 Booking）
+      const allActiveBookings = await client.booking.findMany({
+        where: {
+          schedule: {
+            partnerId: partner.id,
+          },
+          status: {
+            notIn: ['CANCELLED', 'REJECTED', 'COMPLETED'],
+          },
+        },
+        select: {
+          id: true,
+          scheduleId: true,
+          schedule: {
+            select: {
+              startTime: true,
+              endTime: true,
+            },
+          },
+        },
+      });
+
+      // 創建一個 Set 來快速查找已被預約的 scheduleId
+      const bookedScheduleIds = new Set(allActiveBookings.map(b => b.scheduleId).filter(Boolean));
+
       const schedules = partner.schedules.map((s) => {
-        // 🔥 修正 booked 判斷邏輯：Schedule 和 Booking 是一對一關係
-        // 檢查是否有預約，且預約狀態不是已取消、已拒絕或已完成
-        const booking = s.bookings
-        const hasActiveBooking = booking && booking.status && 
-          !['CANCELLED', 'REJECTED', 'COMPLETED'].includes(booking.status as string)
+        // 🔥 檢查該時段是否有任何類型的活躍預約
+        // 1. 檢查一對一預約（schedule.bookings）
+        const booking = s.bookings;
+        const hasDirectBooking = booking && booking.status && 
+          !['CANCELLED', 'REJECTED', 'COMPLETED'].includes(booking.status as string);
+        
+        // 2. 檢查是否有其他預約使用這個時段（群組、多人陪玩等）
+        const hasOtherBooking = bookedScheduleIds.has(s.id);
+        
+        // 3. 檢查是否有任何預約與這個時段重疊
+        let hasOverlappingBooking = false;
+        if (!hasDirectBooking && !hasOtherBooking) {
+          const scheduleStart = new Date(s.startTime);
+          const scheduleEnd = new Date(s.endTime);
+          
+          for (const activeBooking of allActiveBookings) {
+            if (activeBooking.schedule) {
+              const bookingStart = new Date(activeBooking.schedule.startTime);
+              const bookingEnd = new Date(activeBooking.schedule.endTime);
+              
+              // 檢查是否有重疊
+              if (scheduleStart.getTime() < bookingEnd.getTime() && 
+                  bookingStart.getTime() < scheduleEnd.getTime()) {
+                hasOverlappingBooking = true;
+                break;
+              }
+            }
+          }
+        }
+        
+        const isBooked = Boolean(hasDirectBooking || hasOtherBooking || hasOverlappingBooking);
         
         return {
           id: s.id,
@@ -295,7 +347,7 @@ export async function GET() {
           startTime: s.startTime,
           endTime: s.endTime,
           isAvailable: s.isAvailable,
-          booked: Boolean(hasActiveBooking),
+          booked: isBooked,
         }
       })
 

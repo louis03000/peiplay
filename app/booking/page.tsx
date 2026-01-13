@@ -419,13 +419,13 @@ function BookingWizardContent() {
     };
   }, [onlyAvailable, onlyRankBooster, retryCount, sessionStatus, session]);
 
-  // 定期更新時段列表，過濾掉已過期的時段（每分鐘更新一次）
+  // 定期更新時段列表，過濾掉已過期的時段（每30秒更新一次，確保及時過濾已過期時段）
   useEffect(() => {
     if (!selectedPartner || !selectedDate) return;
     
     const interval = setInterval(() => {
       setTimeRefreshKey(prev => prev + 1);
-    }, 60000); // 每分鐘更新一次
+    }, 30000); // 每30秒更新一次，確保及時過濾已過期時段
     
     return () => clearInterval(interval);
   }, [selectedPartner, selectedDate]);
@@ -588,15 +588,16 @@ function BookingWizardContent() {
       const scheduleStart = new Date(schedule.startTime);
       const scheduleEnd = new Date(schedule.endTime);
       
-      // 🔥 實時獲取當前時間，確保過濾掉已過期的時段
+      // 🔥 實時獲取當前時間（UTC），確保過濾掉已過期的時段
       // 如果時段開始時間已經過去或等於當前時間，過濾掉
-      const currentTime = new Date();
-      if (scheduleStart.getTime() <= currentTime.getTime()) {
+      // 使用 Date.now() 獲取當前 UTC 時間戳，確保時間比較準確
+      const currentTime = Date.now();
+      if (scheduleStart.getTime() <= currentTime) {
         console.log('[預約頁面] 過濾已過期時段:', {
           scheduleId: schedule.id,
           scheduleStart: scheduleStart.toISOString(),
-          currentTime: currentTime.toISOString(),
-          timeDiff: (currentTime.getTime() - scheduleStart.getTime()) / 1000 / 60, // 分鐘
+          currentTime: new Date(currentTime).toISOString(),
+          timeDiff: (currentTime - scheduleStart.getTime()) / 1000 / 60, // 分鐘
         });
         return false; // 時段已過，不顯示
       }

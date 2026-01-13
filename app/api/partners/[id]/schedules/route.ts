@@ -85,6 +85,31 @@ export async function GET(
           }
         }
 
+        // 🔥 查詢該夥伴所有活躍的預約（包括群組預約和多人陪玩的 Booking）
+        const allActiveBookings = await client.booking.findMany({
+          where: {
+            schedule: {
+              partnerId: partnerId,
+            },
+            status: {
+              notIn: TERMINAL_BOOKING_STATUSES,
+            },
+          },
+          select: {
+            id: true,
+            scheduleId: true,
+            schedule: {
+              select: {
+                startTime: true,
+                endTime: true,
+              },
+            },
+          },
+        });
+
+        // 創建一個 Set 來快速查找已被預約的 scheduleId
+        const bookedScheduleIds = new Set(allActiveBookings.map(b => b.scheduleId).filter(Boolean));
+
         // 查詢所有可用時段（包含預約資訊）
         // 移除 take 限制，確保所有日期範圍內的時段都被查詢到
         const allSchedules = await client.schedule.findMany({
@@ -110,17 +135,49 @@ export async function GET(
 
         // 在應用層過濾：只返回沒有預約或預約狀態是終止狀態的時段
         const terminalStatusSet = new Set(TERMINAL_BOOKING_STATUSES);
+        const currentTime = new Date(); // 獲取當前時間（UTC）
+        
         const filteredSchedules = allSchedules.filter((schedule) => {
-          // 沒有預約，可以選擇
-          if (!schedule.bookings) {
-            return true;
+          // 0. 🔥 首先檢查時段是否已過去（必須在當前時間之後）
+          const scheduleStart = new Date(schedule.startTime);
+          if (scheduleStart.getTime() <= currentTime.getTime()) {
+            console.log(`🚫 時段 ${schedule.id} 已過去 (開始時間: ${scheduleStart.toISOString()}, 當前時間: ${currentTime.toISOString()})，已過濾`);
+            return false;
           }
-          // 有預約，檢查狀態是否為終止狀態
-          const isTerminal = terminalStatusSet.has(schedule.bookings.status);
-          if (!isTerminal) {
-            console.log(`🚫 時段 ${schedule.id} 有活躍預約 (狀態: ${schedule.bookings.status})，已過濾`);
+          
+          // 1. 檢查一對一預約
+          if (schedule.bookings) {
+            const isTerminal = terminalStatusSet.has(schedule.bookings.status);
+            if (!isTerminal) {
+              console.log(`🚫 時段 ${schedule.id} 有活躍預約 (狀態: ${schedule.bookings.status})，已過濾`);
+              return false;
+            }
           }
-          return isTerminal;
+          
+          // 2. 檢查是否有其他預約使用這個時段（群組、多人陪玩等）
+          if (bookedScheduleIds.has(schedule.id)) {
+            console.log(`🚫 時段 ${schedule.id} 已被其他預約使用（群組/多人陪玩），已過濾`);
+            return false;
+          }
+          
+          // 3. 檢查是否有任何預約與這個時段重疊
+          const scheduleEnd = new Date(schedule.endTime);
+          
+          for (const activeBooking of allActiveBookings) {
+            if (activeBooking.schedule) {
+              const bookingStart = new Date(activeBooking.schedule.startTime);
+              const bookingEnd = new Date(activeBooking.schedule.endTime);
+              
+              // 檢查是否有重疊
+              if (scheduleStart.getTime() < bookingEnd.getTime() && 
+                  bookingStart.getTime() < scheduleEnd.getTime()) {
+                console.log(`🚫 時段 ${schedule.id} 與預約 ${activeBooking.id} 重疊，已過濾`);
+                return false;
+              }
+            }
+          }
+          
+          return true;
         });
         
         console.log(`✅ 查詢到 ${allSchedules.length} 個時段，過濾後剩餘 ${filteredSchedules.length} 個可用時段`);
