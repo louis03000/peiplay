@@ -75,7 +75,7 @@ export async function GET(request: NextRequest) {
       ])
 
       const totalReferrals = referralStats.length
-      const totalEarnings = referralEarnings._sum.amount || 0
+      let totalEarnings = referralEarnings._sum.amount || 0
       let currentEarnings = partner.referralEarnings || 0
       
       // 🔥 检查数据一致性：如果 totalEarnings 和 currentEarnings 不一致，修复数据
