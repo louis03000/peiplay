@@ -233,9 +233,9 @@ export default function JoinPage() {
   // 下載合作承攬合約書
   const downloadContract = () => {
     // 直接下載 public 目錄中的 PDF 文件
-    // 使用 encodeURIComponent 確保中文文件名正確編碼
+    // 使用絕對路徑，Next.js 會自動處理 public 資料夾中的文件
     const fileName = '合作承攬合約書.pdf';
-    const filePath = `/${encodeURIComponent(fileName)}`;
+    const filePath = `/合作承攬合約書.pdf`;
     const link = document.createElement('a');
     link.href = filePath;
     link.download = fileName;
@@ -646,7 +646,7 @@ export default function JoinPage() {
                            📥 下載 PDF 合約書
                          </button>
                          <a
-                           href={`/${encodeURIComponent('合作承攬合約書.pdf')}`}
+                           href="/合作承攬合約書.pdf"
                            target="_blank"
                            rel="noopener noreferrer"
                            className="inline-flex items-center px-4 py-2 border border-blue-300 text-sm font-medium rounded-md text-blue-700 bg-white hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
