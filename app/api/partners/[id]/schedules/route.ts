@@ -153,6 +153,25 @@ export async function GET(
         
         console.log(`[API] 過濾時段 - 當前時間 UTC: ${currentTime.toISOString()}, 台灣時間: ${currentTimeTW}, 時段總數: ${allSchedules.length}`);
         
+        // 🔍 調試：檢查前幾個時段的時間
+        if (allSchedules.length > 0) {
+          const sampleSchedules = allSchedules.slice(0, 3);
+          sampleSchedules.forEach((s, idx) => {
+            const sStart = new Date(s.startTime);
+            const sStartTW = sStart.toLocaleString('zh-TW', { 
+              timeZone: 'Asia/Taipei',
+              year: 'numeric',
+              month: '2-digit',
+              day: '2-digit',
+              hour: '2-digit',
+              minute: '2-digit',
+              hour12: false
+            });
+            const isPast = sStart.getTime() <= currentTimeMs;
+            console.log(`[API] 樣本時段 ${idx + 1}: ID=${s.id}, 開始時間 UTC=${sStart.toISOString()}, 台灣時間=${sStartTW}, 是否已過期=${isPast}`);
+          });
+        }
+        
         let pastCount = 0;
         const filteredSchedules = allSchedules.filter((schedule) => {
           // 0. 🔥 首先檢查時段是否已過去（必須在當前時間之後）
@@ -165,11 +184,14 @@ export async function GET(
             const timeDiffMinutes = Math.round((currentTimeMs - scheduleStartMs) / 1000 / 60);
             const scheduleStartTW = scheduleStart.toLocaleString('zh-TW', { 
               timeZone: 'Asia/Taipei',
+              year: 'numeric',
+              month: '2-digit',
+              day: '2-digit',
               hour: '2-digit',
               minute: '2-digit',
               hour12: false
             });
-            if (pastCount <= 5) { // 只記錄前5個，避免日誌過多
+            if (pastCount <= 10) { // 記錄前10個，幫助調試
               console.log(`🚫 時段 ${schedule.id} 已過去 (開始時間 UTC: ${scheduleStart.toISOString()}, 台灣時間: ${scheduleStartTW}, 當前時間 UTC: ${currentTime.toISOString()}, 台灣時間: ${currentTimeTW}, 相差: ${timeDiffMinutes} 分鐘)，已過濾`);
             }
             return false;
