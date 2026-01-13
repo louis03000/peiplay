@@ -128,6 +128,54 @@ export async function GET(request: NextRequest) {
       const endedBookings = inviteeBookings.filter(b => b.schedule?.endTime && b.schedule.endTime <= now);
       const completedBookings = inviteeBookings.filter(b => b.status === 'COMPLETED');
       
+      // 🔥 自动处理已结束但状态不是 COMPLETED 的订单，并计算推荐收入
+      const bookingsToProcess = endedBookings.filter(b => b.status !== 'COMPLETED');
+      if (bookingsToProcess.length > 0) {
+        console.log(`🔧 [推薦統計] 發現 ${bookingsToProcess.length} 個已結束但狀態不是 COMPLETED 的訂單，開始處理...`);
+        
+        for (const booking of bookingsToProcess) {
+          try {
+            // 更新訂單狀態為 COMPLETED
+            await client.booking.update({
+              where: { id: booking.id },
+              data: { status: 'COMPLETED' }
+            });
+            
+            // 觸發推薦收入計算（非阻塞）
+            const baseUrl = process.env.NEXTAUTH_URL || 'https://peiplay.vercel.app';
+            fetch(`${baseUrl}/api/partners/referral/calculate-earnings`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ bookingId: booking.id }),
+            }).catch(err => {
+              console.warn(`⚠️ 訂單 ${booking.id} 推薦收入計算觸發失敗:`, err);
+            });
+            
+            console.log(`✅ 訂單 ${booking.id} 狀態已更新為 COMPLETED，已觸發推薦收入計算`);
+          } catch (error) {
+            console.error(`❌ 處理訂單 ${booking.id} 時發生錯誤:`, error);
+          }
+        }
+        
+        // 重新查詢推薦收入統計（等待一小段時間讓計算完成）
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        const updatedEarnings = await client.referralEarning.aggregate({
+          where: { referralRecord: { inviterId: partner.id } },
+          _sum: { amount: true },
+        });
+        totalEarnings = updatedEarnings._sum.amount || 0;
+        currentEarnings = partner.referralEarnings || 0;
+        
+        // 如果數據不一致，修復
+        if (Math.abs(totalEarnings - currentEarnings) > 0.01 && totalEarnings > currentEarnings) {
+          await client.partner.update({
+            where: { id: partner.id },
+            data: { referralEarnings: totalEarnings },
+          });
+          currentEarnings = totalEarnings;
+        }
+      }
+      
       // 🔥 添加调试日志：检查推荐收入和统计
       console.log(`[推薦統計] 夥伴 ${partner.id} (${partner.name}):`, {
         referralCount: partner.referralCount,
@@ -141,6 +189,7 @@ export async function GET(request: NextRequest) {
         inviteeBookingsCount: inviteeBookings.length,
         endedBookingsCount: endedBookings.length,
         completedBookingsCount: completedBookings.length,
+        processedBookingsCount: bookingsToProcess.length,
         inviteeIds: inviteeIds,
       });
 
