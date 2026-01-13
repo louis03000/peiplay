@@ -69,7 +69,21 @@ export async function POST(request: NextRequest) {
       // 🔥 如果訂單已經結束但狀態不是 COMPLETED，先更新狀態
       const now = new Date();
       const scheduleEndTime = booking.schedule?.endTime;
-      if (scheduleEndTime && scheduleEndTime <= now && booking.status !== BookingStatus.COMPLETED) {
+      const isEnded = scheduleEndTime && scheduleEndTime <= now;
+      
+      // 🔥 確保只有已結束的訂單才計算推薦收入
+      if (!isEnded) {
+        console.log(`⚠️ 訂單 ${bookingId} 尚未結束（結束時間：${scheduleEndTime?.toISOString()}），跳過推薦收入計算`);
+        return {
+          type: 'NOT_ENDED',
+          payload: {
+            message: '訂單尚未結束，無法計算推薦收入',
+            endTime: scheduleEndTime,
+          },
+        } as const;
+      }
+      
+      if (booking.status !== BookingStatus.COMPLETED) {
         // 訂單已經結束，更新狀態為 COMPLETED
         await client.booking.update({
           where: { id: booking.id },
@@ -269,6 +283,8 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: '預約不存在' }, { status: 404 });
       case 'PARTNER_NOT_FOUND':
         return NextResponse.json({ error: '找不到對應的夥伴' }, { status: 404 });
+      case 'NOT_ENDED':
+        return NextResponse.json(result.payload);
       case 'NO_REFERRAL':
         return NextResponse.json(result.payload);
       case 'INVITER_NOT_FOUND':
