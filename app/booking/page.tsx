@@ -207,45 +207,13 @@ function getBookableSlots<T extends {
     活躍預約數: activeBookings.length
   });
   
-  let expiredCount = 0;
   let occupiedCount = 0;
   
   const filtered = slots.filter((slot) => {
-    // 1. 🔥 檢查時段是否已過期（台灣時間）
-    // 過期判斷標準（唯一）：new Date(slot.startTime).getTime() <= Date.now()
-    const startTs = new Date(slot.startTime).getTime();
-    const isExpired = startTs <= nowTs;
+    // 注意：已過期時段過濾已在 availableTimeSlots 中根據 selectedDate 處理
+    // 這裡只處理占用判斷
     
-    if (isExpired) {
-      expiredCount++;
-      // 詳細日誌：記錄前幾個被過濾的已過期時段
-      if (expiredCount <= 5) {
-        const slotStartTW = new Date(slot.startTime).toLocaleString('zh-TW', {
-          timeZone: 'Asia/Taipei',
-          year: 'numeric',
-          month: '2-digit',
-          day: '2-digit',
-          hour: '2-digit',
-          minute: '2-digit',
-          second: '2-digit',
-          hour12: false
-        });
-        const nowTW = new Date(nowTs).toLocaleString('zh-TW', {
-          timeZone: 'Asia/Taipei',
-          year: 'numeric',
-          month: '2-digit',
-          day: '2-digit',
-          hour: '2-digit',
-          minute: '2-digit',
-          second: '2-digit',
-          hour12: false
-        });
-        console.log(`[預約頁面] ❌ 過濾已過期時段: ID=${(slot as any).id}, 時段開始時間(台灣)=${slotStartTW}, 現在時間(台灣)=${nowTW}, 時間差=${Math.round((nowTs - startTs) / 1000 / 60)}分鐘`);
-      }
-      return false; // 已過期，不可顯示
-    }
-    
-    // 2. 檢查時段是否已被任何預約占用（採用連續時間占用模型）
+    // 檢查時段是否已被任何預約占用（採用連續時間占用模型）
     if (isSlotOccupied(slot, activeBookings)) {
       occupiedCount++;
       return false; // 已被占用，不可顯示
@@ -261,7 +229,6 @@ function getBookableSlots<T extends {
   
   console.log(`[預約頁面] getBookableSlots: 過濾結果`, {
     過濾前時段數量: slots.length,
-    已過期: expiredCount,
     已被占用: occupiedCount,
     過濾後時段數量: filtered.length,
     最早時段: earliestSlot ? {
@@ -870,8 +837,19 @@ function BookingWizardContent() {
     // 🔥 先過濾已過期時段，再排序
     // 注意：必須在排序前先過濾，確保已過期時段不會被顯示
     // 使用上面已聲明的 nowTs
+    // 🔥 重要：只有選擇「今天」時才過濾已過期時段（台灣時間）
+    // 如果選擇的是未來日期，不需要過濾已過期時段（因為都是未來的）
+    const today = new Date();
+    const isToday = isSameDay(selectedDate, today);
+    
     let expiredFilteredCount = 0;
     const futureSchedules = uniqueSchedules.filter((schedule) => {
+      // 如果選擇的是未來日期，不需要過濾已過期時段
+      if (!isToday) {
+        return true; // 未來日期的所有時段都保留
+      }
+      
+      // 只有選擇「今天」時，才過濾已過期時段（台灣時間）
       const startTs = new Date(schedule.startTime).getTime();
       const isFuture = startTs > nowTs;
       
@@ -899,11 +877,11 @@ function BookingWizardContent() {
             second: '2-digit',
             hour12: false
           });
-          console.log(`[預約頁面] ❌ 過濾已過期時段 (第一層): ID=${schedule.id}, 時段開始時間(台灣)=${slotStartTW}, 現在時間(台灣)=${nowTW}, 時段UTC=${new Date(schedule.startTime).toISOString()}, 現在UTC=${new Date(nowTs).toISOString()}, 時間差=${Math.round((nowTs - startTs) / 1000 / 60)}分鐘`);
+          console.log(`[預約頁面] ❌ 過濾已過期時段 (第一層，今天): ID=${schedule.id}, 時段開始時間(台灣)=${slotStartTW}, 現在時間(台灣)=${nowTW}, 時段UTC=${new Date(schedule.startTime).toISOString()}, 現在UTC=${new Date(nowTs).toISOString()}, 時間差=${Math.round((nowTs - startTs) / 1000 / 60)}分鐘`);
         }
       }
       
-      return isFuture; // 只保留未來的時段
+      return isFuture; // 只保留未來的時段（只有選擇今天時才過濾）
     });
     
     // 🔥 排序：按照開始時間排序（只排序未來的時段）
@@ -933,6 +911,8 @@ function BookingWizardContent() {
     }
     
     console.log('[預約頁面] 過濾已過期時段後:', {
+      選擇的日期: selectedDate.toLocaleDateString('zh-TW'),
+      是否今天: isToday,
       基本過濾後: uniqueSchedules.length,
       已過期被過濾: expiredFilteredCount,
       未來時段數: futureSchedules.length,
@@ -1489,7 +1469,16 @@ function BookingWizardContent() {
                 ) : (
                   availableTimeSlots
                     .filter((schedule) => {
-                      // 🔥 最後一層防護：在 UI 渲染時再次過濾已過期時段
+                      // 🔥 最後一層防護：在 UI 渲染時再次過濾已過期時段（只有選擇今天時）
+                      const today = new Date();
+                      const isToday = isSameDay(selectedDate, today);
+                      
+                      // 如果選擇的是未來日期，不需要過濾已過期時段
+                      if (!isToday) {
+                        return true;
+                      }
+                      
+                      // 只有選擇「今天」時，才過濾已過期時段（台灣時間）
                       const startTs = new Date(schedule.startTime).getTime();
                       const nowTs = Date.now();
                       const isFuture = startTs > nowTs;
