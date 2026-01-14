@@ -142,6 +142,26 @@ function isSlotOccupied<T extends {
  * @param activeBookings 所有活躍預約的時間範圍列表
  * @returns 過濾後的時段列表（只包含可預約時段）
  */
+/**
+ * 獲取可預約時段
+ * 整合「過期 + 已被預約 + 重疊判斷」所有邏輯
+ * 
+ * 不論 API 的 startDate / endDate 為何，booking 頁面顯示前必須再做一次「向前過濾」
+ * 
+ * 過期判斷標準（唯一）：
+ * - new Date(slot.startTime).getTime() <= Date.now()
+ * - 所有符合上述條件的 slot 視為已過期，不可顯示，不可被預約
+ * 
+ * 占用判斷規則（連續時間占用模型）：
+ * - 只要與任何預約時間有重疊，該時段就視為已被占用
+ * - 重疊判斷標準：slot.startTime < booking.endTime AND slot.endTime > booking.startTime
+ * - 與 /partner/schedule 頁面顯示邏輯保持一致
+ * 
+ * @param slots 時段列表（原始 schedules，包含已過期與未來時段）
+ * @param selectedDate 用戶選擇的日期（本地時間，用於調試日誌）
+ * @param activeBookings 所有活躍預約的時間範圍列表
+ * @returns 過濾後的時段列表（只包含可預約時段）
+ */
 function getBookableSlots<T extends { 
   startTime: string | Date;
   endTime: string | Date;
@@ -155,8 +175,7 @@ function getBookableSlots<T extends {
   const currentTimeMs = Date.now();
   const currentDate = new Date(currentTimeMs);
   
-  // 判斷用戶選擇的是今天還是未來日期
-  // 使用 isSameDay 比較日期（年、月、日），不考慮時區
+  // 判斷用戶選擇的是今天還是未來日期（僅用於調試日誌）
   const isToday = isSameDay(selectedDate, currentDate);
   
   // 調試日誌
@@ -175,24 +194,21 @@ function getBookableSlots<T extends {
   let occupiedCount = 0;
   
   const filtered = slots.filter((slot) => {
-    // 1. 檢查時段是否已過期（僅當選擇今天時）
-    if (isToday) {
-      const slotStartMs = new Date(slot.startTime).getTime();
-      
-      // 判斷規則：new Date(slot.startTime).getTime() <= Date.now() → 不可顯示
-      if (slotStartMs <= currentTimeMs) {
-        expiredCount++;
-        if (expiredCount <= 3) { // 只記錄前3個，避免日誌過多
-          console.log(`[預約頁面] getBookableSlots: 過濾已過期時段`, {
-            slotId: (slot as any).id,
-            slotStartTime: new Date(slot.startTime).toISOString(),
-            slotStartMs: slotStartMs,
-            currentTimeMs: currentTimeMs,
-            timeDiffMinutes: Math.round((currentTimeMs - slotStartMs) / 1000 / 60)
-          });
-        }
-        return false; // 已過期，不可顯示
+    // 1. 🔥 檢查時段是否已過期（不論選擇的是今天還是未來日期，都要過濾已過期時段）
+    // 過期判斷標準（唯一）：new Date(slot.startTime).getTime() <= Date.now()
+    const slotStartMs = new Date(slot.startTime).getTime();
+    if (slotStartMs <= currentTimeMs) {
+      expiredCount++;
+      if (expiredCount <= 3) { // 只記錄前3個，避免日誌過多
+        console.log(`[預約頁面] getBookableSlots: 過濾已過期時段`, {
+          slotId: (slot as any).id,
+          slotStartTime: new Date(slot.startTime).toISOString(),
+          slotStartMs: slotStartMs,
+          currentTimeMs: currentTimeMs,
+          timeDiffMinutes: Math.round((currentTimeMs - slotStartMs) / 1000 / 60)
+        });
       }
+      return false; // 已過期，不可顯示
     }
     
     // 2. 檢查時段是否已被任何預約占用（採用連續時間占用模型）
