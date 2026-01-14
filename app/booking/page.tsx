@@ -211,11 +211,37 @@ function getBookableSlots<T extends {
   let occupiedCount = 0;
   
   const filtered = slots.filter((slot) => {
-    // 1. 🔥 檢查時段是否已過期
+    // 1. 🔥 檢查時段是否已過期（台灣時間）
     // 過期判斷標準（唯一）：new Date(slot.startTime).getTime() <= Date.now()
     const startTs = new Date(slot.startTime).getTime();
-    if (startTs <= nowTs) {
+    const isExpired = startTs <= nowTs;
+    
+    if (isExpired) {
       expiredCount++;
+      // 詳細日誌：記錄前幾個被過濾的已過期時段
+      if (expiredCount <= 5) {
+        const slotStartTW = new Date(slot.startTime).toLocaleString('zh-TW', {
+          timeZone: 'Asia/Taipei',
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+          hour12: false
+        });
+        const nowTW = new Date(nowTs).toLocaleString('zh-TW', {
+          timeZone: 'Asia/Taipei',
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+          hour12: false
+        });
+        console.log(`[預約頁面] ❌ 過濾已過期時段: ID=${(slot as any).id}, 時段開始時間(台灣)=${slotStartTW}, 現在時間(台灣)=${nowTW}, 時間差=${Math.round((nowTs - startTs) / 1000 / 60)}分鐘`);
+      }
       return false; // 已過期，不可顯示
     }
     
@@ -841,23 +867,46 @@ function BookingWizardContent() {
       return true;
     });
     
-    // 🔥 排序：按照開始時間排序
-    const sorted = uniqueSchedules.sort((a, b) => {
+    // 🔥 先過濾已過期時段，再排序
+    // 注意：必須在排序前先過濾，確保已過期時段不會被顯示
+    // 使用上面已聲明的 nowTs
+    const futureSchedules = uniqueSchedules.filter((schedule) => {
+      const startTs = new Date(schedule.startTime).getTime();
+      return startTs > nowTs; // 只保留未來的時段
+    });
+    
+    // 🔥 排序：按照開始時間排序（只排序未來的時段）
+    const sorted = futureSchedules.sort((a, b) => {
       const timeA = new Date(a.startTime).getTime();
       const timeB = new Date(b.startTime).getTime();
       return timeA - timeB;
     });
     
+    console.log('[預約頁面] 過濾已過期時段後:', {
+      基本過濾後: uniqueSchedules.length,
+      已過期被過濾: uniqueSchedules.length - futureSchedules.length,
+      未來時段數: futureSchedules.length,
+      排序後: sorted.length
+    });
+    
     // 🔥 使用 getBookableSlots 過濾可預約時段
-    // 整合「過期 + 已被預約 + 重疊判斷」所有邏輯
+    // 整合「已被預約 + 重疊判斷」所有邏輯
+    // 注意：已過期時段已在上面過濾，這裡只處理占用判斷
     // booking 頁面只能顯示「可預約時段」
     // 過濾條件：
-    // 1. 時段已過期：new Date(slot.startTime).getTime() <= Date.now() → 不可顯示
-    // 2. 時段已被任何預約占用（採用連續時間占用模型，檢查重疊）
+    // 1. 時段已被任何預約占用（採用連續時間占用模型，檢查重疊）
     // 使用所有活躍預約的時間範圍進行占用判斷
     const bookableTimeSlots = getBookableSlots(sorted, bookedTimeSlots);
     
     // getBookableSlots 內部已經有詳細日誌輸出（包含過濾前後數量、最早最晚時段）
+    console.log('[預約頁面] availableTimeSlots 最終結果:', {
+      總時段數: schedules.length,
+      基本過濾後: uniqueSchedules.length,
+      過濾已過期後: futureSchedules.length,
+      過濾占用後: bookableTimeSlots.length,
+      最終顯示: bookableTimeSlots.length
+    });
+    
     return bookableTimeSlots;
   }, [selectedPartner, selectedDate, partnerSchedules, timeRefreshKey]);
 
