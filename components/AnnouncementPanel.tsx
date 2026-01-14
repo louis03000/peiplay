@@ -106,12 +106,13 @@ export default function AnnouncementPanel() {
     <div className="relative">
       <button
         onClick={handleButtonClick}
-        className="flex items-center gap-2 text-white hover:text-blue-300 transition-colors"
+        className="flex items-center gap-1 sm:gap-2 text-white hover:text-blue-300 transition-colors min-h-[44px] px-2 sm:px-3 rounded-lg hover:bg-white/10"
+        aria-label="公告"
       >
-        <span className="text-lg">📢</span>
-        <span className="text-sm font-medium">公告</span>
+        <span className="text-base sm:text-lg">📢</span>
+        <span className="text-xs sm:text-sm font-medium hidden md:inline">公告</span>
         {hasNewAnnouncements && (
-          <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+          <div className="w-2 h-2 bg-red-500 rounded-full flex-shrink-0"></div>
         )}
       </button>
 
@@ -129,16 +130,17 @@ export default function AnnouncementPanel() {
           />
           
           {/* 公告面板 */}
-          <div className="absolute top-full right-0 mt-2 w-96 bg-gray-800 border border-gray-700 rounded-xl shadow-2xl z-50 max-h-96 overflow-y-auto">
-            <div className="p-4 border-b border-gray-700">
+          <div className="absolute right-0 top-full mt-2 w-80 sm:w-96 max-w-[calc(100vw-1rem)] bg-gray-800 border border-gray-700 rounded-xl shadow-2xl z-50 max-h-[calc(100vh-5rem)] overflow-y-auto">
+            <div className="p-3 sm:p-4 border-b border-gray-700">
               <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-white">📢 最新公告</h3>
+                <h3 className="text-base sm:text-lg font-semibold text-white">📢 最新公告</h3>
                 <button
                   onClick={() => {
                     console.log('🖱️ 關閉按鈕被點擊')
                     setIsOpen(false)
                   }}
-                  className="text-gray-400 hover:text-white transition-colors"
+                  className="min-w-[44px] min-h-[44px] flex items-center justify-center text-gray-400 hover:text-white transition-colors rounded-lg hover:bg-gray-700/50"
+                  aria-label="關閉"
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -147,7 +149,7 @@ export default function AnnouncementPanel() {
               </div>
             </div>
 
-            <div className="p-4 space-y-4">
+            <div className="p-3 sm:p-4 space-y-3 sm:space-y-4">
               {loading ? (
                 <div className="text-center py-8">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-2"></div>
@@ -201,14 +203,14 @@ export default function AnnouncementPanel() {
               )}
             </div>
 
-            <div className="p-4 border-t border-gray-700">
+            <div className="p-3 sm:p-4 border-t border-gray-700">
               <button
                 onClick={() => {
                   console.log('🖱️ 查看所有公告按鈕被點擊')
                   setIsOpen(false)
                   // 這裡可以導航到完整的公告頁面
                 }}
-                className="w-full text-center text-blue-400 hover:text-blue-300 text-sm font-medium transition-colors"
+                className="w-full min-h-[44px] flex items-center justify-center text-center text-blue-400 hover:text-blue-300 text-sm font-medium transition-colors rounded-lg hover:bg-gray-700/50"
               >
                 查看所有公告 →
               </button>

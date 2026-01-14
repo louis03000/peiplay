@@ -101,8 +101,8 @@ export default function PersonalNotificationPanel() {
   if (loading) {
     return (
       <div className="relative">
-        <button className="p-2 text-gray-300 hover:text-white transition-colors">
-          <FaBell className="text-xl" />
+        <button className="min-w-[44px] min-h-[44px] flex items-center justify-center p-2 text-gray-300 hover:text-white transition-colors rounded-lg hover:bg-white/10">
+          <FaBell className="text-lg sm:text-xl" />
         </button>
       </div>
     );
@@ -113,11 +113,12 @@ export default function PersonalNotificationPanel() {
       {/* 通知按鈕 */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="relative p-2 text-gray-300 hover:text-white transition-colors"
+        className="relative min-w-[44px] min-h-[44px] flex items-center justify-center p-2 text-gray-300 hover:text-white transition-colors rounded-lg hover:bg-white/10"
+        aria-label="個人通知"
       >
-        <FaBell className="text-xl" />
+        <FaBell className="text-lg sm:text-xl" />
         {unreadCount > 0 && (
-          <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+          <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-medium">
             {unreadCount > 9 ? '9+' : unreadCount}
           </span>
         )}
@@ -133,19 +134,19 @@ export default function PersonalNotificationPanel() {
           />
           
           {/* 通知內容 */}
-          <div className="absolute right-0 top-full mt-2 w-80 bg-white rounded-xl shadow-2xl z-50 border border-gray-100 overflow-hidden">
+          <div className="absolute right-0 top-full mt-2 w-72 sm:w-80 max-w-[calc(100vw-1rem)] bg-white rounded-xl shadow-2xl z-50 border border-gray-100 overflow-hidden max-h-[calc(100vh-5rem)] flex flex-col">
             {/* 標題欄 */}
-            <div className="px-4 py-3 bg-gradient-to-r from-blue-600 to-indigo-600">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="p-1.5 bg-white/20 rounded-lg">
+            <div className="px-3 sm:px-4 py-2 sm:py-3 bg-gradient-to-r from-blue-600 to-indigo-600 flex-shrink-0">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  <div className="p-1.5 bg-white/20 rounded-lg flex-shrink-0">
                     <FaBell className="text-white text-sm" />
                   </div>
-                  <h3 className="text-white font-medium text-sm tracking-wide">
+                  <h3 className="text-white font-medium text-xs sm:text-sm tracking-wide whitespace-nowrap">
                     個人通知
                   </h3>
                   {unreadCount > 0 && (
-                    <span className="bg-red-500 text-white text-xs px-2 py-0.5 rounded-full font-medium">
+                    <span className="bg-red-500 text-white text-xs px-1.5 sm:px-2 py-0.5 rounded-full font-medium flex-shrink-0">
                       {unreadCount}
                     </span>
                   )}
@@ -153,7 +154,7 @@ export default function PersonalNotificationPanel() {
                 {unreadCount > 0 && (
                   <button
                     onClick={markAllAsRead}
-                    className="text-xs text-blue-100 hover:text-white transition-colors font-medium"
+                    className="min-h-[32px] px-2 text-xs text-blue-100 hover:text-white transition-colors font-medium rounded-lg hover:bg-white/10 flex-shrink-0 whitespace-nowrap"
                   >
                     全部已讀
                   </button>
@@ -162,7 +163,7 @@ export default function PersonalNotificationPanel() {
             </div>
 
             {/* 通知列表 */}
-            <div className="max-h-96 overflow-y-auto">
+            <div className="flex-1 overflow-y-auto min-h-0">
               {notifications.length === 0 ? (
                 <div className="px-4 py-12 text-center">
                   <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
@@ -244,7 +245,7 @@ export default function PersonalNotificationPanel() {
             </div>
 
             {/* 底部 */}
-            <div className="px-4 py-3 bg-gray-50 border-t border-gray-100">
+            <div className="px-3 sm:px-4 py-2 sm:py-3 bg-gray-50 border-t border-gray-100 flex-shrink-0">
               <p className="text-xs text-gray-500 text-center font-medium">
                 點擊通知可標記為已讀
               </p>
