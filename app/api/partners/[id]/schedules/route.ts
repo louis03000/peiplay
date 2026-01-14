@@ -85,6 +85,10 @@ export async function GET(
           }
         }
 
+        // 🔥 首先獲取當前時間（用於數據庫查詢和過濾）
+        const currentTimeMs = Date.now();
+        const currentTime = new Date(currentTimeMs);
+
         // 🔥 查詢該夥伴所有活躍的預約（包括群組預約和多人陪玩的 Booking）
         const allActiveBookings = await client.booking.findMany({
           where: {
@@ -140,9 +144,6 @@ export async function GET(
 
         // 在應用層過濾：只返回沒有預約或預約狀態是終止狀態的時段
         const terminalStatusSet = new Set(TERMINAL_BOOKING_STATUSES);
-        // 🔥 使用 Date.now() 獲取當前 UTC 時間戳（毫秒），確保時間比較準確
-        const currentTimeMs = Date.now();
-        const currentTime = new Date(currentTimeMs);
         
         // 轉換為台灣時間用於日誌顯示
         const currentTimeTW = currentTime.toLocaleString('zh-TW', { 
