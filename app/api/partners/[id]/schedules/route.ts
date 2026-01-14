@@ -115,17 +115,14 @@ export async function GET(
         const bookedScheduleIds = new Set(allActiveBookings.map(b => b.scheduleId).filter(Boolean));
 
         // 查詢所有可用時段（包含預約資訊）
-        // 🔥 在數據庫層面就過濾掉已過期的時段（使用 startTime 而不是 date）
-        // 這樣可以減少需要處理的數據量
+        // 🔥 移除資料庫層面的 startTime 過濾，讓前端根據選擇的日期決定是否過濾已過期時段
+        // 這樣前端可以根據用戶選擇「今天」或「未來日期」來決定是否顯示已過期時段
         const allSchedules = await client.schedule.findMany({
           where: {
             partnerId,
             isAvailable: true,
             date: scheduleDateFilter,
-            // 🔥 在數據庫層面過濾：只查詢開始時間在當前時間之後的時段
-            startTime: {
-              gt: currentTime, // 只查詢開始時間 > 當前時間的時段
-            },
+            // 注意：不在此處過濾 startTime，讓前端處理過期判斷
           },
           select: {
             id: true,
@@ -213,33 +210,9 @@ export async function GET(
           }
         }
         
-        let pastCount = 0;
+        // 🔥 移除應用層的過期過濾，讓前端根據選擇的日期決定是否過濾已過期時段
+        // 前端會根據用戶選擇「今天」或「未來日期」來決定是否顯示已過期時段
         const filteredSchedules = allSchedules.filter((schedule) => {
-          // 0. 🔥 首先檢查時段是否已過去（必須在當前時間之後）
-          // 確保 startTime 是 Date 對象
-          const scheduleStart = schedule.startTime instanceof Date ? schedule.startTime : new Date(schedule.startTime);
-          const scheduleStartMs = scheduleStart.getTime();
-          
-          // 🔥 嚴格檢查：如果時段開始時間 <= 當前時間，過濾掉
-          // 注意：使用 <= 而不是 <，因為如果時段正好是當前時間，也應該被過濾
-          if (scheduleStartMs <= currentTimeMs) {
-            pastCount++;
-            const timeDiffMinutes = Math.round((currentTimeMs - scheduleStartMs) / 1000 / 60);
-            const scheduleStartTW = scheduleStart.toLocaleString('zh-TW', { 
-              timeZone: 'Asia/Taipei',
-              year: 'numeric',
-              month: '2-digit',
-              day: '2-digit',
-              hour: '2-digit',
-              minute: '2-digit',
-              hour12: false
-            });
-            if (pastCount <= 10) { // 記錄前10個，幫助調試
-              console.log(`🚫 時段 ${schedule.id} 已過去 (開始時間 UTC: ${scheduleStart.toISOString()}, 台灣時間: ${scheduleStartTW}, 當前時間 UTC: ${currentTime.toISOString()}, 台灣時間: ${currentTimeTW}, 相差: ${timeDiffMinutes} 分鐘)，已過濾`);
-            }
-            return false;
-          }
-          
           // 1. 檢查一對一預約
           if (schedule.bookings) {
             const isTerminal = terminalStatusSet.has(schedule.bookings.status);
@@ -275,7 +248,7 @@ export async function GET(
           return true;
         });
         
-        console.log(`✅ 查詢到 ${allSchedules.length} 個時段，已過期: ${pastCount} 個，過濾後剩餘 ${filteredSchedules.length} 個可用時段`);
+        console.log(`✅ 查詢到 ${allSchedules.length} 個時段，過濾後剩餘 ${filteredSchedules.length} 個可用時段（過期判斷由前端處理）`);
         return filteredSchedules;
       },
       'partners:schedules'
