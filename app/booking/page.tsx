@@ -1482,9 +1482,13 @@ function BookingWizardContent() {
                     const startTaipei = dayjs(schedule.startTime).tz('Asia/Taipei');
                     const endTaipei = dayjs(schedule.endTime).tz('Asia/Taipei');
                     
-                    // 轉換為台灣時間顯示（12小時制）
-                    const startTimeTW = startTaipei.format('hh:mm A');
-                    const endTimeTW = endTaipei.format('hh:mm A');
+                    // 轉換為台灣時間顯示（12小時制，中文上午/下午）
+                    const startHour = startTaipei.hour();
+                    const endHour = endTaipei.hour();
+                    const startPeriod = startHour < 12 ? '上午' : '下午';
+                    const endPeriod = endHour < 12 ? '上午' : '下午';
+                    const startTimeTW = `${startPeriod} ${startTaipei.format('hh:mm')}`;
+                    const endTimeTW = `${endPeriod} ${endTaipei.format('hh:mm')}`;
                     
                     const isSelected = selectedTimes.includes(schedule.id);
                     return (
