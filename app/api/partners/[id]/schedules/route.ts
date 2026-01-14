@@ -229,7 +229,8 @@ export async function GET(
           }
           
           // 3. 檢查是否有任何預約與這個時段重疊
-          const scheduleEnd = new Date(schedule.endTime);
+          const scheduleStart = schedule.startTime instanceof Date ? schedule.startTime : new Date(schedule.startTime);
+          const scheduleEnd = schedule.endTime instanceof Date ? schedule.endTime : new Date(schedule.endTime);
           
           for (const activeBooking of allActiveBookings) {
             if (activeBooking.schedule) {
