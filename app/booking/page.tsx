@@ -13,6 +13,12 @@ import { useSession } from "next-auth/react";
 import Link from "next/link";
 import PartnerPageLayout from "@/components/partner/PartnerPageLayout";
 import InfoCard from "@/components/partner/InfoCard";
+import dayjs from "dayjs";
+import timezone from "dayjs/plugin/timezone";
+import utc from "dayjs/plugin/utc";
+
+dayjs.extend(timezone);
+dayjs.extend(utc);
 
 // 動態步驟顯示
 const getSteps = (onlyAvailable: boolean) => {
@@ -162,52 +168,54 @@ function isSlotOccupied<T extends {
  * @param activeBookings 所有活躍預約的時間範圍列表
  * @returns 過濾後的時段列表（只包含可預約時段）
  */
+/**
+ * 獲取可預約時段
+ * 整合「過期 + 已被預約 + 重疊判斷」所有邏輯
+ * 
+ * Booking 頁面顯示條件（三條缺一不可）：
+ * 1. slot.startTime > 現在時間（台灣時間）
+ * 2. 該時段不是已被占用 / 已預約
+ * 3. 該時段在 partner/schedule 中不是黃色格子
+ * 
+ * 過期判斷標準（唯一）：
+ * - new Date(slot.startTime).getTime() <= Date.now()
+ * - 所有符合上述條件的 slot 視為已過期，不可顯示，不可被預約
+ * 
+ * 占用判斷規則（連續時間占用模型）：
+ * - 只要與任何預約時間有重疊，該時段就視為已被占用
+ * - 重疊判斷標準：slot.startTime < booking.endTime AND slot.endTime > booking.startTime
+ * 
+ * @param slots 時段列表（原始 schedules，包含已過期與未來時段）
+ * @param activeBookings 所有活躍預約的時間範圍列表
+ * @returns 過濾後的時段列表（只包含可預約時段）
+ */
 function getBookableSlots<T extends { 
   startTime: string | Date;
   endTime: string | Date;
   bookings?: { status: string } | null;
 }>(
   slots: T[],
-  selectedDate: Date,
   activeBookings: Array<{ startTime: Date | string; endTime: Date | string }>
 ): T[] {
   // 獲取當前時間（UTC timestamp）
-  const currentTimeMs = Date.now();
-  const currentDate = new Date(currentTimeMs);
+  const nowTs = Date.now();
   
-  // 判斷用戶選擇的是今天還是未來日期（僅用於調試日誌）
-  const isToday = isSameDay(selectedDate, currentDate);
-  
-  // 調試日誌
-  if (slots.length > 0) {
-    console.log(`[預約頁面] getBookableSlots: 開始過濾`, {
-      slotsCount: slots.length,
-      selectedDate: selectedDate.toLocaleDateString('zh-TW'),
-      currentDate: currentDate.toLocaleDateString('zh-TW'),
-      isToday: isToday,
-      currentTimeMs: currentTimeMs,
-      activeBookingsCount: activeBookings.length
-    });
-  }
+  // 調試日誌：過濾前
+  console.log(`[預約頁面] getBookableSlots: 開始過濾`, {
+    過濾前時段數量: slots.length,
+    當前時間UTC: new Date(nowTs).toISOString(),
+    活躍預約數: activeBookings.length
+  });
   
   let expiredCount = 0;
   let occupiedCount = 0;
   
   const filtered = slots.filter((slot) => {
-    // 1. 🔥 檢查時段是否已過期（不論選擇的是今天還是未來日期，都要過濾已過期時段）
+    // 1. 🔥 檢查時段是否已過期
     // 過期判斷標準（唯一）：new Date(slot.startTime).getTime() <= Date.now()
-    const slotStartMs = new Date(slot.startTime).getTime();
-    if (slotStartMs <= currentTimeMs) {
+    const startTs = new Date(slot.startTime).getTime();
+    if (startTs <= nowTs) {
       expiredCount++;
-      if (expiredCount <= 3) { // 只記錄前3個，避免日誌過多
-        console.log(`[預約頁面] getBookableSlots: 過濾已過期時段`, {
-          slotId: (slot as any).id,
-          slotStartTime: new Date(slot.startTime).toISOString(),
-          slotStartMs: slotStartMs,
-          currentTimeMs: currentTimeMs,
-          timeDiffMinutes: Math.round((currentTimeMs - slotStartMs) / 1000 / 60)
-        });
-      }
       return false; // 已過期，不可顯示
     }
     
@@ -221,9 +229,40 @@ function getBookableSlots<T extends {
     return true;
   });
   
-  if (expiredCount > 0 || occupiedCount > 0) {
-    console.log(`[預約頁面] getBookableSlots: 過濾結果 - 總時段 ${slots.length} 個，已過期 ${expiredCount} 個，已被占用 ${occupiedCount} 個，可預約 ${filtered.length} 個（選擇的是${isToday ? '今天' : '未來日期'}）`);
-  }
+  // 調試日誌：過濾後
+  const earliestSlot = filtered.length > 0 ? filtered[0] : null;
+  const latestSlot = filtered.length > 0 ? filtered[filtered.length - 1] : null;
+  
+  console.log(`[預約頁面] getBookableSlots: 過濾結果`, {
+    過濾前時段數量: slots.length,
+    已過期: expiredCount,
+    已被占用: occupiedCount,
+    過濾後時段數量: filtered.length,
+    最早時段: earliestSlot ? {
+      id: (earliestSlot as any).id,
+      台灣時間: new Date(earliestSlot.startTime).toLocaleString('zh-TW', { 
+        timeZone: 'Asia/Taipei',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+      })
+    } : null,
+    最晚時段: latestSlot ? {
+      id: (latestSlot as any).id,
+      台灣時間: new Date(latestSlot.startTime).toLocaleString('zh-TW', { 
+        timeZone: 'Asia/Taipei',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+      })
+    } : null
+  });
   
   return filtered;
 }
@@ -406,9 +445,25 @@ function BookingWizardContent() {
           const loadSchedules = async () => {
             setLoadingSchedules(true);
             try {
-              const now = new Date();
-              const endDate = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000); // 7天後
-              const url = `/api/partners/${partner.id}/schedules?startDate=${now.toISOString()}&endDate=${endDate.toISOString()}`;
+              // 🔥 Booking 頁面只能查詢「今天」的時段
+              // startDate：今天 00:00（以台灣時間）
+              // endDate：今天 23:59:59（以台灣時間）
+              const todayStartTW = dayjs.tz('Asia/Taipei').startOf('day'); // 今天 00:00（台灣時間）
+              const todayEndTW = dayjs.tz('Asia/Taipei').endOf('day'); // 今天 23:59:59（台灣時間）
+              
+              // 轉換為 UTC 時間（API 使用 UTC）
+              const startDateUTC = todayStartTW.utc().toDate();
+              const endDateUTC = todayEndTW.utc().toDate();
+              
+              const url = `/api/partners/${partner.id}/schedules?startDate=${startDateUTC.toISOString()}&endDate=${endDateUTC.toISOString()}`;
+              
+              console.log('[預約頁面] 查詢今天時段:', {
+                startDate: startDateUTC.toISOString(),
+                endDate: endDateUTC.toISOString(),
+                todayStartTW: todayStartTW.format('YYYY-MM-DD HH:mm:ss'),
+                todayEndTW: todayEndTW.format('YYYY-MM-DD HH:mm:ss'),
+                url
+              });
               
               const res = await fetch(url, {
                 cache: "force-cache",
@@ -419,6 +474,9 @@ function BookingWizardContent() {
 
               if (res.ok) {
                 const data = await res.json();
+                console.log('[預約頁面] 今天時段 API 返回:', {
+                  schedulesCount: data.schedules?.length || 0
+                });
                 setPartnerSchedules(prev => {
                   const newMap = new Map(prev);
                   newMap.set(partner.id, data.schedules || []);
@@ -692,15 +750,16 @@ function BookingWizardContent() {
   }, [selectedPartner, partnerSchedules]);
 
   // 優化時段選擇邏輯 - 過濾掉所有與已預約時段重疊的時段
+  // 🔥 Booking 頁面只能查詢「今天」的時段，所以不需要 selectedDate
   const availableTimeSlots = useMemo(() => {
-    if (!selectedPartner || !selectedDate) {
-      console.log('[預約頁面] availableTimeSlots: 缺少必要條件', { selectedPartner: !!selectedPartner, selectedDate: !!selectedDate });
+    if (!selectedPartner) {
+      console.log('[預約頁面] availableTimeSlots: 缺少必要條件', { selectedPartner: !!selectedPartner });
       return [];
     }
 
     // 🔥 統一獲取當前時間（UTC），確保所有比較使用相同的基準時間
-    const currentTimeMs = Date.now();
-    const currentTime = new Date(currentTimeMs);
+    const nowTs = Date.now();
+    const currentTime = new Date(nowTs);
     const currentTimeTW = currentTime.toLocaleString('zh-TW', { 
       timeZone: 'Asia/Taipei',
       year: 'numeric',
@@ -716,68 +775,17 @@ function BookingWizardContent() {
     const bookedTimeSlots: Array<{ startTime: Date; endTime: Date }> = [];
 
     // 遍歷所有時段，收集有效預約
+    // 🔥 注意：API 只查詢「今天」的時段，所以這裡不需要再過濾日期
     const schedules = partnerSchedules.get(selectedPartner.id) || [];
     
-    console.log('[預約頁面] availableTimeSlots: 載入時段', { 
+    console.log('[預約頁面] availableTimeSlots: 載入今天時段', { 
       partnerId: selectedPartner.id, 
-      schedulesCount: schedules.length, 
-      selectedDate, 
-      currentTimeUTC: currentTime.toISOString(),
-      currentTimeTW: currentTimeTW,
-      currentTimeMs: currentTimeMs
+      過濾前時段數量: schedules.length, 
+      當前時間UTC: currentTime.toISOString(),
+      當前時間台灣: currentTimeTW,
+      當前時間戳: nowTs
     });
     
-    // 🔍 調試：檢查所有時段的時間分布
-    if (schedules.length > 0) {
-      // 檢查前10個和後10個時段
-      const sampleSchedules = [
-        ...schedules.slice(0, 5),
-        ...schedules.slice(-5)
-      ];
-      console.log(`[預約頁面] 檢查樣本時段 (總共 ${schedules.length} 個，顯示前5個和後5個):`);
-      sampleSchedules.forEach((s, idx) => {
-        const sStart = new Date(s.startTime);
-        const sStartTW = sStart.toLocaleString('zh-TW', { 
-          timeZone: 'Asia/Taipei',
-          year: 'numeric',
-          month: '2-digit',
-          day: '2-digit',
-          hour: '2-digit',
-          minute: '2-digit',
-          second: '2-digit',
-          hour12: false
-        });
-        const isPast = sStart.getTime() <= currentTimeMs;
-        const timeDiff = isPast ? Math.round((currentTimeMs - sStart.getTime()) / 1000 / 60) : Math.round((sStart.getTime() - currentTimeMs) / 1000 / 60);
-        console.log(`[預約頁面] 樣本時段 ${idx + 1}: ID=${s.id}, 開始時間 UTC=${sStart.toISOString()}, 台灣時間=${sStartTW}, 是否已過期=${isPast}, 時間差=${timeDiff}分鐘`);
-      });
-      
-      // 🔍 統計：找出所有已過期的時段
-      const pastSchedules = schedules.filter(s => {
-        const sStart = new Date(s.startTime);
-        return sStart.getTime() <= currentTimeMs;
-      });
-      if (pastSchedules.length > 0) {
-        console.log(`[預約頁面] ⚠️ 發現 ${pastSchedules.length} 個已過期時段，前5個:`);
-        pastSchedules.slice(0, 5).forEach((s, idx) => {
-          const sStart = new Date(s.startTime);
-          const sStartTW = sStart.toLocaleString('zh-TW', { 
-            timeZone: 'Asia/Taipei',
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit',
-            hour12: false
-          });
-          const timeDiff = Math.round((currentTimeMs - sStart.getTime()) / 1000 / 60);
-          console.log(`[預約頁面] 已過期時段 ${idx + 1}: ID=${s.id}, 台灣時間=${sStartTW}, 已過期 ${timeDiff} 分鐘`);
-        });
-      } else {
-        console.log(`[預約頁面] ✅ 所有時段都未過期`);
-      }
-    }
     // 🔥 收集所有活躍預約的時間範圍（用於占用判斷）
     // 終止狀態：這些狀態的預約不會佔用時段
     const TERMINAL_STATUSES = ['CANCELLED', 'REJECTED', 'COMPLETED', 'PARTNER_REJECTED', 'COMPLETED_WITH_AMOUNT_MISMATCH'];
@@ -786,9 +794,7 @@ function BookingWizardContent() {
     const bookedTimeSlotsSet = new Set<string>();
     
     schedules.forEach((schedule) => {
-      // 只考慮同一天的時段
-      const scheduleDate = new Date(schedule.date);
-      if (!isSameDay(scheduleDate, selectedDate)) return;
+      // 🔥 注意：API 只查詢「今天」的時段，所以不需要再過濾日期
 
       // 如果有預約且狀態有效（非終止狀態），記錄其時間範圍
       // 注意：這裡記錄的是該時段直接關聯的預約
@@ -812,22 +818,16 @@ function BookingWizardContent() {
       }
     });
 
-    // 注意：hasTimeOverlap 函數已移到文件頂部作為共用函數
-
     const seenTimeSlots = new Set<string>();
     
-    console.log('[預約頁面] 開始過濾時段，當前時間（UTC）:', currentTime.toISOString(), '台灣時間:', currentTimeTW, '時間戳:', currentTimeMs);
-    
-    // 先進行基本過濾（可用性、日期匹配、重疊檢查等）
+    // 先進行基本過濾（可用性、搜尋時段限制、去重等）
+    // 🔥 注意：不需要過濾日期，因為 API 只查詢「今天」
     const uniqueSchedules = schedules.filter((schedule) => {
       // 基本檢查：時段必須可用
       if (!schedule.isAvailable) return false;
-
-      const scheduleDate = new Date(schedule.date);
-      if (!isSameDay(scheduleDate, selectedDate)) return false;
       
       // 注意：過期判斷和占用檢查（重疊檢查）已在 getBookableSlots 中統一處理
-      // 這裡只進行基本過濾（可用性、日期匹配、搜尋時段限制、去重等）
+      // 這裡只進行基本過濾（可用性、搜尋時段限制、去重等）
       
       // 如果有搜尋時段限制，檢查時段是否與搜尋時段重疊
       if (schedule.searchTimeRestriction) {
@@ -853,53 +853,26 @@ function BookingWizardContent() {
       seenTimeSlots.add(timeSlotIdentifier);
       return true;
     });
-    // 🔥 改進排序：確保按照台灣時間正確排序（從上午12:00-上午12:30開始，按時間順序排列）
-    // 獲取選中日期的00:00（台灣時間）作為基準點
-    const selectedDateStr = new Date(selectedDate).toLocaleDateString('en-CA'); // YYYY-MM-DD格式
-    const baseDateTW = new Date(`${selectedDateStr}T00:00:00+08:00`); // 台灣時間00:00
-    const baseTimestamp = baseDateTW.getTime();
     
+    // 🔥 排序：按照開始時間排序
     const sorted = uniqueSchedules.sort((a, b) => {
       const timeA = new Date(a.startTime).getTime();
       const timeB = new Date(b.startTime).getTime();
-      
-      // 計算相對於選中日期00:00的偏移量（毫秒）
-      let offsetA = timeA - baseTimestamp;
-      let offsetB = timeB - baseTimestamp;
-      
-      // 處理跨日情況：
-      // 如果偏移量為負數（表示是前一天的時段，比如23:30-00:00），加上24小時使其排在最後
-      // 如果偏移量超過24小時（表示是後一天的時段），減去24小時使其排在前面
-      if (offsetA < 0) {
-        offsetA += 24 * 60 * 60 * 1000; // 加上24小時
-      }
-      if (offsetA >= 24 * 60 * 60 * 1000) {
-        offsetA -= 24 * 60 * 60 * 1000; // 減去24小時
-      }
-      
-      if (offsetB < 0) {
-        offsetB += 24 * 60 * 60 * 1000; // 加上24小時
-      }
-      if (offsetB >= 24 * 60 * 60 * 1000) {
-        offsetB -= 24 * 60 * 60 * 1000; // 減去24小時
-      }
-      
-      return offsetA - offsetB;
+      return timeA - timeB;
     });
     
     // 🔥 使用 getBookableSlots 過濾可預約時段
     // 整合「過期 + 已被預約 + 重疊判斷」所有邏輯
     // booking 頁面只能顯示「可預約時段」
     // 過濾條件：
-    // 1. 時段已過期（如果選擇今天）：new Date(slot.startTime).getTime() <= Date.now() → 不可顯示
+    // 1. 時段已過期：new Date(slot.startTime).getTime() <= Date.now() → 不可顯示
     // 2. 時段已被任何預約占用（採用連續時間占用模型，檢查重疊）
     // 使用所有活躍預約的時間範圍進行占用判斷
-    const bookableTimeSlots = getBookableSlots(sorted, selectedDate, bookedTimeSlots);
+    const bookableTimeSlots = getBookableSlots(sorted, bookedTimeSlots);
     
-    // getBookableSlots 內部已經有日誌輸出，這裡只輸出最終結果
-    console.log('[預約頁面] availableTimeSlots 最終結果: 總時段', schedules.length, '個，基本過濾後', sorted.length, '個，可預約時段過濾後', bookableTimeSlots.length, '個可用時段');
+    // getBookableSlots 內部已經有詳細日誌輸出（包含過濾前後數量、最早最晚時段）
     return bookableTimeSlots;
-  }, [selectedPartner, selectedDate, partnerSchedules, timeRefreshKey]);
+  }, [selectedPartner, partnerSchedules, timeRefreshKey]);
 
   // 計算所需金幣
   const calculateRequiredCoins = () => {
@@ -1017,13 +990,26 @@ function BookingWizardContent() {
     console.log('[預約頁面] 開始載入夥伴時段:', partnerId);
     setLoadingSchedules(true);
     try {
-      const now = new Date();
-      // 使用今天的開始時間（00:00:00），而不是當前時間，確保包含今天的所有時段
-      const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      const endDate = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000); // 7天後
-      const url = `/api/partners/${partnerId}/schedules?startDate=${todayStart.toISOString()}&endDate=${endDate.toISOString()}`;
+      // 🔥 Booking 頁面只能查詢「今天」的時段
+      // startDate：今天 00:00（以台灣時間）
+      // endDate：今天 23:59:59（以台灣時間）
+      const todayStartTW = dayjs.tz('Asia/Taipei').startOf('day'); // 今天 00:00（台灣時間）
+      const todayEndTW = dayjs.tz('Asia/Taipei').endOf('day'); // 今天 23:59:59（台灣時間）
       
-      console.log('[預約頁面] 時段 API URL:', url);
+      // 轉換為 UTC 時間（API 使用 UTC）
+      const startDateUTC = todayStartTW.utc().toDate();
+      const endDateUTC = todayEndTW.utc().toDate();
+      
+      const url = `/api/partners/${partnerId}/schedules?startDate=${startDateUTC.toISOString()}&endDate=${endDateUTC.toISOString()}`;
+      
+      console.log('[預約頁面] 查詢今天時段:', {
+        startDate: startDateUTC.toISOString(),
+        endDate: endDateUTC.toISOString(),
+        todayStartTW: todayStartTW.format('YYYY-MM-DD HH:mm:ss'),
+        todayEndTW: todayEndTW.format('YYYY-MM-DD HH:mm:ss'),
+        url
+      });
+      
       const res = await fetch(url, {
         cache: "no-store",
         headers: {
@@ -1034,8 +1020,9 @@ function BookingWizardContent() {
       console.log('[預約頁面] 時段 API 響應狀態:', res.status, res.ok);
       if (res.ok) {
         const data = await res.json();
-        console.log('[預約頁面] 時段 API 返回數據:', data);
-        console.log('[預約頁面] 時段數量:', data.schedules?.length || 0);
+        console.log('[預約頁面] 今天時段 API 返回:', {
+          schedulesCount: data.schedules?.length || 0
+        });
         setPartnerSchedules(prev => {
           const newMap = new Map(prev);
           newMap.set(partnerId, data.schedules || []);
@@ -1415,15 +1402,15 @@ function BookingWizardContent() {
               </div>
             </div>
           )}
-          {!onlyAvailable && step === 2 && selectedPartner && selectedDate && (
+          {!onlyAvailable && step === 2 && selectedPartner && (
             <div>
               <div className="text-lg text-white/90 mb-4 text-center">
-                （3）選擇時段
+                （3）選擇時段（今天）
               </div>
               <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-7 gap-2 max-h-[600px] overflow-y-auto">
                 {availableTimeSlots.length === 0 ? (
                   <div className="col-span-3 sm:col-span-4 md:col-span-5 lg:col-span-7 text-gray-600 text-center py-8">
-                    該日期沒有可預約的時段
+                    今天沒有可預約的時段
                   </div>
                 ) : (
                   availableTimeSlots.map((schedule) => {
