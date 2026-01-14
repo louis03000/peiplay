@@ -119,31 +119,30 @@ function isSlotOccupied<T extends {
 }
 
 /**
- * 過濾可預約時段
- * booking 頁面只能顯示「可預約時段」
+ * 獲取可預約時段
+ * 整合「過期 + 已被預約 + 重疊判斷」所有邏輯
  * 
+ * booking 頁面只能顯示「可預約時段」
  * 以下任一條件成立，該時段就不可顯示、不可點選：
  * 1. 時段已過期
  * 2. 時段已被任何預約占用（採用連續時間占用模型，檢查重疊）
  * 
  * 過期時段判斷規則：
- * - 使用台灣時間（UTC+8）作為使用者視角
- * - slot.startTime 為 UTC 時間
- * - 若使用者選擇「今天」：slot.startTime <= 現在時間 → 不可顯示
+ * - 使用 slot.startTime 與 Date.now()（UTC timestamp）比較
+ * - 若使用者選擇「今天」：new Date(slot.startTime).getTime() <= Date.now() → 不可顯示
  * - 若使用者選擇「未來日期」：不需用現在時間過濾
- * - 使用 timestamp 比較（Date.now()），不要用字串或 HH:mm
  * 
  * 占用判斷規則（連續時間占用模型）：
  * - 只要與任何預約時間有重疊，該時段就視為已被占用
  * - 重疊判斷標準：slot.startTime < booking.endTime AND slot.endTime > booking.startTime
  * - 與 /partner/schedule 頁面顯示邏輯保持一致
  * 
- * @param slots 時段列表
+ * @param slots 時段列表（原始 schedules，包含已過期與未來時段）
  * @param selectedDate 用戶選擇的日期（本地時間）
  * @param activeBookings 所有活躍預約的時間範圍列表
  * @returns 過濾後的時段列表（只包含可預約時段）
  */
-function filterBookableTimeSlots<T extends { 
+function getBookableSlots<T extends { 
   startTime: string | Date;
   endTime: string | Date;
   bookings?: { status: string } | null;
@@ -160,27 +159,57 @@ function filterBookableTimeSlots<T extends {
   // 使用 isSameDay 比較日期（年、月、日），不考慮時區
   const isToday = isSameDay(selectedDate, currentDate);
   
-  return slots.filter((slot) => {
+  // 調試日誌
+  if (slots.length > 0) {
+    console.log(`[預約頁面] getBookableSlots: 開始過濾`, {
+      slotsCount: slots.length,
+      selectedDate: selectedDate.toLocaleDateString('zh-TW'),
+      currentDate: currentDate.toLocaleDateString('zh-TW'),
+      isToday: isToday,
+      currentTimeMs: currentTimeMs,
+      activeBookingsCount: activeBookings.length
+    });
+  }
+  
+  let expiredCount = 0;
+  let occupiedCount = 0;
+  
+  const filtered = slots.filter((slot) => {
     // 1. 檢查時段是否已過期（僅當選擇今天時）
     if (isToday) {
-      const slotStart = new Date(slot.startTime);
-      const slotStartMs = slotStart.getTime();
+      const slotStartMs = new Date(slot.startTime).getTime();
       
-      // slot.startTime（UTC）必須大於現在時間
-      // 使用 > 而不是 >=，確保已開始的時段被過濾
+      // 判斷規則：new Date(slot.startTime).getTime() <= Date.now() → 不可顯示
       if (slotStartMs <= currentTimeMs) {
+        expiredCount++;
+        if (expiredCount <= 3) { // 只記錄前3個，避免日誌過多
+          console.log(`[預約頁面] getBookableSlots: 過濾已過期時段`, {
+            slotId: (slot as any).id,
+            slotStartTime: new Date(slot.startTime).toISOString(),
+            slotStartMs: slotStartMs,
+            currentTimeMs: currentTimeMs,
+            timeDiffMinutes: Math.round((currentTimeMs - slotStartMs) / 1000 / 60)
+          });
+        }
         return false; // 已過期，不可顯示
       }
     }
     
     // 2. 檢查時段是否已被任何預約占用（採用連續時間占用模型）
     if (isSlotOccupied(slot, activeBookings)) {
+      occupiedCount++;
       return false; // 已被占用，不可顯示
     }
     
     // 通過所有檢查，時段可預約
     return true;
   });
+  
+  if (expiredCount > 0 || occupiedCount > 0) {
+    console.log(`[預約頁面] getBookableSlots: 過濾結果 - 總時段 ${slots.length} 個，已過期 ${expiredCount} 個，已被占用 ${occupiedCount} 個，可預約 ${filtered.length} 個（選擇的是${isToday ? '今天' : '未來日期'}）`);
+  }
+  
+  return filtered;
 }
 
 function BookingWizardContent() {
@@ -781,7 +810,7 @@ function BookingWizardContent() {
       const scheduleDate = new Date(schedule.date);
       if (!isSameDay(scheduleDate, selectedDate)) return false;
       
-      // 注意：占用檢查（重疊檢查）已在 filterBookableTimeSlots 中統一處理
+      // 注意：過期判斷和占用檢查（重疊檢查）已在 getBookableSlots 中統一處理
       // 這裡只進行基本過濾（可用性、日期匹配、搜尋時段限制、去重等）
       
       // 如果有搜尋時段限制，檢查時段是否與搜尋時段重疊
@@ -842,20 +871,16 @@ function BookingWizardContent() {
       return offsetA - offsetB;
     });
     
-    // 🔥 使用 filterBookableTimeSlots 過濾可預約時段
+    // 🔥 使用 getBookableSlots 過濾可預約時段
+    // 整合「過期 + 已被預約 + 重疊判斷」所有邏輯
     // booking 頁面只能顯示「可預約時段」
     // 過濾條件：
-    // 1. 時段已過期（如果選擇今天）
+    // 1. 時段已過期（如果選擇今天）：new Date(slot.startTime).getTime() <= Date.now() → 不可顯示
     // 2. 時段已被任何預約占用（採用連續時間占用模型，檢查重疊）
     // 使用所有活躍預約的時間範圍進行占用判斷
-    const bookableTimeSlots = filterBookableTimeSlots(sorted, selectedDate, bookedTimeSlots);
+    const bookableTimeSlots = getBookableSlots(sorted, selectedDate, bookedTimeSlots);
     
-    const filteredCount = sorted.length - bookableTimeSlots.length;
-    const isToday = isSameDay(selectedDate, currentTime);
-    if (filteredCount > 0) {
-      console.log(`[預約頁面] filterBookableTimeSlots: 過濾掉 ${filteredCount} 個不可預約時段（選擇的是${isToday ? '今天' : '未來日期'}，活躍預約數：${bookedTimeSlots.length}）`);
-    }
-    
+    // getBookableSlots 內部已經有日誌輸出，這裡只輸出最終結果
     console.log('[預約頁面] availableTimeSlots 最終結果: 總時段', schedules.length, '個，基本過濾後', sorted.length, '個，可預約時段過濾後', bookableTimeSlots.length, '個可用時段');
     return bookableTimeSlots;
   }, [selectedPartner, selectedDate, partnerSchedules, timeRefreshKey]);
