@@ -870,9 +870,40 @@ function BookingWizardContent() {
     // 🔥 先過濾已過期時段，再排序
     // 注意：必須在排序前先過濾，確保已過期時段不會被顯示
     // 使用上面已聲明的 nowTs
+    let expiredFilteredCount = 0;
     const futureSchedules = uniqueSchedules.filter((schedule) => {
       const startTs = new Date(schedule.startTime).getTime();
-      return startTs > nowTs; // 只保留未來的時段
+      const isFuture = startTs > nowTs;
+      
+      if (!isFuture) {
+        expiredFilteredCount++;
+        // 詳細日誌：記錄前幾個被過濾的已過期時段
+        if (expiredFilteredCount <= 5) {
+          const slotStartTW = new Date(schedule.startTime).toLocaleString('zh-TW', {
+            timeZone: 'Asia/Taipei',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: false
+          });
+          const nowTW = new Date(nowTs).toLocaleString('zh-TW', {
+            timeZone: 'Asia/Taipei',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: false
+          });
+          console.log(`[預約頁面] ❌ 過濾已過期時段 (第一層): ID=${schedule.id}, 時段開始時間(台灣)=${slotStartTW}, 現在時間(台灣)=${nowTW}, 時段UTC=${new Date(schedule.startTime).toISOString()}, 現在UTC=${new Date(nowTs).toISOString()}, 時間差=${Math.round((nowTs - startTs) / 1000 / 60)}分鐘`);
+        }
+      }
+      
+      return isFuture; // 只保留未來的時段
     });
     
     // 🔥 排序：按照開始時間排序（只排序未來的時段）
@@ -882,11 +913,32 @@ function BookingWizardContent() {
       return timeA - timeB;
     });
     
+    // 調試：檢查排序後的前幾個時段
+    if (sorted.length > 0) {
+      console.log('[預約頁面] 排序後的前3個時段:', sorted.slice(0, 3).map(s => ({
+        id: s.id,
+        開始時間UTC: new Date(s.startTime).toISOString(),
+        開始時間台灣: new Date(s.startTime).toLocaleString('zh-TW', {
+          timeZone: 'Asia/Taipei',
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+          hour12: false
+        }),
+        是否未來: new Date(s.startTime).getTime() > nowTs
+      })));
+    }
+    
     console.log('[預約頁面] 過濾已過期時段後:', {
       基本過濾後: uniqueSchedules.length,
-      已過期被過濾: uniqueSchedules.length - futureSchedules.length,
+      已過期被過濾: expiredFilteredCount,
       未來時段數: futureSchedules.length,
-      排序後: sorted.length
+      排序後: sorted.length,
+      當前時間UTC: new Date(nowTs).toISOString(),
+      當前時間台灣: currentTimeTW
     });
     
     // 🔥 使用 getBookableSlots 過濾可預約時段
@@ -1435,7 +1487,20 @@ function BookingWizardContent() {
                     該日期沒有可預約的時段
                   </div>
                 ) : (
-                  availableTimeSlots.map((schedule) => {
+                  availableTimeSlots
+                    .filter((schedule) => {
+                      // 🔥 最後一層防護：在 UI 渲染時再次過濾已過期時段
+                      const startTs = new Date(schedule.startTime).getTime();
+                      const nowTs = Date.now();
+                      const isFuture = startTs > nowTs;
+                      
+                      if (!isFuture) {
+                        console.log(`[預約頁面] ⚠️ UI渲染時發現已過期時段，已過濾: ID=${schedule.id}, 開始時間(台灣)=${new Date(schedule.startTime).toLocaleString('zh-TW', { timeZone: 'Asia/Taipei', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}`);
+                      }
+                      
+                      return isFuture;
+                    })
+                    .map((schedule) => {
                     // 🔥 使用台灣時區格式化時間，確保顯示格式一致
                     const startDate = new Date(schedule.startTime);
                     const endDate = new Date(schedule.endTime);
