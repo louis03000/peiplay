@@ -2,6 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db-resilience";
 import { createErrorResponse } from "@/lib/api-helpers";
 import { BookingStatus } from "@prisma/client";
+import dayjs from "dayjs";
+import timezone from "dayjs/plugin/timezone";
+import utc from "dayjs/plugin/utc";
+
+dayjs.extend(timezone);
+dayjs.extend(utc);
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -35,11 +41,12 @@ export async function GET(
       return NextResponse.json({ error: '缺少 partnerId' }, { status: 400 });
     }
 
-    const now = new Date();
-    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    // 🔥 使用台灣時區計算今天的開始時間，確保凌晨時段也能正確顯示
+    const nowTaipei = dayjs().tz('Asia/Taipei');
+    const todayStartTaipei = nowTaipei.startOf('day').toDate();
     
     // 解析日期範圍
-    let scheduleDateFilter: any = { gte: todayStart };
+    let scheduleDateFilter: any = { gte: todayStartTaipei };
     if (startDate && endDate) {
       const start = new Date(startDate);
       const end = new Date(endDate);

@@ -439,10 +439,11 @@ function BookingWizardContent() {
             setLoadingSchedules(true);
             try {
               // 查詢未來 7 天的時段（前端會過濾已過期和已被預約的）
-              const now = new Date();
-              const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-              const endDate = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000); // 7天後
-              const url = `/api/partners/${partner.id}/schedules?startDate=${todayStart.toISOString()}&endDate=${endDate.toISOString()}`;
+              // 🔥 使用台灣時區計算今天的開始時間，確保凌晨時段也能正確顯示
+              const nowTaipei = dayjs().tz('Asia/Taipei');
+              const todayStartTaipei = nowTaipei.startOf('day'); // 今天 00:00:00 台灣時間
+              const endDateTaipei = todayStartTaipei.add(7, 'day'); // 7天後
+              const url = `/api/partners/${partner.id}/schedules?startDate=${todayStartTaipei.toISOString()}&endDate=${endDateTaipei.toISOString()}`;
               
               const res = await fetch(url, {
                 cache: "force-cache",
@@ -1045,10 +1046,11 @@ function BookingWizardContent() {
     setLoadingSchedules(true);
     try {
       // 查詢未來 7 天的時段（前端會過濾已過期和已被預約的）
-      const now = new Date();
-      const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      const endDate = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000); // 7天後
-      const url = `/api/partners/${partnerId}/schedules?startDate=${todayStart.toISOString()}&endDate=${endDate.toISOString()}`;
+      // 🔥 使用台灣時區計算今天的開始時間，確保凌晨時段也能正確顯示
+      const nowTaipei = dayjs().tz('Asia/Taipei');
+      const todayStartTaipei = nowTaipei.startOf('day'); // 今天 00:00:00 台灣時間
+      const endDateTaipei = todayStartTaipei.add(7, 'day'); // 7天後
+      const url = `/api/partners/${partnerId}/schedules?startDate=${todayStartTaipei.toISOString()}&endDate=${endDateTaipei.toISOString()}`;
       
       const res = await fetch(url, {
         cache: "no-store",

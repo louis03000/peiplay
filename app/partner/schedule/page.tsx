@@ -1013,6 +1013,7 @@ export default function PartnerSchedulePage() {
     let allSelected = true; // 檢查是否所有時段都已選中
 
     // 先檢查所有時段是否都已選中
+    // 🔥 關鍵修復：使用 getCellState 判斷狀態，確保使用最新的 schedules 數據
     for (const timeSlot of timeSlots) {
       const [hour, minute] = timeSlot.split(':');
       const timeDate = new Date(date);
@@ -1021,11 +1022,9 @@ export default function PartnerSchedulePage() {
       // 跳過過去的時間
       if (timeDate.getTime() <= now.getTime()) continue;
 
-      const key = `${dateKey}_${timeSlot}`;
-      const schedule = getScheduleAtTime(date, timeSlot);
-      
-      // 檢查是否已選中（在 pendingAdd 或 pendingDelete 中，或已存在且未標記刪除）
-      const isSelected = pendingAdd[key] || (schedule && !schedule.booked && !pendingDelete[schedule.id]);
+      const state = getCellState(date, timeSlot);
+      // 檢查是否已選中：toAdd（綠色）或 saved（灰色，未標記刪除）都視為已選中
+      const isSelected = state === 'toAdd' || state === 'saved';
       
       if (!isSelected) {
         allSelected = false;
@@ -1034,50 +1033,55 @@ export default function PartnerSchedulePage() {
     }
 
     // 根據全選狀態決定是全部選中還是全部取消
-    setPendingAdd(prev => {
-      const newPendingAdd = { ...prev };
-      const newPendingDelete = { ...pendingDelete };
+    // 🔥 關鍵修復：使用函數式更新獲取最新的 pendingDelete 狀態
+    setPendingDelete(prevDelete => {
+      const newPendingDelete = { ...prevDelete };
+      
+      setPendingAdd(prev => {
+        const newPendingAdd = { ...prev };
 
-      for (const timeSlot of timeSlots) {
-        const [hour, minute] = timeSlot.split(':');
-        const timeDate = new Date(date);
-        timeDate.setHours(Number(hour), Number(minute), 0, 0);
-        
-        // 跳過過去的時間
-        if (timeDate.getTime() <= now.getTime()) continue;
-
-        const key = `${dateKey}_${timeSlot}`;
-        const schedule = getScheduleAtTime(date, timeSlot);
-
-        if (schedule) {
-          // 時段已存在
-          if (schedule.booked) continue; // 已預約的時段不能操作
+        for (const timeSlot of timeSlots) {
+          const [hour, minute] = timeSlot.split(':');
+          const timeDate = new Date(date);
+          timeDate.setHours(Number(hour), Number(minute), 0, 0);
           
-          if (allSelected) {
-            // 全部取消：移除刪除標記
-            delete newPendingDelete[schedule.id];
-            delete newPendingAdd[key];
+          // 跳過過去的時間
+          if (timeDate.getTime() <= now.getTime()) continue;
+
+          const key = `${dateKey}_${timeSlot}`;
+          const schedule = getScheduleAtTime(date, timeSlot);
+
+          if (schedule) {
+            // 時段已存在
+            if (schedule.booked) continue; // 已預約的時段不能操作
+            
+            if (allSelected) {
+              // 全部取消：移除刪除標記
+              delete newPendingDelete[schedule.id];
+              delete newPendingAdd[key];
+            } else {
+              // 全部選中：標記為刪除（灰色）
+              newPendingDelete[schedule.id] = true;
+              delete newPendingAdd[key];
+            }
           } else {
-            // 全部選中：標記為刪除（灰色）
-            newPendingDelete[schedule.id] = true;
-            delete newPendingAdd[key];
-          }
-        } else {
-          // 時段不存在
-          if (allSelected) {
-            // 全部取消：移除新增標記
-            delete newPendingAdd[key];
-          } else {
-            // 全部選中：標記為新增（綠色）
-            newPendingAdd[key] = true;
+            // 時段不存在
+            if (allSelected) {
+              // 全部取消：移除新增標記
+              delete newPendingAdd[key];
+            } else {
+              // 全部選中：標記為新增（綠色）
+              newPendingAdd[key] = true;
+            }
           }
         }
-      }
 
-      setPendingDelete(newPendingDelete);
-      return newPendingAdd;
+        return newPendingAdd;
+      });
+      
+      return newPendingDelete;
     });
-  }, [getLocalDateString, getScheduleAtTime, timeSlots, pendingAdd, pendingDelete, isSaving]);
+  }, [getLocalDateString, getScheduleAtTime, getCellState, timeSlots, isSaving]);
 
   // 處理時間標題點擊：未來7天該時段全選
   const handleTimeHeaderClick = useCallback((timeSlot: string) => {
@@ -1103,7 +1107,10 @@ export default function PartnerSchedulePage() {
       const schedule = getScheduleAtTime(date, timeSlot);
       
       // 檢查是否已選中
-      const isSelected = pendingAdd[key] || (schedule && !schedule.booked && !pendingDelete[schedule.id]);
+      // 🔥 關鍵修復：使用 getCellState 判斷狀態，確保使用最新的 schedules 數據
+      const state = getCellState(date, timeSlot);
+      // 檢查是否已選中：toAdd（綠色）或 saved（灰色，未標記刪除）都視為已選中
+      const isSelected = state === 'toAdd' || state === 'saved';
       
       if (!isSelected) {
         allSelected = false;
@@ -1112,9 +1119,12 @@ export default function PartnerSchedulePage() {
     }
 
     // 根據全選狀態決定是全部選中還是全部取消
-    setPendingAdd(prev => {
-      const newPendingAdd = { ...prev };
-      const newPendingDelete = { ...pendingDelete };
+    // 🔥 關鍵修復：使用函數式更新獲取最新的 pendingDelete 狀態
+    setPendingDelete(prevDelete => {
+      const newPendingDelete = { ...prevDelete };
+      
+      setPendingAdd(prev => {
+        const newPendingAdd = { ...prev };
 
       for (const date of dateSlots) {
         const timeDate = new Date(date);
@@ -1152,10 +1162,12 @@ export default function PartnerSchedulePage() {
         }
       }
 
-      setPendingDelete(newPendingDelete);
-      return newPendingAdd;
+        return newPendingAdd;
+      });
+      
+      return newPendingDelete;
     });
-  }, [getLocalDateString, getScheduleAtTime, dateSlots, pendingAdd, pendingDelete, isSaving]);
+  }, [getLocalDateString, getScheduleAtTime, getCellState, dateSlots, isSaving]);
 
   // 儲存所有變更
   const handleSave = async () => {
@@ -1436,10 +1448,6 @@ export default function PartnerSchedulePage() {
       // 🛡 第二層：POST 成功後強制 GET 最新數據（以 DB 為準）
       console.log('🔄 清空 pending 狀態並刷新資料...');
       
-      // 先清空 pending 狀態
-      setPendingAdd({});
-      setPendingDelete({});
-      
       // 🛡 關鍵：POST 成功後，強制重新獲取最新數據（不依賴 POST 返回的數據）
       console.log('🔄 強制重新獲取最新時段數據（以 DB 為準）...');
       try {
@@ -1484,8 +1492,16 @@ export default function PartnerSchedulePage() {
       
       console.log('✅ 資料刷新完成');
       
-      // 等待一個 tick 確保 React 狀態更新完成
-      await new Promise(resolve => setTimeout(resolve, 200));
+      // 🔥 關鍵修復：先等待 schedules 狀態更新完成，再清空 pending 狀態
+      // 這樣可以確保 getScheduleAtTime 使用最新的 schedules 數據
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // 先清空 pending 狀態（在 schedules 更新之後）
+      setPendingAdd({});
+      setPendingDelete({});
+      
+      // 再等待一個 tick 確保所有狀態更新完成
+      await new Promise(resolve => setTimeout(resolve, 100));
       
       // 顯示成功提示（無論是新增還是刪除，只要有任何操作成功就顯示）
       console.log('✅ 儲存完成，顯示成功提示');
