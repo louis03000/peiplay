@@ -3,266 +3,162 @@ import { db } from "@/lib/db-resilience";
 import { createErrorResponse } from "@/lib/api-helpers";
 import { BookingStatus } from "@prisma/client";
 
-// 🔥 移除 dayjs 相關導入，因為不再在後端使用 startOf('day') 來決定今天
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
-// 定義終止狀態：這些狀態的預約不會佔用時段
+// 終止狀態（不佔用時段）
 const TERMINAL_BOOKING_STATUSES: BookingStatus[] = [
-    BookingStatus.CANCELLED,
-    BookingStatus.COMPLETED,
-    BookingStatus.REJECTED,
-    BookingStatus.PARTNER_REJECTED,
-    BookingStatus.COMPLETED_WITH_AMOUNT_MISMATCH,
+  BookingStatus.CANCELLED,
+  BookingStatus.COMPLETED,
+  BookingStatus.REJECTED,
+  BookingStatus.PARTNER_REJECTED,
+  BookingStatus.COMPLETED_WITH_AMOUNT_MISMATCH,
 ];
 
-/**
- * 查詢單一夥伴的可用時段（預約 Step 2）
- * 只在選擇夥伴後才查詢，避免列表階段載入過多資料
- */
 export async function GET(
-    request: NextRequest,
-    { params }: { params: Promise<{ id: string }> | { id: string } }
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> | { id: string } }
 ) {
-    try {
-        const resolvedParams = params instanceof Promise ? await params : params;
-        const partnerId = resolvedParams.id;
+  try {
+    const resolvedParams = params instanceof Promise ? await params : params;
+    const partnerId = resolvedParams.id;
+    const url = request.nextUrl;
 
-        const url = request.nextUrl;
-        const startDate = url.searchParams.get("startDate");
-        const endDate = url.searchParams.get("endDate");
-
-        if (!partnerId) {
-            return NextResponse.json({ error: '缺少 partnerId' }, { status: 400 });
-        }
-
-        // 🔥 移除後端對 schedule.date 的「今天」或「>= today」過濾條件
-        // 「今天是否已過期」的判斷，全部交給前端，用 startTime（轉成 Asia/Taipei）判斷
-        // 後端僅負責：partner 狀態、停權檢查、isAvailable、預約衝突/booking 狀態過濾
-
-        // 解析日期範圍（僅當前端明確提供 startDate 和 endDate 時才使用）
-        let scheduleDateFilter: any = undefined;
-        if (startDate && endDate) {
-            const start = new Date(startDate);
-            const end = new Date(endDate);
-            // 使用 lte 而不是 lt，確保包含最後一天的時段
-            // 將 endDate 設置為該日的最後時刻（23:59:59.999）
-            end.setHours(23, 59, 59, 999);
-            scheduleDateFilter = { gte: start, lte: end };
-        }
-
-        const schedules = await db.query(async (client) => {
-            // 🔥 獲取當前時間（用於停權檢查）
-            const now = new Date();
-
-            // 驗證夥伴存在
-            const partner = await client.partner.findUnique({
-                where: { id: partnerId },
-                select: {
-                    id: true,
-                    status: true,
-                    user: {
-                        select: {
-                            isSuspended: true,
-                            suspensionEndsAt: true,
-                        },
-                    },
-                },
-            });
-
-            if (!partner) {
-                return null;
-            }
-
-            if (partner.status !== 'APPROVED') {
-                return [];
-            }
-
-            // 檢查是否被停權
-            if (partner.user?.isSuspended) {
-                const endsAt = partner.user.suspensionEndsAt;
-                if (endsAt && endsAt > now) {
-                    return [];
-                }
-            }
-
-            // 🔥 首先獲取當前時間（用於數據庫查詢和過濾）
-            const currentTimeMs = Date.now();
-            const currentTime = new Date(currentTimeMs);
-
-            // 🔥 查詢該夥伴所有活躍的預約（包括群組預約和多人陪玩的 Booking）
-            const allActiveBookings = await client.booking.findMany({
-                where: {
-                    schedule: { partnerId: partnerId },
-                    status: { notIn: TERMINAL_BOOKING_STATUSES },
-                },
-                select: {
-                    id: true,
-                    scheduleId: true,
-                    schedule: { select: { startTime: true, endTime: true } },
-                },
-            });
-
-            // 創建一個 Set 來快速查找已被預約的 scheduleId
-            const bookedScheduleIds = new Set(
-                allActiveBookings.map(b => b.scheduleId).filter(Boolean)
-            );
-
-            // 查詢所有可用時段（包含預約資訊）
-            // 🔥 移除後端對 schedule.date 的「今天」或「>= today」過濾條件
-            const whereClause: any = { partnerId, isAvailable: true };
-            if (scheduleDateFilter) {
-                whereClause.date = scheduleDateFilter;
-            }
-
-            const allSchedules = await client.schedule.findMany({
-                where: whereClause,
-                select: {
-                    id: true,
-                    date: true,
-                    startTime: true,
-                    endTime: true,
-                    isAvailable: true,
-                    bookings: { select: { status: true } },
-                },
-                orderBy: [
-                    { date: 'asc' },
-                    { startTime: 'asc' }
-                ],
-            });
-
-            // 在應用層過濾：只返回沒有預約或預約狀態是終止狀態的時段
-            const terminalStatusSet = new Set(TERMINAL_BOOKING_STATUSES);
-
-            // 轉換為台灣時間用於日誌顯示
-            const currentTimeTW = currentTime.toLocaleString('zh-TW', {
-                timeZone: 'Asia/Taipei',
-                year: 'numeric',
-                month: '2-digit',
-                day: '2-digit',
-                hour: '2-digit',
-                minute: '2-digit',
-                second: '2-digit',
-                hour12: false,
-            });
-
-            console.log(
-                `[API] 過濾時段 - 當前時間 UTC: ${currentTime.toISOString()}, 台灣時間: ${currentTimeTW}, 時段總數: ${allSchedules.length}`
-            );
-
-            // 🔍 調試：檢查所有時段的時間分布
-            if (allSchedules.length > 0) {
-                const sampleSchedules = [
-                    ...allSchedules.slice(0, 5),
-                    ...allSchedules.slice(-5)
-                ];
-                console.log(`[API] 檢查樣本時段 (總共 ${allSchedules.length} 個，顯示前5個和後5個):`);
-                sampleSchedules.forEach((s, idx) => {
-                    const sStart = s.startTime instanceof Date ? s.startTime : new Date(s.startTime);
-                    const sStartMs = sStart.getTime();
-                    const sStartTW = sStart.toLocaleString('zh-TW', {
-                        timeZone: 'Asia/Taipei',
-                        year: 'numeric',
-                        month: '2-digit',
-                        day: '2-digit',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                        second: '2-digit',
-                        hour12: false,
-                    });
-                    const isPast = sStartMs <= currentTimeMs;
-                    const timeDiff = isPast
-                        ? Math.round((currentTimeMs - sStartMs) / 1000 / 60)
-                        : Math.round((sStartMs - currentTimeMs) / 1000 / 60);
-                    console.log(
-                        `[API] 樣本時段 ${idx + 1}: ID=${s.id}, 開始時間 UTC=${sStart.toISOString()}, 台灣時間=${sStartTW}, 是否已過期=${isPast}, 時間差=${timeDiff}分鐘`
-                    );
-                });
-
-                const pastSchedules = allSchedules.filter(s => {
-                    const sStart = s.startTime instanceof Date ? s.startTime : new Date(s.startTime);
-                    return sStart.getTime() <= currentTimeMs;
-                });
-
-                if (pastSchedules.length > 0) {
-                    console.log(`[API] ⚠️ 發現 ${pastSchedules.length} 個已過期時段，前5個:`);
-                    pastSchedules.slice(0, 5).forEach((s, idx) => {
-                        const sStart = s.startTime instanceof Date ? s.startTime : new Date(s.startTime);
-                        const sStartTW = sStart.toLocaleString('zh-TW', {
-                            timeZone: 'Asia/Taipei',
-                            year: 'numeric',
-                            month: '2-digit',
-                            day: '2-digit',
-                            hour: '2-digit',
-                            minute: '2-digit',
-                            second: '2-digit',
-                            hour12: false,
-                        });
-                        const timeDiff = Math.round((currentTimeMs - sStart.getTime()) / 1000 / 60);
-                        console.log(
-                            `[API] 已過期時段 ${idx + 1}: ID=${s.id}, 台灣時間=${sStartTW}, 已過期 ${timeDiff} 分鐘`
-                        );
-                    });
-                } else {
-                    console.log(`[API] ✅ 所有時段都未過期`);
-                }
-            }
-
-            // 🔥 移除應用層的過期過濾，讓前端根據選擇的日期決定是否過濾已過期時段
-            const filteredSchedules = allSchedules.filter((schedule) => {
-                // 1. 檢查一對一預約
-                if (schedule.bookings) {
-                    const isTerminal = terminalStatusSet.has(schedule.bookings.status);
-                    if (!isTerminal) {
-                        console.log(`🚫 時段 ${schedule.id} 有活躍預約 (狀態: ${schedule.bookings.status})，已過濾`);
-                        return false;
-                    }
-                }
-
-                // 2. 檢查是否有其他預約使用這個時段（群組、多人陪玩等）
-                if (bookedScheduleIds.has(schedule.id)) {
-                    console.log(`🚫 時段 ${schedule.id} 已被其他預約使用（群組/多人陪玩），已過濾`);
-                    return false;
-                }
-
-                // 3. 檢查是否有任何預約與這個時段重疊
-                const scheduleStart = schedule.startTime instanceof Date ? schedule.startTime : new Date(schedule.startTime);
-                const scheduleEnd = schedule.endTime instanceof Date ? schedule.endTime : new Date(schedule.endTime);
-
-                for (const activeBooking of allActiveBookings) {
-                    if (activeBooking.schedule) {
-                        const bookingStart = new Date(activeBooking.schedule.startTime);
-                        const bookingEnd = new Date(activeBooking.schedule.endTime);
-                        if (scheduleStart.getTime() < bookingEnd.getTime() && bookingStart.getTime() < scheduleEnd.getTime()) {
-                            console.log(`🚫 時段 ${schedule.id} 與預約 ${activeBooking.id} 重疊，已過濾`);
-                            return false;
-                        }
-                    }
-                }
-
-                return true;
-            });
-
-            console.log(
-                `✅ 查詢到 ${allSchedules.length} 個時段，過濾後剩餘 ${filteredSchedules.length} 個可用時段（過期判斷由前端處理）`
-            );
-
-            return filteredSchedules;
-        }, 'partners:schedules');
-
-        if (schedules === null) {
-            return NextResponse.json({ error: '找不到夥伴' }, { status: 404 });
-        }
-
-        return NextResponse.json(
-            { schedules },
-            {
-                headers: {
-                    'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
-                },
-            }
-        );
-    } catch (error) {
-        return createErrorResponse(error, 'partners:schedules');
+    if (!partnerId) {
+      return NextResponse.json({ error: '缺少 partnerId' }, { status: 400 });
     }
+
+    // ⚠️ 僅作為「startTime 範圍」使用，不再碰 schedule.date
+    const startDate = url.searchParams.get("startDate");
+    const endDate = url.searchParams.get("endDate");
+
+    let startTimeRange: any = undefined;
+    if (startDate && endDate) {
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999);
+
+      startTimeRange = {
+        gte: start,
+        lte: end,
+      };
+    }
+
+    const schedules = await db.query(async (client) => {
+      const now = new Date();
+
+      const partner = await client.partner.findUnique({
+        where: { id: partnerId },
+        select: {
+          id: true,
+          status: true,
+          user: {
+            select: {
+              isSuspended: true,
+              suspensionEndsAt: true,
+            },
+          },
+        },
+      });
+
+      if (!partner || partner.status !== 'APPROVED') return [];
+
+      if (
+        partner.user?.isSuspended &&
+        partner.user.suspensionEndsAt &&
+        partner.user.suspensionEndsAt > now
+      ) {
+        return [];
+      }
+
+      // 所有活躍預約
+      const allActiveBookings = await client.booking.findMany({
+        where: {
+          schedule: { partnerId },
+          status: { notIn: TERMINAL_BOOKING_STATUSES },
+        },
+        select: {
+          id: true,
+          scheduleId: true,
+          schedule: {
+            select: {
+              startTime: true,
+              endTime: true,
+            },
+          },
+        },
+      });
+
+      const bookedScheduleIds = new Set(
+        allActiveBookings.map(b => b.scheduleId).filter(Boolean)
+      );
+
+      const whereClause: any = {
+        partnerId,
+        isAvailable: true,
+      };
+
+      // ✅ 改成用 startTime（不是 date）
+      if (startTimeRange) {
+        whereClause.startTime = startTimeRange;
+      }
+
+      const allSchedules = await client.schedule.findMany({
+        where: whereClause,
+        select: {
+          id: true,
+          startTime: true,
+          endTime: true,
+          isAvailable: true,
+          bookings: {
+            select: { status: true },
+          },
+        },
+        orderBy: { startTime: 'asc' },
+      });
+
+      const terminalStatusSet = new Set(TERMINAL_BOOKING_STATUSES);
+
+      const filteredSchedules = allSchedules.filter(schedule => {
+        // 一對一預約
+        if (schedule.bookings) {
+          if (!terminalStatusSet.has(schedule.bookings.status)) {
+            return false;
+          }
+        }
+
+        // 群組 / 多人陪玩
+        if (bookedScheduleIds.has(schedule.id)) {
+          return false;
+        }
+
+        const sStart = new Date(schedule.startTime).getTime();
+        const sEnd = new Date(schedule.endTime).getTime();
+
+        // 檢查重疊
+        for (const booking of allActiveBookings) {
+          if (!booking.schedule) continue;
+          const bStart = new Date(booking.schedule.startTime).getTime();
+          const bEnd = new Date(booking.schedule.endTime).getTime();
+
+          if (sStart < bEnd && bStart < sEnd) {
+            return false;
+          }
+        }
+
+        return true;
+      });
+
+      return filteredSchedules;
+    }, 'partners:schedules');
+
+    return NextResponse.json({ schedules }, {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate',
+      },
+    });
+
+  } catch (error) {
+    return createErrorResponse(error, 'partners:schedules');
+  }
 }
