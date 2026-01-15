@@ -61,6 +61,9 @@ export async function GET(
 
     const schedules = await db.query(
       async (client) => {
+        // 🔥 獲取當前時間（用於停權檢查）
+        const now = new Date();
+        
         // 驗證夥伴存在
         const partner = await client.partner.findUnique({
           where: { id: partnerId },
