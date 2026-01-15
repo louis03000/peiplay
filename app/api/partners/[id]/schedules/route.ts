@@ -2,12 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db-resilience";
 import { createErrorResponse } from "@/lib/api-helpers";
 import { BookingStatus } from "@prisma/client";
-import dayjs from "dayjs";
-import timezone from "dayjs/plugin/timezone";
-import utc from "dayjs/plugin/utc";
-
-dayjs.extend(timezone);
-dayjs.extend(utc);
+// 🔥 移除 dayjs 相關導入，因為不再在後端使用 startOf('day') 來決定今天
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -41,12 +36,12 @@ export async function GET(
       return NextResponse.json({ error: '缺少 partnerId' }, { status: 400 });
     }
 
-    // 🔥 使用台灣時區計算今天的開始時間，確保凌晨時段也能正確顯示
-    const nowTaipei = dayjs().tz('Asia/Taipei');
-    const todayStartTaipei = nowTaipei.startOf('day').toDate();
+    // 🔥 移除後端對 schedule.date 的「今天」或「>= today」過濾條件
+    // 「今天是否已過期」的判斷，全部交給前端，用 startTime（轉成 Asia/Taipei）判斷
+    // 後端僅負責：partner 狀態、停權檢查、isAvailable、預約衝突/booking 狀態過濾
     
-    // 解析日期範圍
-    let scheduleDateFilter: any = { gte: todayStartTaipei };
+    // 解析日期範圍（僅當前端明確提供 startDate 和 endDate 時才使用）
+    let scheduleDateFilter: any = undefined;
     if (startDate && endDate) {
       const start = new Date(startDate);
       const end = new Date(endDate);
@@ -58,6 +53,7 @@ export async function GET(
         lte: end,
       };
     }
+    // 如果沒有提供日期範圍，scheduleDateFilter 為 undefined，不過濾日期
 
     const schedules = await db.query(
       async (client) => {
@@ -125,15 +121,22 @@ export async function GET(
         const bookedScheduleIds = new Set(allActiveBookings.map(b => b.scheduleId).filter(Boolean));
 
         // 查詢所有可用時段（包含預約資訊）
-        // 🔥 移除資料庫層面的 startTime 過濾，讓前端根據選擇的日期決定是否過濾已過期時段
-        // 這樣前端可以根據用戶選擇「今天」或「未來日期」來決定是否顯示已過期時段
+        // 🔥 移除後端對 schedule.date 的「今天」或「>= today」過濾條件
+        // 「今天是否已過期」的判斷，全部交給前端，用 startTime（轉成 Asia/Taipei）判斷
+        // 後端僅負責：partner 狀態、停權檢查、isAvailable、預約衝突/booking 狀態過濾
+        const whereClause: any = {
+          partnerId,
+          isAvailable: true,
+        };
+        
+        // 僅當前端明確提供日期範圍時才過濾日期
+        if (scheduleDateFilter) {
+          whereClause.date = scheduleDateFilter;
+        }
+        
         const allSchedules = await client.schedule.findMany({
-          where: {
-            partnerId,
-            isAvailable: true,
-            date: scheduleDateFilter,
-            // 注意：不在此處過濾 startTime，讓前端處理過期判斷
-          },
+          where: whereClause,
+          // 注意：不在此處過濾 startTime，讓前端處理過期判斷
           select: {
             id: true,
             date: true,
