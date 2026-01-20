@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { db } from '@/lib/db-resilience';
 import { createErrorResponse } from '@/lib/api-helpers';
+import { getOrCreateChatRoomForPreChat } from '@/lib/chat-helpers';
 
 export const dynamic = 'force-dynamic';
 
@@ -94,7 +95,14 @@ export async function GET(request: Request) {
           });
         }
 
-        // 建立新聊天室（24 小時後過期）
+        // ✅ 統一數據源：先創建或獲取對應的 ChatRoom
+        const chatRoomResult = await getOrCreateChatRoomForPreChat(
+          client,
+          session.user.id,
+          partnerUserId
+        );
+        
+        // 建立新 PreChatRoom（24 小時後過期）
         const expiresAt = new Date();
         expiresAt.setHours(expiresAt.getHours() + 24);
 
@@ -126,6 +134,48 @@ export async function GET(request: Request) {
             },
           },
         });
+        
+        // 如果 ChatRoom 是新創建的，從 ChatMessage 載入歷史消息（如果有）
+        if (chatRoomResult?.roomId && !chatRoomResult.created) {
+          // ChatRoom 已存在，嘗試從 ChatMessage 載入消息
+          try {
+            const chatMessages = await (client as any).chatMessage.findMany({
+              where: {
+                roomId: chatRoomResult.roomId,
+              },
+              select: {
+                id: true,
+                senderId: true,
+                senderName: true,
+                senderAvatarUrl: true,
+                content: true,
+                createdAt: true,
+              },
+              orderBy: { createdAt: 'desc' },
+              take: 10,
+            });
+            
+            // 將 ChatMessage 轉換為 PreChatMessage 格式（用於顯示）
+            if (chatMessages.length > 0) {
+              room.messages = chatMessages.reverse().map((msg: any) => ({
+                id: msg.id,
+                senderType: msg.senderId === session.user.id ? 'user' : 'partner',
+                content: msg.content,
+                createdAt: msg.createdAt,
+              }));
+            }
+          } catch (error) {
+            console.error('Failed to load ChatMessages for PreChatRoom:', error);
+            // 繼續使用空的 messages
+          }
+        }
+      } else {
+        // ✅ 統一數據源：如果 PreChatRoom 已存在，也確保 ChatRoom 存在
+        await getOrCreateChatRoomForPreChat(
+          client,
+          session.user.id,
+          partnerUserId
+        );
       }
 
       // 檢查聊天室是否已過期

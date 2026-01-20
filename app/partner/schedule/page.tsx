@@ -1023,8 +1023,8 @@ export default function PartnerSchedulePage() {
       if (timeDate.getTime() <= now.getTime()) continue;
 
       const state = getCellState(date, timeSlot);
-      // 檢查是否已選中：toAdd（綠色）或 saved（灰色，未標記刪除）都視為已選中
-      const isSelected = state === 'toAdd' || state === 'saved';
+      // 檢查是否已選中：只要不是 empty 或 past，都視為已選中（包括 toAdd、saved、toDelete）
+      const isSelected = state !== 'empty' && state !== 'past';
       
       if (!isSelected) {
         allSelected = false;
@@ -1109,8 +1109,8 @@ export default function PartnerSchedulePage() {
       // 檢查是否已選中
       // 🔥 關鍵修復：使用 getCellState 判斷狀態，確保使用最新的 schedules 數據
       const state = getCellState(date, timeSlot);
-      // 檢查是否已選中：toAdd（綠色）或 saved（灰色，未標記刪除）都視為已選中
-      const isSelected = state === 'toAdd' || state === 'saved';
+      // 檢查是否已選中：只要不是 empty 或 past，都視為已選中（包括 toAdd、saved、toDelete）
+      const isSelected = state !== 'empty' && state !== 'past';
       
       if (!isSelected) {
         allSelected = false;

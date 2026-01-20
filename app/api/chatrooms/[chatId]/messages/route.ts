@@ -4,6 +4,8 @@ import { authOptions } from '@/lib/auth';
 import { db } from '@/lib/db-resilience';
 import { createErrorResponse } from '@/lib/api-helpers';
 import { Cache } from '@/lib/redis-cache';
+import { getOrCreateChatRoomForPreChat } from '@/lib/chat-helpers';
+import { PrismaClient } from '@prisma/client';
 
 export const dynamic = 'force-dynamic';
 
@@ -59,54 +61,118 @@ export async function GET(
         return { messages: [] };
       }
 
-      // 查詢訊息（只查詢必要欄位，使用索引）
-      let messages;
-      if (since) {
-        // 查詢 since 之後的訊息
-        messages = await (client as any).preChatMessage.findMany({
-          where: {
-            roomId: chatId,
-            createdAt: {
-              gt: new Date(since),
-            },
-          },
-          select: {
-            id: true,
-            senderType: true,
-            content: true,
-            createdAt: true,
-          },
-          orderBy: { createdAt: 'asc' },
-          take: 10,
-        });
-      } else {
-        // 查詢最新 10 則訊息（ORDER BY created_at DESC LIMIT 10，使用索引）
-        messages = await (client as any).preChatMessage.findMany({
-          where: {
-            roomId: chatId,
-          },
-          select: {
-            id: true,
-            senderType: true,
-            content: true,
-            createdAt: true,
-          },
-          orderBy: { createdAt: 'desc' },
-          take: 10,
-        });
-        messages = messages.reverse(); // 反轉為時間正序
+      // ✅ 統一數據源：同時從 ChatMessage 和 PreChatMessage 讀取
+      // 1. 獲取或創建對應的 ChatRoom
+      const chatRoomResult = await getOrCreateChatRoomForPreChat(
+        client,
+        room.userId,
+        room.partnerId
+      );
+
+      // 2. 從 ChatMessage 讀取（主要數據源）
+      let chatMessages: any[] = [];
+      if (chatRoomResult?.roomId) {
+        try {
+          if (since) {
+            chatMessages = await (client as any).chatMessage.findMany({
+              where: {
+                roomId: chatRoomResult.roomId,
+                createdAt: {
+                  gt: new Date(since),
+                },
+              },
+              select: {
+                id: true,
+                senderId: true,
+                senderName: true,
+                senderAvatarUrl: true,
+                content: true,
+                createdAt: true,
+              },
+              orderBy: { createdAt: 'asc' },
+              take: 10,
+            });
+          } else {
+            chatMessages = await (client as any).chatMessage.findMany({
+              where: {
+                roomId: chatRoomResult.roomId,
+              },
+              select: {
+                id: true,
+                senderId: true,
+                senderName: true,
+                senderAvatarUrl: true,
+                content: true,
+                createdAt: true,
+              },
+              orderBy: { createdAt: 'desc' },
+              take: 10,
+            });
+            chatMessages = chatMessages.reverse(); // 反轉為時間正序
+          }
+        } catch (error) {
+          console.error('Failed to load ChatMessages (falling back to PreChatMessages):', error);
+        }
       }
 
-      // 格式化訊息
-      const formattedMessages = messages.map((msg: any) => ({
-        id: msg.id.toString(),
-        senderId: msg.senderType === 'user' ? room.userId : room.partnerId,
-        senderType: msg.senderType,
-        content: msg.content,
-        createdAt: msg.createdAt.toISOString(),
-      }));
+      // 3. 如果 ChatMessage 有數據，使用它；否則回退到 PreChatMessage（向後兼容）
+      let messages: any[] = [];
+      if (chatMessages.length > 0) {
+        // 使用 ChatMessage（統一數據源）
+        messages = chatMessages.map((msg: any) => ({
+          id: msg.id,
+          senderId: msg.senderId,
+          senderType: msg.senderId === room.userId ? 'user' : 'partner',
+          content: msg.content,
+          createdAt: msg.createdAt.toISOString(),
+        }));
+      } else {
+        // 回退到 PreChatMessage（向後兼容舊數據）
+        if (since) {
+          messages = await (client as any).preChatMessage.findMany({
+            where: {
+              roomId: chatId,
+              createdAt: {
+                gt: new Date(since),
+              },
+            },
+            select: {
+              id: true,
+              senderType: true,
+              content: true,
+              createdAt: true,
+            },
+            orderBy: { createdAt: 'asc' },
+            take: 10,
+          });
+        } else {
+          messages = await (client as any).preChatMessage.findMany({
+            where: {
+              roomId: chatId,
+            },
+            select: {
+              id: true,
+              senderType: true,
+              content: true,
+              createdAt: true,
+            },
+            orderBy: { createdAt: 'desc' },
+            take: 10,
+          });
+          messages = messages.reverse(); // 反轉為時間正序
+        }
 
-      return { messages: formattedMessages };
+        // 格式化 PreChatMessage
+        messages = messages.map((msg: any) => ({
+          id: msg.id.toString(),
+          senderId: msg.senderType === 'user' ? room.userId : room.partnerId,
+          senderType: msg.senderType,
+          content: msg.content,
+          createdAt: msg.createdAt.toISOString(),
+        }));
+      }
+
+      return { messages };
     }, 'chatrooms:chatId:messages:get');
 
     return NextResponse.json(result);
@@ -197,9 +263,28 @@ export async function POST(
           throw new Error('已達到訊息上限（10 則）');
         }
 
-        // 3. 寫訊息並在同一 transaction 更新 meta
+        // 3. 獲取或創建對應的 ChatRoom（統一數據源）
+        const chatRoomResult = await getOrCreateChatRoomForPreChat(
+          tx,
+          room.userId,
+          room.partnerId
+        );
+        
+        // 4. 獲取發送者信息（用於 ChatMessage 的 denormalized 字段）
+        const sender = await tx.user.findUnique({
+          where: { id: session.user.id },
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            role: true,
+            avatarUrl: true,
+          },
+        });
+
+        // 5. 寫訊息到 PreChatMessage（保持向後兼容）
         const senderType = isUser ? 'user' : 'partner';
-        const message = await tx.preChatMessage.create({
+        const preChatMessage = await tx.preChatMessage.create({
           data: {
             roomId: chatId,
             senderType: senderType,
@@ -207,11 +292,41 @@ export async function POST(
           },
         });
 
-        // 4. 更新 meta：last_message_at 和 message_count（同一 transaction）
+        // 6. 同時寫入 ChatMessage（統一數據源）
+        let chatMessage = null;
+        if (chatRoomResult?.roomId) {
+          try {
+            chatMessage = await tx.chatMessage.create({
+              data: {
+                roomId: chatRoomResult.roomId,
+                senderId: session.user.id,
+                senderName: sender?.name || null,
+                senderAvatarUrl: sender?.avatarUrl || null,
+                content: content.trim(),
+                contentType: 'TEXT',
+                status: 'SENT',
+                moderationStatus: 'APPROVED', // 預聊訊息直接通過審查
+              },
+            });
+            
+            // 更新 ChatRoom 的 lastMessageAt
+            await tx.chatRoom.update({
+              where: { id: chatRoomResult.roomId },
+              data: {
+                lastMessageAt: chatMessage.createdAt,
+              },
+            });
+          } catch (chatError) {
+            // 如果 ChatMessage 創建失敗，記錄錯誤但不影響 PreChatMessage
+            console.error('Failed to create ChatMessage (non-fatal):', chatError);
+          }
+        }
+
+        // 7. 更新 PreChatRoom meta：last_message_at 和 message_count（同一 transaction）
         const updatedRoom = await tx.preChatRoom.update({
           where: { id: chatId },
           data: {
-            lastMessageAt: message.createdAt, // 更新最後訊息時間
+            lastMessageAt: preChatMessage.createdAt, // 更新最後訊息時間
             messageCount: {
               increment: 1,
             },
@@ -221,8 +336,9 @@ export async function POST(
         });
 
         return {
-          messageId: message.id.toString(),
-          createdAt: message.createdAt.toISOString(),
+          messageId: preChatMessage.id.toString(),
+          createdAt: preChatMessage.createdAt.toISOString(),
+          chatMessageId: chatMessage?.id || null, // 返回 ChatMessage ID（如果創建成功）
         };
       });
     }, 'chatrooms:chatId:messages:post');
