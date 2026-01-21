@@ -72,11 +72,18 @@ async def check_voice_channel_creation(guild, now):
             
             for row in result:
                 try:
+                    # 檢查是否已有提前溝通頻道 ID（預聊應已建立）
+                    if not row.discordEarlyTextChannelId:
+                        print(f"❌ 錯誤：預約 {row.id} 缺少提前溝通頻道 ID (discordEarlyTextChannelId)，預聊未建立頻道")
+                        # 不標記為 processed，允許後續重試
+                        continue
+                    
                     await create_voice_and_main_text_channels(guild, row)
                     # 刪除提前溝通頻道
                     await delete_early_communication_channel(guild, row.discordEarlyTextChannelId)
                 except Exception as e:
                     print(f"❌ 創建語音頻道失敗 {row.id}: {e}")
+                    # 不標記為 processed，允許後續重試
                     
     except Exception as e:
         print(f"❌ 檢查語音頻道創建時發生錯誤: {e}")
@@ -313,9 +320,15 @@ async def create_voice_and_main_text_channels(guild, booking):
 async def show_extension_button(guild, booking):
     """顯示延長按鈕"""
     try:
+        # 檢查文字頻道 ID 是否存在
+        if not booking.discordTextChannelId:
+            print(f"❌ 錯誤：預約 {booking.id} 缺少文字頻道 ID (discordTextChannelId)，預聊未建立頻道")
+            raise Exception(f"預約 {booking.id} 缺少文字頻道 ID，無法顯示延長按鈕")
+        
         text_channel = guild.get_channel(int(booking.discordTextChannelId))
         if not text_channel:
-            return
+            print(f"❌ 錯誤：預約 {booking.id} 的文字頻道 ID {booking.discordTextChannelId} 在 Discord 中不存在")
+            raise Exception(f"預約 {booking.id} 的文字頻道不存在")
         
         # 創建延長按鈕視圖
         view = ExtensionView(booking.id, booking.startTime, booking.endTime)
@@ -354,6 +367,11 @@ async def cleanup_voice_channel_and_show_rating(guild, booking):
             if voice_channel:
                 await voice_channel.delete()
                 print(f"✅ 已刪除語音頻道: {booking.id}")
+        
+        # 檢查文字頻道 ID 是否存在
+        if not booking.discordTextChannelId:
+            print(f"❌ 錯誤：預約 {booking.id} 缺少文字頻道 ID (discordTextChannelId)，預聊未建立頻道，無法顯示評價系統")
+            raise Exception(f"預約 {booking.id} 缺少文字頻道 ID，無法顯示評價系統")
         
         # 在文字頻道顯示評價系統
         text_channel = guild.get_channel(int(booking.discordTextChannelId))

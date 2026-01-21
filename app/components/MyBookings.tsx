@@ -150,7 +150,7 @@ export default function MyBookings({ showCompletedOnly }: MyBookingsProps) {
       'CONFIRMED': '已確認',
       'REJECTED': '已拒絕',
       'CANCELLED': '已取消',
-      'COMPLETED': '已完成'
+      'COMPLETED': '已確認'  // 在此頁面將 COMPLETED 顯示為「已確認」
     }
     return statusMap[status] || status
   }

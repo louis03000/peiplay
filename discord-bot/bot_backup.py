@@ -160,7 +160,16 @@ def find_member_by_discord_name(guild, discord_name):
     if not discord_name:
         return None
     
-    discord_name_lower = discord_name.lower()
+    # 驗證 Discord ID 類型：必須為 str 或 int，不能為 float 或 None
+    if isinstance(discord_name, float):
+        print(f"❌ 錯誤：Discord ID 類型錯誤，收到 float 類型: {discord_name}")
+        return None
+    
+    if not isinstance(discord_name, (str, int)):
+        print(f"❌ 錯誤：Discord ID 類型錯誤，必須為 str 或 int，收到: {type(discord_name).__name__} = {discord_name}")
+        return None
+    
+    discord_name_lower = discord_name.lower() if isinstance(discord_name, str) else str(discord_name).lower()
     for member in guild.members:
         if member.name.lower() == discord_name_lower or member.display_name.lower() == discord_name_lower:
             return member
@@ -1423,6 +1432,7 @@ async def check_bookings():
                     
                     if not customer_member or not partner_member:
                         print(f"❌ 找不到 Discord 成員: 顧客={customer_discord}, 夥伴={partner_discord}")
+                        # 不標記為 processed，允許後續重試
                         continue
                     
                     # 計算頻道持續時間
@@ -1570,9 +1580,21 @@ async def check_bookings():
                                 print(f"⚠️ Discord 語音頻道欄位尚未創建，跳過保存頻道 ID")
                     except Exception as db_error:
                         print(f"❌ 保存語音頻道 ID 到資料庫失敗: {db_error}")
+                        # 保存失敗，不標記為 processed
+                        continue
                     
-                    # 標記為已處理
-                    processed_bookings.add(booking.id)
+                    # 只有在以下條件全部成立時，才標記為已處理：
+                    # 1. 語音頻道成功創建 (vc 存在)
+                    # 2. Discord 成員成功取得 (customer_member 和 partner_member 都存在)
+                    # 3. 至少完成一個實際 Discord 動作（如通知發送）
+                    # 注意：這裡只標記語音頻道創建成功，文字頻道由預聊流程處理
+                    if vc and customer_member and partner_member:
+                        # 標記為已處理（語音頻道創建成功）
+                        processed_bookings.add(booking.id)
+                    else:
+                        print(f"❌ 預約 {booking.id} 處理失敗：缺少必要條件（vc={vc is not None}, customer={customer_member is not None}, partner={partner_member is not None}）")
+                        # 不標記為 processed，允許後續重試
+                        continue
                     
                     if is_instant_booking:
                         print(f"⚡ 即時預約語音頻道已創建: {channel_name} (預約 {booking.id})")
