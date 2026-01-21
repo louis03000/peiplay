@@ -196,12 +196,18 @@ export default function PreChatPage() {
     setSending(true);
 
     try {
+      // 與正式聊天室發送格式保持一致：必須提供 content（文字內容），可選 contentType
+      const payload = {
+        content: trimmedContent,
+        contentType: 'TEXT',
+      };
+
       const res = await fetch(`/api/chatrooms/${chatId}/messages`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ content: trimmedContent }),
+        body: JSON.stringify(payload),
       });
 
       if (res.ok) {

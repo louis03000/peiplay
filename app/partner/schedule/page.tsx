@@ -1011,6 +1011,7 @@ export default function PartnerSchedulePage() {
     const now = new Date();
     const dateKey = getLocalDateString(date);
     let allSelected = true; // 檢查是否所有時段都已選中
+    let hasDeletion = false; // 檢查是否已有刪除標記
 
     // 先檢查所有時段是否都已選中
     // 🔥 關鍵修復：使用 getCellState 判斷狀態，確保使用最新的 schedules 數據
@@ -1025,6 +1026,9 @@ export default function PartnerSchedulePage() {
       const state = getCellState(date, timeSlot);
       // 檢查是否已選中：只要不是 empty 或 past，都視為已選中（包括 toAdd、saved、toDelete）
       const isSelected = state !== 'empty' && state !== 'past';
+      if (state === 'toDelete') {
+        hasDeletion = true;
+      }
       
       if (!isSelected) {
         allSelected = false;
@@ -1056,8 +1060,12 @@ export default function PartnerSchedulePage() {
             if (schedule.booked) continue; // 已預約的時段不能操作
             
             if (allSelected) {
-              // 全部取消：移除刪除標記
-              delete newPendingDelete[schedule.id];
+              // 若已有刪除標記，則整列取消刪除；否則整列標記刪除
+              if (hasDeletion) {
+                delete newPendingDelete[schedule.id];
+              } else {
+                newPendingDelete[schedule.id] = true;
+              }
               delete newPendingAdd[key];
             } else {
               // 全部選中：標記為刪除（灰色）
@@ -1067,8 +1075,12 @@ export default function PartnerSchedulePage() {
           } else {
             // 時段不存在
             if (allSelected) {
-              // 全部取消：移除新增標記
-              delete newPendingAdd[key];
+              // 依照是否已有刪除標記決定切換方向：有刪除就取消新增，沒有刪除就標記新增
+              if (hasDeletion) {
+                delete newPendingAdd[key];
+              } else {
+                newPendingAdd[key] = true;
+              }
             } else {
               // 全部選中：標記為新增（綠色）
               newPendingAdd[key] = true;
@@ -1093,6 +1105,7 @@ export default function PartnerSchedulePage() {
     const now = new Date();
     const [hour, minute] = timeSlot.split(':');
     let allSelected = true; // 檢查是否所有日期都已選中
+    let hasDeletion = false; // 檢查是否已有刪除標記
 
     // 先檢查所有日期是否都已選中
     for (const date of dateSlots) {
@@ -1111,6 +1124,9 @@ export default function PartnerSchedulePage() {
       const state = getCellState(date, timeSlot);
       // 檢查是否已選中：只要不是 empty 或 past，都視為已選中（包括 toAdd、saved、toDelete）
       const isSelected = state !== 'empty' && state !== 'past';
+      if (state === 'toDelete') {
+        hasDeletion = true;
+      }
       
       if (!isSelected) {
         allSelected = false;
@@ -1142,8 +1158,12 @@ export default function PartnerSchedulePage() {
           if (schedule.booked) continue; // 已預約的時段不能操作
           
           if (allSelected) {
-            // 全部取消：移除刪除標記
-            delete newPendingDelete[schedule.id];
+            // 若已有刪除標記，則整列取消刪除；否則整列標記刪除
+            if (hasDeletion) {
+              delete newPendingDelete[schedule.id];
+            } else {
+              newPendingDelete[schedule.id] = true;
+            }
             delete newPendingAdd[key];
           } else {
             // 全部選中：標記為刪除（灰色）
@@ -1153,8 +1173,12 @@ export default function PartnerSchedulePage() {
         } else {
           // 時段不存在
           if (allSelected) {
-            // 全部取消：移除新增標記
-            delete newPendingAdd[key];
+            // 依照是否已有刪除標記決定切換方向：有刪除就取消新增，沒有刪除就標記新增
+            if (hasDeletion) {
+              delete newPendingAdd[key];
+            } else {
+              newPendingAdd[key] = true;
+            }
           } else {
             // 全部選中：標記為新增（綠色）
             newPendingAdd[key] = true;
