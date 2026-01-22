@@ -13,7 +13,9 @@ export default function Navbar() {
   const [partnerLoading, setPartnerLoading] = useState(false)
   const [partnerRejectionCount, setPartnerRejectionCount] = useState(0)
   const [menuOpen, setMenuOpen] = useState(false)
+  const [unreadCount, setUnreadCount] = useState(0)
   const menuRef = useRef<HTMLDivElement>(null)
+  const unreadCheckIntervalRef = useRef<NodeJS.Timeout | null>(null)
 
   useEffect(() => {
     if (session?.user?.id && status === 'authenticated') {
@@ -175,6 +177,54 @@ export default function Navbar() {
       }
     }
   }, [session, status])
+
+  // 檢查未讀消息數
+  useEffect(() => {
+    if (!session?.user?.id || status !== 'authenticated') {
+      setUnreadCount(0)
+      return
+    }
+
+    const checkUnreadCount = async () => {
+      try {
+        const res = await fetch('/api/chat/unread-count', {
+          cache: 'no-store',
+          headers: {
+            'Cache-Control': 'no-cache'
+          }
+        })
+        
+        if (res.ok) {
+          const data = await res.json()
+          setUnreadCount(data.unreadCount || 0)
+        }
+      } catch (error) {
+        console.error('檢查未讀消息失敗:', error)
+        // 錯誤時不清除未讀數，保持當前狀態
+      }
+    }
+
+    // 立即檢查一次
+    checkUnreadCount()
+
+    // 每 10 秒檢查一次（平衡實時性和性能）
+    unreadCheckIntervalRef.current = setInterval(checkUnreadCount, 10000)
+
+    // 當頁面可見時立即檢查（用戶切換回頁面時）
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        checkUnreadCount()
+      }
+    }
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+
+    return () => {
+      if (unreadCheckIntervalRef.current) {
+        clearInterval(unreadCheckIntervalRef.current)
+      }
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
+  }, [session?.user?.id, status])
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -371,9 +421,20 @@ export default function Navbar() {
                 {/* 聊天室 - 管理員不顯示 */}
                 {session.user.role !== 'ADMIN' && (
                   <div className="px-3 sm:px-4 py-1.5 sm:py-2">
-                    <Link href="/chat" className="flex items-center justify-center space-x-2 sm:space-x-3 text-gray-900 hover:text-green-600 hover:bg-green-50 transition-colors rounded-lg px-3 sm:px-4 py-2.5 min-h-[44px]">
+                    <Link 
+                      href="/chat" 
+                      onClick={() => {
+                        // 點擊聊天室時，立即清除未讀數（樂觀更新）
+                        // 實際的已讀標記會在進入聊天室時完成
+                        setUnreadCount(0)
+                      }}
+                      className="flex items-center justify-center space-x-2 sm:space-x-3 text-gray-900 hover:text-green-600 hover:bg-green-50 transition-colors rounded-lg px-3 sm:px-4 py-2.5 min-h-[44px] relative"
+                    >
                       <span className="text-base sm:text-lg">💬</span>
                       <span className="font-medium text-sm sm:text-base">聊天室</span>
+                      {unreadCount > 0 && (
+                        <span className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white"></span>
+                      )}
                     </Link>
                   </div>
                 )}

@@ -12,7 +12,7 @@ export const dynamic = 'force-dynamic';
  */
 export async function POST(
   request: Request,
-  { params }: { params: { roomId: string } }
+  { params }: { params: Promise<{ roomId: string }> | { roomId: string } }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -21,7 +21,9 @@ export async function POST(
       return NextResponse.json({ error: '請先登入' }, { status: 401 });
     }
 
-    const { roomId } = params;
+    // 處理 params 可能是 Promise 的情況（Next.js 15）
+    const resolvedParams = params instanceof Promise ? await params : params;
+    const { roomId } = resolvedParams;
     const body = await request.json();
     const { messageIds } = body; // 可選：指定要標記的訊息 ID 列表
 
@@ -102,6 +104,18 @@ export async function POST(
 
       return { success: true };
     }, 'chat:rooms:roomId:read:post');
+
+    // ✅ 清除未讀消息數快取（確保導航欄紅點立即消失）
+    try {
+      const cacheKey = `chat:unread-count:${session.user.id}`;
+      await import('@/lib/redis-cache').then(({ Cache }) => {
+        Cache.delete(cacheKey).catch(() => {
+          // Redis 不可用時，靜默失敗
+        });
+      });
+    } catch (err) {
+      // 清除快取失敗不影響主要功能
+    }
 
     return NextResponse.json(result);
   } catch (error) {
