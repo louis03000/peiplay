@@ -278,7 +278,11 @@ export async function POST(
             name: true,
             email: true,
             role: true,
-            avatarUrl: true,
+            partner: {
+              select: {
+                coverImage: true,
+              },
+            },
           },
         });
 
@@ -301,7 +305,7 @@ export async function POST(
                 roomId: chatRoomResult.roomId,
                 senderId: session.user.id,
                 senderName: sender?.name || null,
-                senderAvatarUrl: sender?.avatarUrl || null,
+                senderAvatarUrl: sender?.partner?.coverImage || null,
                 content: content.trim(),
                 contentType: 'TEXT',
                 status: 'SENT',
