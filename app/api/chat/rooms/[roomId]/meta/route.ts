@@ -17,19 +17,22 @@ export const dynamic = 'force-dynamic';
  */
 export async function GET(
   request: Request,
-  { params }: { params: { roomId: string } }
+  { params }: { params: Promise<{ roomId: string }> | { roomId: string } }
 ) {
   const start = Date.now();
-  console.log('[meta] start', start, 'roomId:', params.roomId);
   
   try {
+    // 處理 params 可能是 Promise 的情況（Next.js 15）
+    const resolvedParams = params instanceof Promise ? await params : params;
+    const { roomId } = resolvedParams;
+    
+    console.log('[meta] start', start, 'roomId:', roomId);
+    
     const session = await getServerSession(authOptions);
 
     if (!session?.user?.id) {
       return NextResponse.json({ error: '請先登入' }, { status: 401 });
     }
-
-    const { roomId } = params;
 
     // ✅ Redis 快取（1 秒 TTL，因為 polling 頻繁）
     const cacheKey = CacheKeys.chat.meta(roomId);
@@ -92,25 +95,37 @@ export async function GET(
       // ✅ 如果是免費聊天室，計算用戶今天的消息數量
       let todayMessageCount = 0;
       if (isFreeChat) {
-        // 計算今天的開始時間（台灣時區）
-        const dayjs = (await import('dayjs')).default;
-        const utc = (await import('dayjs/plugin/utc')).default;
-        const timezone = (await import('dayjs/plugin/timezone')).default;
-        dayjs.extend(utc);
-        dayjs.extend(timezone);
-        
-        const todayStartTaipei = dayjs.tz('Asia/Taipei').startOf('day');
-        const todayStartUTCForDB = todayStartTaipei.utc().toDate();
+        try {
+          // 計算今天的開始時間（台灣時區）
+          const dayjs = (await import('dayjs')).default;
+          const utc = (await import('dayjs/plugin/utc')).default;
+          const timezone = (await import('dayjs/plugin/timezone')).default;
+          dayjs.extend(utc);
+          dayjs.extend(timezone);
+          
+          const todayStartTaipei = dayjs.tz('Asia/Taipei').startOf('day');
+          const todayStartUTCForDB = todayStartTaipei.utc().toDate();
 
-        todayMessageCount = await (client as any).chatMessage.count({
-          where: {
-            roomId,
-            senderId: session.user.id,
-            createdAt: {
-              gte: todayStartUTCForDB, // 只計算今天的消息
+          todayMessageCount = await (client as any).chatMessage.count({
+            where: {
+              roomId,
+              senderId: session.user.id,
+              createdAt: {
+                gte: todayStartUTCForDB, // 只計算今天的消息
+              },
             },
-          },
-        });
+          });
+        } catch (dayjsError: any) {
+          // 如果 dayjs 導入失敗，記錄錯誤但不阻塞 meta 查詢
+          console.error('計算今日消息數量失敗:', {
+            error: dayjsError,
+            message: dayjsError?.message,
+            roomId,
+            userId: session.user.id,
+          });
+          // 降級處理：不計算今日消息數量，設為 0
+          todayMessageCount = 0;
+        }
       }
 
       // ✅ 返回極簡 meta
