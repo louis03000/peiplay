@@ -762,47 +762,57 @@ export async function POST(
 
     // 免費聊天限制檢查（每日重置）
     if (isFreeChat) {
-      // 使用 dayjs 計算今天開始的 UTC 時間（台灣時區）
-      const dayjs = (await import('dayjs')).default;
-      const utc = (await import('dayjs/plugin/utc')).default;
-      const timezone = (await import('dayjs/plugin/timezone')).default;
-      dayjs.extend(utc);
-      dayjs.extend(timezone);
-      
-      // 獲取台灣時區今天的開始時間，然後轉換為 UTC
-      const todayStartTaipei = dayjs.tz('Asia/Taipei').startOf('day');
-      const todayStartUTCForDB = todayStartTaipei.utc().toDate();
+      try {
+        // 使用 dayjs 計算今天開始的 UTC 時間（台灣時區）
+        const dayjs = (await import('dayjs')).default;
+        const utc = (await import('dayjs/plugin/utc')).default;
+        const timezone = (await import('dayjs/plugin/timezone')).default;
+        dayjs.extend(utc);
+        dayjs.extend(timezone);
+        
+        // 獲取台灣時區今天的開始時間，然後轉換為 UTC
+        const todayStartTaipei = dayjs.tz('Asia/Taipei').startOf('day');
+        const todayStartUTCForDB = todayStartTaipei.utc().toDate();
 
-      // ✅ 確保 roomId 和 senderId 都不是 undefined
-      if (!roomId || !senderId) {
-        return NextResponse.json({ error: '參數錯誤' }, { status: 400 });
-      }
+        // ✅ 確保 roomId 和 senderId 都不是 undefined
+        if (!roomId || !senderId) {
+          return NextResponse.json({ error: '參數錯誤' }, { status: 400 });
+        }
 
-      const todayMessages = await db.query(async (client) => {
-        return await client.chatMessage.findMany({
-          where: {
-            roomId,
-            senderId: senderId,
-            createdAt: {
-              gte: todayStartUTCForDB, // 只計算今天的消息
+        const todayMessages = await db.query(async (client) => {
+          return await client.chatMessage.findMany({
+            where: {
+              roomId,
+              senderId: senderId,
+              createdAt: {
+                gte: todayStartUTCForDB, // 只計算今天的消息
+              },
             },
-          },
-          select: { id: true },
-        });
-      }, 'chat:rooms:roomId:messages:post:check-limit');
+            select: { id: true },
+          });
+        }, 'chat:rooms:roomId:messages:post:check-limit');
 
-      const FREE_CHAT_LIMIT = 10; // 每日限制 10 則訊息
-      if (todayMessages.length >= FREE_CHAT_LIMIT) {
-        // 返回 403 而不是 500，因為這是業務邏輯限制，不是伺服器錯誤
-        return NextResponse.json(
-          { 
-            error: `每日訊息上限為${FREE_CHAT_LIMIT}則，您已達到今日上限。每日凌晨 00:00 會重新計算。`,
-            limitReached: true,
-            used: todayMessages.length,
-            limit: FREE_CHAT_LIMIT
-          },
-          { status: 403 }
-        );
+        const FREE_CHAT_LIMIT = 10; // 每日限制 10 則訊息
+        if (todayMessages.length >= FREE_CHAT_LIMIT) {
+          // 返回 403 而不是 500，因為這是業務邏輯限制，不是伺服器錯誤
+          return NextResponse.json(
+            { 
+              error: `每日訊息上限為${FREE_CHAT_LIMIT}則，您已達到今日上限。每日凌晨 00:00 會重新計算。`,
+              limitReached: true,
+              used: todayMessages.length,
+              limit: FREE_CHAT_LIMIT
+            },
+            { status: 403 }
+          );
+        }
+      } catch (limitCheckError: any) {
+        // 如果限制檢查失敗，記錄錯誤但繼續處理（不阻塞消息發送）
+        console.error('免費聊天限制檢查失敗:', {
+          error: limitCheckError,
+          message: limitCheckError?.message,
+          stack: limitCheckError?.stack,
+        });
+        // 不拋出錯誤，讓消息可以正常發送（降級處理）
       }
     }
 
