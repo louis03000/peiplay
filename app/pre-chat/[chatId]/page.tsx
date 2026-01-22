@@ -35,6 +35,7 @@ export default function PreChatPage() {
   const [messageInput, setMessageInput] = useState('');
   const [sending, setSending] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const lastTimestampRef = useRef<string | null>(null);
@@ -194,6 +195,7 @@ export default function PreChatPage() {
     const trimmedContent = messageInput.trim();
     setMessageInput('');
     setSending(true);
+    setErrorMessage(null); // 清除之前的錯誤
 
     try {
       // 與正式聊天室發送格式保持一致：必須提供 content（文字內容），可選 contentType
@@ -233,13 +235,21 @@ export default function PreChatPage() {
           });
         }
       } else {
-        const error = await res.json();
-        alert(error.error || '發送失敗');
+        // 嘗試解析錯誤響應
+        let errorText = '發送失敗';
+        try {
+          const errorData = await res.json();
+          errorText = errorData.error || errorText;
+        } catch (parseError) {
+          // 如果響應不是有效的 JSON，使用狀態碼信息
+          errorText = `發送失敗 (${res.status})`;
+        }
+        setErrorMessage(errorText);
         setMessageInput(trimmedContent); // 恢復輸入
       }
     } catch (error: any) {
       console.error('Error sending message:', error);
-      alert('發送失敗，請重試');
+      setErrorMessage('發送失敗，請重試');
       setMessageInput(trimmedContent); // 恢復輸入
     } finally {
       setSending(false);
@@ -359,11 +369,22 @@ export default function PreChatPage() {
         onSubmit={handleSendMessage}
         className="bg-white border-t border-gray-200 px-4 py-3"
       >
+        {errorMessage && (
+          <div className="mb-3 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+            <p className="text-sm text-red-800">{errorMessage}</p>
+          </div>
+        )}
         <div className="flex items-center space-x-2">
           <input
             type="text"
             value={messageInput}
-            onChange={(e) => setMessageInput(e.target.value)}
+            onChange={(e) => {
+              setMessageInput(e.target.value);
+              // 當用戶開始輸入時，清除錯誤訊息
+              if (errorMessage) {
+                setErrorMessage(null);
+              }
+            }}
             placeholder={isLocked ? '聊天室已關閉' : '輸入訊息...'}
             className="flex-1 border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
             disabled={sending || isLocked}
