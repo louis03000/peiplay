@@ -320,10 +320,20 @@ export async function POST(
                 lastMessageAt: chatMessage.createdAt,
               },
             });
-          } catch (chatError) {
-            // 如果 ChatMessage 創建失敗，記錄錯誤但不影響 PreChatMessage
-            console.error('Failed to create ChatMessage (non-fatal):', chatError);
+          } catch (chatError: any) {
+            // 如果 ChatMessage 創建失敗，記錄詳細錯誤
+            console.error('Failed to create ChatMessage:', {
+              error: chatError,
+              message: chatError?.message,
+              code: chatError?.code,
+              roomId: chatRoomResult.roomId,
+              senderId: session.user.id,
+            });
+            // 不拋出錯誤，讓 PreChatMessage 能正常創建（向後兼容）
+            // 但記錄錯誤以便調試
           }
+        } else {
+          console.warn('No ChatRoom created for pre-chat, message will only be saved to PreChatMessage');
         }
 
         // 7. 更新 PreChatRoom meta：last_message_at 和 message_count（同一 transaction）
@@ -343,6 +353,7 @@ export async function POST(
           messageId: preChatMessage.id.toString(),
           createdAt: preChatMessage.createdAt.toISOString(),
           chatMessageId: chatMessage?.id || null, // 返回 ChatMessage ID（如果創建成功）
+          chatRoomId: chatRoomResult?.roomId || null, // 返回 ChatRoom ID（用於跳轉到正式聊天室）
         };
       });
     }, 'chatrooms:chatId:messages:post');

@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic';
 
 /**
  * POST /api/chat/rooms/free-chat
- * 創建或獲取免費聊天室（不關聯booking，限制5句）
+ * 創建或獲取免費聊天室（不關聯booking，每日限制10則訊息）
  */
 export async function POST(request: Request) {
   try {

@@ -134,10 +134,11 @@ const PartnerCard = memo(function PartnerCard({ partner, onQuickBook, showNextSt
 
     setIsCreatingChat(true)
     try {
-      // 使用新的預聊系統
-      const response = await fetch(`/api/chatrooms?partnerId=${partner.id}`, {
-        method: 'GET',
+      // 創建或獲取免費聊天室（直接跳轉到正式聊天室）
+      const response = await fetch('/api/chat/rooms/free-chat', {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ partnerId: partner.id }),
       })
 
       if (!response.ok) {
@@ -147,8 +148,8 @@ const PartnerCard = memo(function PartnerCard({ partner, onQuickBook, showNextSt
       }
 
       const data = await response.json()
-      // 跳轉到預聊頁面
-      window.location.href = `/pre-chat/${data.chatId}?partnerId=${partner.id}`
+      // 跳轉到正式聊天室
+      window.location.href = `/chat/${data.roomId}`
     } catch (error) {
       console.error('Error creating chat room:', error)
       alert('無法創建聊天室，請稍後再試')
@@ -377,7 +378,7 @@ const PartnerCard = memo(function PartnerCard({ partner, onQuickBook, showNextSt
                 onClick={handleChatClick}
                 disabled={isCreatingChat}
                 className="bg-purple-500 hover:bg-purple-600 text-white p-1.5 rounded-lg text-xs font-medium transition-colors flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
-                title="提前聊天（免費5句）"
+                title="提前聊天（每日10則）"
               >
                 <FaPaperPlane className="text-xs" />
               </button>

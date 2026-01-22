@@ -36,6 +36,7 @@ export default function PreChatPage() {
   const [sending, setSending] = useState(false);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [chatRoomId, setChatRoomId] = useState<string | null>(null); // 正式聊天室 ID
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const lastTimestampRef = useRef<string | null>(null);
@@ -225,6 +226,11 @@ export default function PreChatPage() {
         setMessages((prev) => [...prev, newMessage]);
         lastTimestampRef.current = data.createdAt;
 
+        // 保存正式聊天室 ID（如果已創建）
+        if (data.chatRoomId) {
+          setChatRoomId(data.chatRoomId);
+        }
+
         // 更新房間狀態
         if (room) {
           setRoom({
@@ -304,6 +310,14 @@ export default function PreChatPage() {
               </p>
             </div>
           </div>
+          {chatRoomId && (
+            <button
+              onClick={() => router.push(`/chat/${chatRoomId}`)}
+              className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              前往正式聊天室 →
+            </button>
+          )}
         </div>
         {isLocked && (
           <div className="mt-2 bg-yellow-50 border border-yellow-200 rounded-lg px-3 py-2">

@@ -92,7 +92,7 @@ export default function ChatRoomPage() {
   const isFreeChat = Boolean(
     room && !room.bookingId && !room.groupBookingId && !room.multiPlayerBookingId
   );
-  const FREE_CHAT_LIMIT = 5;
+  const FREE_CHAT_LIMIT = 10; // 每日限制 10 則訊息
 
   // ✅ REST-only：使用純 REST API hook
   const {
@@ -337,7 +337,7 @@ export default function ChatRoomPage() {
 
     // 檢查免費聊天室的消息限制
     if (isFreeChat && userMessageCount >= FREE_CHAT_LIMIT) {
-      alert(`免費聊天句數上限為${FREE_CHAT_LIMIT}句，您已達到上限`);
+      alert(`每日訊息上限為${FREE_CHAT_LIMIT}則，您已達到今日上限。每日凌晨 00:00 會重新計算。`);
       return;
     }
 
@@ -393,7 +393,7 @@ export default function ChatRoomPage() {
         setMessageInput(trimmedContent); // 恢復輸入內容
 
         // 如果是免費聊天限制錯誤，顯示提示並回退計數
-        if (error?.message?.includes('免費聊天句數上限')) {
+        if (error?.message?.includes('每日訊息上限') || error?.message?.includes('免費聊天句數上限')) {
           alert(error.message);
           // 重置計數為實際值
           if (isFreeChat && session?.user?.id) {
@@ -480,16 +480,16 @@ export default function ChatRoomPage() {
             }`}>
               {userMessageCount >= FREE_CHAT_LIMIT ? (
                 <>
-                  ⚠️ 已達到免費聊天上限（{userMessageCount}/{FREE_CHAT_LIMIT} 句）
+                  ⚠️ 已達到每日訊息上限（{userMessageCount}/{FREE_CHAT_LIMIT} 則）
                   <span className="ml-2 text-xs text-red-600">
                     （每日凌晨 00:00 會重新計算）
                   </span>
                 </>
               ) : (
                 <>
-                  免費聊天句數上限為5句
+                  每日訊息上限為{FREE_CHAT_LIMIT}則
                   <span className="ml-2 text-purple-600">
-                    （今日已使用 {userMessageCount}/{FREE_CHAT_LIMIT} 句）
+                    （今日已使用 {userMessageCount}/{FREE_CHAT_LIMIT} 則）
                   </span>
                 </>
               )}

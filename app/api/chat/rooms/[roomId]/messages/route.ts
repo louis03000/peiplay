@@ -791,12 +791,12 @@ export async function POST(
         });
       }, 'chat:rooms:roomId:messages:post:check-limit');
 
-      const FREE_CHAT_LIMIT = 5;
+      const FREE_CHAT_LIMIT = 10; // 每日限制 10 則訊息
       if (todayMessages.length >= FREE_CHAT_LIMIT) {
         // 返回 403 而不是 500，因為這是業務邏輯限制，不是伺服器錯誤
         return NextResponse.json(
           { 
-            error: `免費聊天句數上限為${FREE_CHAT_LIMIT}句，您已達到今日上限。每日凌晨 00:00 會重新計算。`,
+            error: `每日訊息上限為${FREE_CHAT_LIMIT}則，您已達到今日上限。每日凌晨 00:00 會重新計算。`,
             limitReached: true,
             used: todayMessages.length,
             limit: FREE_CHAT_LIMIT
