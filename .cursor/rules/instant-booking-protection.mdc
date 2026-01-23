@@ -1,0 +1,66 @@
+---
+description: 保护即时预约代码 - 不要修改即时预约的创建流程
+alwaysApply: true
+---
+
+# 即时预约代码保护规则
+
+## ⚠️ 重要：不要修改即时预约代码
+
+**用户明确要求：即时预约的所有创建流程都是用户最喜欢的，完全不要再去动即时预约的代码，除非用户明确告诉你要去改动。**
+
+## 即时预约的当前实现（已确认完美）
+
+即时预约的创建流程由 `check_instant_bookings_for_text_channel()` 函数处理，位于 `E:\python.12\discord-bot\bot.py`。
+
+### 关键特性（已确认工作正常）：
+
+1. **文字频道创建**：
+   - 频道名称格式：`👥{animal}即時預約聊天`（纯聊天为 `👥{animal}純聊天預約`）
+   - 使用 booking_id 的 hash 来确定性地选择动物 emoji
+   - 立即创建文字频道（当预约状态为 CONFIRMED 且 `discordEarlyTextChannelId` 为 NULL）
+
+2. **语音频道创建**：
+   - **频道名称与文字频道完全一致**：`👥{animal}即時預約聊天`（与文字频道名称一致）
+   - 在预约开始前 3 分钟创建（通过 `create_voice_channel_5min_before()` 任务）
+   - 包含重复创建检查（检查 `discordVoiceChannelId` 是否已存在）
+
+3. **防重复机制**：
+   - 使用 `active_voice_channel_tasks` 和 `active_countdown_tasks` 集合防止重复启动任务
+   - 在创建语音频道前检查数据库中的 `discordVoiceChannelId` 字段
+
+4. **日志输出**：
+   - 正确显示"即時預約"类型
+   - 减少重复日志输出
+
+5. **与一般预约的分离**：
+   - `check_bookings()` 函数会跳过即时预约（即时预约由 `check_instant_bookings_for_text_channel()` 处理）
+
+## 规则
+
+- ✅ **永远不要修改** `check_instant_bookings_for_text_channel()` 函数
+- ✅ **永远不要修改** `create_voice_channel_5min_before()` 函数（在即时预约流程中）
+- ✅ **永远不要修改** 即时预约的频道命名逻辑
+- ✅ **永远不要修改** 即时预约的语音频道创建时机
+- ✅ **永远不要修改** 即时预约的防重复机制
+- ✅ **永远不要修改** 即时预约的日志输出格式
+
+## 例外情况
+
+**只有在用户明确要求修改即时预约代码时，才可以进行修改。**
+
+例如：
+- ❌ 不要因为"优化代码"而修改即时预约逻辑
+- ❌ 不要因为"统一代码风格"而修改即时预约代码
+- ❌ 不要因为"修复其他问题"而意外修改即时预约代码
+- ✅ 只有在用户明确说"修改即时预约的 XXX"时才可以修改
+
+## 相关代码位置
+
+- 主要函数：`E:\python.12\discord-bot\bot.py` 中的 `check_instant_bookings_for_text_channel()` (约第 2711 行)
+- 语音频道创建：`create_voice_channel_5min_before()` (约第 3170 行，在即时预约流程中)
+- 倒计时任务：`countdown_with_rating()` (用于即时预约)
+
+## 提醒
+
+每次修改 Discord bot 代码时，请先检查是否会影响即时预约的代码。如果可能影响，请先询问用户是否允许修改。

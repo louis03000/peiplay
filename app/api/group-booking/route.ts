@@ -271,8 +271,7 @@ export async function GET(request: Request) {
           startTime: where.startTime.gte?.toISOString()
         }, null, 2));
 
-        // 查詢群組預約
-        // 注意：暫時不查詢 games 字段，因為數據庫中可能還沒有這個字段
+        // 查詢群組預約（包含 games 字段）
         console.log('🔍 [群組預約查詢] 開始執行 Prisma 查詢...');
         let groupBookings: any[];
         try {
@@ -291,7 +290,7 @@ export async function GET(request: Request) {
             currentParticipants: true,
             pricePerPerson: true,
             status: true,
-            // games: true, // 暫時移除，因為數據庫中可能還沒有這個字段
+            games: true, // 查詢群組預約保存的遊戲列表
             createdAt: true,
             initiatorId: true,
             initiatorType: true,
