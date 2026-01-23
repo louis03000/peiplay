@@ -518,9 +518,6 @@ export default function ChatPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <h1 className="text-lg font-semibold text-gray-900">{getRoomTitle(selectedRoom)}</h1>
-                  <div className="flex items-center mt-1">
-                    <span className="text-xs text-gray-400">REST API</span>
-                  </div>
                 </div>
               </div>
             </div>
