@@ -372,17 +372,11 @@ export default function Navbar() {
                     </Link>
                   </div>
                     <div className="px-3 sm:px-4 py-1.5 sm:py-2">
-                      <Link href="/admin/notifications" className="flex items-center justify-center space-x-2 sm:space-x-3 text-gray-900 hover:text-orange-600 hover:bg-orange-50 transition-colors rounded-lg px-3 sm:px-4 py-2.5 min-h-[44px]">
+                      <Link href="/admin/notifications" className="flex items-center justify-center space-x-2 sm:space-3 text-gray-900 hover:text-orange-600 hover:bg-orange-50 transition-colors rounded-lg px-3 sm:px-4 py-2.5 min-h-[44px]">
                         <span className="text-base sm:text-lg">🔔</span>
                         <span className="font-medium text-sm sm:text-base">通知管理</span>
-                    </Link>
-                  </div>
-                    <div className="px-3 sm:px-4 py-1.5 sm:py-2">
-                      <Link href="/admin/messages" className="flex items-center justify-center space-x-2 sm:space-x-3 text-gray-900 hover:text-teal-600 hover:bg-teal-50 transition-colors rounded-lg px-3 sm:px-4 py-2.5 min-h-[44px]">
-                        <span className="text-base sm:text-lg">💬</span>
-                        <span className="font-medium text-sm sm:text-base">私訊管理</span>
-                    </Link>
-                  </div>
+                      </Link>
+                    </div>
                   </>
                   )}
                 

@@ -22,18 +22,6 @@ interface Message {
   }
 }
 
-interface AdminMessage {
-  id: string
-  content: string
-  isRead: boolean
-  isFromAdmin: boolean
-  createdAt: string
-  admin?: {
-    id: string
-    name: string
-  }
-}
-
 interface Notification {
   id: string
   title: string
@@ -49,15 +37,13 @@ export default function MessagesPage() {
   const user = session?.user
   const isAuthenticated = status === 'authenticated'
   const authLoading = status === 'loading'
-  const [activeTab, setActiveTab] = useState<'messages' | 'admin-messages' | 'notifications'>('messages')
+  const [activeTab, setActiveTab] = useState<'messages' | 'notifications'>('messages')
   const [messages, setMessages] = useState<Message[]>([])
-  const [adminMessages, setAdminMessages] = useState<AdminMessage[]>([])
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [unreadCounts, setUnreadCounts] = useState({
     messages: 0,
-    adminMessages: 0,
     notifications: 0
   })
 
@@ -83,9 +69,8 @@ export default function MessagesPage() {
       setLoading(true)
       
       // 載入訊息、管理員私訊和通知
-      const [messagesRes, adminMessagesRes, notificationsRes] = await Promise.all([
+      const [messagesRes, notificationsRes] = await Promise.all([
         fetch('/api/messages?type=all&limit=50'),
-        fetch('/api/admin-messages'),
         fetch('/api/notifications?limit=50')
       ])
 
@@ -93,14 +78,6 @@ export default function MessagesPage() {
         const messagesData = await messagesRes.json()
         setMessages(messagesData.messages || [])
         setUnreadCounts(prev => ({ ...prev, messages: messagesData.unreadCount || 0 }))
-      }
-
-      if (adminMessagesRes.ok) {
-        const adminMessagesData = await adminMessagesRes.json()
-        const adminMsgs = adminMessagesData.messages || []
-        setAdminMessages(adminMsgs)
-        const unreadAdminCount = adminMsgs.filter((msg: AdminMessage) => !msg.isRead && msg.isFromAdmin).length
-        setUnreadCounts(prev => ({ ...prev, adminMessages: unreadAdminCount }))
       }
 
       if (notificationsRes.ok) {
@@ -232,21 +209,6 @@ export default function MessagesPage() {
                 )}
               </button>
               <button
-                onClick={() => setActiveTab('admin-messages')}
-                className={`py-4 px-1 border-b-2 font-medium text-sm ${
-                  activeTab === 'admin-messages'
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                管理員私訊
-                {unreadCounts.adminMessages > 0 && (
-                  <span className="ml-2 bg-red-500 text-white text-xs rounded-full px-2 py-1">
-                    {unreadCounts.adminMessages}
-                  </span>
-                )}
-              </button>
-              <button
                 onClick={() => setActiveTab('notifications')}
                 className={`py-4 px-1 border-b-2 font-medium text-sm ${
                   activeTab === 'notifications'
@@ -265,91 +227,6 @@ export default function MessagesPage() {
           </div>
 
           <div className="p-6">
-            {activeTab === 'admin-messages' && (
-              <div>
-                <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                  <h3 className="font-semibold text-blue-900 mb-2">💬 與管理員的對話</h3>
-                  <p className="text-sm text-blue-700">您可以在這裡查看管理員發送給您的私訊，並回覆管理員。</p>
-                </div>
-
-                {/* 管理員私訊列表 */}
-                <div className="space-y-4">
-                  {adminMessages.length === 0 ? (
-                    <div className="text-center py-8 text-gray-500">
-                      尚無管理員私訊
-                    </div>
-                  ) : (
-                    adminMessages.map((message) => (
-                      <div
-                        key={message.id}
-                        className={`border rounded-lg p-4 ${
-                          message.isRead ? 'bg-white border-gray-200' : 'bg-blue-50 border-blue-200'
-                        }`}
-                      >
-                        <div className="flex justify-between items-start mb-2">
-                          <div className="flex items-center space-x-2">
-                            <span className="font-medium text-blue-600">
-                              {message.isFromAdmin ? '管理員' : '我'}
-                            </span>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            {!message.isRead && message.isFromAdmin && (
-                              <span className="bg-blue-500 text-white text-xs rounded-full px-2 py-1">
-                                未讀
-                              </span>
-                            )}
-                            <span className="text-sm text-gray-500">
-                              {new Date(message.createdAt).toLocaleString('zh-TW')}
-                            </span>
-                          </div>
-                        </div>
-                        <p className="text-gray-700">{message.content}</p>
-                      </div>
-                    ))
-                  )}
-                </div>
-
-                {/* 回覆管理員表單 */}
-                <div className="mt-6 bg-gray-50 rounded-lg p-4">
-                  <h3 className="text-lg font-semibold mb-4">回覆管理員</h3>
-                  <form onSubmit={async (e) => {
-                    e.preventDefault()
-                    const formData = new FormData(e.currentTarget)
-                    const content = formData.get('content') as string
-                    if (!content.trim()) return
-
-                    try {
-                      const res = await fetch('/api/admin-messages', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ content, isFromAdmin: false })
-                      })
-                      if (res.ok) {
-                        e.currentTarget.reset()
-                        loadData()
-                      }
-                    } catch (error) {
-                      console.error('發送回覆失敗:', error)
-                    }
-                  }} className="space-y-4">
-                    <textarea
-                      name="content"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      rows={3}
-                      placeholder="輸入您的回覆..."
-                      required
-                    />
-                    <button
-                      type="submit"
-                      className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-                    >
-                      發送回覆
-                    </button>
-                  </form>
-                </div>
-              </div>
-            )}
-
             {activeTab === 'messages' && (
               <div>
                 {/* 新訊息按鈕 */}
