@@ -299,6 +299,9 @@ export default function HomePage() {
                 <li className="flex items-center">
                   <span>客服信箱：peiplay987@gmail.com</span>
                 </li>
+                <li className="flex items-center">
+                  <span>Line：@484mkuzi</span>
+                </li>
               </ul>
             </div>
           </div>

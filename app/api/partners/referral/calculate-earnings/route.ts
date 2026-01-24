@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
         return { type: 'PARTNER_NOT_FOUND' } as const;
       }
 
-      // 🔥 如果訂單已經結束但狀態不是 COMPLETED，先更新狀態
+      // 🔥 檢查訂單是否已結束
       const now = new Date();
       const scheduleEndTime = booking.schedule?.endTime;
       const isEnded = scheduleEndTime && scheduleEndTime <= now;
@@ -83,13 +83,15 @@ export async function POST(request: NextRequest) {
         } as const;
       }
       
+      // 🔥 如果訂單已結束但狀態不是 COMPLETED，先更新狀態為 COMPLETED
+      // 這樣可以確保所有已結束的訂單都能被計算推薦收入
       if (booking.status !== BookingStatus.COMPLETED) {
-        // 訂單已經結束，更新狀態為 COMPLETED
+        console.log(`🔧 訂單 ${bookingId} 已結束但狀態為 ${booking.status}，更新為 COMPLETED`);
         await client.booking.update({
           where: { id: booking.id },
           data: { status: BookingStatus.COMPLETED }
         });
-        console.log(`✅ 訂單 ${bookingId} 已結束，狀態已更新為 COMPLETED`);
+        console.log(`✅ 訂單 ${bookingId} 狀態已更新為 COMPLETED`);
         // 重新查詢訂單以獲取最新狀態
         const updatedBooking = await client.booking.findUnique({
           where: { id: bookingId },
