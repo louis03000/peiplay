@@ -1,9 +1,3 @@
 {
-  "crons": [
-    {
-      "path": "/api/cron/calculate-referral-earnings",
-      "schedule": "0 * * * *"
-    }
-  ]
 }
 

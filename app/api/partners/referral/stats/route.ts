@@ -78,8 +78,8 @@ export async function GET(request: NextRequest) {
       let totalEarnings = referralEarnings._sum.amount || 0
       let currentEarnings = partner.referralEarnings || 0
       
-      // 🔥 检查数据一致性：如果 totalEarnings 和 currentEarnings 不一致，修复数据
-      // 使用 totalEarnings 作为真实值，因为它来自 ReferralEarning 表的聚合
+      // 🔥 檢查數據一致性：如果 totalEarnings 和 currentEarnings 不一致，修復數據
+      // 使用 totalEarnings 作為真實值，因為它來自 ReferralEarning 表的聚合
       if (Math.abs(totalEarnings - currentEarnings) > 0.01) {
         console.warn(`⚠️ [推薦統計] 數據不一致: 夥伴 ${partner.id} (${partner.name})`, {
           totalEarningsFromDB: totalEarnings,
@@ -87,7 +87,7 @@ export async function GET(request: NextRequest) {
           difference: totalEarnings - currentEarnings,
         });
         
-        // 🔥 修复数据：如果 totalEarnings > currentEarnings，说明有推荐收入没有被正确更新到 Partner 表
+        // 🔥 修復數據：如果 totalEarnings > currentEarnings，說明有推薦收入沒有被正確更新到 Partner 表
         // 更新 Partner 表的 referralEarnings 字段
         if (totalEarnings > currentEarnings) {
           console.log(`🔧 [推薦統計] 修復數據不一致: 更新 Partner.referralEarnings 從 ${currentEarnings} 到 ${totalEarnings}`);
@@ -101,9 +101,9 @@ export async function GET(request: NextRequest) {
         }
       }
       
-      // 🔥 注意：推薦收入的自動計算現在由 cron job 處理（/api/cron/calculate-referral-earnings）
-      // 這裡只負責修復數據一致性，確保顯示的數據是準確的
-      // 這樣即使夥伴沒有打開推薦系統頁面，推薦收入也會自動更新
+      // 🔥 注意：這裡不再依賴任何 Cron
+      // 推薦收入在「訂單狀態變成 COMPLETED」時即時計算並寫入 ReferralEarning
+      // 此 API 每次被呼叫時，只負責做一次「對帳」，確保 Partner.referralEarnings 與 ReferralEarning 聚合結果一致
 
       const referrals = referralStats.map((record) => ({
         id: record.id,
