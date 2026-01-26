@@ -4,10 +4,11 @@ import { signIn } from "next-auth/react";
 import LineLoginButton from '@/components/LineLoginButton';
 import GoogleLoginButton from '@/components/GoogleLoginButton';
 import { useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const sessionData = typeof window !== "undefined" ? useSession() : { data: undefined, status: "unauthenticated" };
   const session = sessionData.data;
   const status = sessionData.status;
@@ -21,6 +22,54 @@ export default function LoginPage() {
       router.replace("/");
     }
   }, [status, router]);
+
+  // 讀取 URL 中的 error 參數
+  useEffect(() => {
+    const error = searchParams.get('error');
+    if (error) {
+      let message = '';
+      switch (error) {
+        case 'AccessDenied':
+          message = '此 Email 已使用一般註冊，請使用 Email 和密碼登入';
+          break;
+        case 'Configuration':
+          message = 'Google 登入設定有誤，請聯繫管理員';
+          break;
+        case 'OAuthSignin':
+          message = 'Google 登入失敗，請重試';
+          break;
+        case 'OAuthCallback':
+          message = 'Google 登入回調失敗，請重試';
+          break;
+        case 'OAuthCreateAccount':
+          message = '無法建立 Google 帳號，請重試';
+          break;
+        case 'EmailCreateAccount':
+          message = '無法建立帳號，請重試';
+          break;
+        case 'Callback':
+          message = '登入回調錯誤，請重試';
+          break;
+        case 'OAuthAccountNotLinked':
+          message = '此 Email 已使用其他方式註冊，請使用原本的登入方式';
+          break;
+        case 'EmailSignin':
+          message = 'Email 登入失敗，請檢查您的 Email';
+          break;
+        case 'CredentialsSignin':
+          message = '帳號或密碼錯誤';
+          break;
+        case 'SessionRequired':
+          message = '請先登入';
+          break;
+        default:
+          message = '登入失敗，請重試';
+      }
+      setErrorMsg(message);
+      // 清除 URL 中的 error 參數
+      router.replace('/auth/login', { scroll: false });
+    }
+  }, [searchParams, router]);
 
   const handleCredentialsLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -57,6 +106,11 @@ export default function LoginPage() {
             <h2 className="text-2xl font-bold text-black mb-2 text-center">登入 PeiPlay</h2>
             <p className="text-black text-center">歡迎回來！</p>
           </div>
+          {errorMsg && (
+            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+              <p className="text-red-600 text-sm text-center">{errorMsg}</p>
+            </div>
+          )}
           <div className="flex flex-col gap-3">
             <LineLoginButton />
             <GoogleLoginButton />
@@ -64,7 +118,6 @@ export default function LoginPage() {
           <div className="w-full border-t border-gray-300 my-8" />
           <h3 className="text-lg font-bold mb-4 text-black text-center">一般登入</h3>
           <form onSubmit={handleCredentialsLogin} className="w-full flex flex-col gap-4">
-            {errorMsg && <div className="text-red-500 text-center">{errorMsg}</div>}
             <input
               type="email"
               className="w-full px-4 py-2 rounded bg-white text-black border border-gray-300"

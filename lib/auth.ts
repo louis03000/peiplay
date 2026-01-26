@@ -326,6 +326,7 @@ export const authOptions: NextAuthOptions = {
         if (existingUserByEmail) {
           // Google 登入時，若 email 已用一般註冊則不允許合併，避免 session id 與 DB 不一致
           if (isGoogle) {
+            console.log('Google 登入被拒絕：Email 已使用一般註冊', emailToUse);
             return false;
           }
           // 如果 email 已存在（LINE），使用現有用戶
