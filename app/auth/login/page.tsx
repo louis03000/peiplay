@@ -1,12 +1,12 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { signIn } from "next-auth/react";
 import LineLoginButton from '@/components/LineLoginButton';
 import GoogleLoginButton from '@/components/GoogleLoginButton';
 import { useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const sessionData = typeof window !== "undefined" ? useSession() : { data: undefined, status: "unauthenticated" };
@@ -154,5 +154,22 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex flex-col items-center justify-center min-h-screen bg-white pt-32">
+        <div className="w-full max-w-md animate-pulse">
+          <div className="h-8 bg-gray-200 rounded mb-4" />
+          <div className="h-4 bg-gray-200 rounded mb-8" />
+          <div className="h-12 bg-gray-200 rounded mb-4" />
+          <div className="h-12 bg-gray-200 rounded" />
+        </div>
+      </div>
+    }>
+      <LoginForm />
+    </Suspense>
   );
 } 
