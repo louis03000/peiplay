@@ -430,13 +430,8 @@ export const authOptions: NextAuthOptions = {
     async redirect({ url, baseUrl }) {
       console.log('Redirect callback:', { url, baseUrl });
       
-      // 如果是 signin 成功：Google 登入導向 /profile，其餘導向首頁
-      if (url.includes('signin')) {
-        if (url.includes('/profile')) return `${baseUrl}/profile`;
-        return `${baseUrl}/`;
-      }
-      
-      // 其他情況保持原來的行為
+      // 登入成功後一律導向個人中心（確保首次 Google 登入等都會跳轉到 /profile）
+      if (url.includes('signin')) return `${baseUrl}/profile`;
       return url.startsWith(baseUrl) ? url : baseUrl;
     },
   },
