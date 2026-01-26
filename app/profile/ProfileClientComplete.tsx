@@ -287,16 +287,26 @@ export default function ProfileClientComplete() {
     setError("");
 
     try {
-      // 準備提交數據：包含 coverImages 陣列
-      const submitData = {
-        ...formData,
-        coverImages: formData.coverImages, // 提交多張封面照
-        coverImage: formData.coverImages[0] || formData.coverImage, // 第一張作為 coverImage（向後兼容）
+      // 基本欄位（所有用戶）
+      const baseData = {
+        name: formData.name,
+        phone: formData.phone,
+        birthday: formData.birthday,
+        discord: formData.discord,
       };
+      // 僅夥伴才提交夥伴專用欄位
+      const submitData = isPartner
+        ? {
+            ...baseData,
+            ...formData,
+            coverImages: formData.coverImages,
+            coverImage: formData.coverImages[0] || formData.coverImage,
+          }
+        : baseData;
 
-      const res = await fetch("/api/user/profile", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+      const res = await fetch('/api/user/profile', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(submitData),
       });
 
@@ -394,12 +404,12 @@ export default function ProfileClientComplete() {
     );
   }
 
-  // 判斷是否為夥伴：只有當 partner 存在且不是 null 時才是夥伴
-  // 如果 partner 是 null 或 undefined，則不是夥伴
-  // 使用更嚴格的判斷：檢查 partner 是否存在且有 id
-  const isPartner = userData?.partner !== null && 
-                    userData?.partner !== undefined && 
-                    userData?.partner?.id !== undefined;
+  // 判斷是否為夥伴：partner 存在、有 id、且 status 為 APPROVED 才顯示夥伴專用欄位
+  const isPartner = !!(
+    userData?.partner != null &&
+    userData.partner.id != null &&
+    (userData.partner as { status?: string })?.status === 'APPROVED'
+  );
 
   const showDiscordModal = discordModalStep === 'form' || discordModalStep === 'invite';
 

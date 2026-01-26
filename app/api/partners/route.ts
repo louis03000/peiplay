@@ -436,6 +436,9 @@ export async function POST(request: Request) {
       if (user && user.partnerRejectionCount >= 3) {
         return { type: 'REJECTED_TOO_MANY_TIMES' } as const
       }
+
+      // Google 登入用戶跳過 Email 驗證，與一般用戶同等可申請；不因 emailVerified 阻擋申請
+      // （一般註冊用戶須完成驗證才能登入，故能登入者等同已驗證或為 Google）
       
       const exist = await client.partner.findUnique({ where: { userId: session.user!.id } });
       if (exist) {

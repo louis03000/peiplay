@@ -293,6 +293,14 @@ export default function JoinPage() {
     try {
       setSubmitting(true)
       setError('')
+      
+      // 檢查用戶是否已補齊個人資料（防止繞過前端驗證）
+      if (!userData || !userData.name || !userData.phone || !userData.birthday) {
+        setError('請先前往個人中心補齊姓名、電話、生日等必要資料後再提交申請')
+        setSubmitting(false)
+        return
+      }
+      
       let games = selectedGames.filter(g => g !== 'other')
       if (selectedGames.includes('other') && customGame.trim()) {
         games = [...games, customGame.trim()]
@@ -602,31 +610,75 @@ export default function JoinPage() {
               )}
               
               <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-                {/* 顯示用戶基本資料（唯讀） */}
-                {userData && (
-                  <div className="bg-gray-50 p-4 rounded-lg mb-6">
-                    <h3 className="text-lg font-medium text-gray-900 mb-4">您的個人資料</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700">姓名</label>
-                        <div className="mt-1 text-sm text-gray-900">{userData.name}</div>
+                {/* 檢查用戶是否已補齊個人資料 */}
+                {(() => {
+                  const hasCompleteProfile = userData && 
+                    userData.name && 
+                    userData.phone && 
+                    userData.birthday;
+                  
+                  if (!hasCompleteProfile) {
+                    return (
+                      <div className="bg-red-50 border-2 border-red-300 p-6 rounded-lg mb-6">
+                        <div className="flex items-start">
+                          <div className="flex-shrink-0">
+                            <svg className="h-6 w-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                            </svg>
+                          </div>
+                          <div className="ml-3 flex-1">
+                            <h3 className="text-lg font-semibold text-red-900 mb-2">
+                              請先補齊個人資料
+                            </h3>
+                            <p className="text-sm text-red-800 mb-4">
+                              申請成為遊戲夥伴前，請先前往個人中心補齊以下必要資料：
+                            </p>
+                            <ul className="list-disc list-inside text-sm text-red-700 mb-4 space-y-1">
+                              {(!userData || !userData.name) && <li>姓名</li>}
+                              {(!userData || !userData.phone) && <li>電話</li>}
+                              {(!userData || !userData.birthday) && <li>生日</li>}
+                            </ul>
+                            <a
+                              href="/profile"
+                              className="inline-flex items-center px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 transition-colors"
+                            >
+                              前往個人中心補齊資料
+                            </a>
+                          </div>
+                        </div>
                       </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700">生日</label>
-                        <div className="mt-1 text-sm text-gray-900">{userData.birthday ? userData.birthday.slice(0, 10) : '-'}</div>
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700">電話</label>
-                        <div className="mt-1 text-sm text-gray-900">{userData.phone || '-'}</div>
+                    );
+                  }
+                  
+                  return (
+                    <div className="bg-gray-50 p-4 rounded-lg mb-6">
+                      <h3 className="text-lg font-medium text-gray-900 mb-4">您的個人資料</h3>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700">姓名</label>
+                          <div className="mt-1 text-sm text-gray-900">{userData.name}</div>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700">生日</label>
+                          <div className="mt-1 text-sm text-gray-900">{userData.birthday ? userData.birthday.slice(0, 10) : '-'}</div>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700">電話</label>
+                          <div className="mt-1 text-sm text-gray-900">{userData.phone || '-'}</div>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                )}
+                  );
+                })()}
 
-                {/* 隱藏的欄位，用於表單驗證 */}
-                <input type="hidden" {...register('name')} value={userData?.name || ''} />
-                <input type="hidden" {...register('birthday')} value={userData?.birthday ? userData.birthday.slice(0, 10) : ''} />
-                <input type="hidden" {...register('phone')} value={userData?.phone || ''} />
+                {/* 隱藏的欄位，用於表單驗證（僅在資料完整時才傳遞） */}
+                {userData && userData.name && userData.phone && userData.birthday && (
+                  <>
+                    <input type="hidden" {...register('name')} value={userData.name || ''} />
+                    <input type="hidden" {...register('birthday')} value={userData.birthday ? userData.birthday.slice(0, 10) : ''} />
+                    <input type="hidden" {...register('phone')} value={userData.phone || ''} />
+                  </>
+                )}
 
                 {/* 合作承攬合約書 */}
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
@@ -973,7 +1025,7 @@ export default function JoinPage() {
                     htmlFor="bankBookPhoto"
                     className="block text-sm font-medium text-gray-700"
                   >
-                    銀行存摺
+                    銀行存摺 <span className="text-gray-500 font-normal">（必須為本人的存摺）</span>
                   </label>
                   <div className="mt-1">
                     <input
@@ -1167,7 +1219,18 @@ export default function JoinPage() {
                 <div className="flex justify-end">
                   <button
                     type="submit"
-                    disabled={submitting || !coverImageUrl || !contractFileUrl || !bankBookPhoto || selectedGames.length === 0 || !canAgree}
+                    disabled={
+                      submitting || 
+                      !coverImageUrl || 
+                      !contractFileUrl || 
+                      !bankBookPhoto || 
+                      selectedGames.length === 0 || 
+                      !canAgree ||
+                      !userData ||
+                      !userData.name ||
+                      !userData.phone ||
+                      !userData.birthday
+                    }
                     className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {submitting ? '提交中...' : '提交申請'}
