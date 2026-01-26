@@ -7,25 +7,13 @@ import { createErrorResponse } from "@/lib/api-helpers";
 export const dynamic = 'force-dynamic';
 
 /**
- * 資料庫重置 API（僅用於測試環境）
- * 
+ * 資料庫重置 API
+ *
  * ⚠️ 警告：此功能會完全刪除所有用戶資料（除了管理員）
- * 只能在非 production 環境執行
+ * 僅管理員可執行
  */
 export async function POST(request: Request) {
   try {
-    // 🔒 嚴格檢查：只能在非 production 環境執行
-    if (process.env.NODE_ENV === 'production') {
-      console.error('❌ 嘗試在 production 環境執行資料庫重置，已阻止');
-      return NextResponse.json(
-        { 
-          error: '資料庫重置功能不允許在 production 環境執行',
-          code: 'PRODUCTION_ENV_DETECTED'
-        },
-        { status: 403 }
-      );
-    }
-
     // 驗證管理員權限
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
@@ -227,26 +215,13 @@ export async function POST(request: Request) {
       case 'SUCCESS':
         return NextResponse.json({ 
           message: '資料庫重置完成',
-          warning: '所有非管理員用戶資料已完全清除',
-          note: '此操作僅在測試環境可用'
+          warning: '所有非管理員用戶資料已完全清除'
         });
       default:
         return NextResponse.json({ error: '未知錯誤' }, { status: 500 });
     }
   } catch (error) {
     console.error('❌ 資料庫重置失敗:', error);
-    
-    // 如果是 production 環境錯誤，特別處理
-    if (error instanceof Error && error.message.includes('production')) {
-      return NextResponse.json(
-        { 
-          error: '資料庫重置功能不允許在 production 環境執行',
-          code: 'PRODUCTION_ENV_DETECTED'
-        },
-        { status: 403 }
-      );
-    }
-    
     return createErrorResponse(error, 'admin:reset-database');
   }
 }
