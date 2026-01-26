@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { signIn } from "next-auth/react";
 import LineLoginButton from '@/components/LineLoginButton';
+import GoogleLoginButton from '@/components/GoogleLoginButton';
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 
@@ -56,7 +57,10 @@ export default function LoginPage() {
             <h2 className="text-2xl font-bold text-black mb-2 text-center">登入 PeiPlay</h2>
             <p className="text-black text-center">歡迎回來！</p>
           </div>
-          <LineLoginButton />
+          <div className="flex flex-col gap-3">
+            <LineLoginButton />
+            <GoogleLoginButton />
+          </div>
           <div className="w-full border-t border-gray-300 my-8" />
           <h3 className="text-lg font-bold mb-4 text-black text-center">一般登入</h3>
           <form onSubmit={handleCredentialsLogin} className="w-full flex flex-col gap-4">

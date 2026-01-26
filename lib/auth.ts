@@ -4,6 +4,7 @@ import { UserRole } from '@prisma/client'
 import CredentialsProvider from "next-auth/providers/credentials";
 import { compare } from "bcryptjs";
 import LineProvider from 'next-auth/providers/line'
+import GoogleProvider from 'next-auth/providers/google'
 import { getServerSession } from 'next-auth/next'
 import { SecurityLogger, IPFilter } from './security'
 
@@ -36,6 +37,13 @@ export const authOptions: NextAuthOptions = {
         params: { scope: 'openid profile email' },
       },
     }),
+    ...(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
+      ? [GoogleProvider({
+          clientId: process.env.GOOGLE_CLIENT_ID,
+          clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+          authorization: { params: { scope: 'openid profile email' } },
+        })]
+      : []),
     CredentialsProvider({
       name: "Credentials",
       credentials: {
@@ -307,14 +315,20 @@ export const authOptions: NextAuthOptions = {
       if (!dbUser) {
         // 如果 User 不存在，嘗試創建一個
         // 🔥 先檢查 email 是否已存在（避免唯一約束衝突）
-        const emailToUse = user.email || `line_${lineId}@example.com`;
+        const isGoogle = account?.provider === 'google';
+        const emailToUse = user.email
+          || (lineId ? `line_${lineId}@example.com` : `google_${(profile as any)?.sub ?? user.id}@example.com`);
         const existingUserByEmail = await prisma.user.findUnique({
           where: { email: emailToUse },
           select: { id: true },
         });
         
         if (existingUserByEmail) {
-          // 如果 email 已存在，使用現有用戶
+          // Google 登入時，若 email 已用一般註冊則不允許合併，避免 session id 與 DB 不一致
+          if (isGoogle) {
+            return false;
+          }
+          // 如果 email 已存在（LINE），使用現有用戶
           dbUser = await prisma.user.findUnique({
             where: { id: existingUserByEmail.id },
             select: {
@@ -334,11 +348,12 @@ export const authOptions: NextAuthOptions = {
           data: {
             id: userId,
                 email: emailToUse,
-            password: '', // LINE 用戶不需要密碼
+            password: '', // OAuth 用戶不需要密碼
             name: user.name || 'New User',
             role: 'CUSTOMER',
             phone: '',
             birthday: new Date('2000-01-01'),
+            emailVerified: isGoogle, // Google 登入視為信箱已驗證
           },
         });
         isNewUser = true;
