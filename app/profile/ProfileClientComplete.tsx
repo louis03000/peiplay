@@ -389,7 +389,6 @@ export default function ProfileClientComplete() {
                     userData?.partner?.id !== undefined;
 
   const showDiscordModal = discordModalStep === 'form' || discordModalStep === 'invite';
-  const DISCORD_INVITE_URL = 'https://discord.gg/XwM9e7BdVx';
 
   return (
     <>
@@ -440,21 +439,35 @@ export default function ProfileClientComplete() {
                     disabled={discordSubmitLoading}
                     className="w-full py-3 rounded-lg bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-semibold transition-colors"
                   >
-                    {discordSubmitLoading ? '儲存中...' : '送出並取得邀請連結'}
+                    {discordSubmitLoading ? '儲存中...' : '送出並查看加入步驟'}
                   </button>
                 </form>
               ) : (
                 <div className="space-y-4">
-                  <p className="text-indigo-100 text-sm">已儲存您的 Discord 名稱，請點擊下方按鈕加入伺服器：</p>
-                  <a
-                    href={DISCORD_INVITE_URL}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="block w-full py-3 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-center transition-colors"
-                  >
-                    加入 Discord 伺服器
-                  </a>
-                  <p className="text-indigo-200/80 text-xs break-all">邀請連結：{DISCORD_INVITE_URL}</p>
+                  <p className="text-indigo-100 text-sm mb-4">已儲存您的 Discord 名稱，請依照以下步驟加入伺服器：</p>
+                  <div className="bg-indigo-950/50 rounded-lg p-4 space-y-3 border border-indigo-500/30">
+                    <div className="flex items-start gap-3">
+                      <span className="flex-shrink-0 w-6 h-6 rounded-full bg-indigo-600 text-white text-xs font-bold flex items-center justify-center">①</span>
+                      <p className="text-indigo-100 text-sm flex-1">先打開 Discord App</p>
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <span className="flex-shrink-0 w-6 h-6 rounded-full bg-indigo-600 text-white text-xs font-bold flex items-center justify-center">②</span>
+                      <p className="text-indigo-100 text-sm flex-1">左側點「＋」</p>
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <span className="flex-shrink-0 w-6 h-6 rounded-full bg-indigo-600 text-white text-xs font-bold flex items-center justify-center">③</span>
+                      <p className="text-indigo-100 text-sm flex-1">選擇「加入伺服器」</p>
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <span className="flex-shrink-0 w-6 h-6 rounded-full bg-indigo-600 text-white text-xs font-bold flex items-center justify-center">④</span>
+                      <div className="flex-1">
+                        <p className="text-indigo-100 text-sm mb-2">貼上邀請碼：</p>
+                        <div className="bg-indigo-900/50 border border-indigo-500/50 rounded px-3 py-2">
+                          <p className="text-indigo-200 text-xs break-all font-mono">https://discord.gg/jNtHxN6DDC</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                   <button
                     type="button"
                     onClick={closeDiscordModal}

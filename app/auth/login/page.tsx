@@ -19,7 +19,7 @@ function LoginForm() {
 
   useEffect(() => {
     if (status === "authenticated") {
-      router.replace("/");
+      router.replace("/profile");
     }
   }, [status, router]);
 
@@ -93,7 +93,7 @@ function LoginForm() {
         setErrorMsg(res.error === 'CredentialsSignin' ? '帳號或密碼錯誤' : res.error);
       }
     } else if (res?.ok) {
-      window.location.href = "/";
+      window.location.href = "/profile";
     }
     setIsLoading(false);
   };
