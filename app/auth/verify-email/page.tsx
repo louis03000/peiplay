@@ -17,6 +17,7 @@ function VerifyEmailContent() {
   const [codeSent, setCodeSent] = useState(true); // 預設為 true，因為註冊時已發送
   const [verificationResult, setVerificationResult] = useState<'pending' | 'success' | 'failed'>('pending');
   const [showDiscordInvite, setShowDiscordInvite] = useState(false);
+  const [discordInviteCopied, setDiscordInviteCopied] = useState(false);
 
   // 倒數計時器
   useEffect(() => {
@@ -127,6 +128,18 @@ function VerifyEmailContent() {
   // 處理關閉 Discord 邀請 modal
   const handleCloseDiscordInvite = () => {
     setShowDiscordInvite(false);
+    setDiscordInviteCopied(false);
+  };
+
+  const DISCORD_INVITE = 'https://discord.gg/jNtHxN6DDC';
+  const copyDiscordInvite = async () => {
+    try {
+      await navigator.clipboard.writeText(DISCORD_INVITE);
+      setDiscordInviteCopied(true);
+      setTimeout(() => setDiscordInviteCopied(false), 2000);
+    } catch {
+      setDiscordInviteCopied(false);
+    }
   };
 
   // 驗證成功畫面
@@ -221,10 +234,19 @@ function VerifyEmailContent() {
                 </div>
                 <div className="flex items-start gap-3">
                   <span className="flex-shrink-0 w-6 h-6 rounded-full bg-[#5865F2] text-white text-xs font-bold flex items-center justify-center">④</span>
-                  <div className="flex-1">
+                  <div className="flex-1 min-w-0">
                     <p className="text-gray-700 text-sm mb-2">貼上邀請碼：</p>
-                    <div className="bg-white border border-gray-300 rounded px-3 py-2">
-                      <p className="text-gray-900 text-xs break-all font-mono">https://discord.gg/jNtHxN6DDC</p>
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 min-w-0 bg-white border border-gray-300 rounded px-3 py-2">
+                        <p className="text-gray-900 text-xs break-all font-mono">{DISCORD_INVITE}</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={copyDiscordInvite}
+                        className="flex-shrink-0 px-3 py-2 rounded bg-[#5865F2] hover:bg-[#4752C4] text-white text-xs font-medium whitespace-nowrap transition-colors"
+                      >
+                        {discordInviteCopied ? '已複製' : '複製'}
+                      </button>
                     </div>
                   </div>
                 </div>

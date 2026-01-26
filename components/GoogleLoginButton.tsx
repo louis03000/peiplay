@@ -26,10 +26,12 @@ function GoogleIcon() {
 }
 
 export default function GoogleLoginButton() {
+  const callbackUrl =
+    typeof window !== 'undefined' ? `${window.location.origin}/profile` : '/profile'
   return (
     <button
       type="button"
-      onClick={() => signIn('google', { callbackUrl: '/profile' })}
+      onClick={() => signIn('google', { callbackUrl })}
       className="flex items-center justify-center w-full px-4 py-2.5 bg-white text-gray-800 border border-gray-300 rounded-lg hover:bg-gray-50 hover:border-gray-400 transition-colors"
     >
       <GoogleIcon />

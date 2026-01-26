@@ -49,6 +49,7 @@ export default function ProfileClientComplete() {
   const [discordInput, setDiscordInput] = useState("");
   const [discordSubmitLoading, setDiscordSubmitLoading] = useState(false);
   const [discordSubmitError, setDiscordSubmitError] = useState("");
+  const [discordInviteCopied, setDiscordInviteCopied] = useState(false);
 
   // 其他遊戲選項相關狀態
   const [showOtherGames, setShowOtherGames] = useState(false);
@@ -357,6 +358,18 @@ export default function ProfileClientComplete() {
     setDiscordModalStep(null);
     setDiscordInput('');
     setDiscordSubmitError('');
+    setDiscordInviteCopied(false);
+  };
+
+  const DISCORD_INVITE = 'https://discord.gg/jNtHxN6DDC';
+  const copyDiscordInvite = async () => {
+    try {
+      await navigator.clipboard.writeText(DISCORD_INVITE);
+      setDiscordInviteCopied(true);
+      setTimeout(() => setDiscordInviteCopied(false), 2000);
+    } catch {
+      setDiscordInviteCopied(false);
+    }
   };
 
   // 如果還在載入或未掛載，顯示載入狀態
@@ -460,10 +473,19 @@ export default function ProfileClientComplete() {
                     </div>
                     <div className="flex items-start gap-3">
                       <span className="flex-shrink-0 w-6 h-6 rounded-full bg-indigo-600 text-white text-xs font-bold flex items-center justify-center">④</span>
-                      <div className="flex-1">
+                      <div className="flex-1 min-w-0">
                         <p className="text-indigo-100 text-sm mb-2">貼上邀請碼：</p>
-                        <div className="bg-indigo-900/50 border border-indigo-500/50 rounded px-3 py-2">
-                          <p className="text-indigo-200 text-xs break-all font-mono">https://discord.gg/jNtHxN6DDC</p>
+                        <div className="flex items-center gap-2">
+                          <div className="flex-1 min-w-0 bg-indigo-900/50 border border-indigo-500/50 rounded px-3 py-2">
+                            <p className="text-indigo-200 text-xs break-all font-mono">{DISCORD_INVITE}</p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={copyDiscordInvite}
+                            className="flex-shrink-0 px-3 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-medium whitespace-nowrap transition-colors"
+                          >
+                            {discordInviteCopied ? '已複製' : '複製'}
+                          </button>
                         </div>
                       </div>
                     </div>

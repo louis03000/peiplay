@@ -428,12 +428,10 @@ export const authOptions: NextAuthOptions = {
       return true;
     },
     async redirect({ url, baseUrl }) {
-      console.log('Redirect callback:', { url, baseUrl });
-      // 僅 Google 登入（callbackUrl /profile）導向個人中心；其餘導向首頁
-      if (url.includes('signin')) {
-        if (url.includes('/profile')) return `${baseUrl}/profile`;
-        return `${baseUrl}/`;
-      }
+      // 僅覆寫「導向首頁」：改為 /profile?from=oauth，讓前端依 provider 決定是否導回 /
+      // Google 用 callbackUrl /profile，不會被改；LINE 等預設 / 會被改
+      const base = baseUrl.replace(/\/$/, '');
+      if (url === base || url === `${base}/`) return `${base}/profile?from=oauth`;
       return url.startsWith(baseUrl) ? url : baseUrl;
     },
   },
