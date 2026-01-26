@@ -429,9 +429,11 @@ export const authOptions: NextAuthOptions = {
     },
     async redirect({ url, baseUrl }) {
       console.log('Redirect callback:', { url, baseUrl });
-      
-      // 登入成功後一律導向個人中心（確保首次 Google 登入等都會跳轉到 /profile）
-      if (url.includes('signin')) return `${baseUrl}/profile`;
+      // 僅 Google 登入（callbackUrl /profile）導向個人中心；其餘導向首頁
+      if (url.includes('signin')) {
+        if (url.includes('/profile')) return `${baseUrl}/profile`;
+        return `${baseUrl}/`;
+      }
       return url.startsWith(baseUrl) ? url : baseUrl;
     },
   },

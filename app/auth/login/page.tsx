@@ -18,10 +18,15 @@ function LoginForm() {
   const [errorMsg, setErrorMsg] = useState("");
 
   useEffect(() => {
-    if (status === "authenticated") {
+    if (status !== "authenticated") return;
+    const provider = (session?.user as { provider?: string })?.provider;
+    // 僅首次 Google 登入導向個人中心；一般註冊／帳密登入導向首頁
+    if (provider === "google") {
       router.replace("/profile");
+    } else {
+      router.replace("/");
     }
-  }, [status, router]);
+  }, [status, session?.user, router]);
 
   // 讀取 URL 中的 error 參數
   useEffect(() => {
@@ -93,7 +98,7 @@ function LoginForm() {
         setErrorMsg(res.error === 'CredentialsSignin' ? '帳號或密碼錯誤' : res.error);
       }
     } else if (res?.ok) {
-      window.location.href = "/profile";
+      window.location.href = "/";
     }
     setIsLoading(false);
   };
