@@ -192,6 +192,7 @@ export const authOptions: NextAuthOptions = {
       }
       session.user.role = token.role as UserRole;
       session.user.provider = token.provider as string;
+      if (token.name != null) session.user.name = token.name as string;
       // 添加伙伴信息到 session（如果存在）
       if (token.partnerId) {
         session.user.partnerId = token.partnerId as string;
@@ -199,12 +200,17 @@ export const authOptions: NextAuthOptions = {
       }
       return session;
     },
-    async jwt({ token, user, account, profile }) {
+    async jwt({ token, user, account, profile, trigger, session: updateData }) {
+      // 客戶端 update({ name }) 時：合併姓名到 token，導航列等可即時反映
+      if (trigger === 'update' && updateData?.name != null) {
+        token.name = updateData.name as string;
+      }
       // 新登入時
       if (user) {
         token.sub = user.id;
         token.provider = account?.provider;
         token.role = user.role;
+        if (user.name != null) token.name = user.name;
       }
       
       // ✅ 關鍵優化：只在沒有 role 時才查 DB（通常只在首次登入時）

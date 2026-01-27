@@ -23,7 +23,7 @@ const ALL_GAMES = [
 const MAX_GAMES = 10;
 
 export default function ProfileClientComplete() {
-  const { data: session, status } = useSession();
+  const { data: session, status, update: updateSession } = useSession();
   const [mounted, setMounted] = useState(false);
   const [userData, setUserData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
@@ -319,6 +319,14 @@ export default function ProfileClientComplete() {
         const refreshData = await refreshRes.json();
         if (refreshRes.ok && refreshData.user) {
           setUserData(refreshData.user);
+        }
+        // 同步姓名到 session，讓導航列「Signed in as」即時更新
+        if (formData.name?.trim()) {
+          try {
+            await updateSession({ name: formData.name.trim() });
+          } catch (e) {
+            /* 忽略 session 更新失敗 */
+          }
         }
       } else {
         setError(data.error || "更新失敗");
