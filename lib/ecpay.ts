@@ -29,37 +29,53 @@ const ECPAY_CONFIG = {
  * 6. SHA256 哈希
  * 7. 转大写
  */
+/**
+ * 计算绿界支付的 CheckMacValue
+ * 
+ * 严格按照绿界工程师提供的示例进行计算：
+ * 1. 将传递参数依照第一个英文字母，由A到Z的顺序来排序
+ * 2. 用 & 方式将所有参数串连
+ * 3. 参数最前面加上 HashKey=，最后面加上 &HashIV=
+ * 4. 将整串字串进行 URL encode
+ * 5. 转为小写
+ * 6. 以 sha256 方式产生杂凑值
+ * 7. 再转大写产生 CheckMacValue
+ */
 export function calculateCheckMacValue(params: Record<string, string>): string {
-  // 1. 按字母顺序排序参数
+  // (1) 将传递参数依照第一个英文字母，由A到Z的顺序来排序
+  // 遇到第一个英文字母相同时，以第二个英文字母来比较，以此类推
   const sortedKeys = Object.keys(params).sort((a, b) => {
-    // 按第一个字母排序，相同则按第二个字母，以此类推
-    for (let i = 0; i < Math.max(a.length, b.length); i++) {
-      const charA = a[i]?.toLowerCase() || '';
-      const charB = b[i]?.toLowerCase() || '';
-      if (charA < charB) return -1;
-      if (charA > charB) return 1;
+    // 按字母顺序比较（不区分大小写）
+    const aLower = a.toLowerCase();
+    const bLower = b.toLowerCase();
+    const minLength = Math.min(aLower.length, bLower.length);
+    
+    for (let i = 0; i < minLength; i++) {
+      if (aLower[i] < bLower[i]) return -1;
+      if (aLower[i] > bLower[i]) return 1;
     }
-    return 0;
+    // 如果前面的字符都相同，长度短的排在前面
+    return aLower.length - bLower.length;
   });
 
-  // 2. 用 & 连接所有参数
+  // (2) 用 & 方式将所有参数串连
   const paramString = sortedKeys
     .map(key => `${key}=${params[key]}`)
     .join('&');
 
-  // 3. 前面加上 HashKey，后面加上 HashIV
+  // (3) 参数最前面加上 HashKey=，最后面加上 &HashIV=
   const hashString = `HashKey=${ECPAY_CONFIG.HashKey}&${paramString}&HashIV=${ECPAY_CONFIG.HashIV}`;
 
-  // 4. URL encode
+  // (4) 将整串字串进行 URL encode
   const encodedString = encodeURIComponent(hashString);
 
-  // 5. 转小写
+  // (5) 转为小写
   const lowerString = encodedString.toLowerCase();
 
-  // 6. SHA256 哈希
+  // (6) 以 sha256 方式产生杂凑值
   const hash = crypto.createHash('sha256').update(lowerString).digest('hex');
 
-  // 7. 转大写
+  // (7) 再转大写产生 CheckMacValue
   return hash.toUpperCase();
 }
 
@@ -94,14 +110,13 @@ export function generatePaymentParams(params: PaymentParams): Record<string, str
     ReturnURL: params.ReturnURL,
     ClientBackURL: params.ClientBackURL,
     OrderResultURL: params.OrderResultURL,
-    ChoosePayment: 'Credit', // 使用信用卡支付（如果测试环境不支持 ALL，可以改为 Credit）
+    ChoosePayment: 'ALL', // 按照工程师示例使用 ALL
     EncryptType: '1',
     Language: 'ZH-TW',
     NeedExtraPaidInfo: 'N',
     Redeem: 'N',
     UnionPay: '0',
-    // 移除 IgnorePayment，让绿界显示所有可用的支付方式
-    // IgnorePayment: 'WebATM#ATM#CVS#BARCODE',
+    IgnorePayment: 'WebATM#ATM#CVS#BARCODE', // 按照工程师示例包含此参数
     ExpireDate: '7', // 7天过期
   };
 
