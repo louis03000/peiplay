@@ -107,7 +107,8 @@ const nextConfig = {
               "connect-src 'self' https: wss:",
               "frame-ancestors 'none'",
               "base-uri 'self'",
-              "form-action 'self'"
+              // 允許表單提交到綠界支付網關（測試和生產環境）
+              "form-action 'self' https://payment-stage.ecpay.com.tw https://payment.ecpay.com.tw"
             ].join('; '),
           },
         ],
