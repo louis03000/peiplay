@@ -94,13 +94,14 @@ export function generatePaymentParams(params: PaymentParams): Record<string, str
     ReturnURL: params.ReturnURL,
     ClientBackURL: params.ClientBackURL,
     OrderResultURL: params.OrderResultURL,
-    ChoosePayment: 'ALL',
+    ChoosePayment: 'Credit', // 使用信用卡支付（如果测试环境不支持 ALL，可以改为 Credit）
     EncryptType: '1',
     Language: 'ZH-TW',
     NeedExtraPaidInfo: 'N',
     Redeem: 'N',
     UnionPay: '0',
-    IgnorePayment: 'WebATM#ATM#CVS#BARCODE', // 忽略这些支付方式
+    // 移除 IgnorePayment，让绿界显示所有可用的支付方式
+    // IgnorePayment: 'WebATM#ATM#CVS#BARCODE',
     ExpireDate: '7', // 7天过期
   };
 
@@ -114,6 +115,16 @@ export function generatePaymentParams(params: PaymentParams): Record<string, str
 
   // 计算并添加 CheckMacValue
   paymentParams.CheckMacValue = calculateCheckMacValue(paymentParams);
+
+  // 调试日志：输出完整的支付参数（用于排查问题）
+  console.log('[ECPay] 生成的支付参数:', {
+    MerchantID: paymentParams.MerchantID,
+    ChoosePayment: paymentParams.ChoosePayment,
+    TotalAmount: paymentParams.TotalAmount,
+    MerchantTradeNo: paymentParams.MerchantTradeNo,
+    HasIgnorePayment: 'IgnorePayment' in paymentParams,
+    AllKeys: Object.keys(paymentParams).sort(),
+  });
 
   return paymentParams;
 }

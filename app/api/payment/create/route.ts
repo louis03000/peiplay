@@ -99,6 +99,13 @@ export async function POST(request: NextRequest) {
       // 不阻塞支付流程
     });
 
+    // 调试日志：确认 MerchantID
+    console.log('支付配置:', {
+      MerchantID: ECPAY_CONFIG.MerchantID,
+      PaymentURL: process.env.ECPAY_PAYMENT_URL || ECPAY_CONFIG.PaymentURL,
+      HasMerchantID: !!paymentParams.MerchantID,
+    });
+
     return NextResponse.json({
       paymentParams,
       paymentUrl: process.env.ECPAY_PAYMENT_URL || ECPAY_CONFIG.PaymentURL,
