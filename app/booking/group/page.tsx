@@ -82,6 +82,12 @@ function GroupBookingContent() {
   const [showJoinModal, setShowJoinModal] = useState(false)
   const [selectedGroupBooking, setSelectedGroupBooking] = useState<GroupBooking | null>(null)
   const [joinedGroupIds, setJoinedGroupIds] = useState<Set<string>>(new Set())
+  
+  // 付款相關狀態
+  const [paymentParams, setPaymentParams] = useState<any>(null)
+  const [showPaymentModal, setShowPaymentModal] = useState(false)
+  const [paymentBookingId, setPaymentBookingId] = useState<string | null>(null)
+  const [paymentAmount, setPaymentAmount] = useState<number>(0)
 
   // 創建群組表單狀態
   const [createForm, setCreateForm] = useState({
@@ -283,13 +289,47 @@ function GroupBookingContent() {
         // 成功加入
         setShowJoinModal(false)
         setJoinedGroupIds(prev => new Set(prev).add(selectedGroupBooking.id))
-        if (result.alreadyJoined) {
-          console.log('已經在群組中:', result.message)
+        
+        // 如果有booking，创建支付订单
+        if (result.booking && result.booking.id) {
+          const totalAmount = selectedGroupBooking.pricePerPerson || 0
+          
+          // 创建支付订单
+          const paymentResponse = await fetch("/api/payment/create", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              bookingId: result.booking.id,
+              amount: totalAmount,
+              description: `群組預約 - ${selectedGroupBooking.title}`,
+              itemName: `PeiPlay 群組預約 - ${selectedGroupBooking.title}`,
+            }),
+          });
+          
+          if (paymentResponse.ok) {
+            const paymentData = await paymentResponse.json()
+            setPaymentParams(paymentData)
+            setPaymentBookingId(result.booking.id)
+            setPaymentAmount(totalAmount)
+            setShowPaymentModal(true)
+          } else {
+            if (result.alreadyJoined) {
+              console.log('已經在群組中:', result.message)
+            } else {
+              alert('成功加入群組預約，但創建支付訂單失敗，請稍後完成付款')
+            }
+            loadGroupBookings()
+            setSelectedGroupBooking(null)
+          }
         } else {
-          alert('成功加入群組預約！')
+          if (result.alreadyJoined) {
+            console.log('已經在群組中:', result.message)
+          } else {
+            alert('成功加入群組預約！')
+          }
+          loadGroupBookings()
+          setSelectedGroupBooking(null)
         }
-        loadGroupBookings()
-        setSelectedGroupBooking(null)
       } else {
         // 處理錯誤響應
         if (result.code === 'ALREADY_JOINED' || response.status === 409) {
@@ -890,6 +930,70 @@ function GroupBookingContent() {
           )}
         </div>
       </div>
+
+      {/* 付款 Modal */}
+      {showPaymentModal && paymentParams && (
+        <div 
+          className="fixed top-0 left-0 right-0 bottom-0 w-full h-full min-h-screen bg-black bg-opacity-50 flex items-center justify-center z-50"
+          onClick={() => {
+            // 不允许点击外部关闭，必须完成付款
+          }}
+        >
+          <div 
+            className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="text-2xl font-bold text-gray-900 mb-4 text-center">
+              💳 完成付款
+            </h2>
+            <p className="text-gray-700 mb-4 text-center">
+              請完成付款以確認群組預約
+            </p>
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+              <p className="text-yellow-800 text-sm font-medium">
+                ⚠️ 重要：請在付款頁面中完成付款，付款完成後預約才會生效。
+              </p>
+            </div>
+            
+            {/* 支付表单 */}
+            <form
+              id="ecpay-form"
+              method="POST"
+              action={paymentParams.paymentUrl}
+              className="mb-4"
+            >
+              {Object.entries(paymentParams.paymentParams).map(([key, value]) => (
+                <input
+                  key={key}
+                  type="hidden"
+                  name={key}
+                  value={value as string}
+                />
+              ))}
+              <button
+                type="submit"
+                className="w-full px-6 py-3 bg-[#00BFA5] text-white rounded-lg font-semibold text-lg transition-all duration-200 hover:shadow-lg"
+                style={{
+                  boxShadow: "0 4px 20px rgba(0, 191, 165, 0.3)",
+                }}
+              >
+                前往付款
+              </button>
+            </form>
+            
+            <button
+              onClick={() => {
+                setShowPaymentModal(false)
+                loadGroupBookings()
+                setSelectedGroupBooking(null)
+              }}
+              className="w-full px-6 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition-colors font-medium"
+            >
+              稍後付款
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

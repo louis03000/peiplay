@@ -1,0 +1,178 @@
+/**
+ * 绿界支付回调处理 API
+ * 
+ * 处理支付成功/失败的回调
+ */
+
+import { NextRequest, NextResponse } from 'next/server';
+import { verifyCheckMacValue } from '@/lib/ecpay';
+import { db } from '@/lib/db-resilience';
+import { PaymentStatus } from '@prisma/client';
+
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
+/**
+ * 处理绿界支付回调（POST）
+ */
+export async function POST(request: NextRequest) {
+  try {
+    // 绿界使用 form-data 格式发送回调
+    const formData = await request.formData();
+    const params: Record<string, string> = {};
+
+    // 将 formData 转换为对象
+    for (const [key, value] of formData.entries()) {
+      params[key] = value.toString();
+    }
+
+    console.log('收到绿界支付回调:', params);
+
+    // 验证 CheckMacValue
+    if (!verifyCheckMacValue(params)) {
+      console.error('CheckMacValue 验证失败');
+      return NextResponse.json({ error: '驗證失敗' }, { status: 400 });
+    }
+
+    const {
+      MerchantTradeNo,
+      RtnCode,
+      RtnMsg,
+      TradeNo,
+      TradeAmt,
+      PaymentDate,
+      PaymentType,
+      PaymentTypeChargeFee,
+      TradeDate,
+    } = params;
+
+    // 根据订单编号查找预约
+    const booking = await db.query(async (client) => {
+      return client.booking.findFirst({
+        where: {
+          orderNumber: MerchantTradeNo,
+        },
+        include: {
+          customer: {
+            include: {
+              user: true,
+            },
+          },
+        },
+      });
+    }, 'payment:find-booking');
+
+    if (!booking) {
+      console.error('找不到对应的预约:', MerchantTradeNo);
+      return NextResponse.json({ error: '找不到訂單' }, { status: 404 });
+    }
+
+    // 检查支付状态
+    const isSuccess = RtnCode === '1'; // 1 表示成功
+
+    if (isSuccess) {
+      // 支付成功
+      console.log('支付成功:', {
+        MerchantTradeNo,
+        TradeNo,
+        TradeAmt,
+        PaymentDate,
+      });
+
+      // 创建或更新支付记录
+      await db.query(async (client) => {
+        // 检查是否已存在支付记录
+        const existingPayment = await client.payment.findFirst({
+          where: {
+            bookingId: booking.id,
+            providerId: TradeNo,
+          },
+        });
+
+        if (existingPayment) {
+          // 更新现有记录
+          await client.payment.update({
+            where: { id: existingPayment.id },
+            data: {
+              status: PaymentStatus.SUCCEEDED,
+              rawResponse: params as any,
+            },
+          });
+        } else {
+          // 创建新记录
+          await client.payment.create({
+            data: {
+              bookingId: booking.id,
+              provider: 'ECPAY',
+              providerId: TradeNo,
+              amountCents: Math.round(parseFloat(TradeAmt || '0') * 100), // 转换为分
+              currency: 'TWD',
+              status: PaymentStatus.SUCCEEDED,
+              rawResponse: params as any,
+              idempotencyKey: TradeNo, // 使用绿界的交易编号作为幂等键
+            },
+          });
+        }
+
+        // 更新预约状态为已支付（如果当前状态是等待支付）
+        if (booking.status === 'PAID_WAITING_PARTNER_CONFIRMATION') {
+          // 状态已经是等待伙伴确认，不需要更改
+          // 但如果需要，可以在这里添加逻辑
+        }
+      }, 'payment:update-booking-status');
+    } else {
+      // 支付失败
+      console.log('支付失败:', {
+        MerchantTradeNo,
+        RtnCode,
+        RtnMsg,
+      });
+
+      // 创建失败记录
+      await db.query(async (client) => {
+        await client.payment.create({
+          data: {
+            bookingId: booking.id,
+            provider: 'ECPAY',
+            providerId: TradeNo || MerchantTradeNo,
+            amountCents: Math.round(parseFloat(TradeAmt || '0') * 100),
+            currency: 'TWD',
+            status: PaymentStatus.FAILED,
+            rawResponse: params as any,
+            idempotencyKey: TradeNo || MerchantTradeNo,
+          },
+        });
+      }, 'payment:create-failed-payment');
+    }
+
+    // 返回成功响应给绿界
+    return NextResponse.json({ RtnCode: '1', RtnMsg: 'OK' });
+  } catch (error) {
+    console.error('处理支付回调失败:', error);
+    return NextResponse.json(
+      { error: '處理失敗' },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * 处理 GET 请求（用于测试或重定向）
+ */
+export async function GET(request: NextRequest) {
+  const searchParams = request.nextUrl.searchParams;
+  const merchantTradeNo = searchParams.get('MerchantTradeNo');
+  const rtnCode = searchParams.get('RtnCode');
+
+  if (rtnCode === '1') {
+    // 支付成功，重定向到预约页面
+    return NextResponse.redirect(
+      new URL('/booking?payment=success', request.url)
+    );
+  } else {
+    // 支付失败，重定向到预约页面并显示错误
+    return NextResponse.redirect(
+      new URL('/booking?payment=failed', request.url)
+    );
+  }
+}
