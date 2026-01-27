@@ -982,6 +982,9 @@ function BookingWizardContent() {
         setCreatedBooking(data.booking);
         
         // 创建支付订单
+        if (!selectedPartner) {
+          throw new Error("缺少夥伴資訊");
+        }
         const totalAmount = onlyChat && selectedPartner.chatOnlyRate
           ? selectedDuration * 60 * (selectedPartner.chatOnlyRate / 30)
           : selectedDuration * selectedPartner.halfHourlyRate * 2;
@@ -1052,6 +1055,9 @@ function BookingWizardContent() {
         setCreatedBooking(booking);
         
         // 创建支付订单
+        if (!selectedPartner) {
+          throw new Error("缺少夥伴資訊");
+        }
         const totalAmount = onlyChat && selectedPartner.chatOnlyRate
           ? selectedTimes.length * 30 * (selectedPartner.chatOnlyRate / 30)
           : selectedTimes.length * selectedPartner.halfHourlyRate;
