@@ -501,6 +501,8 @@ export async function POST(request: Request) {
         emailData.userName,
         emailData.groupBookingTitle,
         {
+          groupBookingId: emailData.groupBookingId,
+          title: emailData.groupBookingTitle,
           startTime: emailData.startTime.toISOString(),
           endTime: emailData.endTime.toISOString(),
           pricePerPerson: emailData.pricePerPerson,
