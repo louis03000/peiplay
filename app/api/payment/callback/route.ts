@@ -117,7 +117,54 @@ export async function POST(request: NextRequest) {
         // 更新预约状态为已支付（如果当前状态是等待支付）
         if (booking.status === 'PAID_WAITING_PARTNER_CONFIRMATION') {
           // 状态已经是等待伙伴确认，不需要更改
-          // 但如果需要，可以在这里添加逻辑
+        }
+
+        // 发送通知给伙伴（支付成功后）
+        const { sendBookingNotificationEmail } = await import('@/lib/email');
+        const bookingWithDetails = await client.booking.findUnique({
+          where: { id: booking.id },
+          include: {
+            schedule: {
+              include: {
+                partner: {
+                  include: {
+                    user: true,
+                  },
+                },
+              },
+            },
+            customer: {
+              include: {
+                user: true,
+              },
+            },
+          },
+        });
+
+        if (bookingWithDetails?.schedule?.partner?.user?.email) {
+          const duration = bookingWithDetails.schedule.endTime.getTime() - bookingWithDetails.schedule.startTime.getTime();
+          const durationHours = duration / (1000 * 60 * 60);
+          
+          sendBookingNotificationEmail(
+            bookingWithDetails.schedule.partner.user.email,
+            bookingWithDetails.schedule.partner.user.name || bookingWithDetails.schedule.partner.name || '夥伴',
+            bookingWithDetails.customer.user.name || '客戶',
+            {
+              bookingId: bookingWithDetails.id,
+              startTime: bookingWithDetails.schedule.startTime.toISOString(),
+              endTime: bookingWithDetails.schedule.endTime.toISOString(),
+              duration: durationHours,
+              totalCost: bookingWithDetails.finalAmount || bookingWithDetails.originalAmount || 0,
+              customerName: bookingWithDetails.customer.user.name || '客戶',
+              customerEmail: bookingWithDetails.customer.user.email,
+            }
+          )
+            .then(() => {
+              console.log('✅ 支付成功後，預約通知已發送給夥伴:', bookingWithDetails.schedule.partner.user.email);
+            })
+            .catch((error) => {
+              console.error('❌ 發送預約通知失敗:', error);
+            });
         }
       }, 'payment:update-booking-status');
     } else {

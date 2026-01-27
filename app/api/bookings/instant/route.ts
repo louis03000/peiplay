@@ -365,28 +365,13 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // 非阻塞寄信（延遲加載）
-    const { sendBookingNotificationEmail } = await import('@/lib/email')
-    sendBookingNotificationEmail(
-      result.partner.user.email,
-      result.partner.user.name || result.partner.name || '夥伴',
-      result.customer.user.name || '客戶',
-      {
-        bookingId: result.booking.id,
-        startTime: result.startTime.toISOString(),
-        endTime: result.endTime.toISOString(),
-        duration: result.pricing.duration,
-        totalCost: result.pricing.originalAmount,
-        customerName: result.customer.user.name || '客戶',
-        customerEmail: result.customer.user.email,
-      }
-    ).catch((error) => {
-      console.error(`[${requestId}] ❌ Email 發送失敗:`, error)
-    })
+    // ⚠️ 注意：不再在预约创建时发送通知
+    // 通知将在支付成功后发送（见 /api/payment/callback）
+    console.log(`[${requestId}] ℹ️ 預約已創建，等待付款完成後再發送通知`)
 
     return NextResponse.json({
       id: result.booking.id,
-      message: '預約創建成功，已通知夥伴確認',
+      message: '預約創建成功，請完成付款',
       totalCost: result.pricing.originalAmount,
       booking: {
         id: result.booking.id,

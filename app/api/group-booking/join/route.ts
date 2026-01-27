@@ -491,56 +491,25 @@ export async function POST(request: Request) {
       
       console.log('✅ 事務成功，準備發送 email 通知');
       
-      // 通知新加入者（非阻塞）
-      sendBookingNotificationEmail(
+      // ⚠️ 注意：不再在加入群组时发送通知给伙伴
+      // 通知将在支付成功后发送（见 /api/payment/callback）
+      console.log("ℹ️ 群組預約已加入，等待付款完成後再發送通知給夥伴");
+      
+      // 仍然发送加入确认通知给加入者（这是给用户的确认，不是给伙伴的预约通知）
+      sendGroupBookingJoinNotification(
         emailData.userEmail,
         emailData.userName,
-        emailData.userName,
+        emailData.groupBookingTitle,
         {
-          bookingId: emailData.groupBookingId,
           startTime: emailData.startTime.toISOString(),
           endTime: emailData.endTime.toISOString(),
-          duration: (emailData.endTime.getTime() - emailData.startTime.getTime()) / (1000 * 60 * 60),
-          totalCost: emailData.pricePerPerson,
-          customerName: emailData.userName,
-          customerEmail: emailData.userEmail,
+          pricePerPerson: emailData.pricePerPerson,
+          currentParticipants: emailData.currentParticipants,
+          maxParticipants: emailData.maxParticipants,
         }
       ).catch((error) => {
-        console.error('❌ Email 發送失敗（新加入者）:', error);
+        console.error('❌ 群組加入確認通知 Email 發送失敗:', error);
       });
-
-      // 通知發起者（如果有）（非阻塞）
-      if (emailData.initiatorId) {
-        // 在事務外查詢發起者資料（非阻塞，不等待完成）
-        db.query(async (client) => {
-          const initiatorPartner = await client.partner.findUnique({
-            where: { id: emailData.initiatorId! },
-            include: { user: { select: { email: true, name: true } } }
-          });
-          
-          if (initiatorPartner?.user?.email) {
-            // 發送群組預約加入通知給夥伴
-            sendGroupBookingJoinNotification(
-              initiatorPartner.user.email,
-              initiatorPartner.name || initiatorPartner.user.name || '夥伴',
-              emailData.userName,
-              {
-                groupBookingId: emailData.groupBookingId,
-                title: emailData.groupBookingTitle,
-                startTime: emailData.startTime.toISOString(),
-                endTime: emailData.endTime.toISOString(),
-                pricePerPerson: emailData.pricePerPerson,
-                currentParticipants: emailData.currentParticipants,
-                maxParticipants: emailData.maxParticipants,
-              }
-            ).catch((error) => {
-              console.error('❌ 群組預約加入通知 Email 發送失敗（發起者）:', error);
-            });
-          }
-        }, 'group-booking/join:get-initiator').catch((error) => {
-          console.error('❌ 查詢發起者資料失敗:', error);
-        });
-      }
 
       // 返回成功響應（移除 emailData）
       const { emailData: _, ...responseData } = result;

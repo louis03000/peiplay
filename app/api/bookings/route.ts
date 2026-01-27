@@ -73,11 +73,13 @@ async function POSTHandler(request: Request) {
   }
 
   // 返回成功響應
+  // ⚠️ 注意：不再在预约创建时发送通知
+  // 通知将在支付成功后发送（见 /api/payment/callback）
   return NextResponse.json({
     bookings: result.data.map((booking) => ({
       id: booking.id,
       status: booking.status,
-      message: '預約創建成功，已通知夥伴',
+      message: '預約創建成功，請完成付款',
     })),
   })
 }

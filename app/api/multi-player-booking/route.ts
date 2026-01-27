@@ -559,31 +559,9 @@ export async function POST(request: Request) {
     
     console.log('✅ 多人陪玩群組創建成功，ID:', result.multiPlayerBooking.id)
 
-    // 發送通知（非阻塞）
-    console.log(`[multi-player-booking] 📧 準備發送 ${result.bookings.length} 封預約通知郵件`)
-    for (const booking of result.bookings) {
-      console.log(`[multi-player-booking] 📧 發送預約通知給夥伴: ${booking.partnerName} (${booking.partnerEmail})`)
-      sendBookingNotificationEmail(
-        booking.partnerEmail,
-        booking.partnerName,
-        result.customer.user.name || '客戶',
-        {
-          bookingId: booking.bookingId,
-          startTime: startDateTime.toISOString(),
-          endTime: endDateTime.toISOString(),
-          duration: (endDateTime.getTime() - startDateTime.getTime()) / (1000 * 60 * 60),
-          totalCost: booking.amount,
-          customerName: result.customer.user.name || '客戶',
-          customerEmail: result.customer.user.email,
-        }
-      )
-        .then(() => {
-          console.log(`[multi-player-booking] ✅ 預約通知郵件已發送給夥伴: ${booking.partnerName} (${booking.partnerEmail})`)
-        })
-        .catch((error) => {
-          console.error(`[multi-player-booking] ❌ Email 發送失敗給夥伴 ${booking.partnerName} (${booking.partnerEmail}):`, error)
-        })
-    }
+    // ⚠️ 注意：不再在预约创建时发送通知
+    // 通知将在支付成功后发送（见 /api/payment/callback）
+    console.log(`[multi-player-booking] ℹ️ 預約已創建，等待付款完成後再發送通知給 ${result.bookings.length} 位夥伴`)
 
     return NextResponse.json({
       success: true,

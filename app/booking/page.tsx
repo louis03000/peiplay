@@ -1759,6 +1759,9 @@ function BookingWizardContent() {
                 method="POST"
                 action={paymentParams.paymentUrl}
                 className="mb-6"
+                onSubmit={() => {
+                  setIsProcessingPayment(true);
+                }}
               >
                 {Object.entries(paymentParams.paymentParams).map(([key, value]) => (
                   <input
@@ -1770,13 +1773,12 @@ function BookingWizardContent() {
                 ))}
                 <button
                   type="submit"
-                  disabled={isProcessingPayment}
-                  className="px-8 py-4 bg-[#00BFA5] text-white rounded-lg font-semibold text-lg transition-all duration-200 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-8 py-4 bg-[#00BFA5] text-white rounded-lg font-semibold text-lg transition-all duration-200 hover:shadow-lg cursor-pointer"
                   style={{
                     boxShadow: "0 4px 20px rgba(0, 191, 165, 0.3)",
                   }}
                 >
-                  {isProcessingPayment ? "處理中..." : "前往付款"}
+                  前往付款
                 </button>
               </form>
               
