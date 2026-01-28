@@ -80,10 +80,11 @@ export async function POST(request: NextRequest) {
       TradeDesc: description || `PeiPlay 遊戲夥伴預約 - ${booking.customer.user.name || '客戶'}`,
       ItemName: itemName || `PeiPlay 遊戲夥伴預約 - ${booking.customer.user.name || '客戶'} - 1 個時段`,
       ReturnURL: `${baseUrl}/api/payment/callback`,
+      // 绿界支付完成后会 POST 到这些 URL，我们需要接收 POST 然后重定向到 GET 页面
       ClientBackURL: `${baseUrl}/api/payment/redirect`, // 支付完成后跳转（POST 重定向到 GET 页面）
       OrderResultURL: `${baseUrl}/api/payment/redirect`, // 支付结果（POST 重定向到 GET 页面）
       PaymentInfoURL: `${baseUrl}/api/payment/callback`,
-      ClientRedirectURL: `${baseUrl}/booking/payment-success`, // 客户端重定向页面
+      ClientRedirectURL: `${baseUrl}/booking/payment-success`, // 客户端重定向页面（GET）
     });
 
     // 保存订单编号到预约记录（可选，用于追踪）
