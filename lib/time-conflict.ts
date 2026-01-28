@@ -1,4 +1,5 @@
 import type { PrismaClient, Prisma } from '@prisma/client'
+import { BookingStatus } from '@prisma/client'
 import { prisma as defaultPrisma } from '@/lib/db/client'
 import { getNowTaipei } from '@/lib/time-utils'
 
@@ -13,6 +14,13 @@ const resolveClient = (client?: PrismaClientLike): PrismaClientLike => {
   }
   return defaultPrisma as PrismaClientLike
 }
+
+/** 僅「已付款」的預約視為占用時段；未付款不擋他人預約 */
+const OCCUPYING_STATUSES: BookingStatus[] = [
+  BookingStatus.PAID_WAITING_PARTNER_CONFIRMATION,
+  BookingStatus.CONFIRMED,
+  BookingStatus.PARTNER_ACCEPTED,
+]
 
 /**
  * 時間衝突檢查工具函數
@@ -57,9 +65,7 @@ export async function checkTimeConflict(
       schedule: {
         partnerId: partnerId
       },
-      status: {
-        notIn: ['CANCELLED', 'REJECTED', 'COMPLETED']
-      },
+      status: { in: OCCUPYING_STATUSES },
       // 如果要更新預約，排除自己
       ...(excludeBookingId ? { id: { not: excludeBookingId } } : {})
     },

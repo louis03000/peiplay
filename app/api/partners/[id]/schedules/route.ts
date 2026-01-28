@@ -15,6 +15,13 @@ const TERMINAL_BOOKING_STATUSES: BookingStatus[] = [
   BookingStatus.COMPLETED_WITH_AMOUNT_MISMATCH,
 ];
 
+/** 僅已付款預約視為占用時段；未付款不擋 */
+const OCCUPYING_BOOKING_STATUSES: BookingStatus[] = [
+  BookingStatus.PAID_WAITING_PARTNER_CONFIRMATION,
+  BookingStatus.CONFIRMED,
+  BookingStatus.PARTNER_ACCEPTED,
+];
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> | { id: string } }
@@ -71,11 +78,11 @@ export async function GET(
         return [];
       }
 
-      // 所有活躍預約
+      // 僅已付款預約視為占用（未付款時段仍可選）
       const allActiveBookings = await client.booking.findMany({
         where: {
           schedule: { partnerId },
-          status: { notIn: TERMINAL_BOOKING_STATUSES },
+          status: { in: OCCUPYING_BOOKING_STATUSES },
         },
         select: {
           id: true,
@@ -117,17 +124,17 @@ export async function GET(
         orderBy: { startTime: 'asc' },
       });
 
-      const terminalStatusSet = new Set(TERMINAL_BOOKING_STATUSES);
+      const occupyingStatusSet = new Set(OCCUPYING_BOOKING_STATUSES);
 
       const filteredSchedules = allSchedules.filter(schedule => {
-        // 一對一預約
+        // 一對一預約：僅已付款占位；未付款仍可選
         if (schedule.bookings) {
-          if (!terminalStatusSet.has(schedule.bookings.status)) {
+          if (occupyingStatusSet.has(schedule.bookings.status)) {
             return false;
           }
         }
 
-        // 群組 / 多人陪玩
+        // 群組 / 多人陪玩（bookedScheduleIds 已限為僅已付款）
         if (bookedScheduleIds.has(schedule.id)) {
           return false;
         }

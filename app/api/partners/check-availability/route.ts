@@ -42,14 +42,14 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      // 檢查時間衝突
+      // 檢查時間衝突（僅已付款預約視為占用；未付款不擋）
       const conflictingBookings = await client.booking.findMany({
       where: {
         schedule: {
           partnerId: partnerId
         },
         status: {
-          in: ['PENDING', 'CONFIRMED', 'PARTNER_ACCEPTED', 'PAID_WAITING_PARTNER_CONFIRMATION']
+          in: ['PAID_WAITING_PARTNER_CONFIRMATION', 'CONFIRMED', 'PARTNER_ACCEPTED']
         },
         OR: [
           // 新預約開始時間在現有預約期間內

@@ -104,6 +104,7 @@ export async function GET(request: NextRequest) {
             select: {
               id: true,
               name: true,
+              user: { select: { name: true } },
             },
           },
           schedule: {
@@ -189,10 +190,11 @@ export async function GET(request: NextRequest) {
         // 淨收入 = 訂單金額 × (1 - 平台費用比例)
         const partnerEarning = displayAmount * (1 - PLATFORM_FEE_PERCENTAGE);
 
+        const customerDisplayName = (booking.customer as { user?: { name?: string | null } })?.user?.name?.trim() || booking.customer.name
         return {
           id: booking.id,
           orderNumber: `ORD-${booking.id.substring(0, 8).toUpperCase()}`,
-          customerName: booking.customer.name,
+          customerName: customerDisplayName,
           customerId: booking.customer.id,
           startTime: booking.schedule.startTime.toISOString(),
           endTime: booking.schedule.endTime.toISOString(),

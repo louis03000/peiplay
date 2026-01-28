@@ -15,7 +15,6 @@ const PAID_OR_AFTER_STATUSES: BookingStatus[] = [
   BookingStatus.CONFIRMED,
   BookingStatus.PARTNER_ACCEPTED,
 ];
-const WAITING_STATUS = BookingStatus.PAID_WAITING_PARTNER_CONFIRMATION;
 
 export async function GET() {
   try {
@@ -56,6 +55,7 @@ export async function GET() {
             select: {
               id: true,
               name: true,
+              user: { select: { name: true } },
             },
           },
           schedule: {
@@ -80,11 +80,10 @@ export async function GET() {
 
       const now = Date.now();
 
-      // 過濾掉已過期的預約（保留等待確認的預約，給30分鐘緩衝）
+      // 過濾掉已過期的預約（時段結束即視為過期，不再顯示於我的訂單）
       const filtered = rows.filter((booking) => {
         const endTime = new Date(booking.schedule.endTime).getTime();
-        const buffer = booking.status === WAITING_STATUS ? 30 * 60 * 1000 : 0;
-        return endTime >= now - buffer;
+        return endTime >= now;
       });
 
       // 為每個預約添加服務類型
@@ -128,8 +127,13 @@ export async function GET() {
           })
         }
         
+        const displayName = (booking.customer as { user?: { name?: string | null } })?.user?.name?.trim() || booking.customer.name
         return {
           ...booking,
+          customer: {
+            id: booking.customer.id,
+            name: displayName,
+          },
           serviceType,
           isInstantBooking, // 添加 isInstantBooking 字段，供前端判断是否同时显示"即時預約"
         }
