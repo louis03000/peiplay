@@ -3,14 +3,19 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { db } from '@/lib/db-resilience';
 import { createErrorResponse } from '@/lib/api-helpers';
+import { BookingStatus } from '@prisma/client';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 export const revalidate = 0; // 禁用快取
 
 /** 我的訂單僅顯示「已付款成功」的預約；排除待付款、待確認等 */
-const PAID_OR_AFTER_STATUSES = ['PAID_WAITING_PARTNER_CONFIRMATION', 'CONFIRMED', 'PARTNER_ACCEPTED'];
-const WAITING_STATUS = 'PAID_WAITING_PARTNER_CONFIRMATION';
+const PAID_OR_AFTER_STATUSES: BookingStatus[] = [
+  BookingStatus.PAID_WAITING_PARTNER_CONFIRMATION,
+  BookingStatus.CONFIRMED,
+  BookingStatus.PARTNER_ACCEPTED,
+];
+const WAITING_STATUS = BookingStatus.PAID_WAITING_PARTNER_CONFIRMATION;
 
 export async function GET() {
   try {
