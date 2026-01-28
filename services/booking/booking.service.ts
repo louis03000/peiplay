@@ -12,7 +12,6 @@ import { PrismaClient, Prisma, BookingStatus } from '@prisma/client'
 import { prisma } from '@/lib/db/client'
 import { formatTaipeiLocale } from '@/lib/time-utils'
 import { checkTimeConflict } from '@/lib/time-conflict'
-import { sendBookingNotificationEmail } from '@/lib/email'
 import type { 
   CreateBookingInput, 
   CancelBookingInput, 
@@ -158,7 +157,7 @@ export async function createBooking(
               customerId: input.customerId,
               partnerId: schedule.partnerId,
               scheduleId: schedule.id,
-              status: BookingStatus.PAID_WAITING_PARTNER_CONFIRMATION,
+              status: BookingStatus.PENDING_PAYMENT,
               originalAmount,
               finalAmount: originalAmount,
             },
@@ -166,23 +165,7 @@ export async function createBooking(
         })
       )
 
-      // 7. 準備 email 通知資料
-      const emailEntries = createdBookings.map((booking, index) => {
-        const schedule = schedules[index]
-        return {
-          bookingId: booking.id,
-          partnerEmail: schedule.partner.user.email,
-          partnerName: schedule.partner.user.name || '夥伴',
-          customerName: customer.user.name || '客戶',
-          customerEmail: customer.user.email,
-          startTime: schedule.startTime,
-          endTime: schedule.endTime,
-          durationHours: (schedule.endTime.getTime() - schedule.startTime.getTime()) / (1000 * 60 * 60),
-          totalCost: (schedule.endTime.getTime() - schedule.startTime.getTime()) / (1000 * 60 * 60) * schedule.partner.halfHourlyRate * 2,
-        }
-      })
-
-      return { type: 'SUCCESS', bookings: createdBookings, emailEntries, schedules } as const
+      return { type: 'SUCCESS', bookings: createdBookings, schedules } as const
     }, {
       maxWait: 10000,
       timeout: 20000,
@@ -224,25 +207,7 @@ export async function createBooking(
       }
     }
 
-    // 發送 email 通知（非阻塞）
-    for (const entry of result.emailEntries) {
-      sendBookingNotificationEmail(
-        entry.partnerEmail,
-        entry.partnerName,
-        entry.customerName,
-        {
-          bookingId: entry.bookingId,
-          startTime: entry.startTime.toISOString(),
-          endTime: entry.endTime.toISOString(),
-          duration: entry.durationHours,
-          totalCost: entry.totalCost,
-          customerName: entry.customerName,
-          customerEmail: entry.customerEmail,
-        }
-      ).catch((error) => {
-        console.error('❌ Email 發送失敗:', error)
-      })
-    }
+    // 不在此發送夥伴通知；僅在付款成功後由 /api/payment/callback 發送
 
     // 轉換為 DTO
     const dtos: BookingDTO[] = result.bookings.map((booking, index) => {

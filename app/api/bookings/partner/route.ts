@@ -8,7 +8,8 @@ export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 export const revalidate = 0; // 禁用快取
 
-const EXCLUDED_STATUSES = new Set(['CANCELLED', 'REJECTED', 'COMPLETED']);
+/** 我的訂單僅顯示「已付款成功」的預約；排除待付款、待確認等 */
+const PAID_OR_AFTER_STATUSES = ['PAID_WAITING_PARTNER_CONFIRMATION', 'CONFIRMED', 'PARTNER_ACCEPTED'];
 const WAITING_STATUS = 'PAID_WAITING_PARTNER_CONFIRMATION';
 
 export async function GET() {
@@ -29,13 +30,11 @@ export async function GET() {
       }
 
       // 優化：使用 select 而非 include，只查詢必要欄位
-      // 直接在查詢時過濾掉已取消、已拒絕、已完成的預約
+      // 僅顯示「已付款成功」的預約（PAID_WAITING 及以上）；不顯示 PENDING、PENDING_PAYMENT
       const rows = await client.booking.findMany({
         where: {
           schedule: { partnerId: partner.id },
-          status: {
-            notIn: ['CANCELLED', 'REJECTED', 'COMPLETED'],
-          },
+          status: { in: PAID_OR_AFTER_STATUSES },
         },
         select: {
           id: true,

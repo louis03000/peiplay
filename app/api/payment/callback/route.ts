@@ -114,12 +114,15 @@ export async function POST(request: NextRequest) {
           });
         }
 
-        // 更新预约状态为已支付（如果当前状态是等待支付）
-        if (booking.status === 'PAID_WAITING_PARTNER_CONFIRMATION') {
-          // 状态已经是等待伙伴确认，不需要更改
+        // 付款成功：若為待付款／待確認，更新為「待夥伴確認」
+        if (booking.status === 'PENDING_PAYMENT' || booking.status === 'PENDING') {
+          await client.booking.update({
+            where: { id: booking.id },
+            data: { status: 'PAID_WAITING_PARTNER_CONFIRMATION' },
+          });
         }
 
-        // 发送通知给伙伴（支付成功后）
+        // 发送通知给伙伴（仅於付款成功后）
         const { sendBookingNotificationEmail } = await import('@/lib/email');
         const bookingWithDetails = await client.booking.findUnique({
           where: { id: booking.id },

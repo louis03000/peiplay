@@ -67,6 +67,12 @@ export async function PATCH(request: Request) {
         },
       });
 
+      // 同步 Customer：個人中心改名後，接單紀錄／預約管理等的顧客姓名一律顯示新名字
+      await client.customer.updateMany({
+        where: { userId: existingUser.id },
+        data: { name, phone, birthday: date },
+      });
+
       let updatedPartner = null;
       const hasPartnerData =
         typeof customerMessage === 'string' ||
