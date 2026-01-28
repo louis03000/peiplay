@@ -263,6 +263,15 @@ function getBookableSlots<T extends {
 function BookingWizardContent() {
   const searchParams = useSearchParams();
   const [step, setStep] = useState(0);
+  
+  // 检查是否有支付结果参数（从 URL 跳转回来）
+  useEffect(() => {
+    const paymentStatus = searchParams.get('payment');
+    if (paymentStatus === 'success' || paymentStatus === 'failed') {
+      // 如果是从支付页面跳转回来，显示完成步骤
+      // 注意：实际支付完成应该跳转到 /booking/payment-success
+    }
+  }, [searchParams]);
   const [partners, setPartners] = useState<Partner[]>([]);
   const [selectedPartner, setSelectedPartner] = useState<Partner | null>(null);
   const [onlyAvailable, setOnlyAvailable] = useState(false);

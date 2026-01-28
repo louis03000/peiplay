@@ -213,16 +213,13 @@ export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const merchantTradeNo = searchParams.get('MerchantTradeNo');
   const rtnCode = searchParams.get('RtnCode');
+  const rtnMsg = searchParams.get('RtnMsg');
 
-  if (rtnCode === '1') {
-    // 支付成功，重定向到预约页面
-    return NextResponse.redirect(
-      new URL('/booking?payment=success', request.url)
-    );
-  } else {
-    // 支付失败，重定向到预约页面并显示错误
-    return NextResponse.redirect(
-      new URL('/booking?payment=failed', request.url)
-    );
-  }
+  // 构建重定向 URL
+  const redirectUrl = new URL('/booking/payment-success', request.url);
+  if (rtnCode) redirectUrl.searchParams.set('RtnCode', rtnCode);
+  if (rtnMsg) redirectUrl.searchParams.set('RtnMsg', rtnMsg);
+  if (merchantTradeNo) redirectUrl.searchParams.set('MerchantTradeNo', merchantTradeNo);
+
+  return NextResponse.redirect(redirectUrl);
 }
