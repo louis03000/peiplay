@@ -7,51 +7,39 @@
 import crypto from 'crypto';
 
 // 绿界支付配置
+// ⚠️ 重要：正式商店必须使用正式环境配置，不能混用测试和正式
 const ECPAY_CONFIG = {
-  MerchantID: process.env.ECPAY_MERCHANT_ID || '3464691',
-  HashKey: process.env.ECPAY_HASH_KEY || 'ilByxKjPNI9qpHBK',
-  HashIV: process.env.ECPAY_HASH_IV || 'OTzB3pify1U9G0j6',
-  // 测试环境 URL（生产环境需要替换）
-  PaymentURL: process.env.ECPAY_PAYMENT_URL || 'https://payment-stage.ecpay.com.tw/Cashier/AioCheckOut/V5',
-  // 生产环境 URL（需要根据实际情况调整）
-  // PaymentURL: 'https://payment.ecpay.com.tw/Cashier/AioCheckOut/V5',
+  MerchantID: process.env.ECPAY_MERCHANT_ID,
+  HashKey: process.env.ECPAY_HASH_KEY, // 不使用 fallback，必须从环境变量读取
+  HashIV: process.env.ECPAY_HASH_IV, // 不使用 fallback，必须从环境变量读取
+  // 根据环境选择正确的 URL
+  // 正式环境：https://payment.ecpay.com.tw/Cashier/AioCheckOut/V5
+  // 测试环境：https://payment-stage.ecpay.com.tw/Cashier/AioCheckOut/V5
+  PaymentURL: process.env.ECPAY_PAYMENT_URL || 'https://payment.ecpay.com.tw/Cashier/AioCheckOut/V5',
 };
 
+// 验证配置完整性
+if (!ECPAY_CONFIG.MerchantID || !ECPAY_CONFIG.HashKey || !ECPAY_CONFIG.HashIV) {
+  console.error('❌ 绿界支付配置不完整：MerchantID、HashKey、HashIV 必须全部设置');
+}
+
 /**
- * PHP urlencode 的等价实现
+ * 绿界官方 urlencode 实现（实战不会错版本）
  * 
- * 关键差异：
- * - 空白字符编码为 +（不是 %20）
- * - 其他特殊字符编码为 %XX 格式
- * 
- * 保留不编码的字符：字母、数字、-、_、.
+ * 关键：使用 encodeURIComponent 然后替换特定字符
+ * - %20 → +（空白字符）
+ * - ! → %21
+ * - * → %2A
+ * - ( → %28
+ * - ) → %29
  */
 function ecpayUrlEncode(str: string): string {
-  let encoded = '';
-  for (let i = 0; i < str.length; i++) {
-    const char = str[i];
-    const charCode = char.charCodeAt(0);
-    
-    // 保留字符：字母、数字、-、_、.
-    if (
-      (charCode >= 48 && charCode <= 57) || // 0-9
-      (charCode >= 65 && charCode <= 90) || // A-Z
-      (charCode >= 97 && charCode <= 122) || // a-z
-      char === '-' ||
-      char === '_' ||
-      char === '.'
-    ) {
-      encoded += char;
-    } else if (char === ' ') {
-      // 空白字符编码为 +
-      encoded += '+';
-    } else {
-      // 其他字符编码为 %XX 格式
-      const hex = charCode.toString(16).toUpperCase().padStart(2, '0');
-      encoded += `%${hex}`;
-    }
-  }
-  return encoded;
+  return encodeURIComponent(str)
+    .replace(/%20/g, '+')
+    .replace(/!/g, '%21')
+    .replace(/\*/g, '%2A')
+    .replace(/\(/g, '%28')
+    .replace(/\)/g, '%29');
 }
 
 /**
@@ -67,54 +55,47 @@ function ecpayUrlEncode(str: string): string {
  * 7. 转大写
  */
 /**
- * 计算绿界支付的 CheckMacValue
+ * 计算绿界支付的 CheckMacValue（绿界官方实战不会错版本）
  * 
- * 严格按照绿界工程师提供的示例进行计算：
- * 1. 将传递参数依照第一个英文字母，由A到Z的顺序来排序
- * 2. 用 & 方式将所有参数串连
- * 3. 参数最前面加上 HashKey=，最后面加上 &HashIV=
- * 4. 将整串字串进行 URL encode
- * 5. 转为小写
- * 6. 以 sha256 方式产生杂凑值
- * 7. 再转大写产生 CheckMacValue
+ * 关键点：
+ * 1. 必须过滤掉 CheckMacValue 本身
+ * 2. 使用环境变量，不要用 fallback 测试值
+ * 3. 使用正确的 urlencode 实现
  */
 export function calculateCheckMacValue(params: Record<string, string>): string {
-  // (1) 将传递参数依照第一个英文字母，由A到Z的顺序来排序
-  // 遇到第一个英文字母相同时，以第二个英文字母来比较，以此类推
-  const sortedKeys = Object.keys(params).sort((a, b) => {
-    // 按字母顺序比较（不区分大小写）
-    const aLower = a.toLowerCase();
-    const bLower = b.toLowerCase();
-    const minLength = Math.min(aLower.length, bLower.length);
-    
-    for (let i = 0; i < minLength; i++) {
-      if (aLower[i] < bLower[i]) return -1;
-      if (aLower[i] > bLower[i]) return 1;
-    }
-    // 如果前面的字符都相同，长度短的排在前面
-    return aLower.length - bLower.length;
-  });
+  // 过滤掉 CheckMacValue，避免循环计算
+  const sortedKeys = Object.keys(params)
+    .filter(k => k !== 'CheckMacValue')
+    .sort();
 
-  // (2) 用 & 方式将所有参数串连
+  // 用 & 方式将所有参数串连
   const paramString = sortedKeys
     .map(key => `${key}=${params[key]}`)
     .join('&');
 
-  // (3) 参数最前面加上 HashKey=，最后面加上 &HashIV=
-  const hashString = `HashKey=${ECPAY_CONFIG.HashKey}&${paramString}&HashIV=${ECPAY_CONFIG.HashIV}`;
+  // 参数最前面加上 HashKey=，最后面加上 &HashIV=
+  // ⚠️ 重要：使用环境变量，不要用 fallback 测试值
+  const hashKey = process.env.ECPAY_HASH_KEY;
+  const hashIV = process.env.ECPAY_HASH_IV;
+  
+  if (!hashKey || !hashIV) {
+    throw new Error('ECPAY_HASH_KEY 和 ECPAY_HASH_IV 环境变量必须设置，不能使用 fallback 测试值');
+  }
 
-  // (4) 将整串字串进行 URL encode（使用 PHP urlencode 等价函数）
-  // 关键：空白字符必须编码为 +，不是 %20
-  const encodedString = ecpayUrlEncode(hashString);
+  const hashString =
+    `HashKey=${hashKey}&` +
+    paramString +
+    `&HashIV=${hashIV}`;
 
-  // (5) 转为小写
-  const lowerString = encodedString.toLowerCase();
+  // URL encode 然后转小写
+  const encoded = ecpayUrlEncode(hashString).toLowerCase();
 
-  // (6) 以 sha256 方式产生杂凑值
-  const hash = crypto.createHash('sha256').update(lowerString).digest('hex');
-
-  // (7) 再转大写产生 CheckMacValue
-  return hash.toUpperCase();
+  // SHA256 哈希然后转大写
+  return crypto
+    .createHash('sha256')
+    .update(encoded)
+    .digest('hex')
+    .toUpperCase();
 }
 
 /**
@@ -137,8 +118,13 @@ export interface PaymentParams {
  * 生成完整的支付参数（包含 CheckMacValue）
  */
 export function generatePaymentParams(params: PaymentParams): Record<string, string> {
+  // 验证配置
+  if (!ECPAY_CONFIG.MerchantID || !ECPAY_CONFIG.HashKey || !ECPAY_CONFIG.HashIV) {
+    throw new Error('绿界支付配置不完整：MerchantID、HashKey、HashIV 必须全部设置环境变量');
+  }
+
   const paymentParams: Record<string, string> = {
-    MerchantID: ECPAY_CONFIG.MerchantID,
+    MerchantID: ECPAY_CONFIG.MerchantID!, // 已验证不为 undefined
     MerchantTradeNo: params.MerchantTradeNo,
     MerchantTradeDate: params.MerchantTradeDate,
     PaymentType: 'aio',
