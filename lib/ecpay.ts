@@ -18,6 +18,43 @@ const ECPAY_CONFIG = {
 };
 
 /**
+ * PHP urlencode 的等价实现
+ * 
+ * 关键差异：
+ * - 空白字符编码为 +（不是 %20）
+ * - 其他特殊字符编码为 %XX 格式
+ * 
+ * 保留不编码的字符：字母、数字、-、_、.
+ */
+function ecpayUrlEncode(str: string): string {
+  let encoded = '';
+  for (let i = 0; i < str.length; i++) {
+    const char = str[i];
+    const charCode = char.charCodeAt(0);
+    
+    // 保留字符：字母、数字、-、_、.
+    if (
+      (charCode >= 48 && charCode <= 57) || // 0-9
+      (charCode >= 65 && charCode <= 90) || // A-Z
+      (charCode >= 97 && charCode <= 122) || // a-z
+      char === '-' ||
+      char === '_' ||
+      char === '.'
+    ) {
+      encoded += char;
+    } else if (char === ' ') {
+      // 空白字符编码为 +
+      encoded += '+';
+    } else {
+      // 其他字符编码为 %XX 格式
+      const hex = charCode.toString(16).toUpperCase().padStart(2, '0');
+      encoded += `%${hex}`;
+    }
+  }
+  return encoded;
+}
+
+/**
  * 计算绿界支付的 CheckMacValue
  * 
  * 步骤：
@@ -66,8 +103,9 @@ export function calculateCheckMacValue(params: Record<string, string>): string {
   // (3) 参数最前面加上 HashKey=，最后面加上 &HashIV=
   const hashString = `HashKey=${ECPAY_CONFIG.HashKey}&${paramString}&HashIV=${ECPAY_CONFIG.HashIV}`;
 
-  // (4) 将整串字串进行 URL encode
-  const encodedString = encodeURIComponent(hashString);
+  // (4) 将整串字串进行 URL encode（使用 PHP urlencode 等价函数）
+  // 关键：空白字符必须编码为 +，不是 %20
+  const encodedString = ecpayUrlEncode(hashString);
 
   // (5) 转为小写
   const lowerString = encodedString.toLowerCase();
