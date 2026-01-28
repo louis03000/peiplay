@@ -115,14 +115,17 @@ export async function POST(request: NextRequest) {
         }
 
         // 付款成功：若為待付款／待確認，更新為「待夥伴確認」
-        if (booking.status === 'PENDING_PAYMENT' || booking.status === 'PENDING') {
+        const wasUnpaid = booking.status === 'PENDING_PAYMENT' || booking.status === 'PENDING';
+        if (wasUnpaid) {
           await client.booking.update({
             where: { id: booking.id },
             data: { status: 'PAID_WAITING_PARTNER_CONFIRMATION' },
           });
         }
 
-        // 发送通知给伙伴（仅於付款成功后）
+        // 僅在「本次由待付款更新為已付款」時發送夥伴通知（避免重複 callback 重發；且絕不於付款前發送）
+        if (!wasUnpaid) return;
+
         const { sendBookingNotificationEmail } = await import('@/lib/email');
         const bookingWithDetails = await client.booking.findUnique({
           where: { id: booking.id },

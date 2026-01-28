@@ -271,7 +271,7 @@ export async function POST(request: NextRequest) {
                     customerId: customer.id,
                     partnerId: partner.id,
                     scheduleId: createdSchedule.id,
-                    status: BookingStatus.PAID_WAITING_PARTNER_CONFIRMATION,
+                    status: BookingStatus.PENDING_PAYMENT,
                     originalAmount: pricing.originalAmount,
                     finalAmount: pricing.originalAmount,
                     serviceType: chatOnly ? 'CHAT_ONLY' : undefined, // 設置服務類型
