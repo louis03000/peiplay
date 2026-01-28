@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import PartnerPageLayout from '@/components/partner/PartnerPageLayout';
 import InfoCard from '@/components/partner/InfoCard';
 import Link from 'next/link';
 
-export default function PaymentSuccessPage() {
+function PaymentSuccessContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [status, setStatus] = useState<'loading' | 'success' | 'failed'>('loading');
@@ -111,5 +111,24 @@ export default function PaymentSuccessPage() {
         </div>
       </InfoCard>
     </PartnerPageLayout>
+  );
+}
+
+export default function PaymentSuccessPage() {
+  return (
+    <Suspense
+      fallback={
+        <PartnerPageLayout title="付款結果" subtitle="" maxWidth="4xl">
+          <InfoCard className="p-8">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-[#6C63FF] mx-auto mb-6"></div>
+              <p className="text-gray-600 text-lg">載入中...</p>
+            </div>
+          </InfoCard>
+        </PartnerPageLayout>
+      }
+    >
+      <PaymentSuccessContent />
+    </Suspense>
   );
 }
