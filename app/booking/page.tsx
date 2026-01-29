@@ -293,6 +293,12 @@ function BookingWizardContent() {
   const [creating, setCreating] = useState(false);
   const [createdBooking, setCreatedBooking] = useState<any>(null);
   const [paymentParams, setPaymentParams] = useState<any>(null);
+  const [paymentPayload, setPaymentPayload] = useState<{
+    amount: number;
+    description: string;
+    itemName: string;
+  } | null>(null);
+  const [loadingPaymentProvider, setLoadingPaymentProvider] = useState(false);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [favoritePartnerIds, setFavoritePartnerIds] = useState<Set<string>>(
     new Set(),
@@ -989,33 +995,18 @@ function BookingWizardContent() {
 
         const data = await response.json();
         setCreatedBooking(data.booking);
-        
-        // 创建支付订单
-        if (!selectedPartner) {
-          throw new Error("缺少夥伴資訊");
-        }
+        if (!selectedPartner) throw new Error("缺少夥伴資訊");
         const totalAmount = onlyChat && selectedPartner.chatOnlyRate
           ? selectedDuration * 60 * (selectedPartner.chatOnlyRate / 30)
           : selectedDuration * selectedPartner.halfHourlyRate * 2;
-        
-        const paymentResponse = await fetch("/api/payment/create", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            bookingId: data.booking.id,
-            amount: totalAmount,
-            description: `${selectedPartner.name} - ${selectedDuration === 1/6 ? "10分鐘" : selectedDuration === 0.5 ? "30分鐘" : selectedDuration === 1 ? "1小時" : `${selectedDuration}小時`}`,
-            itemName: `PeiPlay 遊戲夥伴預約 - ${selectedPartner.name} - ${selectedDuration === 1/6 ? "10分鐘" : selectedDuration === 0.5 ? "30分鐘" : selectedDuration === 1 ? "1小時" : `${selectedDuration}小時`}`,
-          }),
+        const desc = `${selectedPartner.name} - ${selectedDuration === 1/6 ? "10分鐘" : selectedDuration === 0.5 ? "30分鐘" : selectedDuration === 1 ? "1小時" : `${selectedDuration}小時`}`;
+        setPaymentPayload({
+          amount: totalAmount,
+          description: desc,
+          itemName: `PeiPlay 遊戲夥伴預約 - ${desc}`,
         });
-        
-        if (paymentResponse.ok) {
-          const paymentData = await paymentResponse.json();
-          setPaymentParams(paymentData);
-          setStep(onlyAvailable ? 3 : 4); // 跳到付款步驟
-        } else {
-          throw new Error("創建支付訂單失敗");
-        }
+        setPaymentParams(null);
+        setStep(onlyAvailable ? 3 : 4);
       } else {
         // 一般預約 - 需要先獲取 scheduleIds
         if (!selectedTimes || selectedTimes.length === 0) {
@@ -1059,36 +1050,20 @@ function BookingWizardContent() {
         }
 
         const data = await response.json();
-        // 一般预约返回的是数组，取第一个
         const booking = Array.isArray(data.bookings) ? data.bookings[0] : data;
         setCreatedBooking(booking);
-        
-        // 创建支付订单
-        if (!selectedPartner) {
-          throw new Error("缺少夥伴資訊");
-        }
+        if (!selectedPartner) throw new Error("缺少夥伴資訊");
         const totalAmount = onlyChat && selectedPartner.chatOnlyRate
           ? selectedTimes.length * 30 * (selectedPartner.chatOnlyRate / 30)
           : selectedTimes.length * selectedPartner.halfHourlyRate;
-        
-        const paymentResponse = await fetch("/api/payment/create", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            bookingId: booking.id,
-            amount: totalAmount,
-            description: `${selectedPartner.name} - ${selectedTimes.length} 個時段`,
-            itemName: `PeiPlay 遊戲夥伴預約 - ${selectedPartner.name} - ${selectedTimes.length} 個時段`,
-          }),
+        const desc = `${selectedPartner.name} - ${selectedTimes.length} 個時段`;
+        setPaymentPayload({
+          amount: totalAmount,
+          description: desc,
+          itemName: `PeiPlay 遊戲夥伴預約 - ${desc}`,
         });
-        
-        if (paymentResponse.ok) {
-          const paymentData = await paymentResponse.json();
-          setPaymentParams(paymentData);
-          setStep(4); // 跳到付款步驟
-        } else {
-          throw new Error("創建支付訂單失敗");
-        }
+        setPaymentParams(null);
+        setStep(4);
       }
     } catch (error) {
       console.error("預約創建失敗:", error);
@@ -1746,7 +1721,96 @@ function BookingWizardContent() {
                 </div>
               </div>
             )}
-          {/* 付款步驟 */}
+          {/* 付款步驟：選擇付款方式 */}
+          {((onlyAvailable && step === 3) || (!onlyAvailable && step === 4)) &&
+            createdBooking &&
+            paymentPayload &&
+            !paymentParams && (
+              <div className="text-center">
+                <div className="text-lg text-gray-900 font-bold mb-4 text-center">
+                  {onlyAvailable ? "（4）付款" : "（5）付款"}
+                </div>
+                <div className="text-6xl mb-4">💳</div>
+                <p className="text-gray-700 mb-4 text-lg font-medium">
+                  請選擇付款方式
+                </p>
+                <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-6">
+                  <button
+                    type="button"
+                    disabled={loadingPaymentProvider}
+                    onClick={async () => {
+                      setLoadingPaymentProvider(true);
+                      try {
+                        const res = await fetch("/api/payment/create", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({
+                            bookingId: createdBooking.id,
+                            amount: paymentPayload.amount,
+                            description: paymentPayload.description,
+                            itemName: paymentPayload.itemName,
+                            provider: "ecpay",
+                          }),
+                        });
+                        if (!res.ok) throw new Error("取得綠界付款頁失敗");
+                        const data = await res.json();
+                        setPaymentParams(data);
+                      } catch (e) {
+                        alert(e instanceof Error ? e.message : "請重試");
+                      } finally {
+                        setLoadingPaymentProvider(false);
+                      }
+                    }}
+                    className="px-8 py-4 rounded-lg font-semibold text-lg transition-all duration-200 hover:shadow-lg disabled:opacity-50 border-2 border-green-600 bg-white text-green-700 hover:bg-green-50"
+                  >
+                    綠界 ECPay
+                  </button>
+                  <button
+                    type="button"
+                    disabled={loadingPaymentProvider}
+                    onClick={async () => {
+                      setLoadingPaymentProvider(true);
+                      try {
+                        const res = await fetch("/api/payment/create", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({
+                            bookingId: createdBooking.id,
+                            amount: paymentPayload.amount,
+                            description: paymentPayload.description,
+                            itemName: paymentPayload.itemName,
+                            provider: "newebpay",
+                          }),
+                        });
+                        if (!res.ok) {
+                          const err = await res.json();
+                          throw new Error(err.error || "取得藍新付款頁失敗");
+                        }
+                        const data = await res.json();
+                        setPaymentParams(data);
+                      } catch (e) {
+                        alert(e instanceof Error ? e.message : "請重試");
+                      } finally {
+                        setLoadingPaymentProvider(false);
+                      }
+                    }}
+                    className="px-8 py-4 rounded-lg font-semibold text-lg transition-all duration-200 hover:shadow-lg disabled:opacity-50 border-2 border-blue-600 bg-white text-blue-700 hover:bg-blue-50"
+                  >
+                    藍新 NewebPay
+                  </button>
+                </div>
+                <div className="mt-4">
+                  <button
+                    type="button"
+                    onClick={() => setStep(onlyAvailable ? 2 : 3)}
+                    className="px-6 py-3 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition-colors font-medium"
+                  >
+                    回到確認頁面
+                  </button>
+                </div>
+              </div>
+            )}
+          {/* 付款步驟：顯示付款表單（HTML form POST，不可用 fetch） */}
           {((onlyAvailable && step === 3) || (!onlyAvailable && step === 4)) && paymentParams && (
             <div className="text-center">
               <div className="text-lg text-gray-900 font-bold mb-4 text-center">
@@ -1762,15 +1826,12 @@ function BookingWizardContent() {
                 </p>
               </div>
               
-              {/* 支付表单 */}
               <form
-                id="ecpay-form"
+                id="payment-form"
                 method="POST"
                 action={paymentParams.paymentUrl}
                 className="mb-6"
-                onSubmit={() => {
-                  setIsProcessingPayment(true);
-                }}
+                onSubmit={() => setIsProcessingPayment(true)}
               >
                 {Object.entries(paymentParams.paymentParams).map(([key, value]) => (
                   <input
@@ -1793,10 +1854,13 @@ function BookingWizardContent() {
               
               <div className="mt-4">
                 <button
-                  onClick={() => setStep(onlyAvailable ? 2 : 3)}
+                  type="button"
+                  onClick={() => {
+                    setPaymentParams(null);
+                  }}
                   className="px-6 py-3 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition-colors font-medium"
                 >
-                  回到確認頁面
+                  更換付款方式
                 </button>
               </div>
             </div>

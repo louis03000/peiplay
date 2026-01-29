@@ -17,6 +17,16 @@ function PaymentSuccessContent() {
     const rtnMsg = searchParams.get('RtnMsg');
     const merchantTradeNo = searchParams.get('MerchantTradeNo');
 
+    console.log('[payment-success] 收到参数:', { rtnCode, rtnMsg, merchantTradeNo });
+
+    // 如果没有参数，可能是直接访问，显示成功（因为如果支付失败，会有参数）
+    if (!rtnCode && !rtnMsg) {
+      console.log('[payment-success] 没有参数，假设支付成功');
+      setStatus('success');
+      setMessage('付款成功！預約已確認，等待夥伴確認即可。');
+      return;
+    }
+
     if (rtnCode === '1') {
       setStatus('success');
       setMessage('付款成功！預約已確認，等待夥伴確認即可。');
@@ -26,6 +36,24 @@ function PaymentSuccessContent() {
     }
   }, [searchParams]);
 
+  // 确保至少显示一些内容，即使状态还在加载
+  if (status === 'loading') {
+    return (
+      <PartnerPageLayout
+        title="付款結果"
+        subtitle=""
+        maxWidth="4xl"
+      >
+        <InfoCard className="p-8">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-[#6C63FF] mx-auto mb-6"></div>
+            <p className="text-gray-600 text-lg">處理中...</p>
+          </div>
+        </InfoCard>
+      </PartnerPageLayout>
+    );
+  }
+
   return (
     <PartnerPageLayout
       title="付款結果"
@@ -34,13 +62,6 @@ function PaymentSuccessContent() {
     >
       <InfoCard className="p-8">
         <div className="text-center">
-          {status === 'loading' && (
-            <>
-              <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-[#6C63FF] mx-auto mb-6"></div>
-              <p className="text-gray-600 text-lg">處理中...</p>
-            </>
-          )}
-
           {status === 'success' && (
             <>
               <div className="text-8xl mb-6">✅</div>
@@ -116,19 +137,19 @@ function PaymentSuccessContent() {
 
 export default function PaymentSuccessPage() {
   return (
-    <Suspense
-      fallback={
-        <PartnerPageLayout title="付款結果" subtitle="" maxWidth="4xl">
+    <PartnerPageLayout title="付款結果" subtitle="" maxWidth="4xl">
+      <Suspense
+        fallback={
           <InfoCard className="p-8">
             <div className="text-center">
               <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-[#6C63FF] mx-auto mb-6"></div>
               <p className="text-gray-600 text-lg">載入中...</p>
             </div>
           </InfoCard>
-        </PartnerPageLayout>
-      }
-    >
-      <PaymentSuccessContent />
-    </Suspense>
+        }
+      >
+        <PaymentSuccessContent />
+      </Suspense>
+    </PartnerPageLayout>
   );
 }
