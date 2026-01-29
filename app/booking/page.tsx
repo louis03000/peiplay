@@ -300,7 +300,6 @@ function BookingWizardContent() {
   } | null>(null);
   const [loadingPaymentProvider, setLoadingPaymentProvider] = useState(false);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
-  const paymentFormRef = useRef<HTMLFormElement>(null);
   const [favoritePartnerIds, setFavoritePartnerIds] = useState<Set<string>>(
     new Set(),
   );
@@ -647,14 +646,30 @@ function BookingWizardContent() {
     return () => clearInterval(interval);
   }, [selectedPartner, selectedDate]);
 
-  // 取得金流參數後自動導向付款頁（避免「前往付款」按鈕被擋住無法點擊）
+  // 以動態建立表單並 POST 導向金流頁（綠界／藍新皆適用，不依賴 React form ref）
+  const submitPaymentForm = useCallback(() => {
+    if (!paymentParams?.paymentUrl || !paymentParams?.paymentParams || typeof paymentParams.paymentParams !== 'object') return;
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = paymentParams.paymentUrl;
+    form.style.display = 'none';
+    Object.entries(paymentParams.paymentParams).forEach(([key, value]) => {
+      const input = document.createElement('input');
+      input.type = 'hidden';
+      input.name = key;
+      input.value = value != null ? String(value) : '';
+      form.appendChild(input);
+    });
+    document.body.appendChild(form);
+    form.submit();
+  }, [paymentParams?.paymentUrl, paymentParams?.paymentParams]);
+
+  // 取得金流參數後自動導向付款頁
   useEffect(() => {
-    if (!paymentParams?.paymentUrl || !paymentFormRef.current) return;
-    const t = setTimeout(() => {
-      paymentFormRef.current?.submit();
-    }, 300);
+    if (!paymentParams?.paymentUrl) return;
+    const t = setTimeout(() => submitPaymentForm(), 300);
     return () => clearTimeout(t);
-  }, [paymentParams?.paymentUrl]);
+  }, [paymentParams?.paymentUrl, submitPaymentForm]);
 
   // 手動重試函數
   const handleRetry = () => {
@@ -1838,12 +1853,13 @@ function BookingWizardContent() {
                 </p>
               </div>
               
+              {/* 備用：保留表單供無 JS 時使用；實際導向以 submitPaymentForm() 動態建立表單送出 */}
               <form
-                ref={paymentFormRef}
                 id="payment-form"
                 method="POST"
                 action={paymentParams.paymentUrl}
                 className="mb-6"
+                style={{ display: 'none' }}
               >
                 {(paymentParams.paymentParams && typeof paymentParams.paymentParams === 'object'
                   ? Object.entries(paymentParams.paymentParams)
@@ -1862,7 +1878,7 @@ function BookingWizardContent() {
                 type="button"
                 onClick={() => {
                   setIsProcessingPayment(true);
-                  paymentFormRef.current?.submit();
+                  submitPaymentForm();
                 }}
                 className="px-8 py-4 bg-[#00BFA5] text-white rounded-lg font-semibold text-lg transition-all duration-200 hover:shadow-lg cursor-pointer mb-4"
                 style={{
