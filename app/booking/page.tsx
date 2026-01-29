@@ -300,6 +300,7 @@ function BookingWizardContent() {
   } | null>(null);
   const [loadingPaymentProvider, setLoadingPaymentProvider] = useState(false);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+  const paymentFormRef = useRef<HTMLFormElement>(null);
   const [favoritePartnerIds, setFavoritePartnerIds] = useState<Set<string>>(
     new Set(),
   );
@@ -645,6 +646,15 @@ function BookingWizardContent() {
     
     return () => clearInterval(interval);
   }, [selectedPartner, selectedDate]);
+
+  // 取得金流參數後自動導向付款頁（避免「前往付款」按鈕被擋住無法點擊）
+  useEffect(() => {
+    if (!paymentParams?.paymentUrl || !paymentFormRef.current) return;
+    const t = setTimeout(() => {
+      paymentFormRef.current?.submit();
+    }, 300);
+    return () => clearTimeout(t);
+  }, [paymentParams?.paymentUrl]);
 
   // 手動重試函數
   const handleRetry = () => {
@@ -1810,7 +1820,7 @@ function BookingWizardContent() {
                 </div>
               </div>
             )}
-          {/* 付款步驟：顯示付款表單（HTML form POST，不可用 fetch） */}
+          {/* 付款步驟：取得金流參數後自動導向，並提供手動「前往付款」連結（避免按鈕被擋） */}
           {((onlyAvailable && step === 3) || (!onlyAvailable && step === 4)) &&
             paymentParams &&
             paymentParams.paymentUrl && (
@@ -1820,20 +1830,20 @@ function BookingWizardContent() {
               </div>
               <div className="text-6xl mb-4">💳</div>
               <p className="text-gray-700 mb-4 text-lg font-medium">
-                請完成付款以確認預約
+                正在導向至付款頁，請稍候…
               </p>
               <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mt-4 mb-6">
                 <p className="text-yellow-800 text-sm font-medium">
-                  ⚠️ 重要：請在付款頁面中完成付款，付款完成後預約才會生效。
+                  ⚠️ 若未自動跳轉，請點下方「前往付款」按鈕。
                 </p>
               </div>
               
               <form
+                ref={paymentFormRef}
                 id="payment-form"
                 method="POST"
                 action={paymentParams.paymentUrl}
                 className="mb-6"
-                onSubmit={() => setIsProcessingPayment(true)}
               >
                 {(paymentParams.paymentParams && typeof paymentParams.paymentParams === 'object'
                   ? Object.entries(paymentParams.paymentParams)
@@ -1846,16 +1856,21 @@ function BookingWizardContent() {
                     value={value != null ? String(value) : ''}
                   />
                 ))}
-                <button
-                  type="submit"
-                  className="px-8 py-4 bg-[#00BFA5] text-white rounded-lg font-semibold text-lg transition-all duration-200 hover:shadow-lg cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                  style={{
-                    boxShadow: "0 4px 20px rgba(0, 191, 165, 0.3)",
-                  }}
-                >
-                  前往付款
-                </button>
               </form>
+              
+              <button
+                type="button"
+                onClick={() => {
+                  setIsProcessingPayment(true);
+                  paymentFormRef.current?.submit();
+                }}
+                className="px-8 py-4 bg-[#00BFA5] text-white rounded-lg font-semibold text-lg transition-all duration-200 hover:shadow-lg cursor-pointer mb-4"
+                style={{
+                  boxShadow: "0 4px 20px rgba(0, 191, 165, 0.3)",
+                }}
+              >
+                前往付款
+              </button>
               
               <div className="mt-4">
                 <button
