@@ -1811,8 +1811,10 @@ function BookingWizardContent() {
               </div>
             )}
           {/* 付款步驟：顯示付款表單（HTML form POST，不可用 fetch） */}
-          {((onlyAvailable && step === 3) || (!onlyAvailable && step === 4)) && paymentParams && (
-            <div className="text-center">
+          {((onlyAvailable && step === 3) || (!onlyAvailable && step === 4)) &&
+            paymentParams &&
+            paymentParams.paymentUrl && (
+            <div className="px-4 sm:px-10 pb-10 text-center relative z-10" style={{ pointerEvents: 'auto' }}>
               <div className="text-lg text-gray-900 font-bold mb-4 text-center">
                 {onlyAvailable ? "（4）付款" : "（5）付款"}
               </div>
@@ -1833,17 +1835,20 @@ function BookingWizardContent() {
                 className="mb-6"
                 onSubmit={() => setIsProcessingPayment(true)}
               >
-                {Object.entries(paymentParams.paymentParams).map(([key, value]) => (
+                {(paymentParams.paymentParams && typeof paymentParams.paymentParams === 'object'
+                  ? Object.entries(paymentParams.paymentParams)
+                  : []
+                ).map(([key, value]) => (
                   <input
                     key={key}
                     type="hidden"
                     name={key}
-                    value={value as string}
+                    value={value != null ? String(value) : ''}
                   />
                 ))}
                 <button
                   type="submit"
-                  className="px-8 py-4 bg-[#00BFA5] text-white rounded-lg font-semibold text-lg transition-all duration-200 hover:shadow-lg cursor-pointer"
+                  className="px-8 py-4 bg-[#00BFA5] text-white rounded-lg font-semibold text-lg transition-all duration-200 hover:shadow-lg cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                   style={{
                     boxShadow: "0 4px 20px rgba(0, 191, 165, 0.3)",
                   }}
