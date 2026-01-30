@@ -24,6 +24,41 @@ interface WithdrawalHistory {
   rejectionReason?: string
 }
 
+// 檢查今天是否為可提領日（週一或週四）
+const isWithdrawalDay = () => {
+  const today = new Date()
+  const dayOfWeek = today.getDay() // 0=週日, 1=週一, 2=週二, 3=週三, 4=週四, 5=週五, 6=週六
+  return dayOfWeek === 1 || dayOfWeek === 4 // 週一或週四
+}
+
+// 獲取下一個可提領日
+const getNextWithdrawalDay = () => {
+  const today = new Date()
+  const dayOfWeek = today.getDay()
+  
+  let daysUntilNext: number
+  if (dayOfWeek === 1) {
+    // 週一 -> 下一個是週四（3天後）
+    daysUntilNext = 3
+  } else if (dayOfWeek === 4) {
+    // 週四 -> 下一個是週一（4天後）
+    daysUntilNext = 4
+  } else if (dayOfWeek < 1) {
+    // 週日 -> 下一個是週一（1天後）
+    daysUntilNext = 1
+  } else if (dayOfWeek < 4) {
+    // 週二、週三 -> 下一個是週四
+    daysUntilNext = 4 - dayOfWeek
+  } else {
+    // 週五、週六 -> 下一個是週一
+    daysUntilNext = 8 - dayOfWeek
+  }
+  
+  const nextDate = new Date(today)
+  nextDate.setDate(today.getDate() + daysUntilNext)
+  return nextDate
+}
+
 export default function WithdrawalPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
@@ -35,6 +70,16 @@ export default function WithdrawalPage() {
   const [showSuccess, setShowSuccess] = useState(false)
   const [error, setError] = useState('')
   const [showConfirmModal, setShowConfirmModal] = useState(false)
+  const [canWithdraw, setCanWithdraw] = useState(false)
+  const [nextWithdrawalDate, setNextWithdrawalDate] = useState<Date | null>(null)
+
+  // 檢查是否為可提領日
+  useEffect(() => {
+    setCanWithdraw(isWithdrawalDay())
+    if (!isWithdrawalDay()) {
+      setNextWithdrawalDate(getNextWithdrawalDay())
+    }
+  }, [])
 
   useEffect(() => {
     if (status === 'loading') return
@@ -187,7 +232,7 @@ export default function WithdrawalPage() {
         {/* 頁面標題 */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900">申請提領</h1>
-          <p className="mt-2 text-gray-600">申請提領您的收入，管理員將審核後處理</p>
+          <p className="mt-2 text-gray-600">申請提領您的收入，管理員將審核後處理（每週一、四開放申請）</p>
         </div>
 
         {/* 成功提示 */}
@@ -295,6 +340,28 @@ export default function WithdrawalPage() {
               <h2 className="text-lg font-medium text-gray-900">申請提領</h2>
             </div>
             <div className="p-6">
+              {/* 非提領日提示 */}
+              {!canWithdraw && nextWithdrawalDate && (
+                <div className="mb-6 bg-orange-50 border border-orange-200 rounded-md p-4">
+                  <div className="flex">
+                    <div className="flex-shrink-0">
+                      <svg className="h-5 w-5 text-orange-400" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                      </svg>
+                    </div>
+                    <div className="ml-3">
+                      <p className="text-sm font-medium text-orange-800">
+                        今日不開放申請提領
+                      </p>
+                      <p className="text-sm text-orange-700 mt-1">
+                        提領申請僅於<strong>每週一、四</strong>開放。
+                        <br />
+                        下次可申請日期：<strong>{nextWithdrawalDate.toLocaleDateString('zh-TW', { month: 'long', day: 'numeric', weekday: 'long' })}</strong>
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
               <form onSubmit={handleWithdrawalSubmit}>
                 <div className="mb-4">
                   <label htmlFor="amount" className="block text-sm font-medium text-gray-700 mb-2">
@@ -305,13 +372,14 @@ export default function WithdrawalPage() {
                     id="amount"
                     value={withdrawalAmount}
                     onChange={(e) => setWithdrawalAmount(e.target.value)}
-                    placeholder="請輸入提領金額"
+                    placeholder={canWithdraw ? "請輸入提領金額" : "今日不開放提領"}
                     min="100"
                     max={stats?.availableBalance || 0}
                     step="1"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500 text-gray-900 placeholder-gray-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500 text-gray-900 placeholder-gray-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                     style={{ color: '#111827' }}
                     required
+                    disabled={!canWithdraw}
                   />
                   {stats && (
                     <p className="mt-1 text-sm text-gray-500">
@@ -336,6 +404,7 @@ export default function WithdrawalPage() {
                       <div className="ml-3">
                         <p className="text-sm text-blue-800">
                           <strong>注意事項：</strong>
+                          <br />• 提領申請僅於<strong>每週一、四</strong>開放
                           <br />• 提領申請提交後，管理員將審核您的接單記錄和收入
                           <br />• 審核通過後，款項將在 1-3 個工作天內處理
                           <br />• 如有疑問，請聯繫客服
@@ -371,10 +440,10 @@ export default function WithdrawalPage() {
 
                 <button
                   type="submit"
-                  disabled={submitting || !withdrawalAmount || parseFloat(withdrawalAmount) < 100}
+                  disabled={submitting || !withdrawalAmount || parseFloat(withdrawalAmount) < 100 || !canWithdraw}
                   className="w-full bg-purple-600 text-white py-2 px-4 rounded-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {submitting ? '提交中...' : '提交提領申請'}
+                  {!canWithdraw ? '今日不開放提領' : submitting ? '提交中...' : '提交提領申請'}
                 </button>
               </form>
             </div>

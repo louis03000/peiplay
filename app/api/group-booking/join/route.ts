@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { db } from '@/lib/db-resilience';
-import { sendBookingNotificationEmail, sendGroupBookingJoinNotification } from "@/lib/email";
+// Email 通知現在在付款成功後發送（見 /api/payment/callback）
+// import { sendBookingNotificationEmail, sendGroupBookingJoinNotification } from "@/lib/email";
 import { getNowTaipei, addTaipeiTime } from "@/lib/time-utils";
 
 export const dynamic = 'force-dynamic';
@@ -322,6 +323,8 @@ export async function POST(request: Request) {
         }
 
         // 創建 Booking 記錄（用於顯示在「我的預約」中）
+        // ⚠️ 先創建為 PENDING_PAYMENT 狀態，等待付款成功後再更新為 CONFIRMED
+        // 這樣夥伴只有在顧客付款成功後才會看到訂單
         let booking;
         try {
           // 先創建 booking（不設置 orderNumber），然後使用生成的 id 來生成訂單編號
@@ -332,7 +335,7 @@ export async function POST(request: Request) {
               customerId: customer.id,
               partnerId: groupBooking.initiatorId,
               scheduleId: schedule.id,
-              status: 'CONFIRMED',
+              status: 'PENDING_PAYMENT', // 等待付款，付款成功後才會更新為 CONFIRMED
               originalAmount: groupBooking.pricePerPerson || 0,
               finalAmount: groupBooking.pricePerPerson || 0,
               isGroupBooking: true,
@@ -489,29 +492,12 @@ export async function POST(request: Request) {
         maxParticipants: number;
       };
       
-      console.log('✅ 事務成功，準備發送 email 通知');
+      console.log('✅ 事務成功，等待付款完成');
       
-      // ⚠️ 注意：不再在加入群组时发送通知给伙伴
-      // 通知将在支付成功后发送（见 /api/payment/callback）
-      console.log("ℹ️ 群組預約已加入，等待付款完成後再發送通知給夥伴");
-      
-      // 仍然发送加入确认通知给加入者（这是给用户的确认，不是给伙伴的预约通知）
-      sendGroupBookingJoinNotification(
-        emailData.userEmail,
-        emailData.userName,
-        emailData.groupBookingTitle,
-        {
-          groupBookingId: emailData.groupBookingId,
-          title: emailData.groupBookingTitle,
-          startTime: emailData.startTime.toISOString(),
-          endTime: emailData.endTime.toISOString(),
-          pricePerPerson: emailData.pricePerPerson,
-          currentParticipants: emailData.currentParticipants,
-          maxParticipants: emailData.maxParticipants,
-        }
-      ).catch((error) => {
-        console.error('❌ 群組加入確認通知 Email 發送失敗:', error);
-      });
+      // ⚠️ 注意：不再在加入群組時發送任何 email 通知
+      // 所有通知（包括給用戶的確認和給夥伴的預約通知）都將在付款成功後發送
+      // 見 /api/payment/callback
+      console.log("ℹ️ 群組預約已加入（待付款），等待付款完成後再發送所有通知");
 
       // 返回成功響應（移除 emailData）
       const { emailData: _, ...responseData } = result;

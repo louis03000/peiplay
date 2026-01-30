@@ -423,12 +423,14 @@ export async function POST(request: Request) {
               throw new Error(`夥伴 ${partner.partnerName} 的時段已被預約，請選擇其他時段`)
             }
             
+            // ⚠️ 創建為 PENDING_PAYMENT 狀態，等待付款成功後再更新為 PAID_WAITING_PARTNER_CONFIRMATION
+            // 這樣夥伴只有在顧客付款成功後才會看到訂單
             const booking = await tx.booking.create({
               data: {
                 customerId: customer.id,
                 partnerId: partner.partnerId,
                 scheduleId: partner.scheduleId,
-                status: BookingStatus.PAID_WAITING_PARTNER_CONFIRMATION,
+                status: BookingStatus.PENDING_PAYMENT, // 等待付款
                 originalAmount: partner.amount,
                 finalAmount: partner.amount,
                 isMultiPlayerBooking: true,
@@ -574,7 +576,7 @@ export async function POST(request: Request) {
       },
       bookings: result.bookings.map(b => ({
         id: b.bookingId,
-        status: BookingStatus.PAID_WAITING_PARTNER_CONFIRMATION,
+        status: BookingStatus.PENDING_PAYMENT, // 等待付款
         amount: b.amount,
       })),
     })

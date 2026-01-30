@@ -114,19 +114,39 @@ export async function POST(request: NextRequest) {
           });
         }
 
-        // 付款成功：若為待付款／待確認，更新為「待夥伴確認」
+        // 付款成功：若為待付款／待確認，更新狀態
         const wasUnpaid = booking.status === 'PENDING_PAYMENT' || booking.status === 'PENDING';
         if (wasUnpaid) {
+          // 查詢預約詳情，判斷預約類型
+          const bookingDetails = await client.booking.findUnique({
+            where: { id: booking.id },
+            select: {
+              isGroupBooking: true,
+              groupBookingId: true,
+              isMultiPlayerBooking: true,
+              multiPlayerBookingId: true,
+            },
+          });
+
+          // 根據預約類型決定目標狀態
+          // 群組預約：更新為 CONFIRMED（因為群組預約不需要夥伴再次確認）
+          // 多人陪玩/一般預約：更新為 PAID_WAITING_PARTNER_CONFIRMATION（需要夥伴確認）
+          const targetStatus = bookingDetails?.isGroupBooking 
+            ? 'CONFIRMED' 
+            : 'PAID_WAITING_PARTNER_CONFIRMATION';
+
           await client.booking.update({
             where: { id: booking.id },
-            data: { status: 'PAID_WAITING_PARTNER_CONFIRMATION' },
+            data: { status: targetStatus },
           });
+
+          console.log(`✅ 預約狀態已更新為 ${targetStatus}，類型：${bookingDetails?.isGroupBooking ? '群組預約' : bookingDetails?.isMultiPlayerBooking ? '多人陪玩' : '一般預約'}`);
         }
 
-        // 僅在「本次由待付款更新為已付款」時發送夥伴通知（避免重複 callback 重發；且絕不於付款前發送）
+        // 僅在「本次由待付款更新為已付款」時發送通知（避免重複 callback 重發；且絕不於付款前發送）
         if (!wasUnpaid) return;
 
-        const { sendBookingNotificationEmail } = await import('@/lib/email');
+        const { sendBookingNotificationEmail, sendGroupBookingJoinNotification } = await import('@/lib/email');
         const bookingWithDetails = await client.booking.findUnique({
           where: { id: booking.id },
           include: {
@@ -144,33 +164,93 @@ export async function POST(request: NextRequest) {
                 user: true,
               },
             },
+            groupBooking: true,
           },
         });
 
-        if (bookingWithDetails?.schedule?.partner?.user?.email) {
-          const duration = bookingWithDetails.schedule.endTime.getTime() - bookingWithDetails.schedule.startTime.getTime();
-          const durationHours = duration / (1000 * 60 * 60);
+        if (!bookingWithDetails) return;
+
+        // 群組預約：發送通知給加入者和夥伴
+        if (bookingWithDetails.isGroupBooking && bookingWithDetails.groupBooking) {
+          const groupBooking = bookingWithDetails.groupBooking;
           
-          sendBookingNotificationEmail(
-            bookingWithDetails.schedule.partner.user.email,
-            bookingWithDetails.schedule.partner.user.name || bookingWithDetails.schedule.partner.name || '夥伴',
-            bookingWithDetails.customer.user.name || '客戶',
-            {
-              bookingId: bookingWithDetails.id,
-              startTime: bookingWithDetails.schedule.startTime.toISOString(),
-              endTime: bookingWithDetails.schedule.endTime.toISOString(),
-              duration: durationHours,
-              totalCost: bookingWithDetails.finalAmount || bookingWithDetails.originalAmount || 0,
-              customerName: bookingWithDetails.customer.user.name || '客戶',
-              customerEmail: bookingWithDetails.customer.user.email,
-            }
-          )
-            .then(() => {
-              console.log('✅ 支付成功後，預約通知已發送給夥伴:', bookingWithDetails.schedule.partner.user.email);
-            })
-            .catch((error) => {
-              console.error('❌ 發送預約通知失敗:', error);
-            });
+          // 發送給加入者的確認通知
+          if (bookingWithDetails.customer?.user?.email) {
+            sendGroupBookingJoinNotification(
+              bookingWithDetails.customer.user.email,
+              bookingWithDetails.customer.user.name || '您',
+              groupBooking.title || '群組預約',
+              {
+                groupBookingId: groupBooking.id,
+                title: groupBooking.title || '群組預約',
+                startTime: bookingWithDetails.schedule.startTime.toISOString(),
+                endTime: bookingWithDetails.schedule.endTime.toISOString(),
+                pricePerPerson: bookingWithDetails.finalAmount || bookingWithDetails.originalAmount || 0,
+                currentParticipants: groupBooking.currentParticipants,
+                maxParticipants: groupBooking.maxParticipants,
+              }
+            )
+              .then(() => {
+                console.log('✅ 群組預約付款成功通知已發送給加入者:', bookingWithDetails.customer.user.email);
+              })
+              .catch((error) => {
+                console.error('❌ 發送群組預約加入者通知失敗:', error);
+              });
+          }
+
+          // 發送給夥伴的新訂單通知
+          if (bookingWithDetails.schedule?.partner?.user?.email) {
+            const duration = bookingWithDetails.schedule.endTime.getTime() - bookingWithDetails.schedule.startTime.getTime();
+            const durationHours = duration / (1000 * 60 * 60);
+            
+            sendBookingNotificationEmail(
+              bookingWithDetails.schedule.partner.user.email,
+              bookingWithDetails.schedule.partner.user.name || bookingWithDetails.schedule.partner.name || '夥伴',
+              bookingWithDetails.customer.user.name || '客戶',
+              {
+                bookingId: bookingWithDetails.id,
+                startTime: bookingWithDetails.schedule.startTime.toISOString(),
+                endTime: bookingWithDetails.schedule.endTime.toISOString(),
+                duration: durationHours,
+                totalCost: bookingWithDetails.finalAmount || bookingWithDetails.originalAmount || 0,
+                customerName: bookingWithDetails.customer.user.name || '客戶',
+                customerEmail: bookingWithDetails.customer.user.email,
+              }
+            )
+              .then(() => {
+                console.log('✅ 群組預約付款成功，訂單通知已發送給夥伴:', bookingWithDetails.schedule.partner.user.email);
+              })
+              .catch((error) => {
+                console.error('❌ 發送群組預約夥伴通知失敗:', error);
+              });
+          }
+        } else {
+          // 一般預約或多人陪玩：發送給夥伴的新訂單通知
+          if (bookingWithDetails?.schedule?.partner?.user?.email) {
+            const duration = bookingWithDetails.schedule.endTime.getTime() - bookingWithDetails.schedule.startTime.getTime();
+            const durationHours = duration / (1000 * 60 * 60);
+            
+            sendBookingNotificationEmail(
+              bookingWithDetails.schedule.partner.user.email,
+              bookingWithDetails.schedule.partner.user.name || bookingWithDetails.schedule.partner.name || '夥伴',
+              bookingWithDetails.customer.user.name || '客戶',
+              {
+                bookingId: bookingWithDetails.id,
+                startTime: bookingWithDetails.schedule.startTime.toISOString(),
+                endTime: bookingWithDetails.schedule.endTime.toISOString(),
+                duration: durationHours,
+                totalCost: bookingWithDetails.finalAmount || bookingWithDetails.originalAmount || 0,
+                customerName: bookingWithDetails.customer.user.name || '客戶',
+                customerEmail: bookingWithDetails.customer.user.email,
+              }
+            )
+              .then(() => {
+                console.log('✅ 支付成功後，預約通知已發送給夥伴:', bookingWithDetails.schedule.partner.user.email);
+              })
+              .catch((error) => {
+                console.error('❌ 發送預約通知失敗:', error);
+              });
+          }
         }
       }, 'payment:update-booking-status');
     } else {
