@@ -58,6 +58,8 @@ interface GroupBooking {
     joinedAt: string
   }>
   isJoined?: boolean // 標記當前用戶是否已加入
+  myBookingId?: string // 當前用戶的 booking ID
+  myBookingStatus?: string // 當前用戶的 booking 狀態
 }
 
 function GroupBookingContent() {
@@ -88,6 +90,7 @@ function GroupBookingContent() {
   const [showPaymentModal, setShowPaymentModal] = useState(false)
   const [paymentBookingId, setPaymentBookingId] = useState<string | null>(null)
   const [paymentAmount, setPaymentAmount] = useState<number>(0)
+  const [selectedPaymentProvider, setSelectedPaymentProvider] = useState<'ecpay' | 'newebpay'>('ecpay')
 
   // 創建群組表單狀態
   const [createForm, setCreateForm] = useState({
@@ -140,7 +143,7 @@ function GroupBookingContent() {
                 // 檢查參與者的 customer 的 user.id 是否等於當前用戶的 id
                 return (participant as any).Customer?.user?.id === user?.id
               }
-            ) || joinedGroupIds.has(booking.id)
+            ) || joinedGroupIds.has(booking.id) || !!booking.myBookingId
             return { ...booking, isJoined }
           })
         console.log('🔍 [前端] 過濾後的群組預約:', updatedBookings.length, '個')
@@ -198,7 +201,7 @@ function GroupBookingContent() {
               (participant) => {
                 return (participant as any).Customer?.user?.id === user?.id
               }
-            ) || joinedGroupIds.has(booking.id)
+            ) || joinedGroupIds.has(booking.id) || !!booking.myBookingId
             return { ...booking, isJoined }
           })
         setAvailableGroupBookings(updatedGroupBookings)
@@ -290,37 +293,15 @@ function GroupBookingContent() {
         setShowJoinModal(false)
         setJoinedGroupIds(prev => new Set(prev).add(selectedGroupBooking.id))
         
-        // 如果有booking，创建支付订单
+        // 如果有booking，顯示付款選擇 Modal
         if (result.booking && result.booking.id) {
           const totalAmount = selectedGroupBooking.pricePerPerson || 0
           
-          // 创建支付订单
-          const paymentResponse = await fetch("/api/payment/create", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              bookingId: result.booking.id,
-              amount: totalAmount,
-              description: `群組預約 - ${selectedGroupBooking.title}`,
-              itemName: `PeiPlay 群組預約 - ${selectedGroupBooking.title}`,
-            }),
-          });
-          
-          if (paymentResponse.ok) {
-            const paymentData = await paymentResponse.json()
-            setPaymentParams(paymentData)
-            setPaymentBookingId(result.booking.id)
-            setPaymentAmount(totalAmount)
-            setShowPaymentModal(true)
-          } else {
-            if (result.alreadyJoined) {
-              console.log('已經在群組中:', result.message)
-            } else {
-              alert('成功加入群組預約，但創建支付訂單失敗，請稍後完成付款')
-            }
-            loadGroupBookings()
-            setSelectedGroupBooking(null)
-          }
+          // 設置付款資訊並打開 Modal（不立即創建支付訂單）
+          setPaymentBookingId(result.booking.id)
+          setPaymentAmount(totalAmount)
+          setPaymentParams(null) // 重置，顯示選擇頁面
+          setShowPaymentModal(true)
         } else {
           if (result.alreadyJoined) {
             console.log('已經在群組中:', result.message)
@@ -569,10 +550,32 @@ function GroupBookingContent() {
                   </div>
                   
                   {group.currentParticipants < group.maxParticipants ? (
-                    group.isJoined || joinedGroupIds.has(group.id) ? (
-                      <span className="w-full px-4 py-2 bg-green-100 text-green-700 rounded-lg text-center font-medium">
-                        已加入
-                      </span>
+                    (group.isJoined || joinedGroupIds.has(group.id)) ? (
+                      // 檢查是否為未付款狀態
+                      group.myBookingStatus === 'PENDING_PAYMENT' || group.myBookingStatus === 'PENDING' ? (
+                        <div className="flex flex-col gap-2">
+                          <span className="w-full px-4 py-2 bg-red-100 text-red-700 rounded-lg text-center font-semibold">
+                            未付款
+                          </span>
+                          <button
+                            onClick={() => {
+                              // 設置付款資訊並打開 Modal
+                              setPaymentBookingId(group.myBookingId!)
+                              setPaymentAmount(group.pricePerPerson)
+                              setPaymentParams(null) // 重置，顯示選擇頁面
+                              setShowPaymentModal(true)
+                            }}
+                            disabled={loading}
+                            className="w-full px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-lg hover:from-green-600 hover:to-emerald-600 transition-all disabled:opacity-50 font-medium text-sm"
+                          >
+                            前往付款
+                          </button>
+                        </div>
+                      ) : (
+                        <span className="w-full px-4 py-2 bg-green-100 text-green-700 rounded-lg text-center font-medium">
+                          已加入
+                        </span>
+                      )
                     ) : (
                       <button
                         onClick={() => handleJoinClick(group)}
@@ -899,10 +902,32 @@ function GroupBookingContent() {
                       </button>
                       
                       {booking.currentParticipants < booking.maxParticipants + 1 ? (
-                        booking.isJoined || joinedGroupIds.has(booking.id) ? (
-                          <span className="px-4 py-2 bg-green-100 text-green-700 rounded-lg font-medium">
-                            已加入
-                          </span>
+                        (booking.isJoined || joinedGroupIds.has(booking.id)) ? (
+                          // 檢查是否為未付款狀態
+                          booking.myBookingStatus === 'PENDING_PAYMENT' || booking.myBookingStatus === 'PENDING' ? (
+                            <>
+                              <span className="px-4 py-2 bg-red-100 text-red-700 rounded-lg font-semibold">
+                                未付款
+                              </span>
+                              <button
+                                onClick={() => {
+                                  // 設置付款資訊並打開 Modal
+                                  setPaymentBookingId(booking.myBookingId!)
+                                  setPaymentAmount(booking.pricePerPerson)
+                                  setPaymentParams(null) // 重置，顯示選擇頁面
+                                  setShowPaymentModal(true)
+                                }}
+                                disabled={loading}
+                                className="px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-lg hover:from-green-600 hover:to-emerald-600 transition-all disabled:opacity-50 font-medium"
+                              >
+                                前往付款
+                              </button>
+                            </>
+                          ) : (
+                            <span className="px-4 py-2 bg-green-100 text-green-700 rounded-lg font-medium">
+                              已加入
+                            </span>
+                          )
                         ) : (
                           <button
                             onClick={() => handleJoinClick(booking)}
@@ -932,7 +957,7 @@ function GroupBookingContent() {
       </div>
 
       {/* 付款 Modal */}
-      {showPaymentModal && paymentParams && (
+      {showPaymentModal && (
         <div 
           className="fixed top-0 left-0 right-0 bottom-0 w-full h-full min-h-screen bg-black bg-opacity-50 flex items-center justify-center z-50"
           onClick={() => {
@@ -944,46 +969,154 @@ function GroupBookingContent() {
             onClick={(e) => e.stopPropagation()}
           >
             <h2 className="text-2xl font-bold text-gray-900 mb-4 text-center">
-              💳 完成付款
+              💳 選擇付款方式
             </h2>
             <p className="text-gray-700 mb-4 text-center">
-              請完成付款以確認群組預約
+              請選擇您偏好的付款方式
             </p>
+            
+            {/* 付款方式選擇 */}
+            {!paymentParams && (
+              <div className="space-y-3 mb-6">
+                <button
+                  onClick={() => setSelectedPaymentProvider('ecpay')}
+                  className={`w-full px-6 py-4 border-2 rounded-lg transition-all ${
+                    selectedPaymentProvider === 'ecpay'
+                      ? 'border-[#00BFA5] bg-[#00BFA5] bg-opacity-10'
+                      : 'border-gray-300 hover:border-[#00BFA5]'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                        selectedPaymentProvider === 'ecpay' ? 'border-[#00BFA5]' : 'border-gray-300'
+                      }`}>
+                        {selectedPaymentProvider === 'ecpay' && (
+                          <div className="w-3 h-3 rounded-full bg-[#00BFA5]"></div>
+                        )}
+                      </div>
+                      <span className="font-semibold text-gray-900">綠界 ECPay</span>
+                    </div>
+                    <span className="text-sm text-gray-600">信用卡、ATM、超商</span>
+                  </div>
+                </button>
+                
+                <button
+                  onClick={() => setSelectedPaymentProvider('newebpay')}
+                  className={`w-full px-6 py-4 border-2 rounded-lg transition-all ${
+                    selectedPaymentProvider === 'newebpay'
+                      ? 'border-blue-500 bg-blue-50'
+                      : 'border-gray-300 hover:border-blue-500'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                        selectedPaymentProvider === 'newebpay' ? 'border-blue-500' : 'border-gray-300'
+                      }`}>
+                        {selectedPaymentProvider === 'newebpay' && (
+                          <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+                        )}
+                      </div>
+                      <span className="font-semibold text-gray-900">藍新金流 NewebPay</span>
+                    </div>
+                    <span className="text-sm text-gray-600">信用卡、ATM、超商</span>
+                  </div>
+                </button>
+              </div>
+            )}
+            
             <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
               <p className="text-yellow-800 text-sm font-medium">
                 ⚠️ 重要：請在付款頁面中完成付款，付款完成後預約才會生效。
               </p>
             </div>
             
-            {/* 支付表单 */}
-            <form
-              id="ecpay-form"
-              method="POST"
-              action={paymentParams.paymentUrl}
-              className="mb-4"
-            >
-              {Object.entries(paymentParams.paymentParams).map(([key, value]) => (
-                <input
-                  key={key}
-                  type="hidden"
-                  name={key}
-                  value={value as string}
-                />
-              ))}
+            {/* 支付表单（選擇付款方式後顯示） */}
+            {paymentParams ? (
+              <form
+                id="payment-form"
+                method="POST"
+                action={paymentParams.paymentUrl}
+                className="mb-4"
+              >
+                {Object.entries(paymentParams.paymentParams).map(([key, value]) => (
+                  <input
+                    key={key}
+                    type="hidden"
+                    name={key}
+                    value={value as string}
+                  />
+                ))}
+                <button
+                  type="submit"
+                  className={`w-full px-6 py-3 text-white rounded-lg font-semibold text-lg transition-all duration-200 hover:shadow-lg ${
+                    selectedPaymentProvider === 'ecpay' 
+                      ? 'bg-[#00BFA5]' 
+                      : 'bg-blue-500'
+                  }`}
+                  style={{
+                    boxShadow: selectedPaymentProvider === 'ecpay' 
+                      ? "0 4px 20px rgba(0, 191, 165, 0.3)"
+                      : "0 4px 20px rgba(59, 130, 246, 0.3)",
+                  }}
+                >
+                  前往付款
+                </button>
+              </form>
+            ) : (
               <button
-                type="submit"
-                className="w-full px-6 py-3 bg-[#00BFA5] text-white rounded-lg font-semibold text-lg transition-all duration-200 hover:shadow-lg"
+                onClick={async () => {
+                  try {
+                    setLoading(true)
+                    // 創建支付訂單
+                    const paymentResponse = await fetch("/api/payment/create", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        bookingId: paymentBookingId,
+                        amount: paymentAmount,
+                        description: `群組預約`,
+                        itemName: `PeiPlay 群組預約`,
+                        provider: selectedPaymentProvider,
+                      }),
+                    })
+                    
+                    if (paymentResponse.ok) {
+                      const paymentData = await paymentResponse.json()
+                      setPaymentParams(paymentData)
+                    } else {
+                      alert('創建支付訂單失敗，請稍後再試')
+                      setShowPaymentModal(false)
+                    }
+                  } catch (error) {
+                    console.error('創建支付訂單失敗:', error)
+                    alert('創建支付訂單失敗，請稍後再試')
+                    setShowPaymentModal(false)
+                  } finally {
+                    setLoading(false)
+                  }
+                }}
+                disabled={loading}
+                className={`w-full px-6 py-3 text-white rounded-lg font-semibold text-lg transition-all duration-200 hover:shadow-lg disabled:opacity-50 ${
+                  selectedPaymentProvider === 'ecpay' 
+                    ? 'bg-[#00BFA5]' 
+                    : 'bg-blue-500'
+                }`}
                 style={{
-                  boxShadow: "0 4px 20px rgba(0, 191, 165, 0.3)",
+                  boxShadow: selectedPaymentProvider === 'ecpay' 
+                    ? "0 4px 20px rgba(0, 191, 165, 0.3)"
+                    : "0 4px 20px rgba(59, 130, 246, 0.3)",
                 }}
               >
-                前往付款
+                {loading ? '處理中...' : '確認並前往付款'}
               </button>
-            </form>
+            )}
             
             <button
               onClick={() => {
                 setShowPaymentModal(false)
+                setPaymentParams(null)
                 loadGroupBookings()
                 setSelectedGroupBooking(null)
               }}

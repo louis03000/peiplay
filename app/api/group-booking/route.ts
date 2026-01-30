@@ -208,6 +208,10 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const partnerId = searchParams.get('partnerId');
     const status = searchParams.get('status');
+    
+    // 獲取當前用戶的 session（如果有）
+    const session = await getServerSession(authOptions);
+    const currentUserId = session?.user?.id;
 
     const result = await db.query(async (client) => {
       try {
@@ -338,6 +342,7 @@ export async function GET(request: Request) {
             bookings: {
               select: {
                 id: true,
+                status: true,
                 serviceType: true,
                 customer: {
                   select: {
@@ -406,6 +411,19 @@ export async function GET(request: Request) {
               ? (group as any).games 
               : [];
             
+            // 查找當前用戶的 booking（如果已登入）
+            let myBookingId: string | undefined;
+            let myBookingStatus: string | undefined;
+            if (currentUserId && group.bookings) {
+              const myBooking = group.bookings.find((b: any) => 
+                b.customer?.user?.id === currentUserId
+              );
+              if (myBooking) {
+                myBookingId = myBooking.id;
+                myBookingStatus = myBooking.status;
+              }
+            }
+            
             return {
               id: group.id,
               partnerId: group.initiatorId,
@@ -420,6 +438,8 @@ export async function GET(request: Request) {
               endTime: group.endTime instanceof Date ? group.endTime.toISOString() : group.endTime,
               status: group.status,
               createdAt: group.createdAt instanceof Date ? group.createdAt.toISOString() : group.createdAt,
+              myBookingId, // 當前用戶的 booking ID
+              myBookingStatus, // 當前用戶的 booking 狀態
               partner: initiatorPartner && initiatorPartner.user ? {
                 id: initiatorPartner.id,
                 name: initiatorPartner.name,
