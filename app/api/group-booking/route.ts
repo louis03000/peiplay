@@ -424,13 +424,18 @@ export async function GET(request: Request) {
               }
             }
             
+            // 只計算已付款的參與者（CONFIRMED），未付款不納入「已加入」人數
+            const paidParticipantCount = group.bookings
+              ? group.bookings.filter((b: any) => b.status === 'CONFIRMED').length
+              : 0;
+            
             return {
               id: group.id,
               partnerId: group.initiatorId,
               title: group.title,
               description: group.description,
               maxParticipants: group.maxParticipants,
-              currentParticipants: group.GroupBookingParticipant.length,
+              currentParticipants: paidParticipantCount,
               pricePerPerson: group.pricePerPerson,
               games: games,
               serviceType: serviceType, // 添加服務類型
@@ -489,7 +494,7 @@ export async function GET(request: Request) {
               title: group.title || '未知標題',
               description: group.description,
               maxParticipants: group.maxParticipants,
-              currentParticipants: group.GroupBookingParticipant?.length || 0,
+              currentParticipants: (group.bookings && group.bookings.filter((b: any) => b.status === 'CONFIRMED').length) || 0,
               pricePerPerson: group.pricePerPerson,
               games: [],
               startTime: group.startTime instanceof Date ? group.startTime.toISOString() : group.startTime,

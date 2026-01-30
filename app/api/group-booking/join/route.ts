@@ -53,6 +53,10 @@ export async function POST(request: Request) {
               status: true,
               joinedAt: true,
             }
+          },
+          // 用於判斷「已滿」：只計算已付款（CONFIRMED）的參與者
+          bookings: {
+            select: { id: true, status: true }
           }
         }
       });
@@ -81,15 +85,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: '群組預約即將開始，剩餘時間不足10分鐘，無法加入' }, { status: 400 });
     }
 
-    // maxParticipants 表示除了夥伴之外的參與者數量
-    // 總人數 = maxParticipants + 1（夥伴）
-    // 所以檢查時應該：參與者數量（包括夥伴）<= maxParticipants + 1
-    // 但因為夥伴已經在 GroupBookingParticipant 中，所以檢查：參與者數量 <= maxParticipants + 1
-    // 或者更簡單：除了夥伴之外的參與者數量 < maxParticipants
-    const nonPartnerParticipants = groupBooking.GroupBookingParticipant.filter(
-      p => !p.partnerId || p.partnerId !== groupBooking.initiatorId
-    );
-    if (nonPartnerParticipants.length >= groupBooking.maxParticipants) {
+    // 只將「已付款」的參與者納入人數；未付款不算加入群組
+    // maxParticipants 表示除了夥伴之外的參與者數量，只計算 status = CONFIRMED 的 booking
+    const paidParticipantCount = (groupBooking as any).bookings
+      ? (groupBooking as any).bookings.filter((b: { status: string }) => b.status === 'CONFIRMED').length
+      : 0;
+    if (paidParticipantCount >= groupBooking.maxParticipants) {
       return NextResponse.json({ error: '群組預約已滿' }, { status: 400 });
     }
 
@@ -388,7 +389,7 @@ export async function POST(request: Request) {
           }
         }
 
-        // 重新查詢群組以獲取最新的參與人數
+        // 重新查詢群組以獲取最新的參與人數（只計算已付款）
         const updatedGroupBooking = await tx.groupBooking.findUnique({
           where: { id: groupBookingId },
           select: {
@@ -410,7 +411,8 @@ export async function POST(request: Request) {
                 status: true,
                 joinedAt: true,
               }
-            }
+            },
+            bookings: { select: { status: true } }
           }
         });
 
@@ -434,9 +436,12 @@ export async function POST(request: Request) {
           pricePerPerson: updatedGroupBooking?.pricePerPerson || groupBooking.pricePerPerson || 0,
           initiatorId: groupBooking.initiatorId,
           groupBookingTitle: updatedGroupBooking?.title || groupBooking.title || '未命名群組',
-          currentParticipants: updatedGroupBooking?.GroupBookingParticipant.length || (groupBooking.GroupBookingParticipant.length + 1),
+          currentParticipants: (updatedGroupBooking?.bookings?.filter((b: { status: string }) => b.status === 'CONFIRMED').length) ?? 0,
           maxParticipants: updatedGroupBooking?.maxParticipants || groupBooking.maxParticipants,
         };
+        
+        // 只將已付款納入人數；剛加入未付款不算
+        const paidCount = (updatedGroupBooking?.bookings?.filter((b: { status: string }) => b.status === 'CONFIRMED').length) ?? 0;
         
         // 返回成功響應（事務會在這裡提交）
         return {
@@ -447,7 +452,7 @@ export async function POST(request: Request) {
             title: updatedGroupBooking?.title || groupBooking.title,
             description: updatedGroupBooking?.description || groupBooking.description,
             maxParticipants: updatedGroupBooking?.maxParticipants || groupBooking.maxParticipants,
-            currentParticipants: updatedGroupBooking?.GroupBookingParticipant.length || (groupBooking.GroupBookingParticipant.length + 1),
+            currentParticipants: paidCount,
             pricePerPerson: updatedGroupBooking?.pricePerPerson || groupBooking.pricePerPerson,
             status: updatedGroupBooking?.status || groupBooking.status,
             startTime: startTimeResponse.toISOString(),

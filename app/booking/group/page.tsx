@@ -872,7 +872,7 @@ function GroupBookingContent() {
                     </div>
                     <div className="text-right">
                       <div className="text-sm text-gray-500">
-                        {booking.currentParticipants}/{booking.maxParticipants + 1} 人
+                        {booking.currentParticipants}/{booking.maxParticipants} 人
                       </div>
                       <div className="text-sm text-gray-500">
                         {new Date(booking.startTime).toLocaleDateString('zh-TW', { timeZone: 'Asia/Taipei' })} {new Date(booking.startTime).toLocaleTimeString('zh-TW', { timeZone: 'Asia/Taipei', hour: '2-digit', minute: '2-digit', hour12: false })} - {new Date(booking.endTime).toLocaleTimeString('zh-TW', { timeZone: 'Asia/Taipei', hour: '2-digit', minute: '2-digit', hour12: false })}
@@ -901,7 +901,7 @@ function GroupBookingContent() {
                         查看詳情
                       </button>
                       
-                      {booking.currentParticipants < booking.maxParticipants + 1 ? (
+                      {booking.currentParticipants < booking.maxParticipants ? (
                         (booking.isJoined || joinedGroupIds.has(booking.id)) ? (
                           // 檢查是否為未付款狀態
                           booking.myBookingStatus === 'PENDING_PAYMENT' || booking.myBookingStatus === 'PENDING' ? (

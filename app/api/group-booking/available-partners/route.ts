@@ -221,8 +221,14 @@ export async function GET(request: Request) {
         ? (group as any).games 
         : (partner?.games || []);
 
+      // 只計算已付款（CONFIRMED）的參與者，未付款不納入「已加入」人數
+      const paidParticipantCount = group.bookings
+        ? group.bookings.filter((b: any) => b.status === 'CONFIRMED').length
+        : 0;
+
       return {
         ...group,
+        currentParticipants: paidParticipantCount,
         games: games, // 添加遊戲列表
         serviceType: serviceType, // 添加服務類型
         partner: {
